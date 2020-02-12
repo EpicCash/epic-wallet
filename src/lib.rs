@@ -11,8 +11,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use grin_wallet_config as config;
-use grin_wallet_util::grin_api as api;
-use grin_wallet_util::grin_util as util;
+use epic_wallet_config as config;
+use epic_wallet_util::epic_api as api;
+use epic_wallet_util::epic_util as util;
 
 pub mod cmd;

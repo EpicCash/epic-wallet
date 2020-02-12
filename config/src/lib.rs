@@ -23,8 +23,8 @@
 #[macro_use]
 extern crate serde_derive;
 
-use grin_wallet_util::grin_core as core;
-use grin_wallet_util::grin_util as util;
+use epic_wallet_util::epic_core as core;
+use epic_wallet_util::epic_util as util;
 
 mod comments;
 pub mod config;

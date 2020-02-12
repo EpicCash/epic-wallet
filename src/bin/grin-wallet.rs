@@ -22,13 +22,13 @@ extern crate log;
 use crate::core::global;
 use crate::util::init_logger;
 use clap::App;
-use grin_wallet_config as config;
-use grin_wallet_impls::HTTPNodeClient;
-use grin_wallet_util::grin_core as core;
-use grin_wallet_util::grin_util as util;
+use epic_wallet_config as config;
+use epic_wallet_impls::HTTPNodeClient;
+use epic_wallet_util::epic_core as core;
+use epic_wallet_util::epic_util as util;
 use std::env;
 
-use grin_wallet::cmd;
+use epic_wallet::cmd;
 
 // include build information
 pub mod built_info {

@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-extern crate grin_apiwallet as apiwallet;
-extern crate grin_libwallet as libwallet;
-extern crate grin_refwallet as wallet;
-extern crate grin_wallet_config as wallet_config;
+extern crate epic_apiwallet as apiwallet;
+extern crate epic_libwallet as libwallet;
+extern crate epic_refwallet as wallet;
+extern crate epic_wallet_config as wallet_config;
 #[macro_use]
 extern crate log;
 
@@ -29,12 +29,12 @@ use self::wallet::controller;
 use self::wallet::lmdb_wallet::LMDBBackend;
 use self::wallet::{HTTPNodeClient, HTTPWalletCommAdapter};
 use self::wallet_config::WalletConfig;
-use grin_api as api;
-use grin_core as core;
-use grin_keychain as keychain;
-use grin_p2p as p2p;
-use grin_servers as servers;
-use grin_util as util;
+use epic_api as api;
+use epic_core as core;
+use epic_keychain as keychain;
+use epic_p2p as p2p;
+use epic_servers as servers;
+use epic_util as util;
 use p2p::PeerAddr;
 use std::cmp;
 use std::default::Default;

@@ -15,7 +15,7 @@
 use crate::cmd::wallet_args;
 use crate::config::GlobalWalletConfig;
 use clap::ArgMatches;
-use grin_wallet_libwallet::NodeClient;
+use epic_wallet_libwallet::NodeClient;
 use semver::Version;
 use std::thread;
 use std::time::Duration;

@@ -22,11 +22,11 @@
 #![deny(unused_mut)]
 #![warn(missing_docs)]
 
-use grin_wallet_config as config;
-use grin_wallet_util::grin_core;
-use grin_wallet_util::grin_keychain;
-use grin_wallet_util::grin_store;
-use grin_wallet_util::grin_util;
+use epic_wallet_config as config;
+use epic_wallet_util::epic_core;
+use epic_wallet_util::epic_keychain;
+use epic_wallet_util::epic_store;
+use epic_wallet_util::epic_util;
 
 use blake2_rfc as blake2;
 

@@ -34,8 +34,8 @@ const LISTEN_SLEEP_DURATION: Duration = Duration::from_millis(5000);
 const POLL_SLEEP_DURATION: Duration = Duration::from_millis(1000);
 
 // Which topic names to use for communication
-const SLATE_NEW: &str = "grin_slate_new";
-const SLATE_SIGNED: &str = "grin_slate_signed";
+const SLATE_NEW: &str = "epic_slate_new";
+const SLATE_SIGNED: &str = "epic_slate_signed";
 
 #[derive(Clone)]
 pub struct KeybaseChannel(String);

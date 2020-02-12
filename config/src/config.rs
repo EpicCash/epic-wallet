@@ -42,19 +42,19 @@ pub const API_SECRET_FILE_NAME: &'static str = ".api_secret";
 /// Owner API secret
 pub const OWNER_API_SECRET_FILE_NAME: &'static str = ".owner_api_secret";
 
-fn get_grin_path(chain_type: &global::ChainTypes) -> Result<PathBuf, ConfigError> {
+fn get_epic_path(chain_type: &global::ChainTypes) -> Result<PathBuf, ConfigError> {
 	// Check if grin dir exists
-	let mut grin_path = match dirs::home_dir() {
+	let mut epic_path = match dirs::home_dir() {
 		Some(p) => p,
 		None => PathBuf::new(),
 	};
-	grin_path.push(GRIN_HOME);
-	grin_path.push(chain_type.shortname());
+	epic_path.push(GRIN_HOME);
+	epic_path.push(chain_type.shortname());
 	// Create if the default path doesn't exist
-	if !grin_path.exists() {
-		fs::create_dir_all(grin_path.clone())?;
+	if !epic_path.exists() {
+		fs::create_dir_all(epic_path.clone())?;
 	}
-	Ok(grin_path)
+	Ok(epic_path)
 }
 
 fn check_config_current_dir(path: &str) -> Option<PathBuf> {
@@ -102,11 +102,11 @@ fn check_api_secret_file(
 	data_path: Option<PathBuf>,
 	file_name: &str,
 ) -> Result<(), ConfigError> {
-	let grin_path = match data_path {
+	let epic_path = match data_path {
 		Some(p) => p,
-		None => get_grin_path(chain_type)?,
+		None => get_epic_path(chain_type)?,
 	};
-	let mut api_secret_path = grin_path.clone();
+	let mut api_secret_path = epic_path.clone();
 	api_secret_path.push(file_name);
 	if !api_secret_path.exists() {
 		init_api_secret(&api_secret_path)
@@ -127,13 +127,13 @@ pub fn initial_setup_wallet(
 		GlobalWalletConfig::new(p.to_str().unwrap())
 	} else {
 		// Check if grin dir exists
-		let grin_path = match data_path {
+		let epic_path = match data_path {
 			Some(p) => p,
-			None => get_grin_path(chain_type)?,
+			None => get_epic_path(chain_type)?,
 		};
 
 		// Get path to default config file
-		let mut config_path = grin_path.clone();
+		let mut config_path = epic_path.clone();
 		config_path.push(WALLET_CONFIG_FILE_NAME);
 
 		// Return defaults if file doesn't exist
@@ -141,7 +141,7 @@ pub fn initial_setup_wallet(
 			let mut default_config = GlobalWalletConfig::for_chain(chain_type);
 			default_config.config_file_path = Some(config_path);
 			// update paths relative to current dir
-			default_config.update_paths(&grin_path);
+			default_config.update_paths(&epic_path);
 			Ok(default_config)
 		} else {
 			GlobalWalletConfig::new(config_path.to_str().unwrap())

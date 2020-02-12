@@ -18,21 +18,21 @@ use crate::util::file::get_first_line;
 use crate::util::{to_hex, Mutex, ZeroingString};
 /// Argument parsing and error handling for wallet commands
 use clap::ArgMatches;
-use failure::Fail;
-use grin_wallet_config::{TorConfig, WalletConfig};
-use grin_wallet_controller::command;
-use grin_wallet_controller::{Error, ErrorKind};
-use grin_wallet_impls::tor::config::is_tor_address;
-use grin_wallet_impls::{DefaultLCProvider, DefaultWalletImpl};
-use grin_wallet_impls::{PathToSlate, SlateGetter as _};
-use grin_wallet_libwallet::Slate;
-use grin_wallet_libwallet::{
+use epic_wallet_config::{TorConfig, WalletConfig};
+use epic_wallet_controller::command;
+use epic_wallet_controller::{Error, ErrorKind};
+use epic_wallet_impls::tor::config::is_tor_address;
+use epic_wallet_impls::{DefaultLCProvider, DefaultWalletImpl};
+use epic_wallet_impls::{PathToSlate, SlateGetter as _};
+use epic_wallet_libwallet::Slate;
+use epic_wallet_libwallet::{
 	address, IssueInvoiceTxArgs, NodeClient, WalletInst, WalletLCProvider,
 };
-use grin_wallet_util::grin_core as core;
-use grin_wallet_util::grin_core::core::amount_to_hr_string;
-use grin_wallet_util::grin_core::global;
-use grin_wallet_util::grin_keychain as keychain;
+use epic_wallet_util::epic_core as core;
+use epic_wallet_util::epic_core::core::amount_to_hr_string;
+use epic_wallet_util::epic_core::global;
+use epic_wallet_util::epic_keychain as keychain;
+use failure::Fail;
 use linefeed::terminal::Signal;
 use linefeed::{Interface, ReadResult};
 use rpassword;
@@ -824,7 +824,7 @@ where
 
 	// legacy hack to avoid the need for changes in existing grin-wallet.toml files
 	// remove `wallet_data` from end of path as
-	// new lifecycle provider assumes grin_wallet.toml is in root of data directory
+	// new lifecycle provider assumes epic_wallet.toml is in root of data directory
 	let mut top_level_wallet_dir = PathBuf::from(wallet_config.clone().data_file_dir);
 	if top_level_wallet_dir.ends_with(GRIN_WALLET_DIR) {
 		top_level_wallet_dir.pop();

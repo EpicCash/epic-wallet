@@ -18,12 +18,12 @@ use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use std::io::Cursor;
 use uuid::Uuid;
 
-use crate::grin_core::consensus::valid_header_version;
-use crate::grin_core::core::HeaderVersion;
-use crate::grin_keychain::{Identifier, Keychain};
-use crate::grin_util::secp::key::SecretKey;
-use crate::grin_util::secp::pedersen;
-use crate::grin_util::Mutex;
+use crate::epic_core::consensus::valid_header_version;
+use crate::epic_core::core::HeaderVersion;
+use crate::epic_keychain::{Identifier, Keychain};
+use crate::epic_util::secp::key::SecretKey;
+use crate::epic_util::secp::pedersen;
+use crate::epic_util::Mutex;
 use crate::internal::{selection, updater};
 use crate::slate::Slate;
 use crate::types::{Context, NodeClient, StoredProofInfo, TxLogEntryType, WalletBackend};
@@ -549,12 +549,12 @@ mod test {
 	use super::*;
 	use rand::rngs::mock::StepRng;
 
-	use crate::grin_core::core::KernelFeatures;
-	use crate::grin_core::libtx::{build, ProofBuilder};
-	use crate::grin_keychain::{
+	use crate::epic_core::core::KernelFeatures;
+	use crate::epic_core::libtx::{build, ProofBuilder};
+	use crate::epic_keychain::{
 		BlindSum, BlindingFactor, ExtKeychain, ExtKeychainPath, Keychain, SwitchCommitmentType,
 	};
-	use crate::grin_util::{secp, static_secp_instance};
+	use crate::epic_util::{secp, static_secp_instance};
 
 	#[test]
 	// demonstrate that input.commitment == referenced output.commitment

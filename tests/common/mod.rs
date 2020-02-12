@@ -12,11 +12,11 @@
 // limitations under the License.
 
 //! Common functions for wallet integration tests
-extern crate grin_wallet;
+extern crate epic_wallet;
 
-use grin_wallet_config as config;
-use grin_wallet_impls::test_framework::LocalWalletClient;
-use grin_wallet_util::grin_util as util;
+use epic_wallet_config as config;
+use epic_wallet_impls::test_framework::LocalWalletClient;
+use epic_wallet_util::epic_util as util;
 
 use clap::{App, ArgMatches};
 use std::path::PathBuf;
@@ -24,17 +24,17 @@ use std::sync::Arc;
 use std::{env, fs};
 use util::{Mutex, ZeroingString};
 
-use grin_wallet_api::{EncryptedRequest, EncryptedResponse};
-use grin_wallet_config::{GlobalWalletConfig, WalletConfig, GRIN_WALLET_DIR};
-use grin_wallet_impls::{DefaultLCProvider, DefaultWalletImpl};
-use grin_wallet_libwallet::{NodeClient, WalletInfo, WalletInst};
-use grin_wallet_util::grin_core::global::{self, ChainTypes};
-use grin_wallet_util::grin_keychain::ExtKeychain;
-use grin_wallet_util::grin_util::{from_hex, static_secp_instance};
+use epic_wallet_api::{EncryptedRequest, EncryptedResponse};
+use epic_wallet_config::{GlobalWalletConfig, WalletConfig, GRIN_WALLET_DIR};
+use epic_wallet_impls::{DefaultLCProvider, DefaultWalletImpl};
+use epic_wallet_libwallet::{NodeClient, WalletInfo, WalletInst};
+use epic_wallet_util::epic_core::global::{self, ChainTypes};
+use epic_wallet_util::epic_keychain::ExtKeychain;
+use epic_wallet_util::epic_util::{from_hex, static_secp_instance};
 use util::secp::key::{PublicKey, SecretKey};
 
-use grin_wallet::cmd::wallet_args;
-use grin_wallet_util::grin_api as api;
+use epic_wallet::cmd::wallet_args;
+use epic_wallet_util::epic_api as api;
 
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -138,7 +138,7 @@ pub fn setup(test_dir: &str) {
 pub fn config_command_wallet(
 	dir_name: &str,
 	wallet_name: &str,
-) -> Result<(), grin_wallet_controller::Error> {
+) -> Result<(), epic_wallet_controller::Error> {
 	let mut current_dir;
 	let mut default_config = GlobalWalletConfig::default();
 	current_dir = env::current_dir().unwrap_or_else(|e| {
@@ -150,7 +150,7 @@ pub fn config_command_wallet(
 	let mut config_file_name = current_dir.clone();
 	config_file_name.push("grin-wallet.toml");
 	if config_file_name.exists() {
-		return Err(grin_wallet_controller::ErrorKind::ArgumentError(
+		return Err(epic_wallet_controller::ErrorKind::ArgumentError(
 			"grin-wallet.toml already exists in the target directory. Please remove it first"
 				.to_owned(),
 		))?;
@@ -225,7 +225,7 @@ pub fn instantiate_wallet(
 		>,
 		Option<SecretKey>,
 	),
-	grin_wallet_controller::Error,
+	epic_wallet_controller::Error,
 > {
 	wallet_config.chain_type = None;
 	let mut wallet = Box::new(DefaultWalletImpl::<LocalWalletClient>::new(node_client).unwrap())
@@ -239,7 +239,7 @@ pub fn instantiate_wallet(
 	let lc = wallet.lc_provider().unwrap();
 	// legacy hack to avoid the need for changes in existing grin-wallet.toml files
 	// remove `wallet_data` from end of path as
-	// new lifecycle provider assumes grin_wallet.toml is in root of data directory
+	// new lifecycle provider assumes epic_wallet.toml is in root of data directory
 	let mut top_level_wallet_dir = PathBuf::from(wallet_config.clone().data_file_dir);
 	if top_level_wallet_dir.ends_with(GRIN_WALLET_DIR) {
 		top_level_wallet_dir.pop();
@@ -261,7 +261,7 @@ pub fn execute_command(
 	wallet_name: &str,
 	client: &LocalWalletClient,
 	arg_vec: Vec<&str>,
-) -> Result<String, grin_wallet_controller::Error> {
+) -> Result<String, epic_wallet_controller::Error> {
 	let args = app.clone().get_matches_from(arg_vec);
 	let _ = get_wallet_subcommand(test_dir, wallet_name, args.clone());
 	let config = initial_setup_wallet(test_dir, wallet_name);
@@ -288,7 +288,7 @@ pub fn execute_command_no_setup<C, F>(
 	client: &C,
 	arg_vec: Vec<&str>,
 	f: F,
-) -> Result<String, grin_wallet_controller::Error>
+) -> Result<String, epic_wallet_controller::Error>
 where
 	C: NodeClient + 'static + Clone,
 	F: FnOnce(

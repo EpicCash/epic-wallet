@@ -16,15 +16,15 @@
 
 use uuid::Uuid;
 
-use crate::grin_core::core::hash::Hashed;
-use crate::grin_core::core::Transaction;
-use crate::grin_core::ser;
-use crate::grin_util;
-use crate::grin_util::secp::key::SecretKey;
-use crate::grin_util::Mutex;
+use crate::epic_core::core::hash::Hashed;
+use crate::epic_core::core::Transaction;
+use crate::epic_core::ser;
+use crate::epic_util;
+use crate::epic_util::secp::key::SecretKey;
+use crate::epic_util::Mutex;
 
 use crate::api_impl::owner_updater::StatusMessage;
-use crate::grin_keychain::{Identifier, Keychain};
+use crate::epic_keychain::{Identifier, Keychain};
 use crate::internal::{keys, scan, selection, tx, updater};
 use crate::slate::{PaymentInfo, Slate};
 use crate::types::{AcctPathMapping, NodeClient, TxLogEntry, TxWrapper, WalletBackend, WalletInfo};
@@ -527,7 +527,7 @@ pub fn post_tx<'a, C>(client: &C, tx: &Transaction, fluff: bool) -> Result<(), E
 where
 	C: NodeClient + 'a,
 {
-	let tx_hex = grin_util::to_hex(ser::ser_vec(tx, ser::ProtocolVersion(1)).unwrap());
+	let tx_hex = epic_util::to_hex(ser::ser_vec(tx, ser::ProtocolVersion(1)).unwrap());
 	let res = client.post_tx(&TxWrapper { tx_hex: tx_hex }, fluff);
 	if let Err(e) = res {
 		error!("api: post_tx: failed with error: {}", e);

@@ -16,16 +16,16 @@
 //! implementation
 
 use crate::config::{TorConfig, WalletConfig};
+use crate::epic_core::core::hash::Hash;
+use crate::epic_core::core::{Output, Transaction, TxKernel};
+use crate::epic_core::libtx::{aggsig, secp_ser};
+use crate::epic_core::{global, ser};
+use crate::epic_keychain::{Identifier, Keychain};
+use crate::epic_util::logger::LoggingConfig;
+use crate::epic_util::secp::key::{PublicKey, SecretKey};
+use crate::epic_util::secp::{self, pedersen, Secp256k1};
+use crate::epic_util::ZeroingString;
 use crate::error::{Error, ErrorKind};
-use crate::grin_core::core::hash::Hash;
-use crate::grin_core::core::{Output, Transaction, TxKernel};
-use crate::grin_core::libtx::{aggsig, secp_ser};
-use crate::grin_core::{global, ser};
-use crate::grin_keychain::{Identifier, Keychain};
-use crate::grin_util::logger::LoggingConfig;
-use crate::grin_util::secp::key::{PublicKey, SecretKey};
-use crate::grin_util::secp::{self, pedersen, Secp256k1};
-use crate::grin_util::ZeroingString;
 use crate::slate::ParticipantMessages;
 use crate::slate_versions::ser as dalek_ser;
 use chrono::prelude::*;

@@ -46,7 +46,7 @@ pub trait OwnerRpcS {
 	# Json rpc example
 
 	```
-	# grin_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
+	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
 	# r#"
 	{
 		"jsonrpc": "2.0",
@@ -83,7 +83,7 @@ pub trait OwnerRpcS {
 	# Json rpc example
 
 	```
-	# grin_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
+	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
 	# r#"
 	{
 		"jsonrpc": "2.0",
@@ -116,7 +116,7 @@ pub trait OwnerRpcS {
 	# Json rpc example
 
 	```
-	# grin_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
+	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
 	# r#"
 	{
 		"jsonrpc": "2.0",
@@ -149,7 +149,7 @@ pub trait OwnerRpcS {
 	# Json rpc example
 
 	```
-	# grin_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
+	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
 	# r#"
 	{
 		"jsonrpc": "2.0",
@@ -226,7 +226,7 @@ pub trait OwnerRpcS {
 	# Json rpc example
 
 	```
-		# grin_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
+		# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
 		# r#"
 		{
 			"jsonrpc": "2.0",
@@ -310,7 +310,7 @@ pub trait OwnerRpcS {
 	Networked version of [Owner::retrieve_summary_info](struct.Owner.html#method.retrieve_summary_info).
 
 	```
-	# grin_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
+	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
 	# r#"
 	{
 		"jsonrpc": "2.0",
@@ -360,7 +360,7 @@ pub trait OwnerRpcS {
 		Networked version of [Owner::init_send_tx](struct.Owner.html#method.init_send_tx).
 
 	```
-		# grin_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
+		# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
 		# r#"
 		{
 			"jsonrpc": "2.0",
@@ -459,7 +459,7 @@ pub trait OwnerRpcS {
 		Networked version of [Owner::issue_invoice_tx](struct.Owner.html#method.issue_invoice_tx).
 
 	```
-		# grin_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
+		# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
 		# r#"
 		{
 			"jsonrpc": "2.0",
@@ -546,7 +546,7 @@ pub trait OwnerRpcS {
 		 Networked version of [Owner::process_invoice_tx](struct.Owner.html#method.process_invoice_tx).
 
 	```
-		# grin_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
+		# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
 		# r#"
 		{
 			"jsonrpc": "2.0",
@@ -706,7 +706,7 @@ pub trait OwnerRpcS {
 	Networked version of [Owner::tx_lock_outputs](struct.Owner.html#method.tx_lock_outputs).
 
 	```
-	# grin_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
+	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
 	# r#"
 	{
 		"jsonrpc": "2.0",
@@ -795,7 +795,7 @@ pub trait OwnerRpcS {
 	Networked version of [Owner::finalize_tx](struct.Owner.html#method.finalize_tx).
 
 	```
-	# grin_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
+	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
 	# r#"
 	{
 		"jsonrpc": "2.0",
@@ -963,7 +963,7 @@ pub trait OwnerRpcS {
 	Networked version of [Owner::post_tx](struct.Owner.html#method.post_tx).
 
 	```
-	# grin_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
+	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
 	# r#"
 	{
 		"jsonrpc": "2.0",
@@ -1032,7 +1032,7 @@ pub trait OwnerRpcS {
 
 
 	```
-	# grin_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
+	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
 	# r#"
 	{
 		"jsonrpc": "2.0",
@@ -1069,7 +1069,7 @@ pub trait OwnerRpcS {
 	Networked version of [Owner::get_stored_tx](struct.Owner.html#method.get_stored_tx).
 
 	```
-	# grin_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
+	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
 	# r#"
 	{
 		"jsonrpc": "2.0",
@@ -1171,7 +1171,7 @@ pub trait OwnerRpcS {
 	Networked version of [Owner::verify_slate_messages](struct.Owner.html#method.verify_slate_messages).
 
 	```
-	# grin_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
+	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
 	# r#"
 	{
 		"jsonrpc": "2.0",
@@ -1254,7 +1254,7 @@ pub trait OwnerRpcS {
 
 
 	```
-	# grin_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
+	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
 	# r#"
 	{
 		"jsonrpc": "2.0",
@@ -1291,7 +1291,7 @@ pub trait OwnerRpcS {
 	Networked version of [Owner::node_height](struct.Owner.html#method.node_height).
 
 	```
-	# grin_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
+	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
 	# r#"
 	{
 		"jsonrpc": "2.0",
@@ -1379,7 +1379,7 @@ pub trait OwnerRpcS {
 	Networked version of [Owner::get_top_level_directory](struct.Owner.html#method.get_top_level_directory).
 
 	```
-	# grin_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
+	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
 	# r#"
 	{
 		"jsonrpc": "2.0",
@@ -1408,7 +1408,7 @@ pub trait OwnerRpcS {
 	/**
 	Networked version of [Owner::set_top_level_directory](struct.Owner.html#method.set_top_level_directory).
 	```
-	# grin_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
+	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
 	# r#"
 	{
 		"jsonrpc": "2.0",
@@ -1442,7 +1442,7 @@ pub trait OwnerRpcS {
 	below are for illustration. Note that the values provided for `log_file_path` and `data_file_dir`
 	will be ignored and replaced with the actual values based on the value of `get_top_level_directory`
 	```
-	# grin_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
+	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
 	# r#"
 	{
 		"jsonrpc": "2.0",
@@ -1509,7 +1509,7 @@ pub trait OwnerRpcS {
 	/**
 	Networked version of [Owner::create_wallet](struct.Owner.html#method.create_wallet).
 	```
-	# grin_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
+	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
 	# r#"
 	{
 		"jsonrpc": "2.0",
@@ -1548,7 +1548,7 @@ pub trait OwnerRpcS {
 	/**
 	Networked version of [Owner::open_wallet](struct.Owner.html#method.open_wallet).
 	```
-	# grin_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
+	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
 	# r#"
 	{
 		"jsonrpc": "2.0",
@@ -1579,7 +1579,7 @@ pub trait OwnerRpcS {
 	/**
 	Networked version of [Owner::close_wallet](struct.Owner.html#method.close_wallet).
 	```
-	# grin_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
+	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
 	# r#"
 	{
 		"jsonrpc": "2.0",
@@ -1609,7 +1609,7 @@ pub trait OwnerRpcS {
 	/**
 	Networked version of [Owner::get_mnemonic](struct.Owner.html#method.get_mnemonic).
 	```
-	# grin_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
+	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
 	# r#"
 	{
 		"jsonrpc": "2.0",
@@ -1640,7 +1640,7 @@ pub trait OwnerRpcS {
 	/**
 	Networked version of [Owner::change_password](struct.Owner.html#method.change_password).
 	```
-	# grin_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
+	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
 	# r#"
 	{
 		"jsonrpc": "2.0",
@@ -1676,7 +1676,7 @@ pub trait OwnerRpcS {
 	/**
 	Networked version of [Owner::delete_wallet](struct.Owner.html#method.delete_wallet).
 	```
-	# grin_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
+	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
 	# r#"
 	{
 		"jsonrpc": "2.0",
@@ -1705,7 +1705,7 @@ pub trait OwnerRpcS {
 	/**
 	Networked version of [Owner::start_updated](struct.Owner.html#method.start_updater).
 	```
-	# grin_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
+	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
 	# r#"
 	{
 		"jsonrpc": "2.0",
@@ -1736,7 +1736,7 @@ pub trait OwnerRpcS {
 	/**
 	Networked version of [Owner::stop_updater](struct.Owner.html#method.stop_updater).
 	```
-	# grin_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
+	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
 	# r#"
 	{
 		"jsonrpc": "2.0",
@@ -1763,7 +1763,7 @@ pub trait OwnerRpcS {
 	/**
 	Networked version of [Owner::get_updater_messages](struct.Owner.html#method.get_updater_messages).
 	```
-	# grin_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
+	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
 	# r#"
 	{
 		"jsonrpc": "2.0",
@@ -1793,7 +1793,7 @@ pub trait OwnerRpcS {
 	/**
 	Networked version of [Owner::get_public_proof_address](struct.Owner.html#method.get_public_proof_address).
 	```
-	# grin_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
+	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
 	# r#"
 	{
 		"jsonrpc": "2.0",
@@ -1828,7 +1828,7 @@ pub trait OwnerRpcS {
 	/**
 	Networked version of [Owner::proof_address_from_onion_v3](struct.Owner.html#method.proof_address_from_onion_v3).
 	```
-	# grin_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
+	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
 	# r#"
 	{
 		"jsonrpc": "2.0",
@@ -1858,7 +1858,7 @@ pub trait OwnerRpcS {
 	/**
 	Networked version of [Owner::set_tor_config](struct.Owner.html#method.set_tor_config).
 	```
-	# grin_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
+	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
 	# r#"
 	{
 		"jsonrpc": "2.0",

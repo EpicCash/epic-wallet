@@ -22,12 +22,12 @@
 #![deny(unused_mut)]
 #![warn(missing_docs)]
 
-use grin_wallet_config as config;
-use grin_wallet_util::grin_core as core;
-use grin_wallet_util::grin_keychain as keychain;
-use grin_wallet_util::grin_util as util;
-extern crate grin_wallet_impls as impls;
-extern crate grin_wallet_libwallet as libwallet;
+use epic_wallet_config as config;
+use epic_wallet_util::epic_core as core;
+use epic_wallet_util::epic_keychain as keychain;
+use epic_wallet_util::epic_util as util;
+extern crate epic_wallet_impls as impls;
+extern crate epic_wallet_libwallet as libwallet;
 
 extern crate failure_derive;
 #[macro_use]

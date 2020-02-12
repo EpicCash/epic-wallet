@@ -14,14 +14,14 @@
 //! Functions to restore a wallet's outputs from just the master seed
 
 use crate::api_impl::owner_updater::StatusMessage;
-use crate::grin_core::consensus::{valid_header_version, WEEK_HEIGHT};
-use crate::grin_core::core::HeaderVersion;
-use crate::grin_core::global;
-use crate::grin_core::libtx::proof;
-use crate::grin_keychain::{Identifier, Keychain, SwitchCommitmentType};
-use crate::grin_util::secp::key::SecretKey;
-use crate::grin_util::secp::pedersen;
-use crate::grin_util::Mutex;
+use crate::epic_core::consensus::{valid_header_version, WEEK_HEIGHT};
+use crate::epic_core::core::HeaderVersion;
+use crate::epic_core::global;
+use crate::epic_core::libtx::proof;
+use crate::epic_keychain::{Identifier, Keychain, SwitchCommitmentType};
+use crate::epic_util::secp::key::SecretKey;
+use crate::epic_util::secp::pedersen;
+use crate::epic_util::Mutex;
 use crate::internal::{keys, updater};
 use crate::types::*;
 use crate::{wallet_lock, Error, OutputCommitMapping};

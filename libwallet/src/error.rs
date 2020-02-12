@@ -14,11 +14,11 @@
 
 //! Error types for libwallet
 
-use crate::grin_core::core::{committed, transaction};
-use crate::grin_core::libtx;
-use crate::grin_keychain;
-use crate::grin_store;
-use crate::grin_util::secp;
+use crate::epic_core::core::{committed, transaction};
+use crate::epic_core::libtx;
+use crate::epic_keychain;
+use crate::epic_store;
+use crate::epic_util::secp;
 use failure::{Backtrace, Context, Fail};
 use std::env;
 use std::fmt::{self, Display};
@@ -59,7 +59,7 @@ pub enum ErrorKind {
 
 	/// Keychain error
 	#[fail(display = "Keychain error")]
-	Keychain(grin_keychain::Error),
+	Keychain(epic_keychain::Error),
 
 	/// Transaction Error
 	#[fail(display = "Transaction error")]
@@ -91,7 +91,7 @@ pub enum ErrorKind {
 
 	/// Other serialization errors
 	#[fail(display = "Ser/Deserialization error")]
-	Deser(crate::grin_core::ser::Error),
+	Deser(crate::epic_core::ser::Error),
 
 	/// IO Error
 	#[fail(display = "I/O error")]
@@ -312,8 +312,8 @@ impl From<io::Error> for Error {
 	}
 }
 
-impl From<grin_keychain::Error> for Error {
-	fn from(error: grin_keychain::Error) -> Error {
+impl From<epic_keychain::Error> for Error {
+	fn from(error: epic_keychain::Error) -> Error {
 		Error {
 			inner: Context::new(ErrorKind::Keychain(error)),
 		}
@@ -321,7 +321,7 @@ impl From<grin_keychain::Error> for Error {
 }
 
 impl From<libtx::Error> for Error {
-	fn from(error: crate::grin_core::libtx::Error) -> Error {
+	fn from(error: crate::epic_core::libtx::Error) -> Error {
 		Error {
 			inner: Context::new(ErrorKind::LibTX(error.kind())),
 		}
@@ -336,8 +336,8 @@ impl From<transaction::Error> for Error {
 	}
 }
 
-impl From<crate::grin_core::ser::Error> for Error {
-	fn from(error: crate::grin_core::ser::Error) -> Error {
+impl From<crate::epic_core::ser::Error> for Error {
+	fn from(error: crate::epic_core::ser::Error) -> Error {
 		Error {
 			inner: Context::new(ErrorKind::Deser(error)),
 		}
@@ -360,8 +360,8 @@ impl From<committed::Error> for Error {
 	}
 }
 
-impl From<grin_store::Error> for Error {
-	fn from(error: grin_store::Error) -> Error {
+impl From<epic_store::Error> for Error {
+	fn from(error: epic_store::Error) -> Error {
 		Error::from(ErrorKind::Backend(format!("{}", error)))
 	}
 }

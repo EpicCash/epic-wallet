@@ -18,22 +18,22 @@ extern crate clap;
 #[macro_use]
 extern crate log;
 
-extern crate grin_wallet;
+extern crate epic_wallet;
 
-use grin_wallet_impls::test_framework::{self, LocalWalletClient, WalletProxy};
+use epic_wallet_impls::test_framework::{self, LocalWalletClient, WalletProxy};
 
 use clap::App;
 use std::thread;
 use std::time::Duration;
 
-use grin_wallet_impls::DefaultLCProvider;
-use grin_wallet_util::grin_keychain::ExtKeychain;
+use epic_wallet_impls::DefaultLCProvider;
+use epic_wallet_util::epic_keychain::ExtKeychain;
 
 mod common;
 use common::{clean_output_dir, execute_command, initial_setup_wallet, instantiate_wallet, setup};
 
 /// command line tests
-fn command_line_test_impl(test_dir: &str) -> Result<(), grin_wallet_controller::Error> {
+fn command_line_test_impl(test_dir: &str) -> Result<(), epic_wallet_controller::Error> {
 	setup(test_dir);
 	// Create a new proxy to simulate server and wallet responses
 	let mut wallet_proxy: WalletProxy<
@@ -151,7 +151,7 @@ fn command_line_test_impl(test_dir: &str) -> Result<(), grin_wallet_controller::
 	let (wallet1, mask1_i) =
 		instantiate_wallet(wallet_config1, client1.clone(), "password", "default")?;
 	let mask1 = (&mask1_i).as_ref();
-	grin_wallet_controller::controller::owner_single_use(wallet1.clone(), mask1, |api, m| {
+	epic_wallet_controller::controller::owner_single_use(wallet1.clone(), mask1, |api, m| {
 		api.set_active_account(m, "mining")?;
 		Ok(())
 	})?;
@@ -234,7 +234,7 @@ fn command_line_test_impl(test_dir: &str) -> Result<(), grin_wallet_controller::
 	let mask1 = (&mask1_i).as_ref();
 
 	// Check our transaction log, should have 10 entries
-	grin_wallet_controller::controller::owner_single_use(wallet1.clone(), mask1, |api, m| {
+	epic_wallet_controller::controller::owner_single_use(wallet1.clone(), mask1, |api, m| {
 		api.set_active_account(m, "mining")?;
 		let (refreshed, txs) = api.retrieve_txs(m, true, None, None)?;
 		assert!(refreshed);
@@ -265,7 +265,7 @@ fn command_line_test_impl(test_dir: &str) -> Result<(), grin_wallet_controller::
 	)?;
 	let mask2 = (&mask2_i).as_ref();
 
-	grin_wallet_controller::controller::owner_single_use(wallet2.clone(), mask2, |api, m| {
+	epic_wallet_controller::controller::owner_single_use(wallet2.clone(), mask2, |api, m| {
 		api.set_active_account(m, "account_1")?;
 		let (_, wallet1_info) = api.retrieve_summary_info(m, true, 1)?;
 		assert_eq!(wallet1_info.last_confirmed_height, bh);
@@ -330,7 +330,7 @@ fn command_line_test_impl(test_dir: &str) -> Result<(), grin_wallet_controller::
 	)?;
 	let mask1 = (&mask1_i).as_ref();
 
-	grin_wallet_controller::controller::owner_single_use(wallet1.clone(), mask1, |api, m| {
+	epic_wallet_controller::controller::owner_single_use(wallet1.clone(), mask1, |api, m| {
 		api.set_active_account(m, "mining")?;
 		let (refreshed, txs) = api.retrieve_txs(m, true, None, None)?;
 		assert!(refreshed);
@@ -371,7 +371,7 @@ fn command_line_test_impl(test_dir: &str) -> Result<(), grin_wallet_controller::
 	)?;
 	let mask1 = (&mask1_i).as_ref();
 
-	grin_wallet_controller::controller::owner_single_use(wallet1.clone(), mask1, |api, m| {
+	epic_wallet_controller::controller::owner_single_use(wallet1.clone(), mask1, |api, m| {
 		api.set_active_account(m, "mining")?;
 		let (refreshed, txs) = api.retrieve_txs(m, true, None, None)?;
 		assert!(refreshed);
@@ -507,7 +507,7 @@ fn command_line_test_impl(test_dir: &str) -> Result<(), grin_wallet_controller::
 
 	// get tx output via -tx parameter
 	let mut tx_id = "".to_string();
-	grin_wallet_controller::controller::owner_single_use(wallet2.clone(), mask2, |api, m| {
+	epic_wallet_controller::controller::owner_single_use(wallet2.clone(), mask2, |api, m| {
 		api.set_active_account(m, "default")?;
 		let (_, txs) = api.retrieve_txs(m, true, None, None)?;
 		let some_tx_id = txs[0].tx_slate_id.clone();

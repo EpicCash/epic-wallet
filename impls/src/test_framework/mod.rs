@@ -116,7 +116,11 @@ pub fn add_block_with_reward(
 	reward_kernel: TxKernel,
 ) {
 	let prev = chain.head_header().unwrap();
-	let next_header_info = consensus::next_difficulty(1, chain.difficulty_iter().unwrap());
+	let next_header_info = consensus::next_difficulty(
+		1,
+		(&prev.pow.proof).into(),
+		chain.difficulty_iter().unwrap(),
+	);
 	let mut b = core::core::Block::new(
 		&prev,
 		txs.into_iter().cloned().collect(),

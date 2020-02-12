@@ -14,15 +14,15 @@
 //! tests differing accounts in the same wallet
 #[macro_use]
 extern crate log;
-extern crate grin_wallet_controller as wallet;
-extern crate grin_wallet_impls as impls;
+extern crate epic_wallet_controller as wallet;
+extern crate epic_wallet_impls as impls;
 
-use grin_wallet_util::grin_core as core;
-use grin_wallet_util::grin_util as util;
+use epic_wallet_util::epic_core as core;
+use epic_wallet_util::epic_util as util;
 
 use self::core::consensus;
 use self::core::global;
-use grin_wallet_libwallet as libwallet;
+use epic_wallet_libwallet as libwallet;
 use impls::test_framework::{self, LocalWalletClient};
 use impls::{PathToSlate, SlatePutter as _};
 use libwallet::{InitTxArgs, NodeClient};

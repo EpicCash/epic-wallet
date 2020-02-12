@@ -17,19 +17,19 @@ extern crate clap;
 #[macro_use]
 extern crate log;
 
-extern crate grin_wallet;
+extern crate epic_wallet;
 
-use grin_wallet_impls::test_framework::{self, LocalWalletClient, WalletProxy};
-use grin_wallet_util::grin_core::global::{self, ChainTypes};
+use epic_wallet_impls::test_framework::{self, LocalWalletClient, WalletProxy};
+use epic_wallet_util::epic_core::global::{self, ChainTypes};
 
 use clap::App;
 use std::thread;
 use std::time::Duration;
 
-use grin_wallet_impls::DefaultLCProvider;
-use grin_wallet_util::grin_keychain::ExtKeychain;
+use epic_wallet_impls::DefaultLCProvider;
+use epic_wallet_util::epic_keychain::ExtKeychain;
 
-use grin_wallet_util::grin_util as util;
+use epic_wallet_util::epic_util as util;
 
 #[macro_use]
 mod common;
@@ -45,7 +45,7 @@ fn setup_no_clean() {
 
 #[ignore]
 #[test]
-fn socks_tor() -> Result<(), grin_wallet_controller::Error> {
+fn socks_tor() -> Result<(), epic_wallet_controller::Error> {
 	let test_dir = "target/test_output/socks_tor";
 	let yml = load_yaml!("../src/bin/grin-wallet.yml");
 	let app = App::from_yaml(yml);

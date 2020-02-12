@@ -1,7 +1,7 @@
 @startuml grin-wallet-overview 
 skinparam componentStyle uml2
 
-[Grin Node] as grin_node
+[Grin Node] as epic_node
 
 folder "Provided by Grin" as services {
 	component foreign_api [
@@ -83,7 +83,7 @@ end note
 [External Wallets] as external_wallets
 [External Wallets] as external_wallets_2
 
-wallet_client <--> grin_node
+wallet_client <--> epic_node
 wallet_client <--> external_wallets_2
 
 web_server <--> owner_http
@@ -105,6 +105,6 @@ external_wallets <--> foreign_http
 foreign_http <--> foreign_api
 
 'layout fix
-'grin_node -[hidden]- wallet_backend
+'epic_node -[hidden]- wallet_backend
 
 @enduml

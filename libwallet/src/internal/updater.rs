@@ -18,17 +18,17 @@
 use std::collections::HashMap;
 use uuid::Uuid;
 
+use crate::epic_core::consensus::reward;
+use crate::epic_core::core::{Output, TxKernel};
+use crate::epic_core::global;
+use crate::epic_core::libtx::proof::ProofBuilder;
+use crate::epic_core::libtx::reward;
+use crate::epic_keychain::{Identifier, Keychain, SwitchCommitmentType};
+use crate::epic_util as util;
+use crate::epic_util::secp::key::SecretKey;
+use crate::epic_util::secp::pedersen;
+use crate::epic_util::static_secp_instance;
 use crate::error::Error;
-use crate::grin_core::consensus::reward;
-use crate::grin_core::core::{Output, TxKernel};
-use crate::grin_core::global;
-use crate::grin_core::libtx::proof::ProofBuilder;
-use crate::grin_core::libtx::reward;
-use crate::grin_keychain::{Identifier, Keychain, SwitchCommitmentType};
-use crate::grin_util as util;
-use crate::grin_util::secp::key::SecretKey;
-use crate::grin_util::secp::pedersen;
-use crate::grin_util::static_secp_instance;
 use crate::internal::keys;
 use crate::types::{
 	NodeClient, OutputData, OutputStatus, TxLogEntry, TxLogEntryType, WalletBackend, WalletInfo,
@@ -512,7 +512,7 @@ where
 
 	{
 		// Now acquire the wallet lock and write the new output.
-		let amount = reward(block_fees.fees);
+		let amount = reward(block_fees.fees, height);
 		let commit = wallet.calc_commit_for_cache(keychain_mask, amount, &key_id)?;
 		let mut batch = wallet.batch(keychain_mask)?;
 		batch.save(OutputData {
@@ -549,6 +549,7 @@ where
 		&key_id,
 		block_fees.fees,
 		test_mode,
+		height,
 	)?;
 	Ok((out, kern, block_fees))
 }

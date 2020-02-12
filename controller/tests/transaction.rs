@@ -14,11 +14,11 @@
 //! tests for transactions building within core::libtx
 #[macro_use]
 extern crate log;
-extern crate grin_wallet_controller as wallet;
-extern crate grin_wallet_impls as impls;
-extern crate grin_wallet_libwallet as libwallet;
+extern crate epic_wallet_controller as wallet;
+extern crate epic_wallet_impls as impls;
+extern crate epic_wallet_libwallet as libwallet;
 
-use grin_wallet_util::grin_core as core;
+use epic_wallet_util::epic_core as core;
 
 use self::core::core::transaction;
 use self::core::global;

@@ -17,19 +17,19 @@ extern crate clap;
 #[macro_use]
 extern crate log;
 
-extern crate grin_wallet;
+extern crate epic_wallet;
 
-use grin_wallet_api::ECDHPubkey;
-use grin_wallet_impls::test_framework::{self, LocalWalletClient, WalletProxy};
+use epic_wallet_api::ECDHPubkey;
+use epic_wallet_impls::test_framework::{self, LocalWalletClient, WalletProxy};
 
 use clap::App;
 use std::thread;
 use std::time::Duration;
 
-use grin_wallet_impls::DefaultLCProvider;
-use grin_wallet_util::grin_keychain::ExtKeychain;
-use grin_wallet_util::grin_util::secp::key::SecretKey;
-use grin_wallet_util::grin_util::{from_hex, static_secp_instance};
+use epic_wallet_impls::DefaultLCProvider;
+use epic_wallet_util::epic_keychain::ExtKeychain;
+use epic_wallet_util::epic_util::secp::key::SecretKey;
+use epic_wallet_util::epic_util::{from_hex, static_secp_instance};
 use serde_json;
 
 #[macro_use]
@@ -40,7 +40,7 @@ use common::{
 };
 
 #[test]
-fn owner_v3_init_secure() -> Result<(), grin_wallet_controller::Error> {
+fn owner_v3_init_secure() -> Result<(), epic_wallet_controller::Error> {
 	let test_dir = "target/test_output/owner_v3_init_secure";
 	setup(test_dir);
 

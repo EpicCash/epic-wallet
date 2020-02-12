@@ -17,21 +17,21 @@ extern crate clap;
 #[macro_use]
 extern crate log;
 
-extern crate grin_wallet;
+extern crate epic_wallet;
 
-use grin_wallet_api::ECDHPubkey;
-use grin_wallet_impls::test_framework::{self, LocalWalletClient, WalletProxy};
+use epic_wallet_api::ECDHPubkey;
+use epic_wallet_impls::test_framework::{self, LocalWalletClient, WalletProxy};
 
 use clap::App;
 use std::thread;
 use std::time::Duration;
 
-use grin_wallet_impls::DefaultLCProvider;
-use grin_wallet_libwallet::{InitTxArgs, Slate, SlateVersion, VersionedSlate};
-use grin_wallet_util::grin_keychain::ExtKeychain;
+use epic_wallet_impls::DefaultLCProvider;
+use epic_wallet_libwallet::{InitTxArgs, Slate, SlateVersion, VersionedSlate};
+use epic_wallet_util::epic_keychain::ExtKeychain;
 use serde_json;
 
-use grin_wallet_util::grin_util::Mutex;
+use epic_wallet_util::epic_util::Mutex;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -44,7 +44,7 @@ use common::{
 };
 
 #[test]
-fn owner_v3_lifecycle() -> Result<(), grin_wallet_controller::Error> {
+fn owner_v3_lifecycle() -> Result<(), epic_wallet_controller::Error> {
 	let test_dir = "target/test_output/owner_v3_lifecycle";
 	setup(test_dir);
 
@@ -339,7 +339,7 @@ fn owner_v3_lifecycle() -> Result<(), grin_wallet_controller::Error> {
 	let mut slate: Slate = res.unwrap().into();
 
 	// give this slate over to wallet 2 manually
-	grin_wallet_controller::controller::owner_single_use(wallet2.clone(), mask2, |api, m| {
+	epic_wallet_controller::controller::owner_single_use(wallet2.clone(), mask2, |api, m| {
 		let args = InitTxArgs {
 			src_acct_name: None,
 			amount: slate.amount,
