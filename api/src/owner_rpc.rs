@@ -1,4 +1,4 @@
-// Copyright 2019 The Grin Developers
+// Copyright 2019 The Epic Developers
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -29,7 +29,7 @@ use easy_jsonrpc_mw;
 use std::sync::Arc;
 
 /// Public definition used to generate Owner jsonrpc api.
-/// * When running `grin-wallet owner_api` with defaults, the V2 api is available at
+/// * When running `epic-wallet owner_api` with defaults, the V2 api is available at
 /// `localhost:3420/v2/owner`
 /// * The endpoint only supports POST operations, with the json-rpc request as the body
 #[easy_jsonrpc_mw::rpc]
@@ -69,7 +69,7 @@ pub trait OwnerRpc: Sync + Send {
 	*/
 	#[deprecated(
 		since = "3.0.0",
-		note = "The V2 Owner API (OwnerRpc) will be removed in grin-wallet 4.0.0. Please migrate to the V3 (OwnerRpcS) API as soon as possible."
+		note = "The V2 Owner API (OwnerRpc) will be removed in epic-wallet 4.0.0. Please migrate to the V3 (OwnerRpcS) API as soon as possible."
 	)]
 	fn accounts(&self) -> Result<Vec<AcctPathMapping>, ErrorKind>;
 
@@ -435,7 +435,7 @@ pub trait OwnerRpc: Sync + Send {
 			"params": {
 				"args": {
 					"amount": "6000000000",
-					"message": "Please give me your grins",
+					"message": "Please give me your epics",
 					"dest_acct_name": null,
 					"target_slate_version": null
 				}
@@ -461,7 +461,7 @@ pub trait OwnerRpc: Sync + Send {
 					"participant_data": [
 						{
 							"id": "1",
-							"message": "Please give me your grins",
+							"message": "Please give me your epics",
 							"message_sig": "8f07ddd5e9f5179cff19486034181ed76505baaad53e5d994064127b56c5841bd9bccdcf5d3a402bccc77d36346d3a899259a884f643e90266984289b39a59d2",
 							"part_sig": null,
 							"public_blind_excess": "028e95921cc0d5be5922362265d352c9bdabe51a9e1502a3f0d4a10387f1893f40",
@@ -527,7 +527,7 @@ pub trait OwnerRpc: Sync + Send {
 					"participant_data": [
 						{
 							"id": "1",
-							"message": "Please give me your grins",
+							"message": "Please give me your epics",
 							"message_sig": "1b84c5567b126440995d3ed5aaba0565d71e1834604819ff9c17f5e9d5dd078fd2599ab38942986602e943f684a85992893a6d34367dc7cc2b403a5dcfcdbcd9",
 							"part_sig": null,
 							"public_blind_excess": "028e95921cc0d5be5922362265d352c9bdabe51a9e1502a3f0d4a10387f1893f40",
@@ -569,7 +569,7 @@ pub trait OwnerRpc: Sync + Send {
 					"max_outputs": 500,
 					"num_change_outputs": 1,
 					"selection_strategy_is_use_all": true,
-					"message": "Ok, here are your grins",
+					"message": "Ok, here are your epics",
 					"target_slate_version": null,
 					"payment_proof_recipient_address": null,
 					"ttl_blocks": null,
@@ -597,7 +597,7 @@ pub trait OwnerRpc: Sync + Send {
 				"participant_data": [
 					{
 						"id": "1",
-						"message": "Please give me your grins",
+						"message": "Please give me your epics",
 						"message_sig": "1b84c5567b126440995d3ed5aaba0565d71e1834604819ff9c17f5e9d5dd078fd2599ab38942986602e943f684a85992893a6d34367dc7cc2b403a5dcfcdbcd9",
 						"part_sig": null,
 						"public_blind_excess": "028e95921cc0d5be5922362265d352c9bdabe51a9e1502a3f0d4a10387f1893f40",
@@ -605,7 +605,7 @@ pub trait OwnerRpc: Sync + Send {
 					},
 					{
 						"id": "0",
-						"message": "Ok, here are your grins",
+						"message": "Ok, here are your epics",
 						"message_sig": "8f07ddd5e9f5179cff19486034181ed76505baaad53e5d994064127b56c5841be91ae0f6b50fabc39eefa28118cccdd8fbf5b5afe96972630450f47b72433646",
 						"part_sig": "8f07ddd5e9f5179cff19486034181ed76505baaad53e5d994064127b56c5841b619d40fb6a6fb60449ef9727aeb782e7a5b50fdbfd2d735b49ccc55b477cd319",
 						"public_blind_excess": "0309e22f2adaa9b81f51414b775b86acd096e17794eb8159bfcfef27caa4bf5c90",
@@ -1049,7 +1049,7 @@ pub trait OwnerRpc: Sync + Send {
 				"num_inputs": 2,
 				"num_outputs": 1,
 				"parent_key_id": "0200000000000000000000000000000000",
-				"stored_tx": "0436430c-2b02-624c-2032-570501212b00.grintx",
+				"stored_tx": "0436430c-2b02-624c-2032-570501212b00.epictx",
 				"tx_slate_id": "0436430c-2b02-624c-2032-570501212b00",
 				"tx_type": "TxSent",
 				"kernel_excess": null,

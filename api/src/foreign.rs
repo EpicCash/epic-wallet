@@ -1,4 +1,4 @@
-// Copyright 2019 The Grin Developers
+// Copyright 2019 The Epic Developers
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -261,6 +261,24 @@ where
 			)?;
 		}
 		foreign::build_coinbase(
+			&mut **w,
+			(&self.keychain_mask).as_ref(),
+			block_fees,
+			self.doctest_mode,
+		)
+	}
+
+	pub fn build_foundation(&self, block_fees: &BlockFees) -> Result<CbData, Error> {
+		let mut w_lock = self.wallet_inst.lock();
+		let w = w_lock.lc_provider()?.wallet_inst()?;
+		if let Some(m) = self.middleware.as_ref() {
+			m(
+				ForeignCheckMiddlewareFn::BuildCoinbase,
+				w.w2n_client().get_version_info(),
+				None,
+			)?;
+		}
+		foreign::build_foundation(
 			&mut **w,
 			(&self.keychain_mask).as_ref(),
 			block_fees,

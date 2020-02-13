@@ -1,4 +1,4 @@
-// Copyright 2019 The Grin Developers
+// Copyright 2019 The Epic Developers
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@
 use std::collections::HashMap;
 use uuid::Uuid;
 
-use crate::epic_core::consensus::reward;
+use crate::epic_core::consensus::{cumulative_reward_foundation, reward};
 use crate::epic_core::core::{Output, TxKernel};
 use crate::epic_core::global;
 use crate::epic_core::libtx::proof::ProofBuilder;
@@ -484,6 +484,34 @@ where
 	})
 }
 
+/// Build a coinbase output and insert into wallet
+pub fn build_foundation<'a, T: ?Sized, C, K>(
+	wallet: &mut T,
+	keychain_mask: Option<&SecretKey>,
+	block_fees: &BlockFees,
+	test_mode: bool,
+) -> Result<CbData, Error>
+where
+	T: WalletBackend<'a, C, K>,
+	C: NodeClient + 'a,
+	K: Keychain + 'a,
+{
+	let amount = cumulative_reward_foundation(block_fees.height);
+
+	println!(
+		"Generating a foundation reward of `{:?} freemans` for the `height of {:?}`",
+		amount, block_fees.height
+	);
+
+	let (out, kern, block_fees) = receive_foundation(wallet, keychain_mask, block_fees, test_mode)?;
+
+	Ok(CbData {
+		output: out,
+		kernel: kern,
+		key_id: block_fees.key_id,
+	})
+}
+
 //TODO: Split up the output creation and the wallet insertion
 /// Build a coinbase output and the corresponding kernel
 pub fn receive_coinbase<'a, T: ?Sized, C, K>(
@@ -501,6 +529,7 @@ where
 	let lock_height = height + global::coinbase_maturity();
 	let key_id = block_fees.key_id();
 	let parent_key_id = wallet.parent_key_id();
+	let amount = reward(block_fees.fees, block_fees.height);
 
 	let key_id = match key_id {
 		Some(key_id) => match keys::retrieve_existing_key(wallet, key_id, None) {
@@ -512,7 +541,6 @@ where
 
 	{
 		// Now acquire the wallet lock and write the new output.
-		let amount = reward(block_fees.fees, height);
 		let commit = wallet.calc_commit_for_cache(keychain_mask, amount, &key_id)?;
 		let mut batch = wallet.batch(keychain_mask)?;
 		batch.save(OutputData {
@@ -548,6 +576,75 @@ where
 		&ProofBuilder::new(&keychain),
 		&key_id,
 		block_fees.fees,
+		test_mode,
+		height,
+	)?;
+	Ok((out, kern, block_fees))
+}
+
+//TODO: Split up the output creation and the wallet insertion
+/// Build a coinbase output and the corresponding kernel
+pub fn receive_foundation<'a, T: ?Sized, C, K>(
+	wallet: &mut T,
+	keychain_mask: Option<&SecretKey>,
+	block_fees: &BlockFees,
+	test_mode: bool,
+) -> Result<(Output, TxKernel, BlockFees), Error>
+where
+	T: WalletBackend<'a, C, K>,
+	C: NodeClient + 'a,
+	K: Keychain + 'a,
+{
+	let height = block_fees.height;
+	let lock_height = height + global::coinbase_maturity();
+	let key_id = block_fees.key_id();
+	let parent_key_id = wallet.parent_key_id();
+	let amount = cumulative_reward_foundation(block_fees.height);
+
+	let key_id = match key_id {
+		Some(key_id) => match keys::retrieve_existing_key(wallet, key_id, None) {
+			Ok(k) => k.0,
+			Err(_) => keys::next_available_key(wallet, keychain_mask)?,
+		},
+		None => keys::next_available_key(wallet, keychain_mask)?,
+	};
+
+	{
+		// Now acquire the wallet lock and write the new output.
+		let commit = wallet.calc_commit_for_cache(keychain_mask, amount, &key_id)?;
+		let mut batch = wallet.batch(keychain_mask)?;
+		batch.save(OutputData {
+			root_key_id: parent_key_id,
+			key_id: key_id.clone(),
+			n_child: key_id.to_path().last_path_index(),
+			mmr_index: None,
+			commit: commit,
+			value: amount,
+			status: OutputStatus::Unconfirmed,
+			height: height,
+			lock_height: lock_height,
+			is_coinbase: true,
+			tx_log_entry: None,
+		})?;
+		batch.commit()?;
+	}
+
+	debug!(
+		"receive_coinbase: built candidate output - {:?}, {}",
+		key_id.clone(),
+		key_id,
+	);
+
+	let mut block_fees = block_fees.clone();
+	block_fees.key_id = Some(key_id.clone());
+
+	debug!("receive_coinbase: {:?}", block_fees);
+
+	let keychain = wallet.keychain(keychain_mask)?;
+	let (out, kern) = reward::output_foundation(
+		&keychain,
+		&ProofBuilder::new(&keychain),
+		&key_id,
 		test_mode,
 		height,
 	)?;

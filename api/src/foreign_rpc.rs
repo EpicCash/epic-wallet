@@ -1,4 +1,4 @@
-// Copyright 2019 The Grin Developers
+// Copyright 2019 The Epic Developers
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,7 +24,7 @@ use crate::{Foreign, ForeignCheckMiddlewareFn};
 use easy_jsonrpc_mw;
 
 /// Public definition used to generate Foreign jsonrpc api.
-/// * When running `grin-wallet listen` with defaults, the V2 api is available at
+/// * When running `epic-wallet listen` with defaults, the V2 api is available at
 /// `localhost:3415/v2/foreign`
 /// * The endpoint only supports POST operations, with the json-rpc request as the body
 #[easy_jsonrpc_mw::rpc]
@@ -115,6 +115,7 @@ pub trait ForeignRpc {
 	*/
 
 	fn build_coinbase(&self, block_fees: &BlockFees) -> Result<VersionedCoinbase, ErrorKind>;
+	fn build_foundation(&self, block_fees: &BlockFees) -> Result<VersionedCoinbase, ErrorKind>;
 
 	/**
 	Networked version of [Foreign::verify_slate_messages](struct.Foreign.html#method.verify_slate_messages).
@@ -540,6 +541,11 @@ where
 
 	fn build_coinbase(&self, block_fees: &BlockFees) -> Result<VersionedCoinbase, ErrorKind> {
 		let cb: CbData = Foreign::build_coinbase(self, block_fees).map_err(|e| e.kind())?;
+		Ok(VersionedCoinbase::into_version(cb, SlateVersion::V3))
+	}
+
+	fn build_foundation(&self, block_fees: &BlockFees) -> Result<VersionedCoinbase, ErrorKind> {
+		let cb: CbData = Foreign::build_foundation(self, block_fees).map_err(|e| e.kind())?;
 		Ok(VersionedCoinbase::into_version(cb, SlateVersion::V3))
 	}
 

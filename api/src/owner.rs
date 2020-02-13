@@ -1,4 +1,4 @@
-// Copyright 2019 The Grin Developers
+// Copyright 2019 The Epic Developers
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -613,7 +613,7 @@ where
 	/// 	max_outputs: 500,
 	/// 	num_change_outputs: 1,
 	/// 	selection_strategy_is_use_all: false,
-	/// 	message: Some("Have some Grins. Love, Yeastplume".to_owned()),
+	/// 	message: Some("Have some Epics. Love, Yeastplume".to_owned()),
 	/// 	..Default::default()
 	/// };
 	/// let result = api_owner.init_send_tx(
@@ -1299,15 +1299,15 @@ where
 	// LIFECYCLE FUNCTIONS
 
 	/// Retrieve the top-level directory for the wallet. This directory should contain the
-	/// `grin-wallet.toml` file and the `wallet_data` directory that contains the wallet
+	/// `epic-wallet.toml` file and the `wallet_data` directory that contains the wallet
 	/// seed + data files. Future versions of the wallet API will support multiple wallets
 	/// within the top level directory.
 	///
 	/// The top level directory defaults to (in order of precedence):
 	///
-	/// 1) The current directory, from which `grin-wallet` or the main process was run, if it
-	/// contains a `grin-wallet.toml` file.
-	/// 2) ~/.grin/<chaintype>/ otherwise
+	/// 1) The current directory, from which `epic-wallet` or the main process was run, if it
+	/// contains a `epic-wallet.toml` file.
+	/// 2) ~/.epic/<chaintype>/ otherwise
 	///
 	/// # Arguments
 	///
@@ -1384,10 +1384,10 @@ where
 		lc.set_top_level_directory(dir)
 	}
 
-	/// Create a `grin-wallet.toml` configuration file in the top-level directory for the
+	/// Create a `epic-wallet.toml` configuration file in the top-level directory for the
 	/// specified chain type.
 	/// A custom [`WalletConfig`](../epic_wallet_config/types/struct.WalletConfig.html)
-	/// and/or grin `LoggingConfig` may optionally be provided, otherwise defaults will be used.
+	/// and/or epic `LoggingConfig` may optionally be provided, otherwise defaults will be used.
 	///
 	/// Paths in the configuration file will be updated to reflect the top level directory, so
 	/// path-related values in the optional configuration structs will be ignored.
@@ -1441,7 +1441,7 @@ where
 		let lc = w_lock.lc_provider()?;
 		lc.create_config(
 			chain_type,
-			"grin-wallet.toml",
+			"epic-wallet.toml",
 			wallet_config,
 			logging_config,
 			tor_config,
@@ -1454,7 +1454,7 @@ where
 	/// Paths in the configuration file will be updated to reflect the top level directory, so
 	/// path-related values in the optional configuration structs will be ignored.
 	///
-	/// The wallet files must not already exist, and ~The `grin-wallet.toml` file must exist
+	/// The wallet files must not already exist, and ~The `epic-wallet.toml` file must exist
 	/// in the top level directory (can be created via a call to
 	/// [`create_config`](struct.Owner.html#method.create_config))
 	///
