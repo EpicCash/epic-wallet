@@ -1,13 +1,13 @@
-@startuml grin-transaction
+@startuml epic-transaction
 
 title 
-**Current Grin Tranaction Workflow** 
+**Current Epic Tranaction Workflow** 
 Accurate as of Oct 10, 2018 - Master branch only
 end title
 
 actor "Sender" as sender
 actor "Recipient" as recipient
-entity "Grin Node" as epic_node
+entity "Epic Node" as epic_node
 
 == Round 1 ==
 

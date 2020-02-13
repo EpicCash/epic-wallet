@@ -1,4 +1,4 @@
-// Copyright 2019 The Grin Developers
+// Copyright 2019 The Epic Developers
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -822,7 +822,7 @@ where
 	node_client.set_node_url(&wallet_config.check_node_api_http_addr);
 	node_client.set_node_api_secret(global_wallet_args.node_api_secret.clone());
 
-	// legacy hack to avoid the need for changes in existing grin-wallet.toml files
+	// legacy hack to avoid the need for changes in existing epic-wallet.toml files
 	// remove `wallet_data` from end of path as
 	// new lifecycle provider assumes epic_wallet.toml is in root of data directory
 	let mut top_level_wallet_dir = PathBuf::from(wallet_config.clone().data_file_dir);
@@ -1019,7 +1019,7 @@ where
 			command::scan(wallet, km, a)
 		}
 		_ => {
-			let msg = format!("Unknown wallet command, use 'grin-wallet help' for details");
+			let msg = format!("Unknown wallet command, use 'epic-wallet help' for details");
 			return Err(ErrorKind::ArgumentError(msg).into());
 		}
 	};

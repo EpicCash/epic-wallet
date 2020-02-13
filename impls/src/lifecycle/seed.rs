@@ -1,4 +1,4 @@
-// Copyright 2019 The Grin Developers
+// Copyright 2019 The Epic Developers
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -131,7 +131,7 @@ impl WalletSeed {
 		if !Path::new(&data_file_dir).exists() {
 			return Err(ErrorKind::WalletDoesntExist(
 				data_file_dir.to_owned(),
-				"To create a new wallet from a recovery phrase, use 'grin-wallet init -r'"
+				"To create a new wallet from a recovery phrase, use 'epic-wallet init -r'"
 					.to_owned(),
 			))?;
 		}
@@ -197,8 +197,8 @@ impl WalletSeed {
 			Ok(wallet_seed)
 		} else {
 			error!(
-				"wallet seed file {} could not be opened (grin wallet init). \
-				 Run \"grin wallet init\" to initialize a new wallet.",
+				"wallet seed file {} could not be opened (epic wallet init). \
+				 Run \"epic wallet init\" to initialize a new wallet.",
 				seed_file_path
 			);
 			Err(ErrorKind::WalletSeedDoesntExist)?

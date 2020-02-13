@@ -1,4 +1,4 @@
-// Copyright 2019 The Grin Developers
+// Copyright 2019 The Epic Developers
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -291,7 +291,7 @@ fn poll(nseconds: u64, channel: &str) -> Option<Slate> {
 		sleep(POLL_SLEEP_DURATION);
 	}
 	error!(
-		"No response from @{} in {} seconds. Grin send failed!",
+		"No response from @{} in {} seconds. Epic send failed!",
 		channel, nseconds
 	);
 	None
@@ -476,14 +476,14 @@ fn notify_on_receive(keybase_notify_ttl: u16, channel: String, tx_uuid: String) 
 				};
 
 				let msg = format!(
-					"[grin wallet notice]: \
+					"[epic wallet notice]: \
 					 you could have some coins received from @{}\n\
 					 Transaction Id: {}",
 					sender, tx_uuid
 				);
 				notify(&msg, &receiver, keybase_notify_ttl);
 				info!(
-					"tx from @{} is done, please check on grin wallet. tx uuid: {}",
+					"tx from @{} is done, please check on epic wallet. tx uuid: {}",
 					sender, tx_uuid,
 				);
 			}

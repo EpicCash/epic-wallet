@@ -1,12 +1,12 @@
 [package]
 name = "epic_wallet_controller"
 version = "3.0.0"
-authors = ["Grin Developers <mimblewimble@lists.launchpad.net>"]
-description = "Controllers for grin wallet instantiation"
+authors = ["Epic Developers <mimblewimble@lists.launchpad.net>"]
+description = "Controllers for epic wallet instantiation"
 license = "Apache-2.0"
-repository = "https://github.com/mimblewimble/grin-wallet"
-keywords = [ "crypto", "grin", "mimblewimble" ]
-exclude = ["**/*.grin", "**/*.grin2"]
+repository = "https://github.com/mimblewimble/epic-wallet"
+keywords = [ "crypto", "epic", "mimblewimble" ]
+exclude = ["**/*.epic", "**/*.epic2"]
 #build = "src/build/build.rs"
 edition = "2018"
 

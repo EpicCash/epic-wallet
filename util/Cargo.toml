@@ -1,11 +1,11 @@
 [package]
 name = "epic_wallet_util"
 version = "3.0.0"
-authors = ["Grin Developers <mimblewimble@lists.launchpad.net>"]
-description = "Util, for generic utilities and to re-export grin crates"
+authors = ["Epic Developers <mimblewimble@lists.launchpad.net>"]
+description = "Util, for generic utilities and to re-export epic crates"
 license = "Apache-2.0"
-repository = "https://github.com/mimblewimble/grin-wallet"
-keywords = [ "crypto", "grin", "mimblewimble" ]
+repository = "https://github.com/mimblewimble/epic-wallet"
+keywords = [ "crypto", "epic", "mimblewimble" ]
 workspace = ".."
 edition = "2018"
 
@@ -26,20 +26,20 @@ dirs = "1.0.3"
 
 # For beta release
 
-# epic_core = { git = "https://github.com/mimblewimble/grin", tag = "v3.0.0-beta.3"}
-# epic_keychain = { git = "https://github.com/mimblewimble/grin", tag = "v3.0.0-beta.3" }
-# epic_chain = { git = "https://github.com/mimblewimble/grin", tag = "v3.0.0-beta.3" }
-# epic_util = { git = "https://github.com/mimblewimble/grin", tag = "v3.0.0-beta.3" }
-# epic_api = { git = "https://github.com/mimblewimble/grin", tag = "v3.0.0-beta.3" }
-# epic_store = { git = "https://github.com/mimblewimble/grin", tag = "v3.0.0-beta.3" }
+# epic_core = { git = "https://github.com/mimblewimble/epic", tag = "v3.0.0-beta.3"}
+# epic_keychain = { git = "https://github.com/mimblewimble/epic", tag = "v3.0.0-beta.3" }
+# epic_chain = { git = "https://github.com/mimblewimble/epic", tag = "v3.0.0-beta.3" }
+# epic_util = { git = "https://github.com/mimblewimble/epic", tag = "v3.0.0-beta.3" }
+# epic_api = { git = "https://github.com/mimblewimble/epic", tag = "v3.0.0-beta.3" }
+# epic_store = { git = "https://github.com/mimblewimble/epic", tag = "v3.0.0-beta.3" }
 
 # For bleeding edge
-# epic_core = { git = "https://github.com/mimblewimble/grin", branch = "master" }
-# epic_keychain = { git = "https://github.com/mimblewimble/grin", branch = "master" }
-# epic_chain = { git = "https://github.com/mimblewimble/grin", branch = "master" }
-# epic_util = { git = "https://github.com/mimblewimble/grin", branch = "master" }
-# epic_api = { git = "https://github.com/mimblewimble/grin", branch = "master" }
-# epic_store = { git = "https://github.com/mimblewimble/grin", branch = "master" }
+# epic_core = { git = "https://github.com/mimblewimble/epic", branch = "master" }
+# epic_keychain = { git = "https://github.com/mimblewimble/epic", branch = "master" }
+# epic_chain = { git = "https://github.com/mimblewimble/epic", branch = "master" }
+# epic_util = { git = "https://github.com/mimblewimble/epic", branch = "master" }
+# epic_api = { git = "https://github.com/mimblewimble/epic", branch = "master" }
+# epic_store = { git = "https://github.com/mimblewimble/epic", branch = "master" }
 
 # For local testing
 epic_core = { path = "../../epic/core"}

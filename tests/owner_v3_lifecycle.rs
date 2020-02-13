@@ -1,4 +1,4 @@
-// Copyright 2019 The Grin Developers
+// Copyright 2019 The Epic Developers
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -48,7 +48,7 @@ fn owner_v3_lifecycle() -> Result<(), epic_wallet_controller::Error> {
 	let test_dir = "target/test_output/owner_v3_lifecycle";
 	setup(test_dir);
 
-	let yml = load_yaml!("../src/bin/grin-wallet.yml");
+	let yml = load_yaml!("../src/bin/epic-wallet.yml");
 	let app = App::from_yaml(yml);
 
 	// Create a new proxy to simulate server and wallet responses
@@ -66,9 +66,9 @@ fn owner_v3_lifecycle() -> Result<(), epic_wallet_controller::Error> {
 		let chain = wallet_proxy.chain.clone();
 
 		// Create wallet 2 manually, which will mine a bit and insert some
-		// grins into the equation
+		// epics into the equation
 		let client2 = LocalWalletClient::new("wallet2", wallet_proxy.tx.clone());
-		let arg_vec = vec!["grin-wallet", "-p", "password", "init", "-h"];
+		let arg_vec = vec!["epic-wallet", "-p", "password", "init", "-h"];
 		execute_command(&app, test_dir, "wallet2", &client2, arg_vec.clone())?;
 
 		let config2 = initial_setup_wallet(test_dir, "wallet2");
@@ -88,14 +88,14 @@ fn owner_v3_lifecycle() -> Result<(), epic_wallet_controller::Error> {
 		);
 
 		// start up the owner api with wallet created
-		let arg_vec = vec!["grin-wallet", "owner_api", "-l", "43420", "--run_foreign"];
+		let arg_vec = vec!["epic-wallet", "owner_api", "-l", "43420", "--run_foreign"];
 		// should create new wallet file
 		let client1 = LocalWalletClient::new("wallet1", wallet_proxy.tx.clone());
 
 		let p = wallet_proxy_a.clone();
 
 		thread::spawn(move || {
-			let yml = load_yaml!("../src/bin/grin-wallet.yml");
+			let yml = load_yaml!("../src/bin/epic-wallet.yml");
 			let app = App::from_yaml(yml);
 			execute_command_no_setup(
 				&app,
@@ -145,7 +145,7 @@ fn owner_v3_lifecycle() -> Result<(), epic_wallet_controller::Error> {
 	let value: ECDHPubkey = res.unwrap();
 	let shared_key = derive_ecdh_key(sec_key_str, &value.ecdh_pubkey);
 
-	// 2) get the top level directory, should default to ~/.grin/auto
+	// 2) get the top level directory, should default to ~/.epic/auto
 	let req = include_str!("data/v3_reqs/get_top_level.req.json");
 	let res =
 		send_request_enc::<String>(1, 1, "http://127.0.0.1:43420/v3/owner", &req, &shared_key)?;
@@ -178,7 +178,7 @@ fn owner_v3_lifecycle() -> Result<(), epic_wallet_controller::Error> {
 		send_request_enc::<String>(1, 1, "http://127.0.0.1:43420/v3/owner", &req, &shared_key)?;
 	println!("RES 4: {:?}", res);
 	assert!(res.is_ok());
-	let pb = PathBuf::from(format!("{}/wallet1/grin-wallet.toml", test_dir));
+	let pb = PathBuf::from(format!("{}/wallet1/epic-wallet.toml", test_dir));
 	assert!(pb.exists());
 
 	// 5) Try and perform an operation without having a wallet open
@@ -312,7 +312,7 @@ fn owner_v3_lifecycle() -> Result<(), epic_wallet_controller::Error> {
 	println!("RES 14: {:?}", res);
 	assert!(res.is_ok());
 
-	//15) Ask wallet 2 for some grins
+	//15) Ask wallet 2 for some epics
 	let req = serde_json::json!({
 		"jsonrpc": "2.0",
 		"id": 1,
@@ -321,7 +321,7 @@ fn owner_v3_lifecycle() -> Result<(), epic_wallet_controller::Error> {
 			"token": token,
 			"args": {
 				"amount": "6000000000",
-				"message": "geez a block of grins",
+				"message": "geez a block of epics",
 				"dest_acct_name": null,
 				"target_slate_version": null
 			}

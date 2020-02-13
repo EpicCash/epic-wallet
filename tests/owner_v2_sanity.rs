@@ -1,4 +1,4 @@
-// Copyright 2019 The Grin Developers
+// Copyright 2019 The Epic Developers
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -50,17 +50,17 @@ fn owner_v2_sanity() -> Result<(), epic_wallet_controller::Error> {
 	let client1_2 = client1.clone();
 
 	// run the owner listener on wallet 1
-	let arg_vec = vec!["grin-wallet", "-p", "password", "owner_api"];
+	let arg_vec = vec!["epic-wallet", "-p", "password", "owner_api"];
 	// Set running
 	thread::spawn(move || {
-		let yml = load_yaml!("../src/bin/grin-wallet.yml");
+		let yml = load_yaml!("../src/bin/epic-wallet.yml");
 		let app = App::from_yaml(yml);
 		execute_command(&app, test_dir, "wallet1", &client1, arg_vec.clone()).unwrap();
 	});
 
 	// run the foreign listener for wallet 2
 	let arg_vec = vec![
-		"grin-wallet",
+		"epic-wallet",
 		"-p",
 		"password",
 		"listen",
@@ -70,7 +70,7 @@ fn owner_v2_sanity() -> Result<(), epic_wallet_controller::Error> {
 	];
 	// Set owner listener running
 	thread::spawn(move || {
-		let yml = load_yaml!("../src/bin/grin-wallet.yml");
+		let yml = load_yaml!("../src/bin/epic-wallet.yml");
 		let app = App::from_yaml(yml);
 		execute_command(&app, test_dir, "wallet2", &client2, arg_vec.clone()).unwrap();
 	});
@@ -87,7 +87,7 @@ fn owner_v2_sanity() -> Result<(), epic_wallet_controller::Error> {
 
 	// 2) Send to wallet 2 foreign listener
 	let arg_vec = vec![
-		"grin-wallet",
+		"epic-wallet",
 		"-p",
 		"password",
 		"send",
@@ -95,7 +95,7 @@ fn owner_v2_sanity() -> Result<(), epic_wallet_controller::Error> {
 		"http://127.0.0.1:23415",
 		"10",
 	];
-	let yml = load_yaml!("../src/bin/grin-wallet.yml");
+	let yml = load_yaml!("../src/bin/epic-wallet.yml");
 	let app = App::from_yaml(yml);
 	let res = execute_command(&app, test_dir, "wallet1", &client1_2, arg_vec.clone());
 	println!("Response 2: {:?}", res);

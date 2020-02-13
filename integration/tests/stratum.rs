@@ -1,4 +1,4 @@
-// Copyright 2019 The Grin Developers
+// Copyright 2019 The Epic Developers
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -31,7 +31,7 @@ use std::process;
 use std::sync::Arc;
 use std::{thread, time};
 
-// Create a grin server, and a stratum server.
+// Create a epic server, and a stratum server.
 // Simulate a few JSONRpc requests and verify the results.
 // Validate disconnected workers
 // Validate broadcasting new jobs

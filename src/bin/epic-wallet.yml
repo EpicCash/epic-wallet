@@ -1,14 +1,14 @@
-name: grin-wallet
-about: Reference Grin Wallet
-author: The Grin Team
+name: epic-wallet
+about: Reference Epic Wallet
+author: The Epic Team
 
 args:
   - floonet:
-      help: Run grin against the Floonet (as opposed to mainnet)
+      help: Run epic against the Floonet (as opposed to mainnet)
       long: floonet
       takes_value: false
   - usernet:
-      help: Run grin as a local-only network. Doesn't block peer connections but will not connect to any peer or seed
+      help: Run epic as a local-only network. Doesn't block peer connections but will not connect to any peer or seed
       long: usernet
       takes_value: false
   - pass:
@@ -23,7 +23,7 @@ args:
       takes_value: true
       default_value: default
   - top_level_dir:
-      help: Top directory in which wallet files are stored (location of 'grin-wallet.toml')
+      help: Top directory in which wallet files are stored (location of 'epic-wallet.toml')
       short: t
       long: top_level_dir
       takes_value: true
@@ -332,7 +332,7 @@ subcommands:
       about: Initialize a new wallet seed file and database
       args:
         - here:
-            help: Create wallet files in the current directory instead of the default ~/.grin directory
+            help: Create wallet files in the current directory instead of the default ~/.epic directory
             short: h
             long: here
             takes_value: false

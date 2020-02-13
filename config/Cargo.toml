@@ -1,11 +1,11 @@
 [package]
 name = "epic_wallet_config"
 version = "3.0.0"
-authors = ["Grin Developers <mimblewimble@lists.launchpad.net>"]
-description = "Configuration for grin wallet , a simple, private and scalable cryptocurrency implementation based on the MimbleWimble chain format."
+authors = ["Epic Developers <mimblewimble@lists.launchpad.net>"]
+description = "Configuration for epic wallet , a simple, private and scalable cryptocurrency implementation based on the MimbleWimble chain format."
 license = "Apache-2.0"
-repository = "https://github.com/mimblewimble/grin-wallet"
-keywords = [ "crypto", "grin", "mimblewimble" ]
+repository = "https://github.com/mimblewimble/epic-wallet"
+keywords = [ "crypto", "epic", "mimblewimble" ]
 workspace = ".."
 edition = "2018"
 

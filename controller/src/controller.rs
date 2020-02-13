@@ -1,4 +1,4 @@
-// Copyright 2019 The Grin Developers
+// Copyright 2019 The Epic Developers
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -46,7 +46,7 @@ use easy_jsonrpc_mw::{Handler, MaybeReply};
 
 lazy_static! {
 	pub static ref GRIN_OWNER_BASIC_REALM: HeaderValue =
-		HeaderValue::from_str("Basic realm=GrinOwnerAPI").unwrap();
+		HeaderValue::from_str("Basic realm=EpicOwnerAPI").unwrap();
 }
 
 fn check_middleware(
@@ -176,7 +176,7 @@ where
 	let mut router = Router::new();
 	if api_secret.is_some() {
 		let api_basic_auth =
-			"Basic ".to_string() + &to_base64(&("grin:".to_string() + &api_secret.unwrap()));
+			"Basic ".to_string() + &to_base64(&("epic:".to_string() + &api_secret.unwrap()));
 		let basic_auth_middleware = Arc::new(BasicAuthMiddleware::new(
 			api_basic_auth,
 			&GRIN_OWNER_BASIC_REALM,

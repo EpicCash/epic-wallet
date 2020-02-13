@@ -1,4 +1,4 @@
-// Copyright 2019 The Grin Developers
+// Copyright 2019 The Epic Developers
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -47,7 +47,7 @@ fn setup_no_clean() {
 #[test]
 fn socks_tor() -> Result<(), epic_wallet_controller::Error> {
 	let test_dir = "target/test_output/socks_tor";
-	let yml = load_yaml!("../src/bin/grin-wallet.yml");
+	let yml = load_yaml!("../src/bin/epic-wallet.yml");
 	let app = App::from_yaml(yml);
 	setup_no_clean();
 
@@ -67,10 +67,10 @@ fn socks_tor() -> Result<(), epic_wallet_controller::Error> {
 	let onion_address = "2a6at2obto3uvkpkitqp4wxcg6u36qf534eucbskqciturczzc5suyid";
 
 	// run the foreign listener for wallet 2
-	let arg_vec = vec!["grin-wallet", "-p", "password", "listen"];
+	let arg_vec = vec!["epic-wallet", "-p", "password", "listen"];
 	// Set owner listener running
 	thread::spawn(move || {
-		let yml = load_yaml!("../src/bin/grin-wallet.yml");
+		let yml = load_yaml!("../src/bin/epic-wallet.yml");
 		let app = App::from_yaml(yml);
 		execute_command(&app, test_dir, "wallet2", &client2, arg_vec.clone()).unwrap();
 	});
@@ -85,7 +85,7 @@ fn socks_tor() -> Result<(), epic_wallet_controller::Error> {
 
 	// now, test send from wallet 1 over tor
 	let arg_vec = vec![
-		"grin-wallet",
+		"epic-wallet",
 		"-p",
 		"password",
 		"send",

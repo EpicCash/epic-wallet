@@ -1,4 +1,4 @@
-// Copyright 2019 The Grin Developers
+// Copyright 2019 The Epic Developers
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -56,7 +56,7 @@ pub struct InitTxArgs {
 	/// [`set_active_account`](../epic_wallet_api/owner/struct.Owner.html#method.set_active_account) method.
 	pub src_acct_name: Option<String>,
 	#[serde(with = "secp_ser::string_or_u64")]
-	/// The amount to send, in nanogrins. (`1 G = 1_000_000_000nG`)
+	/// The amount to send, in nanoepics. (`1 G = 1_000_000_000nG`)
 	pub amount: u64,
 	#[serde(with = "secp_ser::string_or_u64")]
 	/// The minimum number of confirmations an output
@@ -147,7 +147,7 @@ pub struct IssueInvoiceTxArgs {
 	/// overriding whatever the active account is as set via the
 	/// [`set_active_account`](../epic_wallet_api/owner/struct.Owner.html#method.set_active_account) method.
 	pub dest_acct_name: Option<String>,
-	/// The invoice amount in nanogrins. (`1 G = 1_000_000_000nG`)
+	/// The invoice amount in nanoepics. (`1 G = 1_000_000_000nG`)
 	#[serde(with = "secp_ser::string_or_u64")]
 	pub amount: u64,
 	/// Optional message, that will be signed

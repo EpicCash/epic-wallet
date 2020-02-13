@@ -1,4 +1,4 @@
-// Copyright 2019 The Grin Developers
+// Copyright 2019 The Epic Developers
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -116,7 +116,7 @@ pub fn outputs(
 		println!(
 			"\nWARNING: Wallet failed to verify data. \
 			 The above is from local cache and possibly invalid! \
-			 (is your `grin server` offline or broken?)"
+			 (is your `epic server` offline or broken?)"
 		);
 	}
 	Ok(())
@@ -279,7 +279,7 @@ pub fn txs(
 		println!(
 			"\nWARNING: Wallet failed to verify data. \
 			 The above is from local cache and possibly invalid! \
-			 (is your `grin server` offline or broken?)"
+			 (is your `epic server` offline or broken?)"
 		);
 	}
 	Ok(())
@@ -368,7 +368,7 @@ pub fn info(
 		println!(
 			"\nWARNING: Wallet failed to verify data against a live chain. \
 			 The above is from local cache and only valid up to the given height! \
-			 (is your `grin server` offline or broken?)"
+			 (is your `epic server` offline or broken?)"
 		);
 	}
 }

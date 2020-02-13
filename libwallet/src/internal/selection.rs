@@ -1,4 +1,4 @@
-// Copyright 2019 The Grin Developers
+// Copyright 2019 The Epic Developers
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -139,7 +139,7 @@ where
 		let log_id = batch.next_tx_log_id(&parent_key_id)?;
 		let mut t = TxLogEntry::new(parent_key_id.clone(), TxLogEntryType::TxSent, log_id);
 		t.tx_slate_id = Some(slate_id.clone());
-		let filename = format!("{}.grintx", slate_id);
+		let filename = format!("{}.epictx", slate_id);
 		t.stored_tx = Some(filename);
 		t.fee = Some(slate.fee);
 		t.ttl_cutoff_height = slate.ttl_cutoff_height;

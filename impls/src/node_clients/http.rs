@@ -1,4 +1,4 @@
-// Copyright 2019 The Grin Developers
+// Copyright 2019 The Epic Developers
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -37,7 +37,7 @@ pub struct HTTPNodeClient {
 }
 
 impl HTTPNodeClient {
-	/// Create a new client that will communicate with the given grin node
+	/// Create a new client that will communicate with the given epic node
 	pub fn new(node_url: &str, node_api_secret: Option<String>) -> HTTPNodeClient {
 		HTTPNodeClient {
 			node_url: node_url.to_owned(),
@@ -97,7 +97,7 @@ impl NodeClient for HTTPNodeClient {
 		Some(retval)
 	}
 
-	/// Posts a transaction to a grin node
+	/// Posts a transaction to a epic node
 	fn post_tx(&self, tx: &TxWrapper, fluff: bool) -> Result<(), libwallet::Error> {
 		let url;
 		let dest = self.node_url();
@@ -341,7 +341,7 @@ pub fn create_coinbase(dest: &str, block_fees: &BlockFees) -> Result<CbData, Err
 	match single_create_coinbase(&url, &block_fees) {
 		Err(e) => {
 			error!(
-				"Failed to get coinbase from {}. Run grin wallet listen?",
+				"Failed to get coinbase from {}. Run epic wallet listen?",
 				url
 			);
 			error!("Underlying Error: {}", e.cause().unwrap());

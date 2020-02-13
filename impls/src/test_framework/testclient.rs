@@ -1,4 +1,4 @@
-// Copyright 2019 The Grin Developers
+// Copyright 2019 The Epic Developers
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -93,12 +93,12 @@ where
 	C: NodeClient + 'a,
 	K: Keychain + 'a,
 {
-	/// Create a new client that will communicate with the given grin node
+	/// Create a new client that will communicate with the given epic node
 	pub fn new(chain_dir: &str) -> Self {
 		set_mining_mode(ChainTypes::AutomatedTesting);
 		let genesis_block = pow::mine_genesis_block().unwrap();
 		let verifier_cache = Arc::new(RwLock::new(LruVerifierCache::new()));
-		let dir_name = format!("{}/.grin", chain_dir);
+		let dir_name = format!("{}/.epic", chain_dir);
 		let c = Chain::init(
 			dir_name.to_string(),
 			Arc::new(NoopAdapter {}),
@@ -432,7 +432,7 @@ impl NodeClient for LocalWalletClient {
 	fn get_version_info(&mut self) -> Option<NodeVersionInfo> {
 		None
 	}
-	/// Posts a transaction to a grin node
+	/// Posts a transaction to a epic node
 	/// In this case it will create a new block with award rewarded to
 	fn post_tx(&self, tx: &TxWrapper, _fluff: bool) -> Result<(), libwallet::Error> {
 		let m = WalletProxyMessage {

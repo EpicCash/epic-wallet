@@ -1,4 +1,4 @@
-// Copyright 2019 The Grin Developers
+// Copyright 2019 The Epic Developers
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -32,9 +32,9 @@ use crate::types::{TorConfig, WalletConfig};
 use crate::util::logger::LoggingConfig;
 
 /// Wallet configuration file name
-pub const WALLET_CONFIG_FILE_NAME: &'static str = "grin-wallet.toml";
-const WALLET_LOG_FILE_NAME: &'static str = "grin-wallet.log";
-const GRIN_HOME: &'static str = ".grin";
+pub const WALLET_CONFIG_FILE_NAME: &'static str = "epic-wallet.toml";
+const WALLET_LOG_FILE_NAME: &'static str = "epic-wallet.log";
+const GRIN_HOME: &'static str = ".epic";
 /// Wallet data directory
 pub const GRIN_WALLET_DIR: &'static str = "wallet_data";
 /// Node API secret
@@ -43,7 +43,7 @@ pub const API_SECRET_FILE_NAME: &'static str = ".api_secret";
 pub const OWNER_API_SECRET_FILE_NAME: &'static str = ".owner_api_secret";
 
 fn get_epic_path(chain_type: &global::ChainTypes) -> Result<PathBuf, ConfigError> {
-	// Check if grin dir exists
+	// Check if epic dir exists
 	let mut epic_path = match dirs::home_dir() {
 		Some(p) => p,
 		None => PathBuf::new(),
@@ -122,11 +122,11 @@ pub fn initial_setup_wallet(
 ) -> Result<GlobalWalletConfig, ConfigError> {
 	check_api_secret_file(chain_type, data_path.clone(), OWNER_API_SECRET_FILE_NAME)?;
 	check_api_secret_file(chain_type, data_path.clone(), API_SECRET_FILE_NAME)?;
-	// Use config file if current directory if it exists, .grin home otherwise
+	// Use config file if current directory if it exists, .epic home otherwise
 	if let Some(p) = check_config_current_dir(WALLET_CONFIG_FILE_NAME) {
 		GlobalWalletConfig::new(p.to_str().unwrap())
 	} else {
-		// Check if grin dir exists
+		// Check if epic dir exists
 		let epic_path = match data_path {
 			Some(p) => p,
 			None => get_epic_path(chain_type)?,

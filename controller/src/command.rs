@@ -1,4 +1,4 @@
-// Copyright 2019 The Grin Developers
+// Copyright 2019 The Epic Developers
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Grin wallet command-line function implementations
+//! Epic wallet command-line function implementations
 
 use crate::api::TLSConfig;
 use crate::config::{TorConfig, WalletConfig, WALLET_CONFIG_FILE_NAME};
@@ -311,7 +311,7 @@ where
 			let mut slate = match result {
 				Ok(s) => {
 					info!(
-						"Tx created: {} grin to {} (strategy '{}')",
+						"Tx created: {} epic to {} (strategy '{}')",
 						core::amount_to_hr_string(args.amount, false),
 						args.dest,
 						args.selection_strategy,
@@ -589,7 +589,7 @@ where
 			let mut slate = match result {
 				Ok(s) => {
 					info!(
-						"Invoice processed: {} grin to {} (strategy '{}')",
+						"Invoice processed: {} epic to {} (strategy '{}')",
 						core::amount_to_hr_string(slate.amount, false),
 						args.dest,
 						args.selection_strategy,

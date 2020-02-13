@@ -1,4 +1,4 @@
-// Copyright 2019 The Grin Developers
+// Copyright 2019 The Epic Developers
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -52,7 +52,7 @@ where
 			} else {
 				&v.node_version
 			};
-			println!("The Grin Node in use (version {}) is outdated and incompatible with this wallet version.", version);
+			println!("The Epic Node in use (version {}) is outdated and incompatible with this wallet version.", version);
 			println!("Please update the node to version 2.0.0 or later and try again.");
 			return 1;
 		}

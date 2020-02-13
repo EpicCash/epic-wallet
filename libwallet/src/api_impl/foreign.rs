@@ -1,4 +1,4 @@
-// Copyright 2019 The Grin Developers
+// Copyright 2019 The Epic Developers
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -49,6 +49,21 @@ where
 	K: Keychain + 'a,
 {
 	updater::build_coinbase(&mut *w, keychain_mask, block_fees, test_mode)
+}
+
+/// Build a coinbase transaction
+pub fn build_foundation<'a, T: ?Sized, C, K>(
+	w: &mut T,
+	keychain_mask: Option<&SecretKey>,
+	block_fees: &BlockFees,
+	test_mode: bool,
+) -> Result<CbData, Error>
+where
+	T: WalletBackend<'a, C, K>,
+	C: NodeClient + 'a,
+	K: Keychain + 'a,
+{
+	updater::build_foundation(&mut *w, keychain_mask, block_fees, test_mode)
 }
 
 /// verify slate messages

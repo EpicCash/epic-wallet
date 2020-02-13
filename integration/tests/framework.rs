@@ -1,4 +1,4 @@
-// Copyright 2019 The Grin Developers
+// Copyright 2019 The Epic Developers
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -205,7 +205,7 @@ impl LocalServerContainer {
 		let s = servers::Server::new(servers::ServerConfig {
 			api_http_addr: api_addr,
 			api_secret_path: None,
-			db_root: format!("{}/.grin", self.working_dir),
+			db_root: format!("{}/.epic", self.working_dir),
 			p2p_config: p2p::P2PConfig {
 				port: self.config.p2p_server_port,
 				seeds: Some(seeds),
@@ -266,7 +266,7 @@ impl LocalServerContainer {
 		let _seed = blake2::blake2b::blake2b(32, &[], seed.as_bytes());
 
 		println!(
-			"Starting the Grin wallet receiving daemon on {} ",
+			"Starting the Epic wallet receiving daemon on {} ",
 			self.config.wallet_port
 		);
 
@@ -405,7 +405,7 @@ impl LocalServerContainer {
 			slate = api.finalize_tx(&slate)?;
 			api.tx_lock_outputs(&slate, lock_fn)?;
 			println!(
-				"Tx sent: {} grin to {} (strategy '{}')",
+				"Tx sent: {} epic to {} (strategy '{}')",
 				core::core::amount_to_hr_string(amount, false),
 				dest,
 				selection_strategy,
@@ -652,7 +652,7 @@ pub fn config(n: u16, test_name_dir: &str, seed_n: u16) -> servers::ServerConfig
 	servers::ServerConfig {
 		api_http_addr: format!("127.0.0.1:{}", 20000 + n),
 		api_secret_path: None,
-		db_root: format!("target/tmp/{}/grin-sync-{}", test_name_dir, n),
+		db_root: format!("target/tmp/{}/epic-sync-{}", test_name_dir, n),
 		p2p_config: p2p::P2PConfig {
 			port: 10000 + n,
 			seeding_type: p2p::Seeding::List,

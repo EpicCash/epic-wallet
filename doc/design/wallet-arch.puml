@@ -1,9 +1,9 @@
-@startuml grin-wallet-overview 
+@startuml epic-wallet-overview 
 skinparam componentStyle uml2
 
-[Grin Node] as epic_node
+[Epic Node] as epic_node
 
-folder "Provided by Grin" as services {
+folder "Provided by Epic" as services {
 	component foreign_api [
 		**Foreign API**
 		External-Facing functions
@@ -45,7 +45,7 @@ package "Traits Implemented by Wallets" as traits {
 
 note left of wallet_client
     - Communication layer implementation
-    - Handles underlying communication with grin node
+    - Handles underlying communication with epic node
        or other wallets
     - HTTP implementation provided currently, (Other,
        more secure protocols possible.)

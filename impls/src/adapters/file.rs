@@ -1,4 +1,4 @@
-// Copyright 2019 The Grin Developers
+// Copyright 2019 The Epic Developers
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -28,8 +28,8 @@ impl SlatePutter for PathToSlate {
 		let mut pub_tx = File::create(&self.0)?;
 		let out_slate = {
 			if slate.payment_proof.is_some() || slate.ttl_cutoff_height.is_some() {
-				warn!("Transaction contains features that require grin-wallet 3.0.0 or later");
-				warn!("Please ensure the other party is running grin-wallet v3.0.0 or later before sending");
+				warn!("Transaction contains features that require epic-wallet 3.0.0 or later");
+				warn!("Please ensure the other party is running epic-wallet v3.0.0 or later before sending");
 				VersionedSlate::into_version(slate.clone(), SlateVersion::V3)
 			} else {
 				let mut s = slate.clone();

@@ -1,4 +1,4 @@
-// Copyright 2019 The Grin Developers
+// Copyright 2019 The Epic Developers
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -32,7 +32,7 @@ fn comments() -> HashMap<String, String> {
 	retval.insert(
 		"api_listen_interface".to_string(),
 		"
-#host IP for wallet listener, change to \"0.0.0.0\" to receive grins
+#host IP for wallet listener, change to \"0.0.0.0\" to receive epics
 "
 		.to_string(),
 	);
@@ -76,7 +76,7 @@ fn comments() -> HashMap<String, String> {
 	retval.insert(
 		"node_api_secret_path".to_string(),
 		"
-#location of the node api secret for basic auth on the Grin API
+#location of the node api secret for basic auth on the Epic API
 "
 		.to_string(),
 	);

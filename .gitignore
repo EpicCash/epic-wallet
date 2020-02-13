@@ -1,13 +1,13 @@
 *.swp
 .DS_Store
-.grin*
+.epic*
 node*
 !node_clients
 !node_clients.rs
 target
 */Cargo.lock
 *.iml
-grin.log
+epic.log
 wallet.seed
 test_output
 .idea/

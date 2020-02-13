@@ -1,4 +1,4 @@
-// Copyright 2019 The Grin Developers
+// Copyright 2019 The Epic Developers
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -56,15 +56,15 @@ macro_rules! setup_proxy {
 		let $chain = wallet_proxy.chain.clone();
 
 		// load app yaml. If it don't exist, just say so and exit
-		let yml = load_yaml!("../src/bin/grin-wallet.yml");
+		let yml = load_yaml!("../src/bin/epic-wallet.yml");
 		let app = App::from_yaml(yml);
 
 		// wallet init
-		let arg_vec = vec!["grin-wallet", "-p", "password", "init", "-h"];
+		let arg_vec = vec!["epic-wallet", "-p", "password", "init", "-h"];
 		// should create new wallet file
 		let $client1 = LocalWalletClient::new("wallet1", wallet_proxy.tx.clone());
 
-		let target = std::path::PathBuf::from(format!("{}/wallet1/grin-wallet.toml", $test_dir));
+		let target = std::path::PathBuf::from(format!("{}/wallet1/epic-wallet.toml", $test_dir));
 		println!("{:?}", target);
 		if !target.exists() {
 			execute_command(&app, $test_dir, "wallet1", &$client1, arg_vec.clone())?;
@@ -91,7 +91,7 @@ macro_rules! setup_proxy {
 		// Create wallet 2, which will run a listener
 		let $client2 = LocalWalletClient::new("wallet2", wallet_proxy.tx.clone());
 
-		let target = std::path::PathBuf::from(format!("{}/wallet2/grin-wallet.toml", $test_dir));
+		let target = std::path::PathBuf::from(format!("{}/wallet2/epic-wallet.toml", $test_dir));
 		if !target.exists() {
 			execute_command(&app, $test_dir, "wallet2", &$client2, arg_vec.clone())?;
 			}
@@ -148,10 +148,10 @@ pub fn config_command_wallet(
 	current_dir.push(wallet_name);
 	let _ = fs::create_dir_all(current_dir.clone());
 	let mut config_file_name = current_dir.clone();
-	config_file_name.push("grin-wallet.toml");
+	config_file_name.push("epic-wallet.toml");
 	if config_file_name.exists() {
 		return Err(epic_wallet_controller::ErrorKind::ArgumentError(
-			"grin-wallet.toml already exists in the target directory. Please remove it first"
+			"epic-wallet.toml already exists in the target directory. Please remove it first"
 				.to_owned(),
 		))?;
 	}
@@ -180,7 +180,7 @@ pub fn initial_setup_wallet(dir_name: &str, wallet_name: &str) -> GlobalWalletCo
 	current_dir.push(wallet_name);
 	let _ = fs::create_dir_all(current_dir.clone());
 	let mut config_file_name = current_dir.clone();
-	config_file_name.push("grin-wallet.toml");
+	config_file_name.push("epic-wallet.toml");
 	GlobalWalletConfig::new(config_file_name.to_str().unwrap()).unwrap()
 }
 
@@ -237,7 +237,7 @@ pub fn instantiate_wallet(
 			>,
 		>;
 	let lc = wallet.lc_provider().unwrap();
-	// legacy hack to avoid the need for changes in existing grin-wallet.toml files
+	// legacy hack to avoid the need for changes in existing epic-wallet.toml files
 	// remove `wallet_data` from end of path as
 	// new lifecycle provider assumes epic_wallet.toml is in root of data directory
 	let mut top_level_wallet_dir = PathBuf::from(wallet_config.clone().data_file_dir);

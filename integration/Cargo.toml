@@ -1,11 +1,11 @@
 [package]
 name = "epic_integration"
 version = "1.1.0"
-authors = ["Grin Developers <mimblewimble@lists.launchpad.net>"]
+authors = ["Epic Developers <mimblewimble@lists.launchpad.net>"]
 description = "Simple, private and scalable cryptocurrency implementation based on the MimbleWimble chain format."
 license = "Apache-2.0"
-repository = "https://github.com/mimblewimble/grin"
-keywords = [ "crypto", "grin", "mimblewimble" ]
+repository = "https://github.com/mimblewimble/epic"
+keywords = [ "crypto", "epic", "mimblewimble" ]
 workspace = ".."
 edition = "2018"
 
@@ -29,11 +29,11 @@ bufstream = "0.1"
 #epic_refwallet = { path = "../refwallet", version = "1.1.0" }
 #epic_wallet_config = { path = "../config", version = "1.1.0" }
 
-#epic_core = { git = "https://github.com/mimblewimble/grin", branch = "milestone/1.1.0" }
-#epic_keychain = { git = "https://github.com/mimblewimble/grin", branch = "milestone/1.1.0" }
-#epic_chain = { git = "https://github.com/mimblewimble/grin", branch = "milestone/1.1.0" }
-#epic_util = { git = "https://github.com/mimblewimble/grin", branch = "milestone/1.1.0" }
-#epic_api = { git = "https://github.com/mimblewimble/grin", branch = "milestone/1.1.0" }
-#epic_store = { git = "https://github.com/mimblewimble/grin", branch = "milestone/1.1.0" }
-#epic_p2p = { git = "https://github.com/mimblewimble/grin", branch = "milestone/1.1.0" }
-#epic_servers = { git = "https://github.com/mimblewimble/grin", branch = "milestone/1.1.0" }
+#epic_core = { git = "https://github.com/mimblewimble/epic", branch = "milestone/1.1.0" }
+#epic_keychain = { git = "https://github.com/mimblewimble/epic", branch = "milestone/1.1.0" }
+#epic_chain = { git = "https://github.com/mimblewimble/epic", branch = "milestone/1.1.0" }
+#epic_util = { git = "https://github.com/mimblewimble/epic", branch = "milestone/1.1.0" }
+#epic_api = { git = "https://github.com/mimblewimble/epic", branch = "milestone/1.1.0" }
+#epic_store = { git = "https://github.com/mimblewimble/epic", branch = "milestone/1.1.0" }
+#epic_p2p = { git = "https://github.com/mimblewimble/epic", branch = "milestone/1.1.0" }
+#epic_servers = { git = "https://github.com/mimblewimble/epic", branch = "milestone/1.1.0" }

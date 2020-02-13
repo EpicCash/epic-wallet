@@ -1,4 +1,4 @@
-// Copyright 2019 The Grin Developers
+// Copyright 2019 The Epic Developers
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Contains V2 of the slate (grin-wallet 1.1.0)
+//! Contains V2 of the slate (epic-wallet 1.1.0)
 //! Changes from V1:
 //! * ParticipantData struct fields serialized as hex strings instead of arrays:
 //!    * public_blind_excess
@@ -82,7 +82,7 @@ pub struct VersionCompatInfoV2 {
 	pub version: u16,
 	/// Original version this slate was converted from
 	pub orig_version: u16,
-	/// Version of grin block header this slate is compatible with
+	/// Version of epic block header this slate is compatible with
 	pub block_header_version: u16,
 }
 

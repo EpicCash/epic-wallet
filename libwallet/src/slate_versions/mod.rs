@@ -1,4 +1,4 @@
-// Copyright 2019 The Grin Developers
+// Copyright 2019 The Epic Developers
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -32,7 +32,7 @@ pub mod v3;
 /// The most recent version of the slate
 pub const CURRENT_SLATE_VERSION: u16 = 3;
 
-/// The grin block header this slate is intended to be compatible with
+/// The epic block header this slate is intended to be compatible with
 pub const GRIN_BLOCK_HEADER_VERSION: u16 = 3;
 
 /// Existing versions of the slate

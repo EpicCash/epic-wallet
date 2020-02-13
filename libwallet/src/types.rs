@@ -1,4 +1,4 @@
-// Copyright 2019 The Grin Developers
+// Copyright 2019 The Epic Developers
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -56,14 +56,14 @@ where
 	K: Keychain + 'a,
 {
 	/// Sets the top level system wallet directory
-	/// default is assumed to be ~/.grin/main/wallet_data (or floonet equivalent)
+	/// default is assumed to be ~/.epic/main/wallet_data (or floonet equivalent)
 	fn set_top_level_directory(&mut self, dir: &str) -> Result<(), Error>;
 
 	/// Sets the top level system wallet directory
-	/// default is assumed to be ~/.grin/main/wallet_data (or floonet equivalent)
+	/// default is assumed to be ~/.epic/main/wallet_data (or floonet equivalent)
 	fn get_top_level_directory(&self) -> Result<String, Error>;
 
-	/// Output a grin-wallet.toml file into the current top-level system wallet directory
+	/// Output a epic-wallet.toml file into the current top-level system wallet directory
 	fn create_config(
 		&self,
 		chain_type: &global::ChainTypes,
@@ -328,14 +328,14 @@ pub trait NodeClient: Send + Sync + Clone {
 	/// Change the API secret
 	fn set_node_api_secret(&mut self, node_api_secret: Option<String>);
 
-	/// Posts a transaction to a grin node
+	/// Posts a transaction to a epic node
 	fn post_tx(&self, tx: &TxWrapper, fluff: bool) -> Result<(), Error>;
 
 	/// Returns the api version string and block header version as reported
 	/// by the node. Result can be cached for later use
 	fn get_version_info(&mut self) -> Option<NodeVersionInfo>;
 
-	/// retrieves the current tip (height, hash) from the specified grin node
+	/// retrieves the current tip (height, hash) from the specified epic node
 	fn get_chain_tip(&self) -> Result<(u64, String), Error>;
 
 	/// Get a kernel and the height of the block it's included in. Returns
@@ -347,7 +347,7 @@ pub trait NodeClient: Send + Sync + Clone {
 		max_height: Option<u64>,
 	) -> Result<Option<(TxKernel, u64, u64)>, Error>;
 
-	/// retrieve a list of outputs from the specified grin node
+	/// retrieve a list of outputs from the specified epic node
 	/// need "by_height" and "by_id" variants
 	fn get_outputs_from_node(
 		&self,

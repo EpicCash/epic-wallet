@@ -1,12 +1,12 @@
 [package]
 name = "epic_wallet_impls"
 version = "3.0.0"
-authors = ["Grin Developers <mimblewimble@lists.launchpad.net>"]
+authors = ["Epic Developers <mimblewimble@lists.launchpad.net>"]
 description = "Concrete types derived from libwallet traits"
 license = "Apache-2.0"
-repository = "https://github.com/mimblewimble/grin-wallet"
-keywords = [ "crypto", "grin", "mimblewimble" ]
-exclude = ["**/*.grin", "**/*.grin2"]
+repository = "https://github.com/mimblewimble/epic-wallet"
+keywords = [ "crypto", "epic", "mimblewimble" ]
+exclude = ["**/*.epic", "**/*.epic2"]
 edition = "2018"
 
 [dependencies]
@@ -27,7 +27,7 @@ tokio-retry = "0.1"
 uuid = { version = "0.7", features = ["serde", "v4"] }
 chrono = { version = "0.4.4", features = ["serde"] }
 
-#http client (copied from grin)
+#http client (copied from epic)
 http = "0.1.5"
 hyper-rustls = "0.14"
 hyper-timeout = "0.2"

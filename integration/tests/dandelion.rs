@@ -1,4 +1,4 @@
-// Copyright 2019 The Grin Developers
+// Copyright 2019 The Epic Developers
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -127,7 +127,7 @@ fn test_dandelion_timeout() {
 			LocalServerContainer::get_wallet_info(&coinbase_wallet_config, &coinbase_seed);
 	}
 
-	warn!("Sending 50 Grins to recipient wallet");
+	warn!("Sending 50 Epics to recipient wallet");
 
 	// Sending stem transaction
 	LocalServerContainer::send_amount_to(
