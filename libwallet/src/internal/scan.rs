@@ -76,7 +76,7 @@ where
 
 	let legacy_builder = proof::LegacyProofBuilder::new(keychain);
 	let builder = proof::ProofBuilder::new(keychain);
-	let legacy_version = HeaderVersion(1);
+	let legacy_version = HeaderVersion(6);
 
 	for output in outputs.iter() {
 		let (commit, proof, is_coinbase, height, mmr_index) = output;
@@ -84,12 +84,11 @@ where
 		// will fail if it's not ours
 		let info = {
 			// Before HF+2wk, try legacy rewind first
-			let info_legacy =
-				if valid_header_version(height.saturating_sub(2 * WEEK_HEIGHT), legacy_version) {
-					proof::rewind(keychain.secp(), &legacy_builder, *commit, None, *proof)?
-				} else {
-					None
-				};
+			let info_legacy = if valid_header_version(*height, legacy_version) {
+				proof::rewind(keychain.secp(), &legacy_builder, *commit, None, *proof)?
+			} else {
+				None
+			};
 
 			// If legacy didn't work, try new rewind
 			if info_legacy.is_none() {

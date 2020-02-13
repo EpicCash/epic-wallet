@@ -68,16 +68,12 @@ where
 	slate.amount = amount;
 	slate.height = current_height;
 
-	if valid_header_version(current_height, HeaderVersion(1)) {
-		slate.version_info.block_header_version = 1;
+	if valid_header_version(current_height, HeaderVersion(6)) {
+		slate.version_info.block_header_version = 6;
 	}
 
-	if valid_header_version(current_height, HeaderVersion(2)) {
-		slate.version_info.block_header_version = 2;
-	}
-
-	if valid_header_version(current_height, HeaderVersion(3)) {
-		slate.version_info.block_header_version = 3;
+	if valid_header_version(current_height, HeaderVersion(7)) {
+		slate.version_info.block_header_version = 7;
 	}
 
 	// Set the lock_height explicitly to 0 here.
