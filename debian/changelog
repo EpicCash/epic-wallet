@@ -1,0 +1,117 @@
+epic-wallet (2.3.0-1) bionic; urgency=medium
+
+  [ Yuri Albuquerque ]
+  * Fixes #8
+
+  [ Leonardo Viana ]
+  * Adequating the tests
+  * Fix foundation.json path
+  * Fix wallet tests
+
+  [ Yuri Albuquerque ]
+  * Enabling CI.
+  * Changing dependencies to git
+
+  [ Leonardo Viana ]
+  * Fix some rpc tests
+
+  [ Yuri Albuquerque ]
+  * Using HTTPS for git dependencies
+  * Changing the CI jobs.
+  * Adding integration to the workspace.
+  * Remove integration tests from CI.
+
+  [ Leonardo Viana ]
+  * Fix more api tests
+  * Fix more rpc tests
+
+  [ Yuri Albuquerque ]
+  * Adding the API tests back to the CI.
+  * Per job cache.
+
+  [ Leonardo Viana ]
+  * Fix finalize_tx test
+  * Fix all wallet tests
+
+  [ Yuri Albuquerque ]
+  * Adding a user guide.
+  * Owner API usage guide.
+
+  [ Leonardo Viana ]
+  * Add transactions strategies to deal with multiple people
+
+  [ Yuri Albuquerque ]
+  * Improving the owner_api_usage.
+  * Adding state diagrams to explain the issue.
+  * Trying to add inlined images.
+  * Using png instead of svg
+  * Trying to use an embedded image.
+  * A Guide to Fixing the 500 Error in the Wallet.
+
+  [ Leonardo Viana ]
+  * Add instructions for CLI users
+  * Add support to V2 API responses in the CLI send
+  * Change to API 2.0 on CLI send sync
+  * Improve the message of error on seed recover
+
+  [ Ubuntu ]
+  * UNRELEASED
+
+ -- Ubuntu <ubuntu@ip-172-31-26-231.ec2.internal>  Mon, 07 Oct 2019 20:56:05 +0000
+
+epic-wallet (2.2.2-1) bionic; urgency=medium
+
+  [ Yuri Albuquerque ]
+  * Release version
+
+ -- Ubuntu <ubuntu@ip-172-31-26-231.ec2.internal>  Mon, 02 Sep 2019 18:59:57 +0000
+
+epic-wallet (2.0.0-1) bionic; urgency=medium
+
+  [ Yuri Albuquerque ]
+  * Fixing copyright notices.
+
+ -- Ubuntu <ubuntu@ip-172-31-26-231.ec2.internal>  Mon, 02 Sep 2019 18:59:57 +0000
+
+epic-wallet (1.6.0-2) bionic; urgency=medium
+
+  [ Yuri Albuquerque ]
+  * Fix debian/control description
+
+ -- Ubuntu <ubuntu@ip-172-31-16-240.ec2.internal>  Thu, 29 Aug 2019 16:14:39 +0000
+
+epic-wallet (1.6.0-1) bionic; urgency=medium
+
+  [ Aron Castro ]
+  * Add windows installer
+
+ -- Ubuntu <ubuntu@ip-172-31-16-240.ec2.internal>  Thu, 29 Aug 2019 16:14:39 +0000
+
+epic-wallet (1.2.0-1) bionic; urgency=medium
+
+  [ Leonardo Viana ]
+  * Update the rewards to match the whitepaper
+  * Fix indentation
+
+  [ Yuri Albuquerque ]
+  * Updating bigint
+  * Aborting package build in case of error.
+
+ -- Ubuntu <ubuntu@ip-172-31-16-240.ec2.internal>  Fri, 09 Aug 2019 21:27:04 +0000
+
+epic-wallet (1.0.2-1) unstable; urgency=high
+
+  * Updating with the epic node
+
+ -- Yuri Albuquerque <yurialbuquerque@brickabode.com> Mon, 29 Jul 2019 20:34:12 +0000
+epic-wallet (1.0.0-2) unstable; urgency=medium
+
+  * Fixing the dependencies
+  * Removing the pipe from the network
+
+ -- Yuri Albuquerque <yurialbuquerque@brickabode.com>  Thu, 18 Jul 2019 20:34:12 +0000
+epic-wallet (1.0.0-1) unstable; urgency=medium
+
+  * Initial release
+
+ -- Yuri Albuquerque <yurialbuquerque@brickabode.com>  Mon, 08 Jul 2019 20:34:12 +0000

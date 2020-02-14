@@ -1,0 +1,4 @@
+epic-wallet
+*.debhelper.log
+*.substvars
+files

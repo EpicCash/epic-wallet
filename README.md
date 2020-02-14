@@ -1,25 +1,40 @@
-[![Build Status](https://dev.azure.com/mimblewimble/epic-wallet/_apis/build/status/mimblewimble.epic-wallet?branchName=master)](https://dev.azure.com/mimblewimble/epic-wallet/_build/latest?definitionId=3&branchName=master)
-[![Coverage Status](https://img.shields.io/codecov/c/github/mimblewimble/epic-wallet/master.svg)](https://codecov.io/gh/mimblewimble/epic-wallet)
-[![Chat](https://img.shields.io/gitter/room/epic_community/Lobby.svg)](https://gitter.im/epic_community/Lobby)
-[![Support](https://img.shields.io/badge/support-on%20gitter-brightgreen.svg)](https://gitter.im/epic_community/support)
-[![](https://img.shields.io/badge/dynamic/json.svg?label=docs&uri=https%3A%2F%2Fcrates.io%2Fapi%2Fv1%2Fcrates%2Fepic-wallet%2Fversions&query=%24.versions%5B0%5D.num&colorB=4F74A6)](https://docs.rs/releases/search?query=epic+wallet)
-[![Release Version](https://img.shields.io/github/release/mimblewimble/epic-wallet.svg)](https://github.com/mimblewimble/epic-wallet/releases)
-[![License](https://img.shields.io/github/license/mimblewimble/epic-wallet.svg)](https://github.com/mimblewimble/epic-wallet/blob/master/LICENSE)
+# Epic Cash
 
-# Epic Wallet
+Epic Cash is an in-progress implementation of the MimbleWimble protocol. Epic Cash redefined new core characteristics of this new privacy focused blockchain forked from Grin, following constitutes a first set of choices:
 
-This is the reference implementation of [Epic's](https://github.com/mimblewimble/epic) wallet. It consists of 2 major pieces:
+  * Block rewards epoch & total supply to match Bitcoin
+  * Support diversity of mining hash powers using a combination of algorithms
+  * Clean and minimal implementation, and aiming to stay as such.
+  * Follows the MimbleWimble protocol, which provides great anonymity and scaling characteristics.
+  * Cuckoo Cycle proof of work with the CuckAToo31+ (ASIC-targeted).
+  * Relatively fast block time: one minute.
+  * Transaction fees are based on the number of Outputs created/destroyed and total transaction size.
+  * Smooth curve for difficulty adjustments.
 
-* The Epic Wallet APIs, which are intended for use by Epic community wallet developers. The wallet APIs can be directly linked into other projects or invoked via a JSON-RPC interface.
+## Status
 
-* A reference command-line wallet, which provides a baseline wallet for Epic and demonstrates how the wallet APIs should be called.
+Epic is live with mainnet.
 
-# Usage
+## Getting Started
 
-To use the command-line wallet, we recommend using the latest release from the [Releases page](https://github.com/mimblewimble/epic-wallet/releases). There are distributions for Linux, MacOS and Windows.
+To build and try out Epic, see the [build docs](doc/build.md).
 
-Full documentation outlining how to use the command line wallet can be found on [Epic's Wiki](https://github.com/mimblewimble/docs/wiki/Wallet-User-Guide)
+To run the Epic Cash blockchain on Linux distributions, see the tutorial of [How to run the Epic Cash blockchain on Linux](doc/running.org).
 
-# License
+To run the Epic Cash blockchain on windows, see the tutorial of [How to run the Epic Cash blockchain on Windows](doc/windows.org).
 
-Apache License v2.0
+## Credits
+
+Tom Elvis Jedusor for the first formulation of MimbleWimble.
+
+Andrew Poelstra for his related work and improvements.
+
+John Tromp for the Cuckoo Cycle proof of work.
+
+Grin Developers for the initial implementation
+
+J.K. Rowling for making it despite extraordinary adversity.
+
+## License
+
+Apache License v2.0.

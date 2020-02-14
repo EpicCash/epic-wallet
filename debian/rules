@@ -1,0 +1,36 @@
+#!/usr/bin/make -f
+
+ROOTDIR := debian/epic-wallet
+
+.PHONY: clean
+clean: debian/control
+	dh_clean
+	cargo clean
+	rm build/stamp -rf
+	mkdir -p build
+
+.ONESHELL:
+build/stamp: api Cargo.toml config controller impls integration libwallet src util
+	cargo build --release
+	mkdir -p build
+	touch $(@)
+
+.PHONY: build build-arch build-indep
+build build-arch build-indep: build/stamp
+
+.PHONY: binary binary-arch binary-indep
+binary binary-arch binary-indep: build/stamp debian/control
+	@set -e
+	dh_testroot
+	dh_prep
+	cargo install --path . --root $(ROOTDIR)/usr/
+	strip $(ROOTDIR)/usr/bin/epic-wallet
+	rm $(ROOTDIR)/usr/.crates.toml
+	dh_installdocs
+	dh_installchangelogs
+	dh_compress
+	dh_fixperms
+	dh_installdeb
+	dh_gencontrol
+	dh_md5sums
+	dh_builddeb
