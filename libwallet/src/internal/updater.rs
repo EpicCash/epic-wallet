@@ -18,10 +18,11 @@
 use std::collections::HashMap;
 use uuid::Uuid;
 
-use crate::epic_core::consensus::{cumulative_reward_foundation, reward};
+use crate::epic_core::consensus::{cumulative_reward_foundation, header_version, reward};
+use crate::epic_core::core::block::HeaderVersion;
 use crate::epic_core::core::{Output, TxKernel};
 use crate::epic_core::global;
-use crate::epic_core::libtx::proof::ProofBuilder;
+use crate::epic_core::libtx::proof::{LegacyProofBuilder, ProofBuilder};
 use crate::epic_core::libtx::reward;
 use crate::epic_keychain::{Identifier, Keychain, SwitchCommitmentType};
 use crate::epic_util as util;
@@ -641,12 +642,8 @@ where
 	debug!("receive_coinbase: {:?}", block_fees);
 
 	let keychain = wallet.keychain(keychain_mask)?;
-	let (out, kern) = reward::output_foundation(
-		&keychain,
-		&ProofBuilder::new(&keychain),
-		&key_id,
-		test_mode,
-		height,
-	)?;
+
+	let (out, kern) = reward::output_foundation_proof(&keychain, &key_id, test_mode, height)?;
+
 	Ok((out, kern, block_fees))
 }
