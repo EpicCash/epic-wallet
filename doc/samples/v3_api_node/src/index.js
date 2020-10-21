@@ -5,6 +5,8 @@
  *
  */
 
+// TODO setup Authorization
+
 // const jayson = require('jayson/promise');
 const crypto = require('crypto');
 
@@ -21,7 +23,7 @@ const callServer = function(request, callback) {
         body: request,
         headers: {
             'Content-Type': 'application/json',
-            'Authorization': 'Basic ZXBpYzpBU09SUHhNcmVnazRYRjlvSHlDdQ=='
+            'Authorization': 'Basic <epic:`cat cat ~/.epic/floo/.api_secret`>'
         }
     };
 
