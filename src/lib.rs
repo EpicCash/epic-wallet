@@ -11,8 +11,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#[macro_use]
+extern crate lazy_static;
+#[macro_use]
+extern crate clap;
+
 use epic_wallet_config as config;
 use epic_wallet_util::epic_api as api;
 use epic_wallet_util::epic_util as util;
 
+mod cli;
 pub mod cmd;

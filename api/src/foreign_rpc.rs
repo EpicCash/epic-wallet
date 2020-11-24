@@ -1,4 +1,4 @@
-// Copyright 2019 The Epic Developers
+// Copyright 2020 The epic Developers
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,6 +13,8 @@
 // limitations under the License.
 
 //! JSON-RPC Stub generation for the Foreign API
+
+
 
 use crate::keychain::Keychain;
 use crate::libwallet::{
@@ -115,7 +117,6 @@ pub trait ForeignRpc {
 	*/
 
 	fn build_coinbase(&self, block_fees: &BlockFees) -> Result<VersionedCoinbase, ErrorKind>;
-	fn build_foundation(&self, block_fees: &BlockFees) -> Result<VersionedCoinbase, ErrorKind>;
 
 	/**
 	Networked version of [Foreign::verify_slate_messages](struct.Foreign.html#method.verify_slate_messages).
@@ -544,11 +545,6 @@ where
 		Ok(VersionedCoinbase::into_version(cb, SlateVersion::V3))
 	}
 
-	fn build_foundation(&self, block_fees: &BlockFees) -> Result<VersionedCoinbase, ErrorKind> {
-		let cb: CbData = Foreign::build_foundation(self, block_fees).map_err(|e| e.kind())?;
-		Ok(VersionedCoinbase::into_version(cb, SlateVersion::V3))
-	}
-
 	fn verify_slate_messages(&self, slate: VersionedSlate) -> Result<(), ErrorKind> {
 		Foreign::verify_slate_messages(self, &Slate::from(slate)).map_err(|e| e.kind())
 	}
@@ -603,7 +599,7 @@ pub fn run_doctest_foreign(
 	use epic_wallet_impls::{DefaultLCProvider, DefaultWalletImpl};
 	use epic_wallet_libwallet::{api_impl, WalletInst};
 	use epic_wallet_util::epic_keychain::ExtKeychain;
-
+	use epic_wallet_util::epic_core::core::feijoada;
 	use crate::core::global;
 	use crate::core::global::ChainTypes;
 	use epic_wallet_util::epic_util as util;
@@ -616,7 +612,18 @@ pub fn run_doctest_foreign(
 
 	util::init_test_logger();
 	let _ = fs::remove_dir_all(test_dir);
-	global::set_mining_mode(ChainTypes::AutomatedTesting);
+
+
+	global::set_mining_mode(ChainTypes::Floonet);
+	global::set_foundation_path("../tests/assets/foundation.json".to_string());
+	let mut policies: feijoada::Policy = feijoada::get_bottles_default();
+	policies.insert(feijoada::PoWType::Cuckatoo, 100);
+	global::set_policy_config(feijoada::PolicyConfig {
+		policies: vec![policies.clone()],
+		..Default::default()
+	});
+
+
 
 	let mut wallet_proxy: WalletProxy<
 		DefaultLCProvider<LocalWalletClient, ExtKeychain>,
@@ -680,9 +687,7 @@ pub fn run_doctest_foreign(
 	let _ = lc.set_top_level_directory(&format!("{}/wallet2", test_dir));
 	lc.create_wallet(None, Some(rec_phrase_2), 32, empty_string.clone(), false)
 		.unwrap();
-	let mask2 = lc
-		.open_wallet(None, empty_string.clone(), use_token, true)
-		.unwrap();
+	let mask2 = lc.open_wallet(None, empty_string, use_token, true).unwrap();
 	let wallet2 = Arc::new(Mutex::new(wallet2));
 
 	wallet_proxy.add_wallet(
@@ -776,6 +781,7 @@ pub fn run_doctest_foreign(
 	};
 	api_foreign.doctest_mode = true;
 	let foreign_api = &api_foreign as &dyn ForeignRpc;
+	println!("request: {:?}", request);
 	let res = foreign_api.handle_request(request).as_option();
 	let _ = fs::remove_dir_all(test_dir);
 	Ok(res)

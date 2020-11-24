@@ -32,29 +32,39 @@ use crate::types::{TorConfig, WalletConfig};
 use crate::util::logger::LoggingConfig;
 
 /// Wallet configuration file name
-pub const WALLET_CONFIG_FILE_NAME: &'static str = "epic-wallet.toml";
-const WALLET_LOG_FILE_NAME: &'static str = "epic-wallet.log";
-const GRIN_HOME: &'static str = ".epic";
+pub const WALLET_CONFIG_FILE_NAME: &str = "epic-wallet.toml";
+const WALLET_LOG_FILE_NAME: &str = "epic-wallet.log";
+const EPIC_HOME: &str = ".epic";
 /// Wallet data directory
-pub const GRIN_WALLET_DIR: &'static str = "wallet_data";
+pub const EPIC_WALLET_DIR: &str = "wallet_data";
 /// Node API secret
-pub const API_SECRET_FILE_NAME: &'static str = ".api_secret";
+pub const API_SECRET_FILE_NAME: &str = ".api_secret";
 /// Owner API secret
-pub const OWNER_API_SECRET_FILE_NAME: &'static str = ".owner_api_secret";
+pub const OWNER_API_SECRET_FILE_NAME: &str = ".owner_api_secret";
 
-fn get_epic_path(chain_type: &global::ChainTypes) -> Result<PathBuf, ConfigError> {
+fn get_epic_path(
+	chain_type: &global::ChainTypes,
+	create_path: bool,
+) -> Result<PathBuf, ConfigError> {
 	// Check if epic dir exists
 	let mut epic_path = match dirs::home_dir() {
 		Some(p) => p,
 		None => PathBuf::new(),
 	};
-	epic_path.push(GRIN_HOME);
+	epic_path.push(EPIC_HOME);
 	epic_path.push(chain_type.shortname());
 	// Create if the default path doesn't exist
-	if !epic_path.exists() {
+	if !epic_path.exists() && create_path {
 		fs::create_dir_all(epic_path.clone())?;
 	}
-	Ok(epic_path)
+
+	if !epic_path.exists() {
+		Err(ConfigError::PathNotFoundError(String::from(
+			epic_path.to_str().unwrap(),
+		)))
+	} else {
+		Ok(epic_path)
+	}
 }
 
 fn check_config_current_dir(path: &str) -> Option<PathBuf> {
@@ -70,6 +80,13 @@ fn check_config_current_dir(path: &str) -> Option<PathBuf> {
 		return Some(c);
 	}
 	None
+}
+
+/// Whether a config file exists at the given directory
+pub fn config_file_exists(path: &str) -> bool {
+	let mut path = PathBuf::from(path);
+	path.push(WALLET_CONFIG_FILE_NAME);
+	path.exists()
 }
 
 /// Create file with api secret
@@ -104,9 +121,9 @@ fn check_api_secret_file(
 ) -> Result<(), ConfigError> {
 	let epic_path = match data_path {
 		Some(p) => p,
-		None => get_epic_path(chain_type)?,
+		None => get_epic_path(chain_type, false)?,
 	};
-	let mut api_secret_path = epic_path.clone();
+	let mut api_secret_path = epic_path;
 	api_secret_path.push(file_name);
 	if !api_secret_path.exists() {
 		init_api_secret(&api_secret_path)
@@ -119,17 +136,23 @@ fn check_api_secret_file(
 pub fn initial_setup_wallet(
 	chain_type: &global::ChainTypes,
 	data_path: Option<PathBuf>,
+	create_path: bool,
 ) -> Result<GlobalWalletConfig, ConfigError> {
-	check_api_secret_file(chain_type, data_path.clone(), OWNER_API_SECRET_FILE_NAME)?;
-	check_api_secret_file(chain_type, data_path.clone(), API_SECRET_FILE_NAME)?;
+	if create_path {
+		if let Some(p) = data_path.clone() {
+			fs::create_dir_all(p)?;
+		}
+	}
 	// Use config file if current directory if it exists, .epic home otherwise
-	if let Some(p) = check_config_current_dir(WALLET_CONFIG_FILE_NAME) {
-		GlobalWalletConfig::new(p.to_str().unwrap())
+	let (path, config) = if let Some(p) = check_config_current_dir(WALLET_CONFIG_FILE_NAME) {
+		let mut path = p.clone();
+		path.pop();
+		(path, GlobalWalletConfig::new(p.to_str().unwrap())?)
 	} else {
 		// Check if epic dir exists
 		let epic_path = match data_path {
 			Some(p) => p,
-			None => get_epic_path(chain_type)?,
+			None => get_epic_path(chain_type, create_path)?,
 		};
 
 		// Get path to default config file
@@ -137,16 +160,28 @@ pub fn initial_setup_wallet(
 		config_path.push(WALLET_CONFIG_FILE_NAME);
 
 		// Return defaults if file doesn't exist
-		if !config_path.exists() {
-			let mut default_config = GlobalWalletConfig::for_chain(chain_type);
-			default_config.config_file_path = Some(config_path);
-			// update paths relative to current dir
-			default_config.update_paths(&epic_path);
-			Ok(default_config)
-		} else {
-			GlobalWalletConfig::new(config_path.to_str().unwrap())
+		match config_path.clone().exists() {
+			false => {
+				let mut default_config = GlobalWalletConfig::for_chain(chain_type);
+				default_config.config_file_path = Some(config_path);
+				// update paths relative to current dir
+				default_config.update_paths(&epic_path);
+				(epic_path, default_config)
+			}
+			true => {
+				let mut path = config_path.clone();
+				path.pop();
+				(
+					path,
+					GlobalWalletConfig::new(config_path.to_str().unwrap())?,
+				)
+			}
 		}
-	}
+	};
+
+	check_api_secret_file(chain_type, Some(path.clone()), OWNER_API_SECRET_FILE_NAME)?;
+	check_api_secret_file(chain_type, Some(path), API_SECRET_FILE_NAME)?;
+	Ok(config)
 }
 
 impl Default for GlobalWalletConfigMembers {
@@ -218,28 +253,19 @@ impl GlobalWalletConfig {
 		match decoded {
 			Ok(gc) => {
 				self.members = Some(gc);
-				return Ok(self);
+				Ok(self)
 			}
-			Err(e) => {
-				return Err(ConfigError::ParseError(
-					String::from(
-						self.config_file_path
-							.as_mut()
-							.unwrap()
-							.to_str()
-							.unwrap()
-							.clone(),
-					),
-					String::from(format!("{}", e)),
-				));
-			}
+			Err(e) => Err(ConfigError::ParseError(
+				String::from(self.config_file_path.as_mut().unwrap().to_str().unwrap()),
+				format!("{}", e),
+			)),
 		}
 	}
 
 	/// Update paths
 	pub fn update_paths(&mut self, wallet_home: &PathBuf) {
 		let mut wallet_path = wallet_home.clone();
-		wallet_path.push(GRIN_WALLET_DIR);
+		wallet_path.push(EPIC_WALLET_DIR);
 		self.members.as_mut().unwrap().wallet.data_file_dir =
 			wallet_path.to_str().unwrap().to_owned();
 		let mut secret_path = wallet_home.clone();
@@ -274,13 +300,8 @@ impl GlobalWalletConfig {
 		let encoded: Result<String, toml::ser::Error> =
 			toml::to_string(self.members.as_mut().unwrap());
 		match encoded {
-			Ok(enc) => return Ok(enc),
-			Err(e) => {
-				return Err(ConfigError::SerializationError(String::from(format!(
-					"{}",
-					e
-				))));
-			}
+			Ok(enc) => Ok(enc),
+			Err(e) => Err(ConfigError::SerializationError(format!("{}", e))),
 		}
 	}
 

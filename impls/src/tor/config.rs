@@ -1,4 +1,4 @@
-// Copyright 2019 The Epic Developers
+// Copyright 2019 The epic Developers
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,25 +15,26 @@
 //! Tor Configuration + Onion (Hidden) Service operations
 use crate::util::secp::key::SecretKey;
 use crate::{Error, ErrorKind};
-use epic_wallet_libwallet::address;
+use epic_wallet_util::OnionV3Address;
 
 use ed25519_dalek::ExpandedSecretKey;
 use ed25519_dalek::PublicKey as DalekPublicKey;
 use ed25519_dalek::SecretKey as DalekSecretKey;
 
+use std::convert::TryFrom;
 use std::fs::{self, File};
 use std::io::Write;
 use std::path::{Path, MAIN_SEPARATOR};
 
 use failure::ResultExt;
 
-const SEC_KEY_FILE: &'static str = "hs_ed25519_secret_key";
-const PUB_KEY_FILE: &'static str = "hs_ed25519_public_key";
-const HOSTNAME_FILE: &'static str = "hostname";
-const TORRC_FILE: &'static str = "torrc";
-const TOR_DATA_DIR: &'static str = "data";
-const AUTH_CLIENTS_DIR: &'static str = "authorized_clients";
-const HIDDEN_SERVICES_DIR: &'static str = "onion_service_addresses";
+const SEC_KEY_FILE: &str = "hs_ed25519_secret_key";
+const PUB_KEY_FILE: &str = "hs_ed25519_public_key";
+const HOSTNAME_FILE: &str = "hostname";
+const TORRC_FILE: &str = "torrc";
+const TOR_DATA_DIR: &str = "data";
+const AUTH_CLIENTS_DIR: &str = "authorized_clients";
+const HIDDEN_SERVICES_DIR: &str = "onion_service_addresses";
 
 #[cfg(unix)]
 fn set_permissions(file_path: &str) -> Result<(), Error> {
@@ -92,12 +93,6 @@ impl TorRcConfig {
 	}
 }
 
-/// helper to get address
-pub fn onion_address_from_seckey(sec_key: &SecretKey) -> Result<String, Error> {
-	let (_, d_pub_key) = address::ed25519_keypair(sec_key)?;
-	Ok(address::onion_v3_from_pubkey(&d_pub_key)?)
-}
-
 pub fn create_onion_service_sec_key_file(
 	os_directory: &str,
 	sec_key: &DalekSecretKey,
@@ -105,7 +100,7 @@ pub fn create_onion_service_sec_key_file(
 	let key_file_path = &format!("{}{}{}", os_directory, MAIN_SEPARATOR, SEC_KEY_FILE);
 	let mut file = File::create(key_file_path).context(ErrorKind::IO)?;
 	// Tag is always 32 bytes, so pad with null zeroes
-	file.write("== ed25519v1-secret: type0 ==\0\0\0".as_bytes())
+	file.write(b"== ed25519v1-secret: type0 ==\0\0\0")
 		.context(ErrorKind::IO)?;
 	let expanded_skey: ExpandedSecretKey = ExpandedSecretKey::from(sec_key);
 	file.write_all(&expanded_skey.to_bytes())
@@ -120,7 +115,7 @@ pub fn create_onion_service_pub_key_file(
 	let key_file_path = &format!("{}{}{}", os_directory, MAIN_SEPARATOR, PUB_KEY_FILE);
 	let mut file = File::create(key_file_path).context(ErrorKind::IO)?;
 	// Tag is always 32 bytes, so pad with null zeroes
-	file.write("== ed25519v1-public: type0 ==\0\0\0".as_bytes())
+	file.write(b"== ed25519v1-public: type0 ==\0\0\0")
 		.context(ErrorKind::IO)?;
 	file.write_all(pub_key.as_bytes()).context(ErrorKind::IO)?;
 	Ok(())
@@ -143,9 +138,10 @@ pub fn create_onion_auth_clients_dir(os_directory: &str) -> Result<(), Error> {
 pub fn output_onion_service_config(
 	tor_config_directory: &str,
 	sec_key: &SecretKey,
-) -> Result<String, Error> {
-	let (_, d_pub_key) = address::ed25519_keypair(&sec_key)?;
-	let address = address::onion_v3_from_pubkey(&d_pub_key)?;
+) -> Result<OnionV3Address, Error> {
+	let d_sec_key = DalekSecretKey::from_bytes(&sec_key.0)
+		.context(ErrorKind::ED25519Key("Unable to parse private key".into()))?;
+	let address = OnionV3Address::from_private(&sec_key.0)?;
 	let hs_dir_file_path = format!(
 		"{}{}{}{}{}",
 		tor_config_directory, MAIN_SEPARATOR, HIDDEN_SERVICES_DIR, MAIN_SEPARATOR, address
@@ -159,10 +155,9 @@ pub fn output_onion_service_config(
 	// create directory if it doesn't exist
 	fs::create_dir_all(&hs_dir_file_path).context(ErrorKind::IO)?;
 
-	let (d_sec_key, d_pub_key) = address::ed25519_keypair(&sec_key)?;
 	create_onion_service_sec_key_file(&hs_dir_file_path, &d_sec_key)?;
-	create_onion_service_pub_key_file(&hs_dir_file_path, &d_pub_key)?;
-	create_onion_service_hostname_file(&hs_dir_file_path, &address)?;
+	create_onion_service_pub_key_file(&hs_dir_file_path, &address.to_ed25519()?)?;
+	create_onion_service_hostname_file(&hs_dir_file_path, &address.to_string())?;
 	create_onion_auth_clients_dir(&hs_dir_file_path)?;
 
 	set_permissions(&hs_dir_file_path)?;
@@ -175,7 +170,7 @@ pub fn output_torrc(
 	tor_config_directory: &str,
 	wallet_listener_addr: &str,
 	socks_port: &str,
-	service_dirs: &Vec<String>,
+	service_dirs: &[String],
 ) -> Result<(), Error> {
 	let torrc_file_path = format!("{}{}{}", tor_config_directory, MAIN_SEPARATOR, TORRC_FILE);
 
@@ -200,7 +195,7 @@ pub fn output_torrc(
 pub fn output_tor_listener_config(
 	tor_config_directory: &str,
 	wallet_listener_addr: &str,
-	listener_keys: &Vec<SecretKey>,
+	listener_keys: &[SecretKey],
 ) -> Result<(), Error> {
 	let tor_data_dir = format!("{}{}{}", tor_config_directory, MAIN_SEPARATOR, TOR_DATA_DIR);
 
@@ -211,7 +206,7 @@ pub fn output_tor_listener_config(
 
 	for k in listener_keys {
 		let service_dir = output_onion_service_config(tor_config_directory, &k)?;
-		service_dirs.push(service_dir);
+		service_dirs.push(service_dir.to_string());
 	}
 
 	// hidden service listener doesn't need a socks port
@@ -233,23 +228,23 @@ pub fn output_tor_sender_config(
 	// create data directory if it doesn't exist
 	fs::create_dir_all(&tor_config_dir).context(ErrorKind::IO)?;
 
-	output_torrc(tor_config_dir, "", socks_listener_addr, &vec![])?;
+	output_torrc(tor_config_dir, "", socks_listener_addr, &[])?;
 
 	Ok(())
 }
 
 pub fn is_tor_address(input: &str) -> Result<(), Error> {
-	match address::pubkey_from_onion_v3(input) {
+	match OnionV3Address::try_from(input) {
 		Ok(_) => Ok(()),
 		Err(e) => {
-			let msg = format!("{}", e);
-			Err(ErrorKind::NotOnion(msg).to_owned())?
+			let msg = format!("{:?}", e);
+			Err(ErrorKind::NotOnion(msg).into())
 		}
 	}
 }
 
 pub fn complete_tor_address(input: &str) -> Result<String, Error> {
-	let _ = is_tor_address(input)?;
+	is_tor_address(input)?;
 	let mut input = input.to_uppercase();
 	if !input.starts_with("HTTP://") && !input.starts_with("HTTPS://") {
 		input = format!("HTTP://{}", input);
@@ -265,7 +260,6 @@ mod tests {
 	use super::*;
 
 	use rand::rngs::mock::StepRng;
-	use rand::thread_rng;
 
 	use crate::util::{self, secp, static_secp_instance};
 
@@ -279,46 +273,12 @@ mod tests {
 	}
 
 	#[test]
-	fn gen_ed25519_pub_key() -> Result<(), Error> {
-		let secp_inst = static_secp_instance();
-		let secp = secp_inst.lock();
-		let mut test_rng = StepRng::new(1234567890u64, 1);
-		let sec_key = secp::key::SecretKey::new(&secp, &mut test_rng);
-		println!("{:?}", sec_key);
-		let (_, d_pub_key) = address::ed25519_keypair(&sec_key)?;
-		println!("{:?}", d_pub_key);
-		// some randoms
-		for _ in 0..1000 {
-			let sec_key = secp::key::SecretKey::new(&secp, &mut thread_rng());
-			let (_, _) = address::ed25519_keypair(&sec_key)?;
-		}
-		Ok(())
-	}
-
-	#[test]
-	fn gen_onion_address() -> Result<(), Error> {
-		let secp_inst = static_secp_instance();
-		let secp = secp_inst.lock();
-		let mut test_rng = StepRng::new(1234567890u64, 1);
-		let sec_key = secp::key::SecretKey::new(&secp, &mut test_rng);
-		println!("{:?}", sec_key);
-		let (_, d_pub_key) = address::ed25519_keypair(&sec_key)?;
-		let address = address::onion_v3_from_pubkey(&d_pub_key)?;
-		assert_eq!(
-			"kcgiy5g6m76nzlzz4vyqmgdv34f6yokdqwfhdhaafanpo5p4fceibyid",
-			address
-		);
-		println!("{}", address);
-		Ok(())
-	}
-
-	#[test]
 	fn test_service_config() -> Result<(), Error> {
 		let test_dir = "target/test_output/onion_service";
 		setup(test_dir);
 		let secp_inst = static_secp_instance();
 		let secp = secp_inst.lock();
-		let mut test_rng = StepRng::new(1234567890u64, 1);
+		let mut test_rng = StepRng::new(1_234_567_890_u64, 1);
 		let sec_key = secp::key::SecretKey::new(&secp, &mut test_rng);
 		output_onion_service_config(test_dir, &sec_key)?;
 		clean_output_dir(test_dir);
@@ -331,9 +291,9 @@ mod tests {
 		setup(test_dir);
 		let secp_inst = static_secp_instance();
 		let secp = secp_inst.lock();
-		let mut test_rng = StepRng::new(1234567890u64, 1);
+		let mut test_rng = StepRng::new(1_234_567_890_u64, 1);
 		let sec_key = secp::key::SecretKey::new(&secp, &mut test_rng);
-		output_tor_listener_config(test_dir, "127.0.0.1:3415", &vec![sec_key])?;
+		output_tor_listener_config(test_dir, "127.0.0.1:3415", &[sec_key])?;
 		clean_output_dir(test_dir);
 		Ok(())
 	}

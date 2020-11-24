@@ -1,4 +1,4 @@
-// Copyright 2019 The Epic Develope;
+// Copyright 2019 The epic Develope;
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,23 +18,23 @@ use uuid::Uuid;
 
 use crate::epic_core::core::hash::Hashed;
 use crate::epic_core::core::Transaction;
-use crate::epic_core::ser;
-use crate::epic_util;
 use crate::epic_util::secp::key::SecretKey;
 use crate::epic_util::Mutex;
+use crate::util::OnionV3Address;
 
 use crate::api_impl::owner_updater::StatusMessage;
 use crate::epic_keychain::{Identifier, Keychain};
 use crate::internal::{keys, scan, selection, tx, updater};
 use crate::slate::{PaymentInfo, Slate};
-use crate::types::{AcctPathMapping, NodeClient, TxLogEntry, TxWrapper, WalletBackend, WalletInfo};
+use crate::types::{AcctPathMapping, NodeClient, TxLogEntry, WalletBackend, WalletInfo};
 use crate::{
 	address, wallet_lock, InitTxArgs, IssueInvoiceTxArgs, NodeHeightResult, OutputCommitMapping,
-	ScannedBlockInfo, TxLogEntryType, WalletInitStatus, WalletInst, WalletLCProvider,
+	PaymentProof, ScannedBlockInfo, TxLogEntryType, WalletInitStatus, WalletInst, WalletLCProvider,
 };
 use crate::{Error, ErrorKind};
 use ed25519_dalek::PublicKey as DalekPublicKey;
-
+use ed25519_dalek::SecretKey as DalekSecretKey;
+use ed25519_dalek::Verifier;
 use std::sync::mpsc::Sender;
 use std::sync::Arc;
 
@@ -91,7 +91,8 @@ where
 	let parent_key_id = w.parent_key_id();
 	let k = w.keychain(keychain_mask)?;
 	let sec_addr_key = address::address_from_derivation_path(&k, &parent_key_id, index)?;
-	Ok(address::ed25519_keypair(&sec_addr_key)?.1)
+	let addr = OnionV3Address::from_private(&sec_addr_key.0)?;
+	Ok(addr.to_ed25519()?)
 }
 
 /// retrieve outputs
@@ -108,15 +109,16 @@ where
 	C: NodeClient + 'a,
 	K: Keychain + 'a,
 {
-	let mut validated = false;
-	if refresh_from_node {
-		validated = update_wallet_state(
+	let validated = if refresh_from_node {
+		update_wallet_state(
 			wallet_inst.clone(),
 			keychain_mask,
 			status_send_channel,
 			false,
-		)?;
-	}
+		)?
+	} else {
+		false
+	};
 
 	wallet_lock!(wallet_inst, w);
 	let parent_key_id = w.parent_key_id();
@@ -147,15 +149,16 @@ where
 	C: NodeClient + 'a,
 	K: Keychain + 'a,
 {
-	let mut validated = false;
-	if refresh_from_node {
-		validated = update_wallet_state(
+	let validated = if refresh_from_node {
+		update_wallet_state(
 			wallet_inst.clone(),
 			keychain_mask,
 			status_send_channel,
 			false,
-		)?;
-	}
+		)?
+	} else {
+		false
+	};
 
 	wallet_lock!(wallet_inst, w);
 	let parent_key_id = w.parent_key_id();
@@ -177,20 +180,119 @@ where
 	C: NodeClient + 'a,
 	K: Keychain + 'a,
 {
-	let mut validated = false;
-	if refresh_from_node {
-		validated = update_wallet_state(
+	let validated = if refresh_from_node {
+		update_wallet_state(
 			wallet_inst.clone(),
 			keychain_mask,
 			status_send_channel,
 			false,
-		)?;
-	}
+		)?
+	} else {
+		false
+	};
 
 	wallet_lock!(wallet_inst, w);
 	let parent_key_id = w.parent_key_id();
 	let wallet_info = updater::retrieve_info(&mut **w, &parent_key_id, minimum_confirmations)?;
 	Ok((validated, wallet_info))
+}
+
+/// Retrieve payment proof
+pub fn retrieve_payment_proof<'a, L, C, K>(
+	wallet_inst: Arc<Mutex<Box<dyn WalletInst<'a, L, C, K>>>>,
+	keychain_mask: Option<&SecretKey>,
+	status_send_channel: &Option<Sender<StatusMessage>>,
+	refresh_from_node: bool,
+	tx_id: Option<u32>,
+	tx_slate_id: Option<Uuid>,
+) -> Result<PaymentProof, Error>
+where
+	L: WalletLCProvider<'a, C, K>,
+	C: NodeClient + 'a,
+	K: Keychain + 'a,
+{
+	if tx_id.is_none() && tx_slate_id.is_none() {
+		return Err(ErrorKind::PaymentProofRetrieval(
+			"Transaction ID or Slate UUID must be specified".into(),
+		)
+		.into());
+	}
+	if refresh_from_node {
+		update_wallet_state(
+			wallet_inst.clone(),
+			keychain_mask,
+			status_send_channel,
+			false,
+		)?
+	} else {
+		false
+	};
+	let txs = retrieve_txs(
+		wallet_inst.clone(),
+		keychain_mask,
+		status_send_channel,
+		refresh_from_node,
+		tx_id,
+		tx_slate_id,
+	)?;
+	if txs.1.len() != 1 {
+		return Err(ErrorKind::PaymentProofRetrieval("Transaction doesn't exist".into()).into());
+	}
+	// Pull out all needed fields, returning an error if they're not present
+	let tx = txs.1[0].clone();
+	let proof = match tx.payment_proof {
+		Some(p) => p,
+		None => {
+			return Err(ErrorKind::PaymentProofRetrieval(
+				"Transaction does not contain a payment proof".into(),
+			)
+			.into());
+		}
+	};
+	let amount = if tx.amount_credited >= tx.amount_debited {
+		tx.amount_credited - tx.amount_debited
+	} else {
+		let fee = match tx.fee {
+			Some(f) => f,
+			None => 0,
+		};
+		tx.amount_debited - tx.amount_credited - fee
+	};
+	let excess = match tx.kernel_excess {
+		Some(e) => e,
+		None => {
+			return Err(ErrorKind::PaymentProofRetrieval(
+				"Transaction does not contain kernel excess".into(),
+			)
+			.into());
+		}
+	};
+	let r_sig = match proof.receiver_signature {
+		Some(e) => e,
+		None => {
+			return Err(ErrorKind::PaymentProofRetrieval(
+				"Proof does not contain receiver signature ".into(),
+			)
+			.into());
+		}
+	};
+	let s_sig = match proof.sender_signature {
+		Some(e) => e,
+		None => {
+			return Err(ErrorKind::PaymentProofRetrieval(
+				"Proof does not contain sender signature ".into(),
+			)
+			.into());
+		}
+	};
+	Ok(PaymentProof {
+		amount: amount,
+		excess: excess,
+		recipient_address: OnionV3Address::from_bytes(proof.receiver_address.to_bytes()),
+		recipient_sig: r_sig,
+		sender_address: OnionV3Address::from_bytes(proof.sender_address.to_bytes()),
+		sender_sig: s_sig,
+	})
 }
 
 /// Initiate tx as sender
@@ -268,11 +370,11 @@ where
 		let k = w.keychain(keychain_mask)?;
 
 		let sec_addr_key = address::address_from_derivation_path(&k, &parent_key_id, deriv_path)?;
-		let sender_address = address::ed25519_keypair(&sec_addr_key)?.1;
+		let sender_address = OnionV3Address::from_private(&sec_addr_key.0)?;
 
 		slate.payment_proof = Some(PaymentInfo {
-			sender_address,
-			receiver_address: a,
+			sender_address: sender_address.to_ed25519()?,
+			receiver_address: a.to_ed25519()?,
 			receiver_signature: None,
 		});
 
@@ -369,7 +471,7 @@ where
 	check_ttl(w, &ret_slate)?;
 	let parent_key_id = match args.src_acct_name {
 		Some(d) => {
-			let pm = w.get_acct_path(d.to_owned())?;
+			let pm = w.get_acct_path(d)?;
 			match pm {
 				Some(p) => p.path,
 				None => w.parent_key_id(),
@@ -469,9 +571,9 @@ where
 	let context = w.get_private_context(keychain_mask, sl.id.as_bytes(), 0)?;
 	let parent_key_id = w.parent_key_id();
 	tx::complete_tx(&mut *w, keychain_mask, &mut sl, 0, &context)?;
-	tx::verify_payment_proof(&mut *w, keychain_mask, &parent_key_id, &context, &sl)?;
-	tx::update_stored_tx(&mut *w, keychain_mask, &context, &mut sl, false)?;
-	tx::update_message(&mut *w, keychain_mask, &mut sl)?;
+	tx::verify_slate_payment_proof(&mut *w, keychain_mask, &parent_key_id, &context, &sl)?;
+	tx::update_stored_tx(&mut *w, keychain_mask, &context, &sl, false)?;
+	tx::update_message(&mut *w, keychain_mask, &sl)?;
 	{
 		let mut batch = w.batch(keychain_mask)?;
 		batch.delete_private_context(sl.id.as_bytes(), 0)?;
@@ -500,8 +602,9 @@ where
 		false,
 	)? {
 		return Err(ErrorKind::TransactionCancellationError(
-			"Can't contact running Epic node. Not Cancelling.",
-		))?;
+			"Can't contact running epic node. Not Cancelling.",
+		)
+		.into());
 	}
 	wallet_lock!(wallet_inst, w);
 	let parent_key_id = w.parent_key_id();
@@ -527,8 +630,7 @@ pub fn post_tx<'a, C>(client: &C, tx: &Transaction, fluff: bool) -> Result<(), E
 where
 	C: NodeClient + 'a,
 {
-	let tx_hex = epic_util::to_hex(ser::ser_vec(tx, ser::ProtocolVersion(1)).unwrap());
-	let res = client.post_tx(&TxWrapper { tx_hex: tx_hex }, fluff);
+	let res = client.post_tx(tx, fluff);
 	if let Err(e) = res {
 		error!("api: post_tx: failed with error: {}", e);
 		Err(e)
@@ -639,7 +741,7 @@ where
 {
 	let parent_key_id = {
 		wallet_lock!(wallet_inst, w);
-		w.parent_key_id().clone()
+		w.parent_key_id()
 	};
 	let client = {
 		wallet_lock!(wallet_inst, w);
@@ -722,7 +824,7 @@ where
 	let start_index = last_scanned_block.height.saturating_sub(100);
 
 	if last_scanned_block.height == 0 {
-		let msg = format!("This wallet has not been scanned against the current chain. Beginning full scan... (this first scan may take a while, but subsequent scans will be much quicker)");
+		let msg = "This wallet has not been scanned against the current chain. Beginning full scan... (this first scan may take a while, but subsequent scans will be much quicker)".to_string();
 		if let Some(ref s) = status_send_channel {
 			let _ = s.send(StatusMessage::FullScanWarn(msg));
 		}
@@ -773,10 +875,80 @@ where
 	let last_confirmed_height = w.last_confirmed_height()?;
 	if let Some(e) = slate.ttl_cutoff_height {
 		if last_confirmed_height >= e {
-			return Err(ErrorKind::TransactionExpired)?;
+			return Err(ErrorKind::TransactionExpired.into());
 		}
 	}
 	Ok(())
+}
+
+/// Verify/validate arbitrary payment proof
+/// Returns (whether this wallet is the sender, whether this wallet is the recipient)
+pub fn verify_payment_proof<'a, L, C, K>(
+	wallet_inst: Arc<Mutex<Box<dyn WalletInst<'a, L, C, K>>>>,
+	keychain_mask: Option<&SecretKey>,
+	proof: &PaymentProof,
+) -> Result<(bool, bool), Error>
+where
+	L: WalletLCProvider<'a, C, K>,
+	C: NodeClient + 'a,
+	K: Keychain + 'a,
+{
+	let sender_pubkey = proof.sender_address.to_ed25519()?;
+	let msg = tx::payment_proof_message(proof.amount, &proof.excess, sender_pubkey)?;
+
+	let (mut client, parent_key_id, keychain) = {
+		wallet_lock!(wallet_inst, w);
+		(
+			w.w2n_client().clone(),
+			w.parent_key_id(),
+			w.keychain(keychain_mask)?,
+		)
+	};
+
+	// Check kernel exists
+	match client.get_kernel(&proof.excess, None, None) {
+		Err(e) => {
+			return Err(ErrorKind::PaymentProof(format!(
+				"Error retrieving kernel from chain: {}",
+				e
+			))
+			.into());
+		}
+		Ok(None) => {
+			return Err(ErrorKind::PaymentProof(format!(
+				"Transaction kernel with excess {:?} not found on chain",
+				proof.excess
+			))
+			.into());
+		}
+		Ok(Some(_)) => {}
+	};
+
+	// Check Sigs
+	let recipient_pubkey = proof.recipient_address.to_ed25519()?;
+	if recipient_pubkey.verify(&msg, &proof.recipient_sig).is_err() {
+		return Err(ErrorKind::PaymentProof("Invalid recipient signature".to_owned()).into());
+	};
+
+	let sender_pubkey = proof.sender_address.to_ed25519()?;
+	if sender_pubkey.verify(&msg, &proof.sender_sig).is_err() {
+		return Err(ErrorKind::PaymentProof("Invalid sender signature".to_owned()).into());
+	};
+
+	// for now, simple test as to whether one of the addresses belongs to this wallet
+	let sec_key = address::address_from_derivation_path(&keychain, &parent_key_id, 0)?;
+	let d_skey = match DalekSecretKey::from_bytes(&sec_key.0) {
+		Ok(k) => k,
+		Err(e) => {
+			return Err(ErrorKind::ED25519Key(format!("{}", e)).into());
+		}
+	};
+	let my_address_pubkey: DalekPublicKey = (&d_skey).into();
+
+	let sender_mine = my_address_pubkey == sender_pubkey;
+	let recipient_mine = my_address_pubkey == recipient_pubkey;
+
+	Ok((sender_mine, recipient_mine))
 }
 
 /// Attempt to update outputs in wallet, return whether it was successful
@@ -816,7 +988,7 @@ where
 {
 	let parent_key_id = {
 		wallet_lock!(wallet_inst, w);
-		w.parent_key_id().clone()
+		w.parent_key_id()
 	};
 
 	let mut client = {

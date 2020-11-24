@@ -1,4 +1,4 @@
-// Copyright 2019 The Epic Developers
+// Copyright 2019 The epic Developers
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -67,7 +67,7 @@ fn no_change_test_impl(test_dir: &'static str) -> Result<(), libwallet::Error> {
 	});
 
 	// few values to keep things shorter
-	let reward = core::consensus::REWARD;
+	let reward = core::consensus::reward_at_height(1);
 
 	// Mine into wallet 1
 	let _ = test_framework::award_blocks_to_wallet(&chain, wallet1.clone(), mask1, 4, false);
@@ -75,7 +75,7 @@ fn no_change_test_impl(test_dir: &'static str) -> Result<(), libwallet::Error> {
 
 	// send a single block's worth of transactions with minimal strategy
 	let mut slate = Slate::blank(2);
-	wallet::controller::owner_single_use(wallet1.clone(), mask1, |api, m| {
+	wallet::controller::owner_single_use(Some(wallet1.clone()), mask1, None, |api, m| {
 		let args = InitTxArgs {
 			src_acct_name: None,
 			amount: reward - fee,
@@ -94,7 +94,7 @@ fn no_change_test_impl(test_dir: &'static str) -> Result<(), libwallet::Error> {
 	})?;
 
 	// Refresh and check transaction log for wallet 1
-	wallet::controller::owner_single_use(wallet1.clone(), mask2, |api, m| {
+	wallet::controller::owner_single_use(Some(wallet1.clone()), mask2, None, |api, m| {
 		let (refreshed, txs) = api.retrieve_txs(m, true, None, Some(slate.id))?;
 		assert!(refreshed);
 		let tx = txs[0].clone();
@@ -104,7 +104,7 @@ fn no_change_test_impl(test_dir: &'static str) -> Result<(), libwallet::Error> {
 	})?;
 
 	// ensure invoice TX works as well with no change
-	wallet::controller::owner_single_use(wallet2.clone(), mask2, |api, m| {
+	wallet::controller::owner_single_use(Some(wallet2.clone()), mask2, None, |api, m| {
 		// Wallet 2 inititates an invoice transaction, requesting payment
 		let args = IssueInvoiceTxArgs {
 			amount: reward - fee,
@@ -114,7 +114,7 @@ fn no_change_test_impl(test_dir: &'static str) -> Result<(), libwallet::Error> {
 		Ok(())
 	})?;
 
-	wallet::controller::owner_single_use(wallet1.clone(), mask1, |api, m| {
+	wallet::controller::owner_single_use(Some(wallet1.clone()), mask1, None, |api, m| {
 		// Wallet 1 receives the invoice transaction
 		let args = InitTxArgs {
 			src_acct_name: None,
@@ -136,13 +136,13 @@ fn no_change_test_impl(test_dir: &'static str) -> Result<(), libwallet::Error> {
 		slate = api.finalize_invoice_tx(&slate)?;
 		Ok(())
 	})?;
-	wallet::controller::owner_single_use(wallet2.clone(), mask1, |api, m| {
+	wallet::controller::owner_single_use(Some(wallet2.clone()), mask1, None, |api, m| {
 		api.post_tx(m, &slate.tx, false)?;
 		Ok(())
 	})?;
 
 	// Refresh and check transaction log for wallet 1
-	wallet::controller::owner_single_use(wallet1.clone(), mask2, |api, m| {
+	wallet::controller::owner_single_use(Some(wallet1.clone()), mask2, None, |api, m| {
 		let (refreshed, txs) = api.retrieve_txs(m, true, None, Some(slate.id))?;
 		assert!(refreshed);
 		for tx in txs {

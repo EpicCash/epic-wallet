@@ -1,4 +1,4 @@
-// Copyright 2019 The Epic Developers
+// Copyright 2019 The epic Developers
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -19,7 +19,7 @@ extern crate log;
 
 extern crate epic_wallet;
 
-use epic_wallet_api::ECDHPubkey;
+use epic_wallet_api::{ECDHPubkey, JsonId};
 use epic_wallet_impls::test_framework::{self, LocalWalletClient, WalletProxy};
 
 use clap::App;
@@ -39,7 +39,7 @@ use common::{
 	send_request, send_request_enc, setup, RetrieveSummaryInfoResp,
 };
 
-#[test]
+
 fn owner_v3_init_secure() -> Result<(), epic_wallet_controller::Error> {
 	let test_dir = "target/test_output/owner_v3_init_secure";
 	setup(test_dir);
@@ -74,7 +74,13 @@ fn owner_v3_init_secure() -> Result<(), epic_wallet_controller::Error> {
 
 	// 1) Attempt to send an encrypted request before calling `init_secure_api`
 	let req = include_str!("data/v3_reqs/retrieve_info.req.json");
-	let res = send_request_enc::<String>(1, 1, "http://127.0.0.1:33420/v3/owner", &req, &sec_key)?;
+	let res = send_request_enc::<String>(
+		&JsonId::IntId(1),
+		1,
+		"http://127.0.0.1:33420/v3/owner",
+		&req,
+		&sec_key,
+	)?;
 	println!("RES 1: {:?}", res);
 	assert!(res.is_err());
 	assert_eq!(res.unwrap_err().code, -32001);
@@ -97,7 +103,7 @@ fn owner_v3_init_secure() -> Result<(), epic_wallet_controller::Error> {
 	// 4) A normal request, correct key
 	let req = include_str!("data/v3_reqs/retrieve_info.req.json");
 	let res = send_request_enc::<RetrieveSummaryInfoResp>(
-		1,
+		&JsonId::StrId(String::from("1")),
 		1,
 		"http://127.0.0.1:33420/v3/owner",
 		&req,
@@ -111,7 +117,7 @@ fn owner_v3_init_secure() -> Result<(), epic_wallet_controller::Error> {
 	bad_key.0[0] = 0;
 	let req = include_str!("data/v3_reqs/retrieve_info.req.json");
 	let res = send_request_enc::<RetrieveSummaryInfoResp>(
-		1,
+		&JsonId::StrId(String::from("1")),
 		1,
 		"http://127.0.0.1:33420/v3/owner",
 		&req,
@@ -153,7 +159,7 @@ fn owner_v3_init_secure() -> Result<(), epic_wallet_controller::Error> {
 	// 8) Encrypted call to `init_secure_api`, followed by re-deriving key
 	let req = include_str!("data/v3_reqs/init_secure_api.req.json");
 	let res = send_request_enc(
-		1,
+		&JsonId::StrId(String::from("1")),
 		1,
 		"http://127.0.0.1:33420/v3/owner",
 		&req.to_string(),
@@ -167,7 +173,7 @@ fn owner_v3_init_secure() -> Result<(), epic_wallet_controller::Error> {
 	// 9) A normal request, with new correct key
 	let req = include_str!("data/v3_reqs/retrieve_info.req.json");
 	let res = send_request_enc::<RetrieveSummaryInfoResp>(
-		9,
+		&JsonId::StrId(String::from("1")),
 		1,
 		"http://127.0.0.1:33420/v3/owner",
 		&req,
@@ -188,7 +194,7 @@ fn owner_v3_init_secure() -> Result<(), epic_wallet_controller::Error> {
 	// 11) A normal request, correct key
 	let req = include_str!("data/v3_reqs/retrieve_info.req.json");
 	let res = send_request_enc::<RetrieveSummaryInfoResp>(
-		11,
+		&JsonId::StrId(String::from("1")),
 		1,
 		"http://127.0.0.1:33420/v3/owner",
 		&req,
@@ -207,16 +213,26 @@ fn owner_v3_init_secure() -> Result<(), epic_wallet_controller::Error> {
 		}
 	})
 	.to_string();
-	let res =
-		send_request_enc::<String>(12, 1, "http://127.0.0.1:33420/v3/owner", &req, &shared_key)?;
+	let res = send_request_enc::<String>(
+		&JsonId::IntId(12),
+		1,
+		"http://127.0.0.1:33420/v3/owner",
+		&req,
+		&shared_key,
+	)?;
 	println!("RES 12: {:?}", res);
 	assert!(res.is_err());
 	assert_eq!(res.unwrap_err().code, -32601);
 
 	// 13) A request which triggers an internal API error (not enough funds)
 	let req = include_str!("data/v3_reqs/init_send_tx.req.json");
-	let res =
-		send_request_enc::<String>(13, 1, "http://127.0.0.1:33420/v3/owner", &req, &shared_key)?;
+	let res = send_request_enc::<String>(
+		&JsonId::StrId(String::from("13")),
+		1,
+		"http://127.0.0.1:33420/v3/owner",
+		&req,
+		&shared_key,
+	)?;
 	println!("RES 13: {:?}", res);
 	assert!(res.is_err());
 	assert_eq!(res.unwrap_err().code, -32099);

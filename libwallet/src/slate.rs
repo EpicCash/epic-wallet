@@ -1,4 +1,4 @@
-// Copyright 2019 The Epic Developers
+// Copyright 2019 The epic Developers
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 //! around during an interactive wallet exchange
 
 use crate::blake2::blake2b::blake2b;
+use crate::error::{Error, ErrorKind};
 use crate::epic_core::core::amount_to_hr_string;
 use crate::epic_core::core::committed::Committed;
 use crate::epic_core::core::transaction::{
@@ -29,7 +30,6 @@ use crate::epic_util::secp::key::{PublicKey, SecretKey};
 use crate::epic_util::secp::pedersen::Commitment;
 use crate::epic_util::secp::Signature;
 use crate::epic_util::{self, secp, RwLock};
-use crate::error::{Error, ErrorKind};
 use crate::slate_versions::ser as dalek_ser;
 use ed25519_dalek::PublicKey as DalekPublicKey;
 use ed25519_dalek::Signature as DalekSignature;
@@ -47,7 +47,7 @@ use crate::slate_versions::v3::{
 	CoinbaseV3, InputV3, OutputV3, ParticipantDataV3, PaymentInfoV3, SlateV3, TransactionBodyV3,
 	TransactionV3, TxKernelV3, VersionCompatInfoV3,
 };
-use crate::slate_versions::{CURRENT_SLATE_VERSION, GRIN_BLOCK_HEADER_VERSION};
+use crate::slate_versions::{CURRENT_SLATE_VERSION, EPIC_BLOCK_HEADER_VERSION};
 use crate::types::CbData;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -122,14 +122,14 @@ impl ParticipantMessageData {
 			id: p.id,
 			public_key: p.public_blind_excess,
 			message: p.message.clone(),
-			message_sig: p.message_sig.clone(),
+			message_sig: p.message_sig,
 		}
 	}
 }
 
 impl fmt::Display for ParticipantMessageData {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		writeln!(f, "")?;
+		writeln!(f)?;
 		write!(f, "Participant ID {} ", self.id)?;
 		if self.id == 0 {
 			writeln!(f, "(Sender)")?;
@@ -149,7 +149,7 @@ impl fmt::Display for ParticipantMessageData {
 			Some(m) => m,
 		};
 		writeln!(f, "Message: {}", message)?;
-		let message_sig = match self.message_sig.clone() {
+		let message_sig = match self.message_sig {
 			None => "None".to_owned(),
 			Some(m) => epic_util::to_hex(m.to_raw_data().to_vec()),
 		};
@@ -258,7 +258,7 @@ impl Slate {
 			version_info: VersionCompatInfo {
 				version: CURRENT_SLATE_VERSION,
 				orig_version: CURRENT_SLATE_VERSION,
-				block_header_version: GRIN_BLOCK_HEADER_VERSION,
+				block_header_version: EPIC_BLOCK_HEADER_VERSION,
 			},
 			payment_proof: None,
 		}
@@ -401,7 +401,7 @@ impl Slate {
 			.collect();
 		match PublicKey::from_combination(secp, pub_nonces) {
 			Ok(k) => Ok(k),
-			Err(e) => Err(ErrorKind::Secp(e))?,
+			Err(e) => Err(ErrorKind::Secp(e).into()),
 		}
 	}
 
@@ -414,7 +414,7 @@ impl Slate {
 			.collect();
 		match PublicKey::from_combination(secp, pub_blinds) {
 			Ok(k) => Ok(k),
-			Err(e) => Err(ErrorKind::Secp(e))?,
+			Err(e) => Err(ErrorKind::Secp(e).into()),
 		}
 	}
 
@@ -513,7 +513,7 @@ impl Slate {
 			}
 			true => {
 				// allow for consistent test results
-				let mut test_rng = StepRng::new(1234567890u64, 1);
+				let mut test_rng = StepRng::new(1_234_567_890_u64, 1);
 				BlindingFactor::from_secret_key(SecretKey::new(&keychain.secp(), &mut test_rng))
 			}
 		};
@@ -540,9 +540,9 @@ impl Slate {
 		);
 
 		if fee > self.tx.fee() {
-			return Err(ErrorKind::Fee(
-				format!("Fee Dispute Error: {}, {}", self.tx.fee(), fee,).to_string(),
-			))?;
+			return Err(
+				ErrorKind::Fee(format!("Fee Dispute Error: {}, {}", self.tx.fee(), fee,)).into(),
+			);
 		}
 
 		if fee > self.amount + self.fee {
@@ -552,7 +552,7 @@ impl Slate {
 				amount_to_hr_string(self.amount + self.fee, false)
 			);
 			info!("{}", reason);
-			return Err(ErrorKind::Fee(reason.to_string()))?;
+			return Err(ErrorKind::Fee(reason).into());
 		}
 
 		Ok(())
@@ -589,7 +589,8 @@ impl Slate {
 						   String::from_utf8_lossy(&msg.as_bytes()[..]));
 						return Err(ErrorKind::Signature(
 							"Optional participant messages doesn't have signature".to_owned(),
-						))?;
+						)
+						.into());
 					}
 					Some(s) => s,
 				};
@@ -606,7 +607,8 @@ impl Slate {
 						   String::from_utf8_lossy(&msg.as_bytes()[..]));
 					return Err(ErrorKind::Signature(
 						"Optional participant messages do not match signatures".to_owned(),
-					))?;
+					)
+					.into());
 				} else {
 					info!(
 						"verify_messages - signature verified ok. Participant message: \"{}\"",
@@ -709,7 +711,7 @@ impl Slate {
 		// confirm the overall transaction is valid (including the updated kernel)
 		// accounting for tx weight limits
 		let verifier_cache = Arc::new(RwLock::new(LruVerifierCache::new()));
-		let _ = final_tx.validate(Weighting::AsTransaction, verifier_cache)?;
+		final_tx.validate(Weighting::AsTransaction, verifier_cache)?;
 
 		self.tx = final_tx;
 		Ok(())

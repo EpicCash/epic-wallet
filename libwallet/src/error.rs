@@ -19,6 +19,7 @@ use crate::epic_core::libtx;
 use crate::epic_keychain;
 use crate::epic_store;
 use crate::epic_util::secp;
+use crate::util;
 use failure::{Backtrace, Context, Fail};
 use std::env;
 use std::fmt::{self, Display};
@@ -72,6 +73,10 @@ pub enum ErrorKind {
 	/// Secp Error
 	#[fail(display = "Secp error")]
 	Secp(secp::Error),
+
+	/// Onion V3 Address Error
+	#[fail(display = "Onion V3 Address Error")]
+	OnionV3Address(util::OnionV3AddressError),
 
 	/// Callback implementation error conversion
 	#[fail(display = "Trait Implementation error")]
@@ -229,6 +234,14 @@ pub enum ErrorKind {
 	#[fail(display = "Payment Proof generation error: {}", _0)]
 	PaymentProof(String),
 
+	/// Retrieving Payment Proof
+	#[fail(display = "Payment Proof retrieval error: {}", _0)]
+	PaymentProofRetrieval(String),
+
+	/// Retrieving Payment Proof
+	#[fail(display = "Payment Proof parsing error: {}", _0)]
+	PaymentProofParsing(String),
+
 	/// Decoding OnionV3 addresses to payment proof addresses
 	#[fail(display = "Proof Address decoding: {}", _0)]
 	AddressDecoding(String),
@@ -245,13 +258,7 @@ pub enum ErrorKind {
 impl Display for Error {
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 		let show_bt = match env::var("RUST_BACKTRACE") {
-			Ok(r) => {
-				if r == "1" {
-					true
-				} else {
-					false
-				}
-			}
+			Ok(r) => r == "1",
 			Err(_) => false,
 		};
 		let backtrace = match self.backtrace() {
@@ -260,7 +267,7 @@ impl Display for Error {
 		};
 		let inner_output = format!("{}", self.inner,);
 		let backtrace_output = format!("\n Backtrace: {}", backtrace);
-		let mut output = inner_output.clone();
+		let mut output = inner_output;
 		if show_bt {
 			output.push_str(&backtrace_output);
 		}
@@ -277,7 +284,7 @@ impl Error {
 	pub fn cause_string(&self) -> String {
 		match self.cause() {
 			Some(k) => format!("{}", k),
-			None => format!("Unknown"),
+			None => "Unknown".to_string(),
 		}
 	}
 	/// get cause
@@ -363,5 +370,11 @@ impl From<committed::Error> for Error {
 impl From<epic_store::Error> for Error {
 	fn from(error: epic_store::Error) -> Error {
 		Error::from(ErrorKind::Backend(format!("{}", error)))
+	}
+}
+
+impl From<util::OnionV3AddressError> for Error {
+	fn from(error: util::OnionV3AddressError) -> Error {
+		Error::from(ErrorKind::OnionV3Address(error))
 	}
 }

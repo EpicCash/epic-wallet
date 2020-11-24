@@ -28,7 +28,7 @@ use std::time::Duration;
 
 use epic_wallet_impls::DefaultLCProvider;
 use epic_wallet_util::epic_keychain::ExtKeychain;
-
+use epic_wallet_util::epic_core::core::feijoada;
 use epic_wallet_util::epic_util as util;
 
 #[macro_use]
@@ -41,6 +41,14 @@ use common::{execute_command, initial_setup_wallet, instantiate_wallet};
 fn setup_no_clean() {
 	util::init_test_logger();
 	global::set_mining_mode(ChainTypes::AutomatedTesting);
+	global::set_mining_mode(ChainTypes::AutomatedTesting);
+	global::set_foundation_path("assets/foundation.json".to_string());
+	let mut policies: feijoada::Policy = feijoada::get_bottles_default();
+	policies.insert(feijoada::PoWType::Cuckatoo, 100);
+	global::set_policy_config(feijoada::PolicyConfig {
+		policies: vec![policies.clone()],
+		..Default::default()
+	});
 }
 
 #[ignore]

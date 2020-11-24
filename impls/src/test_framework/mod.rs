@@ -1,4 +1,4 @@
-// Copyright 2019 The Epic Developers
+// Copyright 2019 The epic Developers
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,9 +16,22 @@ use crate::api;
 use crate::chain;
 use crate::chain::Chain;
 use crate::core;
-use crate::core::core::{Output, OutputFeatures, OutputIdentifier, Transaction, TxKernel};
+use crate::core::core::{BlockHeader,Output, OutputFeatures, OutputIdentifier, Transaction, TxKernel};
 use crate::core::{consensus, global, pow};
+use crate::core::core::block::feijoada::PoWType as FType;
+use crate::core::core::block::feijoada::PoWType;
+use crate::core::core::block::feijoada::{
+	count_beans, get_bottles_default, next_block_bottles, Deterministic, Feijoada, Policy,
+	PolicyConfig,
+};
+use crate::core::pow::{
+new_cuckaroo_ctx, new_cuckatoo_ctx, new_md5_ctx, new_progpow_ctx, new_randomx_ctx,
+	Difficulty,DifficultyNumber, EdgeType, Error, PoWContext};
 use crate::keychain;
+use crate::keychain::{ExtKeychain, Keychain};
+use crate::keychain::ExtKeychainPath;
+use chrono::prelude::{DateTime, NaiveDateTime, Utc};
+
 use crate::libwallet;
 use crate::libwallet::api_impl::{foreign, owner};
 use crate::libwallet::{
@@ -35,6 +48,8 @@ mod testclient;
 
 pub use self::{testclient::LocalWalletClient, testclient::WalletProxy};
 
+const MAX_SOLS: u32 = 10;
+
 /// Get an output from the chain locally and present it back as an API output
 fn get_output_local(chain: &chain::Chain, commit: &pedersen::Commitment) -> Option<api::Output> {
 	let outputs = [
@@ -43,7 +58,7 @@ fn get_output_local(chain: &chain::Chain, commit: &pedersen::Commitment) -> Opti
 	];
 
 	for x in outputs.iter() {
-		if let Ok(_) = chain.is_unspent(&x) {
+		if chain.is_unspent(&x).is_ok() {
 			let block_height = chain.get_header_for_output(&x).unwrap().height;
 			let output_pos = chain.get_output_pos(&x.commit).unwrap_or(0);
 			return Some(api::Output::new(&commit, block_height, output_pos));
@@ -108,40 +123,152 @@ fn height_range_to_pmmr_indices_local(
 	}
 }
 
+
+
+
 /// Adds a block with a given reward to the chain and mines it
-pub fn add_block_with_reward(
-	chain: &Chain,
-	txs: Vec<&Transaction>,
-	reward_output: Output,
-	reward_kernel: TxKernel,
-) {
+pub fn add_block_with_reward(chain: &Chain, txs: Vec<&Transaction>, reward_output: Output,
+	reward_kernel: TxKernel,) {
+
 	let prev = chain.head_header().unwrap();
 	let next_header_info = consensus::next_difficulty(
 		1,
 		(&prev.pow.proof).into(),
 		chain.difficulty_iter().unwrap(),
 	);
+
+
 	let mut b = core::core::Block::new(
 		&prev,
 		txs.into_iter().cloned().collect(),
 		next_header_info.clone().difficulty,
-		(reward_output, reward_kernel),
+		(reward_output, reward_kernel)
+
 	)
 	.unwrap();
+
+
 	b.header.timestamp = prev.timestamp + Duration::seconds(60);
 	b.header.pow.secondary_scaling = next_header_info.secondary_scaling;
+	b.header.bottles = next_block_bottles(
+		FType::Cuckatoo,
+		&prev.bottles,
+	);
+
+
+	let hash = chain
+		.header_pmmr()
+		.read()
+		.get_header_hash_by_height(pow::randomx::rx_current_seed_height(prev.height + 1))
+		.unwrap();
+	let mut seed = [0u8; 32];
+	seed.copy_from_slice(&hash.as_bytes()[0..32]);
+	b.header.pow.seed = seed;
 	chain.set_txhashset_roots(&mut b).unwrap();
-	pow::pow_size(
+
+	/*let edge_bits = global::min_edge_bits();
+	match b.header.pow.proof {
+		pow::Proof::CuckooProof {
+			edge_bits: ref mut bits,
+			..
+		} => *bits = edge_bits,
+		pow::Proof::MD5Proof {
+			edge_bits: ref mut bits,
+			..
+		} => *bits = edge_bits,
+		_ => {}
+	};
+	pow_size_custom(
+		&mut b.header,
+		next_header_info.difficulty,
+		global::proofsize(),
+		edge_bits,
+		&FType::Cuckatoo,
+	)
+	.unwrap();*/
+
+
+	/*pow::pow_size(
 		&mut b.header,
 		next_header_info.difficulty,
 		global::proofsize(),
 		global::min_edge_bits(),
 	)
-	.unwrap();
-	chain.process_block(b, chain::Options::MINE).unwrap();
+	.unwrap();*/
+println!("block to add {:?}", b);
+	chain.process_block(b, chain::Options::SKIP_POW).unwrap();
 	chain.validate(false).unwrap();
 }
 
+fn pow_size_custom(
+	bh: &mut BlockHeader,
+	diff: Difficulty,
+	proof_size: usize,
+	sz: u8,
+	pow_type: &PoWType,
+) -> Result<(), Error> {
+	let start_nonce = bh.pow.nonce;
+	// set the nonce for faster solution finding in user testing
+	if bh.height == 0 {
+		bh.pow.nonce = global::get_genesis_nonce();
+	}
+
+	// try to find a cuckoo cycle on that header hash
+	loop {
+		// if we found a cycle (not guaranteed) and the proof hash is higher that the
+		// diff, we're all good
+		let mut ctx = create_pow_context_custom::<u32>(
+			bh.height,
+			sz,
+			proof_size,
+			MAX_SOLS,
+			pow_type,
+			bh.pow.seed,
+		)?;
+
+		if let pow::Proof::CuckooProof { .. } = bh.pow.proof {
+			ctx.set_header_nonce(bh.pre_pow(), None, Some(bh.height), true)?;
+		} else {
+			ctx.set_header_nonce(bh.pre_pow(), Some(bh.pow.nonce), Some(bh.height), true)?;
+		}
+
+		if let Ok(proofs) = ctx.pow_solve() {
+			bh.pow.proof = proofs[0].clone();
+			if bh.pow.to_difficulty(&bh.pre_pow(), bh.height, bh.pow.nonce) >= diff {
+				return Ok(());
+			}
+		}
+
+		// otherwise increment the nonce
+		let (res, _) = bh.pow.nonce.overflowing_add(1);
+		bh.pow.nonce = res;
+
+		// and if we're back where we started, update the time (changes the hash as
+		// well)
+		if bh.pow.nonce == start_nonce {
+			bh.timestamp = DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(0, 0), Utc);
+		}
+	}
+}
+fn create_pow_context_custom<T>(
+	_height: u64,
+	edge_bits: u8,
+	proof_size: usize,
+	max_sols: u32,
+	pow_type: &PoWType,
+	seed: [u8; 32],
+) -> Result<Box<dyn PoWContext<T>>, pow::Error>
+where
+	T: EdgeType + 'static,
+{
+	match pow_type {
+		// Mainnet has Cuckaroo29 for AR and Cuckatoo30+ for AF
+		PoWType::Cuckaroo => new_cuckaroo_ctx(edge_bits, proof_size),
+		PoWType::Cuckatoo => new_cuckatoo_ctx(edge_bits, proof_size, max_sols),
+		PoWType::RandomX => new_randomx_ctx(seed),
+		PoWType::ProgPow => new_progpow_ctx(),
+	}
+}
 /// adds a reward output to a wallet, includes that reward in a block, mines
 /// the block and adds it to the chain, with option transactions included.
 /// Helpful for building up precise wallet balances for testing.
@@ -168,8 +295,10 @@ where
 	let coinbase_tx = {
 		let mut w_lock = wallet.lock();
 		let w = w_lock.lc_provider()?.wallet_inst()?;
-		foreign::build_coinbase(&mut **w, keychain_mask, &block_fees, false)?
+		foreign::build_coinbase(&mut **w, keychain_mask, &block_fees, true)?
 	};
+
+
 	add_block_with_reward(chain, txs, coinbase_tx.output, coinbase_tx.kernel);
 	Ok(())
 }
@@ -225,8 +354,7 @@ where
 		let slate_i = owner::init_send_tx(&mut **w, keychain_mask, args, test_mode)?;
 		let slate = client.send_tx_slate_direct(dest, &slate_i)?;
 		owner::tx_lock_outputs(&mut **w, keychain_mask, &slate, 0)?;
-		let slate = owner::finalize_tx(&mut **w, keychain_mask, &slate)?;
-		slate
+		owner::finalize_tx(&mut **w, keychain_mask, &slate)?
 	};
 	let client = {
 		let mut w_lock = wallet.lock();
