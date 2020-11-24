@@ -13,8 +13,9 @@ edition = "2018"
 rand = "0.5"
 serde = "1"
 serde_derive = "1"
-toml = "0.4"
-dirs = "1.0.3"
+ed25519-dalek = "1.0.0-pre.1"
+data-encoding = "2"
+sha3 = "0.8"
 
 # For Release
 # epic_core = "2.0.0"
@@ -26,12 +27,12 @@ dirs = "1.0.3"
 
 # For beta release
 
-epic_core     = { git = "https://github.com/EpicCash/epic", rev = "develop"}
-epic_keychain = { git = "https://github.com/EpicCash/epic", rev = "develop" }
-epic_chain    = { git = "https://github.com/EpicCash/epic", rev = "develop" }
-epic_util     = { git = "https://github.com/EpicCash/epic", rev = "develop" }
-epic_api      = { git = "https://github.com/EpicCash/epic", rev = "develop" }
-epic_store    = { git = "https://github.com/EpicCash/epic", rev = "develop" }
+#epic_core     = { git = "https://github.com/EpicCash/epic", rev = "develop"}
+#epic_keychain = { git = "https://github.com/EpicCash/epic", rev = "develop" }
+#epic_chain    = { git = "https://github.com/EpicCash/epic", rev = "develop" }
+#epic_util     = { git = "https://github.com/EpicCash/epic", rev = "develop" }
+#epic_api      = { git = "https://github.com/EpicCash/epic", rev = "develop" }
+#epic_store    = { git = "https://github.com/EpicCash/epic", rev = "develop" }
 
 # For bleeding edge
 # epic_core = { git = "https://github.com/mimblewimble/epic", branch = "master" }
@@ -42,12 +43,12 @@ epic_store    = { git = "https://github.com/EpicCash/epic", rev = "develop" }
 # epic_store = { git = "https://github.com/mimblewimble/epic", branch = "master" }
 
 # For local testing
-# epic_core = { path = "../../epic/core"}
-# epic_keychain = { path = "../../epic/keychain"}
-# epic_chain = { path = "../../epic/chain"}
-# epic_util = { path = "../../epic/util"}
-# epic_api = { path = "../../epic/api"}
-# epic_store = { path = "../../epic/store"}
+epic_core = { path = "../../epic/core"}
+epic_keychain = { path = "../../epic/keychain"}
+epic_chain = { path = "../../epic/chain"}
+epic_util = { path = "../../epic/util"}
+epic_api = { path = "../../epic/api"}
+epic_store = { path = "../../epic/store"}
 
 [dev-dependencies]
 pretty_assertions = "0.5.1"

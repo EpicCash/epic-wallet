@@ -22,6 +22,8 @@ use blake2_rfc as blake2;
 extern crate serde_derive;
 #[macro_use]
 extern crate log;
+#[macro_use]
+extern crate serde_json;
 use epic_wallet_libwallet as libwallet;
 use epic_wallet_util::epic_api as api;
 use epic_wallet_util::epic_chain as chain;

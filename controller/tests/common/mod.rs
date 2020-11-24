@@ -20,7 +20,7 @@ use epic_wallet_util::epic_core as core;
 use epic_wallet_util::epic_keychain as keychain;
 use epic_wallet_util::epic_util as util;
 
-use self::core::global;
+use self::core::{core::feijoada, global};
 use self::core::global::ChainTypes;
 use self::keychain::ExtKeychain;
 use self::libwallet::WalletInst;
@@ -82,6 +82,13 @@ pub fn setup(test_dir: &str) {
 	util::init_test_logger();
 	clean_output_dir(test_dir);
 	global::set_mining_mode(ChainTypes::AutomatedTesting);
+	global::set_foundation_path("../tests/assets/foundation.json".to_string());
+	let mut policies: feijoada::Policy = feijoada::get_bottles_default();
+	policies.insert(feijoada::PoWType::Cuckatoo, 100);
+	global::set_policy_config(feijoada::PolicyConfig {
+		policies: vec![policies.clone()],
+		..Default::default()
+	});
 }
 
 pub fn create_wallet_proxy(

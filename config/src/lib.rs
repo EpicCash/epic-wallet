@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Crate wrapping up the Epic binary and configuration file
+//! Crate wrapping up the epic binary and configuration file
 
 #![deny(non_upper_case_globals)]
 #![deny(non_camel_case_types)]
@@ -30,7 +30,9 @@ mod comments;
 pub mod config;
 pub mod types;
 
-pub use crate::config::{initial_setup_wallet, GRIN_WALLET_DIR, WALLET_CONFIG_FILE_NAME};
+pub use crate::config::{
+	config_file_exists, initial_setup_wallet, EPIC_WALLET_DIR, WALLET_CONFIG_FILE_NAME,
+};
 pub use crate::types::{
 	ConfigError, GlobalWalletConfig, GlobalWalletConfigMembers, TorConfig, WalletConfig,
 };

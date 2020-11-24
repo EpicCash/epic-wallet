@@ -38,8 +38,9 @@ use common::{
 
 #[test]
 fn owner_v2_sanity() -> Result<(), epic_wallet_controller::Error> {
-	let test_dir = "target/test_output/owner_v2_sanity";
+	let test_dir = "test_output/owner_v2_sanity";
 	setup(test_dir);
+
 
 	setup_proxy!(test_dir, chain, wallet1, client1, mask1, wallet2, client2, _mask2);
 
@@ -82,8 +83,12 @@ fn owner_v2_sanity() -> Result<(), epic_wallet_controller::Error> {
 	let res = send_request(1, "http://127.0.0.1:3420/v2/owner", req)?;
 	assert!(res.is_ok());
 	let value: RetrieveSummaryInfoResp = res.unwrap();
-	assert_eq!(value.1.amount_currently_spendable, 420000000000);
 	println!("Response 1: {:?}", value);
+
+	//minimum confirmation is 1 block here. so 8 blocks added (let bh = 10u64;) * 16 epic reward minus 0.0888 (%) foundation fee
+	//16*(1-0.0888)*(8-1) = amount_currently_spendable
+	assert_eq!(value.1.amount_currently_spendable, 10205440000);
+
 
 	// 2) Send to wallet 2 foreign listener
 	let arg_vec = vec![

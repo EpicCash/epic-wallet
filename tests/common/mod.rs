@@ -24,11 +24,12 @@ use std::sync::Arc;
 use std::{env, fs};
 use util::{Mutex, ZeroingString};
 
-use epic_wallet_api::{EncryptedRequest, EncryptedResponse};
-use epic_wallet_config::{GlobalWalletConfig, WalletConfig, GRIN_WALLET_DIR};
+use epic_wallet_api::{EncryptedRequest, EncryptedResponse, JsonId};
+use epic_wallet_config::{GlobalWalletConfig, WalletConfig, EPIC_WALLET_DIR};
 use epic_wallet_impls::{DefaultLCProvider, DefaultWalletImpl};
 use epic_wallet_libwallet::{NodeClient, WalletInfo, WalletInst};
 use epic_wallet_util::epic_core::global::{self, ChainTypes};
+use epic_wallet_util::epic_core::core::feijoada;
 use epic_wallet_util::epic_keychain::ExtKeychain;
 use epic_wallet_util::epic_util::{from_hex, static_secp_instance};
 use util::secp::key::{PublicKey, SecretKey};
@@ -131,7 +132,14 @@ pub fn clean_output_dir(test_dir: &str) {
 pub fn setup(test_dir: &str) {
 	util::init_test_logger();
 	clean_output_dir(test_dir);
-	global::set_mining_mode(ChainTypes::AutomatedTesting);
+	global::set_mining_mode(ChainTypes::Floonet);
+	global::set_foundation_path("tests/assets/foundation.json".to_string());
+	let mut policies: feijoada::Policy = feijoada::get_bottles_default();
+	policies.insert(feijoada::PoWType::Cuckatoo, 100);
+	global::set_policy_config(feijoada::PolicyConfig {
+		policies: vec![policies.clone()],
+		..Default::default()
+	});
 }
 
 /// Create a wallet config file in the given current directory
@@ -241,7 +249,7 @@ pub fn instantiate_wallet(
 	// remove `wallet_data` from end of path as
 	// new lifecycle provider assumes epic_wallet.toml is in root of data directory
 	let mut top_level_wallet_dir = PathBuf::from(wallet_config.clone().data_file_dir);
-	if top_level_wallet_dir.ends_with(GRIN_WALLET_DIR) {
+	if top_level_wallet_dir.ends_with(EPIC_WALLET_DIR) {
 		top_level_wallet_dir.pop();
 		wallet_config.data_file_dir = top_level_wallet_dir.to_str().unwrap().into();
 	}
@@ -308,7 +316,7 @@ where
 {
 	let args = app.clone().get_matches_from(arg_vec);
 	let _ = get_wallet_subcommand(test_dir, wallet_name, args.clone());
-	let config = config::initial_setup_wallet(&ChainTypes::AutomatedTesting, None).unwrap();
+	let config = config::initial_setup_wallet(&ChainTypes::AutomatedTesting, None, true).unwrap();
 	let mut wallet_config = config.clone().members.unwrap().wallet;
 	wallet_config.chain_type = None;
 	wallet_config.api_secret_path = None;
@@ -371,7 +379,7 @@ where
 
 #[allow(dead_code)]
 pub fn send_request_enc<OUT>(
-	sec_req_id: u32,
+	sec_req_id: &JsonId,
 	internal_request_id: u32,
 	dest: &str,
 	req: &str,

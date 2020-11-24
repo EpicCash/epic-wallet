@@ -15,7 +15,7 @@
 //! Default wallet lifecycle provider
 
 use crate::config::{
-	config, GlobalWalletConfig, GlobalWalletConfigMembers, TorConfig, WalletConfig, GRIN_WALLET_DIR,
+	config, GlobalWalletConfig, GlobalWalletConfigMembers, TorConfig, WalletConfig, EPIC_WALLET_DIR,
 };
 use crate::core::global;
 use crate::keychain::Keychain;
@@ -26,8 +26,8 @@ use crate::lifecycle::seed::WalletSeed;
 use crate::util::secp::key::SecretKey;
 use crate::util::ZeroingString;
 use crate::LMDBBackend;
-use epic_wallet_util::epic_util::logger::LoggingConfig;
 use failure::ResultExt;
+use epic_wallet_util::epic_util::logger::LoggingConfig;
 use std::fs;
 use std::path::PathBuf;
 
@@ -82,21 +82,21 @@ where
 		let logging = match logging_config {
 			Some(l) => Some(l),
 			None => match default_config.members.as_ref() {
-				Some(m) => m.clone().logging.clone(),
+				Some(m) => m.clone().logging,
 				None => None,
 			},
 		};
 		let wallet = match wallet_config {
 			Some(w) => w,
 			None => match default_config.members.as_ref() {
-				Some(m) => m.clone().wallet.clone(),
+				Some(m) => m.clone().wallet,
 				None => WalletConfig::default(),
 			},
 		};
 		let tor = match tor_config {
 			Some(t) => Some(t),
 			None => match default_config.members.as_ref() {
-				Some(m) => m.clone().tor.clone(),
+				Some(m) => m.clone().tor,
 				None => Some(TorConfig::default()),
 			},
 		};
@@ -119,7 +119,7 @@ where
 		}
 
 		let mut data_dir_name = PathBuf::from(self.data_dir.clone());
-		data_dir_name.push(GRIN_WALLET_DIR);
+		data_dir_name.push(EPIC_WALLET_DIR);
 
 		if config_file_name.exists() && data_dir_name.exists() {
 			let msg = format!(
@@ -138,7 +138,7 @@ where
 		let mut abs_path = std::env::current_dir()?;
 		abs_path.push(self.data_dir.clone());
 
-		default_config.update_paths(&PathBuf::from(abs_path));
+		default_config.update_paths(&abs_path);
 		let res = default_config.write_to_file(config_file_name.to_str().unwrap());
 		if let Err(e) = res {
 			let msg = format!(
@@ -174,16 +174,25 @@ where
 		test_mode: bool,
 	) -> Result<(), Error> {
 		let mut data_dir_name = PathBuf::from(self.data_dir.clone());
-		data_dir_name.push(GRIN_WALLET_DIR);
+		data_dir_name.push(EPIC_WALLET_DIR);
 		let data_dir_name = data_dir_name.to_str().unwrap();
 		let exists = WalletSeed::seed_file_exists(&data_dir_name);
 		if !test_mode {
 			if let Ok(true) = exists {
 				let msg = format!("Wallet seed already exists at: {}", data_dir_name);
-				return Err(ErrorKind::WalletSeedExists(msg))?;
+				return Err(ErrorKind::WalletSeedExists(msg).into());
 			}
 		}
-		let _ = WalletSeed::init_file(&data_dir_name, mnemonic_length, mnemonic.clone(), password);
+		WalletSeed::init_file(
+			&data_dir_name,
+			mnemonic_length,
+			mnemonic.clone(),
+			password,
+			test_mode,
+		)
+		.context(ErrorKind::Lifecycle(
+			"Error creating wallet seed (is mnemonic valid?)".into(),
+		))?;
 		info!("Wallet seed file created");
 		let mut wallet: LMDBBackend<'a, C, K> =
 			match LMDBBackend::new(&data_dir_name, self.node_client.clone()) {
@@ -213,7 +222,7 @@ where
 		use_test_rng: bool,
 	) -> Result<Option<SecretKey>, Error> {
 		let mut data_dir_name = PathBuf::from(self.data_dir.clone());
-		data_dir_name.push(GRIN_WALLET_DIR);
+		data_dir_name.push(EPIC_WALLET_DIR);
 		let data_dir_name = data_dir_name.to_str().unwrap();
 		let mut wallet: LMDBBackend<'a, C, K> =
 			match LMDBBackend::new(&data_dir_name, self.node_client.clone()) {
@@ -236,17 +245,16 @@ where
 	}
 
 	fn close_wallet(&mut self, _name: Option<&str>) -> Result<(), Error> {
-		match self.backend.as_mut() {
-			Some(b) => b.close()?,
-			None => {}
-		};
+		if let Some(b) = self.backend.as_mut() {
+			b.close()?
+		}
 		self.backend = None;
 		Ok(())
 	}
 
 	fn wallet_exists(&self, _name: Option<&str>) -> Result<bool, Error> {
 		let mut data_dir_name = PathBuf::from(self.data_dir.clone());
-		data_dir_name.push(GRIN_WALLET_DIR);
+		data_dir_name.push(EPIC_WALLET_DIR);
 		let data_dir_name = data_dir_name.to_str().unwrap();
 		let res = WalletSeed::seed_file_exists(&data_dir_name).context(ErrorKind::CallbackImpl(
 			"Error checking for wallet existence",
@@ -260,7 +268,7 @@ where
 		password: ZeroingString,
 	) -> Result<ZeroingString, Error> {
 		let mut data_dir_name = PathBuf::from(self.data_dir.clone());
-		data_dir_name.push(GRIN_WALLET_DIR);
+		data_dir_name.push(EPIC_WALLET_DIR);
 		let data_dir_name = data_dir_name.to_str().unwrap();
 		let wallet_seed = WalletSeed::from_file(&data_dir_name, password).context(
 			ErrorKind::Lifecycle("Error opening wallet seed file".into()),
@@ -274,7 +282,7 @@ where
 	fn validate_mnemonic(&self, mnemonic: ZeroingString) -> Result<(), Error> {
 		match WalletSeed::from_mnemonic(mnemonic) {
 			Ok(_) => Ok(()),
-			Err(_) => Err(ErrorKind::GenericError("Validating mnemonic".into()))?,
+			Err(_) => Err(ErrorKind::GenericError("Validating mnemonic".into()).into()),
 		}
 	}
 
@@ -284,7 +292,7 @@ where
 		password: ZeroingString,
 	) -> Result<(), Error> {
 		let mut data_dir_name = PathBuf::from(self.data_dir.clone());
-		data_dir_name.push(GRIN_WALLET_DIR);
+		data_dir_name.push(EPIC_WALLET_DIR);
 		let data_dir_name = data_dir_name.to_str().unwrap();
 		WalletSeed::recover_from_phrase(data_dir_name, mnemonic, password).context(
 			ErrorKind::Lifecycle("Error recovering from mnemonic".into()),
@@ -299,7 +307,7 @@ where
 		new: ZeroingString,
 	) -> Result<(), Error> {
 		let mut data_dir_name = PathBuf::from(self.data_dir.clone());
-		data_dir_name.push(GRIN_WALLET_DIR);
+		data_dir_name.push(EPIC_WALLET_DIR);
 		let data_dir_name = data_dir_name.to_str().unwrap();
 		// get seed for later check
 
@@ -327,6 +335,7 @@ where
 			0,
 			Some(ZeroingString::from(orig_mnemonic)),
 			new.clone(),
+			false,
 		);
 		info!("Wallet seed file created");
 
@@ -335,9 +344,9 @@ where
 		)?;
 
 		if orig_wallet_seed != new_wallet_seed {
-			let msg = format!(
+			let msg =
 				"New and Old wallet seeds are not equal on password change, not removing backups."
-			);
+					.to_string();
 			return Err(ErrorKind::Lifecycle(msg).into());
 		}
 		// Removin
