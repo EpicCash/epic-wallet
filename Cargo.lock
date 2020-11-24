@@ -833,6 +833,7 @@ dependencies = [
 [[package]]
 name = "epic_api"
 version = "3.0.0"
+source = "git+https://github.com/johanneshahn/epic.git?branch=develop-eccence#5e3cd76fc1387c0a097367965566e6937ed53c3c"
 dependencies = [
  "bigint",
  "bytes 0.5.6",
@@ -866,6 +867,7 @@ dependencies = [
 [[package]]
 name = "epic_chain"
 version = "3.0.0"
+source = "git+https://github.com/johanneshahn/epic.git?branch=develop-eccence#5e3cd76fc1387c0a097367965566e6937ed53c3c"
 dependencies = [
  "bigint",
  "bit-vec",
@@ -890,6 +892,7 @@ dependencies = [
 [[package]]
 name = "epic_core"
 version = "3.0.0"
+source = "git+https://github.com/johanneshahn/epic.git?branch=develop-eccence#5e3cd76fc1387c0a097367965566e6937ed53c3c"
 dependencies = [
  "bigint",
  "blake2-rfc",
@@ -923,6 +926,7 @@ dependencies = [
 [[package]]
 name = "epic_keychain"
 version = "3.0.0"
+source = "git+https://github.com/johanneshahn/epic.git?branch=develop-eccence#5e3cd76fc1387c0a097367965566e6937ed53c3c"
 dependencies = [
  "blake2-rfc",
  "byteorder 1.3.4",
@@ -945,6 +949,7 @@ dependencies = [
 [[package]]
 name = "epic_p2p"
 version = "3.0.0"
+source = "git+https://github.com/johanneshahn/epic.git?branch=develop-eccence#5e3cd76fc1387c0a097367965566e6937ed53c3c"
 dependencies = [
  "bitflags 1.2.1",
  "bytes 0.4.12",
@@ -967,6 +972,7 @@ dependencies = [
 [[package]]
 name = "epic_pool"
 version = "3.0.0"
+source = "git+https://github.com/johanneshahn/epic.git?branch=develop-eccence#5e3cd76fc1387c0a097367965566e6937ed53c3c"
 dependencies = [
  "blake2-rfc",
  "chrono",
@@ -985,6 +991,7 @@ dependencies = [
 [[package]]
 name = "epic_store"
 version = "3.0.0"
+source = "git+https://github.com/johanneshahn/epic.git?branch=develop-eccence#5e3cd76fc1387c0a097367965566e6937ed53c3c"
 dependencies = [
  "byteorder 1.3.4",
  "croaring",
@@ -1005,6 +1012,7 @@ dependencies = [
 [[package]]
 name = "epic_util"
 version = "3.0.0"
+source = "git+https://github.com/johanneshahn/epic.git?branch=develop-eccence#5e3cd76fc1387c0a097367965566e6937ed53c3c"
 dependencies = [
  "backtrace",
  "base64 0.9.3",
