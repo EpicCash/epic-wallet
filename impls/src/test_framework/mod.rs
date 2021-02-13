@@ -16,7 +16,9 @@ use crate::api;
 use crate::chain;
 use crate::chain::Chain;
 use crate::core;
-use crate::core::core::{HeaderVersion,Output, OutputFeatures, OutputIdentifier, Transaction, TxKernel};
+use crate::core::core::{
+	HeaderVersion, Output, OutputFeatures, OutputIdentifier, Transaction, TxKernel,
+};
 use crate::core::{consensus, global, pow};
 use crate::keychain;
 use crate::libwallet;
@@ -142,9 +144,7 @@ pub fn add_block_with_reward(
 	seed.copy_from_slice(&hash.as_bytes()[0..32]);
 	b.header.pow.seed = seed;
 
-
 	chain.set_txhashset_roots(&mut b).unwrap();
-
 
 	pow::pow_size(
 		&mut b.header,

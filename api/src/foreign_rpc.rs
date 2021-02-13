@@ -604,8 +604,8 @@ pub fn run_doctest_foreign(
 	use epic_wallet_libwallet::{api_impl, WalletInst};
 	use epic_wallet_util::epic_keychain::ExtKeychain;
 
-	use crate::core::{core::feijoada, global};
 	use crate::core::global::ChainTypes;
+	use crate::core::{core::feijoada, global};
 	use epic_wallet_util::epic_util as util;
 
 	use std::sync::Arc;
