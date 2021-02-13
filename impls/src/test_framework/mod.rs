@@ -16,7 +16,7 @@ use crate::api;
 use crate::chain;
 use crate::chain::Chain;
 use crate::core;
-use crate::core::core::{Output, OutputFeatures, OutputIdentifier, Transaction, TxKernel};
+use crate::core::core::{HeaderVersion,Output, OutputFeatures, OutputIdentifier, Transaction, TxKernel};
 use crate::core::{consensus, global, pow};
 use crate::keychain;
 use crate::libwallet;
@@ -128,9 +128,24 @@ pub fn add_block_with_reward(
 		(reward_output, reward_kernel),
 	)
 	.unwrap();
+
+	b.header.version = consensus::header_version(b.header.height);
 	b.header.timestamp = prev.timestamp + Duration::seconds(60);
 	b.header.pow.secondary_scaling = next_header_info.secondary_scaling;
+
+	let hash = chain
+		.header_pmmr()
+		.read()
+		.get_header_hash_by_height(pow::randomx::rx_current_seed_height(prev.height + 1))
+		.unwrap();
+	let mut seed = [0u8; 32];
+	seed.copy_from_slice(&hash.as_bytes()[0..32]);
+	b.header.pow.seed = seed;
+
+
 	chain.set_txhashset_roots(&mut b).unwrap();
+
+
 	pow::pow_size(
 		&mut b.header,
 		next_header_info.difficulty,
@@ -138,7 +153,7 @@ pub fn add_block_with_reward(
 		global::min_edge_bits(),
 	)
 	.unwrap();
-	chain.process_block(b, chain::Options::MINE).unwrap();
+	chain.process_block(b, chain::Options::SKIP_POW).unwrap();
 	chain.validate(false).unwrap();
 }
 
