@@ -16,10 +16,10 @@ use crate::api;
 use crate::chain;
 use crate::chain::Chain;
 use crate::core;
+use crate::core::core::foundation::load_foundation_output;
 use crate::core::core::{
 	HeaderVersion, Output, OutputFeatures, OutputIdentifier, Transaction, TxKernel,
 };
-use crate::core::core::foundation::load_foundation_output;
 use crate::core::{consensus, global, pow};
 use crate::keychain;
 use crate::libwallet;
@@ -132,7 +132,6 @@ pub fn add_block_with_reward(
 	)
 	.unwrap();*/
 
-
 	let mut b = if consensus::is_foundation_height(prev.height + 1) {
 		let foundation = load_foundation_output(prev.height + 1);
 		core::core::Block::from_coinbases(
@@ -152,8 +151,6 @@ pub fn add_block_with_reward(
 		)
 	}
 	.unwrap();
-
-
 
 	b.header.version = consensus::header_version(b.header.height);
 	b.header.timestamp = prev.timestamp + Duration::seconds(60);

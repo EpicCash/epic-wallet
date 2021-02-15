@@ -19,10 +19,10 @@ extern crate log;
 
 extern crate epic_wallet;
 
-use epic_wallet_impls::test_framework::{self, LocalWalletClient, WalletProxy};
-use epic_wallet_util::epic_core::global::{self, ChainTypes};
-use epic_wallet_util::epic_core::{core::feijoada};
 use clap::App;
+use epic_wallet_impls::test_framework::{self, LocalWalletClient, WalletProxy};
+use epic_wallet_util::epic_core::core::feijoada;
+use epic_wallet_util::epic_core::global::{self, ChainTypes};
 use std::thread;
 use std::time::Duration;
 
