@@ -29,6 +29,7 @@ use epic_wallet_config::{GlobalWalletConfig, WalletConfig, GRIN_WALLET_DIR};
 use epic_wallet_impls::{DefaultLCProvider, DefaultWalletImpl};
 use epic_wallet_libwallet::{NodeClient, WalletInfo, WalletInst};
 use epic_wallet_util::epic_core::global::{self, ChainTypes};
+use epic_wallet_util::epic_core::{core::feijoada};
 use epic_wallet_util::epic_keychain::ExtKeychain;
 use epic_wallet_util::epic_util::{from_hex, static_secp_instance};
 use util::secp::key::{PublicKey, SecretKey};
@@ -132,6 +133,14 @@ pub fn setup(test_dir: &str) {
 	util::init_test_logger();
 	clean_output_dir(test_dir);
 	global::set_mining_mode(ChainTypes::AutomatedTesting);
+	//path to the foundation in epic/tests/assets/foundation.json - not epic-wallet/
+	global::set_foundation_path("./tests/assets/foundation.json".to_string());
+	let mut policies: feijoada::Policy = feijoada::get_bottles_default();
+	policies.insert(feijoada::PoWType::Cuckatoo, 100);
+	global::set_policy_config(feijoada::PolicyConfig {
+		policies: vec![policies.clone()],
+		..Default::default()
+	});
 }
 
 /// Create a wallet config file in the given current directory

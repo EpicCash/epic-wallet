@@ -82,7 +82,7 @@ fn owner_v2_sanity() -> Result<(), epic_wallet_controller::Error> {
 	let res = send_request(1, "http://127.0.0.1:3420/v2/owner", req)?;
 	assert!(res.is_ok());
 	let value: RetrieveSummaryInfoResp = res.unwrap();
-	assert_eq!(value.1.amount_currently_spendable, 420000000000);
+	assert_eq!(value.1.amount_currently_spendable, 10205440000);
 	println!("Response 1: {:?}", value);
 
 	// 2) Send to wallet 2 foreign listener
