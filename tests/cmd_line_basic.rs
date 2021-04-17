@@ -139,7 +139,7 @@ fn command_line_test_impl(test_dir: &str) -> Result<(), epic_wallet_controller::
 
 	// let's see those accounts
 	let arg_vec = vec!["epic-wallet", "-p", "password", "account"];
-	execute_command(&app, test_dir, "wallet2", &client2, arg_vec)?;
+	execute_command(&app, test_dir, "wallet1", &client1, arg_vec)?;
 
 	// let's see those accounts
 	let arg_vec = vec!["epic-wallet", "-p", "password", "account"];
@@ -253,7 +253,7 @@ fn command_line_test_impl(test_dir: &str) -> Result<(), epic_wallet_controller::
 	execute_command(&app, test_dir, "wallet1", &client1, arg_vec)?;
 
 	let arg_vec = vec!["epic-wallet", "-p", "password", "-a", "account_1", "info"];
-	execute_command(&app, test_dir, "wallet2", &client1, arg_vec)?;
+	execute_command(&app, test_dir, "wallet2", &client2, arg_vec)?;
 
 	// check results in wallet 2
 	let wallet_config2 = config2.clone().members.unwrap().wallet;
@@ -269,7 +269,7 @@ fn command_line_test_impl(test_dir: &str) -> Result<(), epic_wallet_controller::
 		api.set_active_account(m, "account_1")?;
 		let (_, wallet1_info) = api.retrieve_summary_info(m, true, 1)?;
 		assert_eq!(wallet1_info.last_confirmed_height, bh);
-		assert_eq!(wallet1_info.amount_currently_spendable, 10_000_000_000);
+		assert_eq!(wallet1_info.amount_currently_spendable, 1_000_000_000);
 		Ok(())
 	})?;
 

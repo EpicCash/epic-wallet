@@ -19,10 +19,10 @@ extern crate log;
 
 extern crate epic_wallet;
 
-use epic_wallet_impls::test_framework::{self, LocalWalletClient, WalletProxy};
-use epic_wallet_util::epic_core::global::{self, ChainTypes};
-
 use clap::App;
+use epic_wallet_impls::test_framework::{self, LocalWalletClient, WalletProxy};
+use epic_wallet_util::epic_core::core::feijoada;
+use epic_wallet_util::epic_core::global::{self, ChainTypes};
 use std::thread;
 use std::time::Duration;
 
@@ -41,6 +41,13 @@ use common::{execute_command, initial_setup_wallet, instantiate_wallet};
 fn setup_no_clean() {
 	util::init_test_logger();
 	global::set_mining_mode(ChainTypes::AutomatedTesting);
+	global::set_foundation_path("../tests/assets/foundation.json".to_string());
+	let mut policies: feijoada::Policy = feijoada::get_bottles_default();
+	policies.insert(feijoada::PoWType::Cuckatoo, 100);
+	global::set_policy_config(feijoada::PolicyConfig {
+		policies: vec![policies.clone()],
+		..Default::default()
+	});
 }
 
 #[ignore]
