@@ -725,8 +725,8 @@ dependencies = [
 
 [[package]]
 name = "epic_api"
-version = "2.0.0"
-source = "git+https://github.com/EpicCash/epic?rev=develop#6c8379c35d9de39fa51068bdb15b1bdb2d6cd6eb"
+version = "3.0.0"
+source = "git+https://github.com/EpicCash/epic?rev=3.0.0-alpha-5#7dedcb222fb4ec7033e1678dd945a3546e18def1"
 dependencies = [
  "bigint",
  "easy-jsonrpc-mw",
@@ -760,8 +760,8 @@ dependencies = [
 
 [[package]]
 name = "epic_chain"
-version = "2.0.0"
-source = "git+https://github.com/EpicCash/epic?rev=develop#6c8379c35d9de39fa51068bdb15b1bdb2d6cd6eb"
+version = "3.0.0"
+source = "git+https://github.com/EpicCash/epic?rev=3.0.0-alpha-5#7dedcb222fb4ec7033e1678dd945a3546e18def1"
 dependencies = [
  "bigint",
  "bit-vec",
@@ -785,8 +785,8 @@ dependencies = [
 
 [[package]]
 name = "epic_core"
-version = "2.0.0"
-source = "git+https://github.com/EpicCash/epic?rev=develop#6c8379c35d9de39fa51068bdb15b1bdb2d6cd6eb"
+version = "3.0.0"
+source = "git+https://github.com/EpicCash/epic?rev=3.0.0-alpha-5#7dedcb222fb4ec7033e1678dd945a3546e18def1"
 dependencies = [
  "bigint",
  "blake2-rfc",
@@ -819,8 +819,8 @@ dependencies = [
 
 [[package]]
 name = "epic_keychain"
-version = "2.0.0"
-source = "git+https://github.com/EpicCash/epic?rev=develop#6c8379c35d9de39fa51068bdb15b1bdb2d6cd6eb"
+version = "3.0.0"
+source = "git+https://github.com/EpicCash/epic?rev=3.0.0-alpha-5#7dedcb222fb4ec7033e1678dd945a3546e18def1"
 dependencies = [
  "blake2-rfc",
  "byteorder 1.4.3",
@@ -842,8 +842,8 @@ dependencies = [
 
 [[package]]
 name = "epic_p2p"
-version = "2.0.0"
-source = "git+https://github.com/EpicCash/epic?rev=develop#6c8379c35d9de39fa51068bdb15b1bdb2d6cd6eb"
+version = "3.0.0"
+source = "git+https://github.com/EpicCash/epic?rev=3.0.0-alpha-5#7dedcb222fb4ec7033e1678dd945a3546e18def1"
 dependencies = [
  "bitflags 1.2.1",
  "bytes",
@@ -865,8 +865,8 @@ dependencies = [
 
 [[package]]
 name = "epic_pool"
-version = "2.0.0"
-source = "git+https://github.com/EpicCash/epic?rev=develop#6c8379c35d9de39fa51068bdb15b1bdb2d6cd6eb"
+version = "3.0.0"
+source = "git+https://github.com/EpicCash/epic?rev=3.0.0-alpha-5#7dedcb222fb4ec7033e1678dd945a3546e18def1"
 dependencies = [
  "blake2-rfc",
  "chrono",
@@ -884,8 +884,8 @@ dependencies = [
 
 [[package]]
 name = "epic_store"
-version = "2.0.0"
-source = "git+https://github.com/EpicCash/epic?rev=develop#6c8379c35d9de39fa51068bdb15b1bdb2d6cd6eb"
+version = "3.0.0"
+source = "git+https://github.com/EpicCash/epic?rev=3.0.0-alpha-5#7dedcb222fb4ec7033e1678dd945a3546e18def1"
 dependencies = [
  "byteorder 1.4.3",
  "croaring",
@@ -905,8 +905,8 @@ dependencies = [
 
 [[package]]
 name = "epic_util"
-version = "2.0.0"
-source = "git+https://github.com/EpicCash/epic?rev=develop#6c8379c35d9de39fa51068bdb15b1bdb2d6cd6eb"
+version = "3.0.0"
+source = "git+https://github.com/EpicCash/epic?rev=3.0.0-alpha-5#7dedcb222fb4ec7033e1678dd945a3546e18def1"
 dependencies = [
  "backtrace",
  "base64 0.9.3",
