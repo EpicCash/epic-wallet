@@ -48,7 +48,7 @@ pub mod address;
 pub mod api_impl;
 mod error;
 mod internal;
-mod slate;
+pub mod slate;
 pub mod slate_versions;
 mod types;
 
