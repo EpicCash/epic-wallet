@@ -1,6 +1,6 @@
 [package]
 name = "epic_wallet"
-version = "3.0.0-alpha-2"
+version = "3.0.0"
 authors = ["Epic Developers <mimblewimble@lists.launchpad.net>"]
 description = "Simple, private and scalable cryptocurrency implementation based on the MimbleWimble chain format."
 license = "Apache-2.0"
@@ -35,7 +35,6 @@ epic_wallet_impls = { path = "./impls", version = "3.0.0" }
 epic_wallet_libwallet = { path = "./libwallet", version = "3.0.0" }
 epic_wallet_controller = { path = "./controller", version = "3.0.0" }
 epic_wallet_config = { path = "./config", version = "3.0.0" }
-
 epic_wallet_util = { path = "./util", version = "3.0.0" }
 
 [build-dependencies]
