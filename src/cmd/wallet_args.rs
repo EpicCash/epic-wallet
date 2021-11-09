@@ -46,8 +46,8 @@ macro_rules! arg_parse {
 			Ok(res) => res,
 			Err(e) => {
 				return Err(ErrorKind::ArgumentError(format!("{}", e)).into());
-				}
 			}
+		}
 	};
 }
 /// Simple error definition, just so we can return errors from all commands

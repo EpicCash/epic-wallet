@@ -50,13 +50,13 @@ macro_rules! create_wallet_and_add {
 			$seed_phrase.clone(),
 			$client.clone(),
 			$create_mask,
-			);
+		);
 		$proxy.add_wallet(
 			$name,
 			$client.get_send_instance(),
 			$wallet.clone(),
 			$mask.clone(),
-			);
+		);
 	};
 }
 
@@ -71,7 +71,7 @@ macro_rules! open_wallet_and_add {
 			$client.get_send_instance(),
 			$wallet.clone(),
 			$mask.clone(),
-			);
+		);
 	};
 }
 pub fn clean_output_dir(test_dir: &str) {
