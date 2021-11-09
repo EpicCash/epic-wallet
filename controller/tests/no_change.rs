@@ -67,7 +67,7 @@ fn no_change_test_impl(test_dir: &'static str) -> Result<(), libwallet::Error> {
 	});
 
 	// few values to keep things shorter
-	let reward = core::consensus::REWARD;
+	let reward = core::consensus::BLOCK_TIME_SEC * core::consensus::EPIC_BASE;
 
 	// Mine into wallet 1
 	let _ = test_framework::award_blocks_to_wallet(&chain, wallet1.clone(), mask1, 4, false);

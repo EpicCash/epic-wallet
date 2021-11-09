@@ -72,7 +72,7 @@ fn accounts_test_impl(test_dir: &'static str) -> Result<(), libwallet::Error> {
 	});
 
 	// few values to keep things shorter
-	let reward = core::consensus::REWARD;
+	let reward = core::consensus::BLOCK_TIME_SEC * core::consensus::EPIC_BASE;
 	let cm = global::coinbase_maturity(); // assume all testing precedes soft fork height
 
 	// test default accounts exist
