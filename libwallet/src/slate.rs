@@ -21,7 +21,7 @@ use crate::epic_core::core::committed::Committed;
 use crate::epic_core::core::transaction::{
 	Input, KernelFeatures, Output, Transaction, TransactionBody, TxKernel, Weighting,
 };
-use crate::epic_core::core::verifier_cache::LruVerifierCache;
+
 use crate::epic_core::libtx::{aggsig, build, proof::ProofBuild, secp_ser, tx_fee};
 use crate::epic_core::map_vec;
 use crate::epic_keychain::{BlindSum, BlindingFactor, Keychain};
@@ -708,8 +708,7 @@ impl Slate {
 
 		// confirm the overall transaction is valid (including the updated kernel)
 		// accounting for tx weight limits
-		let verifier_cache = Arc::new(RwLock::new(LruVerifierCache::new()));
-		let _ = final_tx.validate(Weighting::AsTransaction, verifier_cache)?;
+		let _ = final_tx.validate(Weighting::AsTransaction)?;
 
 		self.tx = final_tx;
 		Ok(())
