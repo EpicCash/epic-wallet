@@ -178,7 +178,7 @@ pub trait ForeignRpc {
 				"version_info": {
 					"orig_version": 2,
 					"version": 2,
-					"block_header_version": 2
+					"block_header_version": 6
 				}
 			}
 		]
@@ -200,7 +200,7 @@ pub trait ForeignRpc {
 	fn verify_slate_messages(&self, slate: VersionedSlate) -> Result<(), ErrorKind>;
 
 	/**
-		Networked version of [Foreign::receive_tx](struct.Foreign.html#method.receive_tx).
+	Networked version of [Foreign::receive_tx](struct.Foreign.html#method.receive_tx).
 
 	# Json rpc example
 
@@ -216,7 +216,7 @@ pub trait ForeignRpc {
 			"version_info": {
 				"version": 2,
 				"orig_version": 2,
-				"block_header_version": 2
+				"block_header_version": 6
 			},
 			"num_participants": 2,
 			"id": "0436430c-2b02-624c-2032-570501212b00",
@@ -345,7 +345,7 @@ pub trait ForeignRpc {
 				"version_info": {
 					"orig_version": 2,
 					"version": 2,
-					"block_header_version": 2
+					"block_header_version": 6
 				}
 			}
 		}
@@ -378,7 +378,7 @@ pub trait ForeignRpc {
 			"version_info": {
 				"version": 2,
 				"orig_version": 2,
-				"block_header_version": 2
+				"block_header_version": 6
 			},
 			"num_participants": 2,
 			"id": "0436430c-2b02-624c-2032-570501212b00",
@@ -517,7 +517,7 @@ pub trait ForeignRpc {
 				"version_info": {
 					"orig_version": 2,
 					"version": 2,
-					"block_header_version": 2
+					"block_header_version": 6
 				}
 			}
 		}
@@ -816,7 +816,7 @@ macro_rules! doctest_helper_json_rpc_foreign_assert_response {
 			$blocks_to_mine,
 			$init_tx,
 			$init_invoice_tx,
-			)
+		)
 		.unwrap()
 		.unwrap();
 
@@ -825,7 +825,7 @@ macro_rules! doctest_helper_json_rpc_foreign_assert_response {
 				"(left != right) \nleft: {}\nright: {}",
 				serde_json::to_string_pretty(&response).unwrap(),
 				serde_json::to_string_pretty(&expected_response).unwrap()
-				);
-			}
+			);
+		}
 	};
 }

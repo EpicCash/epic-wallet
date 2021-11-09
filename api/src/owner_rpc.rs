@@ -287,6 +287,8 @@ pub trait OwnerRpc: Sync + Send {
 	/**
 	Networked version of [Owner::retrieve_summary_info](struct.Owner.html#method.retrieve_summary_info).
 
+	# Json rpc example
+
 	```
 	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
 	# r#"
@@ -331,7 +333,9 @@ pub trait OwnerRpc: Sync + Send {
 	) -> Result<(bool, WalletInfo), ErrorKind>;
 
 	/**
-		Networked version of [Owner::init_send_tx](struct.Owner.html#method.init_send_tx).
+	Networked version of [Owner::init_send_tx](struct.Owner.html#method.init_send_tx).
+
+	# Json rpc example
 
 	```
 		# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
@@ -425,7 +429,9 @@ pub trait OwnerRpc: Sync + Send {
 	fn init_send_tx(&self, args: InitTxArgs) -> Result<VersionedSlate, ErrorKind>;
 
 	/**
-		Networked version of [Owner::issue_invoice_tx](struct.Owner.html#method.issue_invoice_tx).
+	Networked version of [Owner::issue_invoice_tx](struct.Owner.html#method.issue_invoice_tx).
+
+	# Json rpc example
 
 	```
 		# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
@@ -507,7 +513,9 @@ pub trait OwnerRpc: Sync + Send {
 	fn issue_invoice_tx(&self, args: IssueInvoiceTxArgs) -> Result<VersionedSlate, ErrorKind>;
 
 	/**
-		 Networked version of [Owner::process_invoice_tx](struct.Owner.html#method.process_invoice_tx).
+	Networked version of [Owner::process_invoice_tx](struct.Owner.html#method.process_invoice_tx).
+
+	# Json rpc example
 
 	```
 		# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
@@ -667,6 +675,8 @@ pub trait OwnerRpc: Sync + Send {
 	/**
 	Networked version of [Owner::tx_lock_outputs](struct.Owner.html#method.tx_lock_outputs).
 
+	# Json rpc example
+
 	```
 	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
 	# r#"
@@ -752,6 +762,8 @@ pub trait OwnerRpc: Sync + Send {
 
 	/**
 	Networked version of [Owner::finalize_tx](struct.Owner.html#method.finalize_tx).
+
+	# Json rpc example
 
 	```
 	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
@@ -919,6 +931,8 @@ pub trait OwnerRpc: Sync + Send {
 	/**
 	Networked version of [Owner::post_tx](struct.Owner.html#method.post_tx).
 
+	# Json rpc example
+
 	```
 	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
 	# r#"
@@ -987,6 +1001,7 @@ pub trait OwnerRpc: Sync + Send {
 	/**
 	Networked version of [Owner::cancel_tx](struct.Owner.html#method.cancel_tx).
 
+	# Json rpc example
 
 	```
 	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
@@ -1015,6 +1030,8 @@ pub trait OwnerRpc: Sync + Send {
 
 	/**
 	Networked version of [Owner::get_stored_tx](struct.Owner.html#method.get_stored_tx).
+
+	# Json rpc example
 
 	```
 	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
@@ -1113,6 +1130,8 @@ pub trait OwnerRpc: Sync + Send {
 	/**
 	Networked version of [Owner::verify_slate_messages](struct.Owner.html#method.verify_slate_messages).
 
+	# Json rpc example
+
 	```
 	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
 	# r#"
@@ -1193,6 +1212,7 @@ pub trait OwnerRpc: Sync + Send {
 	/**
 	Networked version of [Owner::scan](struct.Owner.html#method.scan).
 
+	# Json rpc example
 
 	```
 	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
@@ -1222,6 +1242,7 @@ pub trait OwnerRpc: Sync + Send {
 	/**
 	Networked version of [Owner::node_height](struct.Owner.html#method.node_height).
 
+	# Json rpc example
 
 	```
 	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
@@ -1588,7 +1609,7 @@ macro_rules! doctest_helper_json_rpc_owner_assert_response {
 		// disable for now on windows
 		// TODO: Fix properly
 		#[cfg(not(target_os = "windows"))]
-			{
+		{
 			use epic_wallet_api::run_doctest_owner;
 			use serde_json;
 			use serde_json::Value;
@@ -1612,7 +1633,7 @@ macro_rules! doctest_helper_json_rpc_owner_assert_response {
 				$perform_tx,
 				$lock_tx,
 				$finalize_tx,
-				)
+			)
 			.unwrap()
 			.unwrap();
 
@@ -1622,7 +1643,7 @@ macro_rules! doctest_helper_json_rpc_owner_assert_response {
 					serde_json::to_string_pretty(&response).unwrap(),
 					serde_json::to_string_pretty(&expected_response).unwrap()
 				);
-				}
 			}
+		}
 	};
 }
