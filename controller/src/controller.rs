@@ -19,7 +19,7 @@ use crate::config::TorConfig;
 use crate::keychain::Keychain;
 use crate::libwallet::{
 	address, Error, ErrorKind, NodeClient, NodeVersionInfo, Slate, WalletInst, WalletLCProvider,
-	GRIN_BLOCK_HEADER_VERSION,
+	EPIC_BLOCK_HEADER_VERSION,
 };
 use crate::util::secp::key::SecretKey;
 use crate::util::{from_hex, static_secp_instance, to_base64, Mutex};
@@ -45,7 +45,7 @@ use easy_jsonrpc_mw;
 use easy_jsonrpc_mw::{Handler, MaybeReply};
 
 lazy_static! {
-	pub static ref GRIN_OWNER_BASIC_REALM: HeaderValue =
+	pub static ref EPIC_OWNER_BASIC_REALM: HeaderValue =
 		HeaderValue::from_str("Basic realm=EpicOwnerAPI").unwrap();
 }
 
@@ -63,7 +63,7 @@ fn check_middleware(
 				bhv = n.block_header_version;
 			}
 			if let Some(s) = slate {
-				if bhv > 3 && s.version_info.block_header_version < GRIN_BLOCK_HEADER_VERSION {
+				if bhv > 3 && s.version_info.block_header_version < EPIC_BLOCK_HEADER_VERSION {
 					Err(ErrorKind::Compatibility(
 						"Incoming Slate is not compatible with this wallet. \
 						 Please upgrade the node or use a different one."
@@ -179,7 +179,7 @@ where
 			"Basic ".to_string() + &to_base64(&("epic:".to_string() + &api_secret.unwrap()));
 		let basic_auth_middleware = Arc::new(BasicAuthMiddleware::new(
 			api_basic_auth,
-			&GRIN_OWNER_BASIC_REALM,
+			&EPIC_OWNER_BASIC_REALM,
 			Some("/v2/foreign".into()),
 		));
 		router.add_middleware(basic_auth_middleware);

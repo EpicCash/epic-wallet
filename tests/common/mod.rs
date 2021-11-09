@@ -25,7 +25,7 @@ use std::{env, fs};
 use util::{Mutex, ZeroingString};
 
 use epic_wallet_api::{EncryptedRequest, EncryptedResponse};
-use epic_wallet_config::{GlobalWalletConfig, WalletConfig, GRIN_WALLET_DIR};
+use epic_wallet_config::{GlobalWalletConfig, WalletConfig, EPIC_WALLET_DIR};
 use epic_wallet_impls::{DefaultLCProvider, DefaultWalletImpl};
 use epic_wallet_libwallet::{NodeClient, WalletInfo, WalletInst};
 use epic_wallet_util::epic_core::core::feijoada;
@@ -250,7 +250,7 @@ pub fn instantiate_wallet(
 	// remove `wallet_data` from end of path as
 	// new lifecycle provider assumes epic_wallet.toml is in root of data directory
 	let mut top_level_wallet_dir = PathBuf::from(wallet_config.clone().data_file_dir);
-	if top_level_wallet_dir.ends_with(GRIN_WALLET_DIR) {
+	if top_level_wallet_dir.ends_with(EPIC_WALLET_DIR) {
 		top_level_wallet_dir.pop();
 		wallet_config.data_file_dir = top_level_wallet_dir.to_str().unwrap().into();
 	}

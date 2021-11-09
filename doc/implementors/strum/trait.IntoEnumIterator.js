@@ -1,0 +1,3 @@
+(function() {var implementors = {};
+implementors["epic_wallet_libwallet"] = [{"text":"impl IntoEnumIterator for <a class=\"enum\" href=\"epic_wallet_libwallet/slate_versions/enum.SlateVersion.html\" title=\"enum epic_wallet_libwallet::slate_versions::SlateVersion\">SlateVersion</a>","synthetic":false,"types":["epic_wallet_libwallet::slate_versions::SlateVersion"]}];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

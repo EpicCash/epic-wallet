@@ -374,7 +374,7 @@ fn two_wallets_one_seed_impl(test_dir: &'static str) -> Result<(), libwallet::Er
 
 	// Do some mining
 	let mut bh = 20u64;
-	let base_amount = consensus::GRIN_BASE;
+	let base_amount = consensus::EPIC_BASE;
 	let _ = test_framework::award_blocks_to_wallet(
 		&chain,
 		miner.clone(),

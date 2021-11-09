@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::api::TLSConfig;
-use crate::config::GRIN_WALLET_DIR;
+use crate::config::EPIC_WALLET_DIR;
 use crate::util::file::get_first_line;
 use crate::util::{to_hex, Mutex, ZeroingString};
 /// Argument parsing and error handling for wallet commands
@@ -826,7 +826,7 @@ where
 	// remove `wallet_data` from end of path as
 	// new lifecycle provider assumes epic_wallet.toml is in root of data directory
 	let mut top_level_wallet_dir = PathBuf::from(wallet_config.clone().data_file_dir);
-	if top_level_wallet_dir.ends_with(GRIN_WALLET_DIR) {
+	if top_level_wallet_dir.ends_with(EPIC_WALLET_DIR) {
 		top_level_wallet_dir.pop();
 		wallet_config.data_file_dir = top_level_wallet_dir.to_str().unwrap().into();
 	}

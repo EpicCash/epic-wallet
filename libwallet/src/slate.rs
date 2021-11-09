@@ -47,7 +47,7 @@ use crate::slate_versions::v3::{
 	CoinbaseV3, InputV3, OutputV3, ParticipantDataV3, PaymentInfoV3, SlateV3, TransactionBodyV3,
 	TransactionV3, TxKernelV3, VersionCompatInfoV3,
 };
-use crate::slate_versions::{CURRENT_SLATE_VERSION, GRIN_BLOCK_HEADER_VERSION};
+use crate::slate_versions::{CURRENT_SLATE_VERSION, EPIC_BLOCK_HEADER_VERSION};
 use crate::types::CbData;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -258,7 +258,7 @@ impl Slate {
 			version_info: VersionCompatInfo {
 				version: CURRENT_SLATE_VERSION,
 				orig_version: CURRENT_SLATE_VERSION,
-				block_header_version: GRIN_BLOCK_HEADER_VERSION,
+				block_header_version: EPIC_BLOCK_HEADER_VERSION,
 			},
 			payment_proof: None,
 		}

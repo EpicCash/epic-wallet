@@ -56,7 +56,7 @@ pub use crate::error::{Error, ErrorKind};
 pub use crate::slate::{ParticipantData, ParticipantMessageData, Slate};
 pub use crate::slate_versions::{
 	SlateVersion, VersionedCoinbase, VersionedSlate, CURRENT_SLATE_VERSION,
-	GRIN_BLOCK_HEADER_VERSION,
+	EPIC_BLOCK_HEADER_VERSION,
 };
 pub use api_impl::owner_updater::StatusMessage;
 pub use api_impl::types::{
