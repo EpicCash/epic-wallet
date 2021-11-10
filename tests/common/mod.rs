@@ -24,7 +24,7 @@ use std::sync::Arc;
 use std::{env, fs};
 use util::{Mutex, ZeroingString};
 
-use epic_wallet_api::{EncryptedRequest, EncryptedResponse};
+use epic_wallet_api::{EncryptedRequest, EncryptedResponse, RpcId};
 use epic_wallet_config::{GlobalWalletConfig, WalletConfig, EPIC_WALLET_DIR};
 use epic_wallet_impls::{DefaultLCProvider, DefaultWalletImpl};
 use epic_wallet_libwallet::{NodeClient, WalletInfo, WalletInst};
@@ -380,7 +380,7 @@ where
 
 #[allow(dead_code)]
 pub fn send_request_enc<OUT>(
-	sec_req_id: u32,
+	sec_req_id: RpcId,
 	internal_request_id: u32,
 	dest: &str,
 	req: &str,

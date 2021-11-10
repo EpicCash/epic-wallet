@@ -1,0 +1,1 @@
+initSidebarItems({"attr":[["rpc","Generate a Handler implementation and client helpers for trait input."]]});

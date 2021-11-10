@@ -1,0 +1,1 @@
+initSidebarItems({"fn":[["jitter",""]],"struct":[["ExponentialBackoff","A retry strategy driven by exponential back-off."],["FibonacciBackoff","A retry strategy driven by the fibonacci series."],["FixedInterval","A retry strategy driven by a fixed interval."]]});

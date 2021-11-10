@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["StatusMessage","Update status messages which can be returned to listening clients"]],"fn":[["start_updater_log_thread","Helper function that starts a simple log thread for updater messages"]],"struct":[["Updater","Handles and launches a background update thread"]]});

@@ -1,0 +1,3 @@
+(function() {var implementors = {};
+implementors["nom"] = [{"text":"impl&lt;'a&gt; <a class=\"trait\" href=\"nom/lib/std/convert/trait.AsRef.html\" title=\"trait nom::lib::std::convert::AsRef\">AsRef</a>&lt;<a class=\"primitive\" href=\"https://doc.rust-lang.org/1.56.1/std/primitive.str.html\">str</a>&gt; for <a class=\"struct\" href=\"nom/types/struct.CompleteStr.html\" title=\"struct nom::types::CompleteStr\">CompleteStr</a>&lt;'a&gt;","synthetic":false,"types":["nom::types::CompleteStr"]}];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

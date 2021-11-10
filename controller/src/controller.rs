@@ -39,7 +39,7 @@ use crate::impls::tor::process as tor_process;
 
 use crate::apiwallet::{
 	EncryptedRequest, EncryptedResponse, EncryptionErrorResponse, Foreign,
-	ForeignCheckMiddlewareFn, ForeignRpc, Owner, OwnerRpc, OwnerRpcS,
+	ForeignCheckMiddlewareFn, ForeignRpc, Owner, OwnerRpc, OwnerRpcS, RpcId
 };
 use easy_jsonrpc_mw;
 use easy_jsonrpc_mw::{Handler, MaybeReply};
@@ -432,7 +432,7 @@ impl OwnerV3Helpers {
 		match OwnerV3Helpers::encryption_enabled(key) {
 			true => Ok(()),
 			false => Err(EncryptionErrorResponse::new(
-				1,
+				RpcId::Integer(1),
 				-32001,
 				"Encryption must be enabled. Please call 'init_secure_api` first",
 			)
@@ -475,20 +475,20 @@ impl OwnerV3Helpers {
 	pub fn decrypt_request(
 		key: Arc<Mutex<Option<SecretKey>>>,
 		req: &serde_json::Value,
-	) -> Result<(u32, serde_json::Value), serde_json::Value> {
+	) -> Result<(RpcId, serde_json::Value), serde_json::Value> {
 		let share_key_ref = key.lock();
 		let shared_key = share_key_ref.as_ref().unwrap();
 		let enc_req: EncryptedRequest = serde_json::from_value(req.clone()).map_err(|e| {
 			EncryptionErrorResponse::new(
-				1,
+				RpcId::Integer(1),
 				-32002,
 				&format!("Encrypted request format error: {}", e),
 			)
 			.as_json_value()
 		})?;
-		let id = enc_req.id;
+		let id = enc_req.id.clone();
 		let res = enc_req.decrypt(&shared_key).map_err(|e| {
-			EncryptionErrorResponse::new(1, -32002, &format!("Decryption error: {}", e.kind()))
+			EncryptionErrorResponse::new(RpcId::Integer(1), -32002, &format!("Decryption error: {}", e.kind()))
 				.as_json_value()
 		})?;
 		Ok((id, res))
@@ -497,18 +497,18 @@ impl OwnerV3Helpers {
 	/// Encrypt a response
 	pub fn encrypt_response(
 		key: Arc<Mutex<Option<SecretKey>>>,
-		id: u32,
+		id: RpcId,
 		res: &serde_json::Value,
 	) -> Result<serde_json::Value, serde_json::Value> {
 		let share_key_ref = key.lock();
 		let shared_key = share_key_ref.as_ref().unwrap();
 		let enc_res = EncryptedResponse::from_json(id, res, &shared_key).map_err(|e| {
-			EncryptionErrorResponse::new(1, -32003, &format!("EncryptionError: {}", e.kind()))
+			EncryptionErrorResponse::new(RpcId::Integer(1), -32003, &format!("EncryptionError: {}", e.kind()))
 				.as_json_value()
 		})?;
 		let res = enc_res.as_json_value().map_err(|e| {
 			EncryptionErrorResponse::new(
-				1,
+				RpcId::Integer(1),
 				-32002,
 				&format!("Encrypted response format error: {}", e),
 			)
@@ -624,7 +624,7 @@ where
 			let owner_api_s = &*api as &dyn OwnerRpcS;
 			let mut is_init_secure_api = OwnerV3Helpers::is_init_secure_api(&val);
 			let mut was_encrypted = false;
-			let mut encrypted_req_id = 0;
+			let mut encrypted_req_id = RpcId::Integer(0);
 			if !is_init_secure_api {
 				if let Err(v) = OwnerV3Helpers::check_encryption_started(key.clone()) {
 					return ok(v);

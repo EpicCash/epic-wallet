@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["Middleware","Middleware that adds retries to a service via a retry strategy."],["ServiceRequest","Represents a retryable request to a service."]],"trait":[["StrategyFactory","Trait to produce iterators that will be used as retry strategies."]]});

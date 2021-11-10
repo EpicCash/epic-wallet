@@ -1,0 +1,100 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Flags used when opening an LMDB environment."><meta name="keywords" content="rust, rustlang, rust-lang, open"><title>lmdb_zero::open - Rust</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../light.css"  id="themeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css" disabled ><link rel="stylesheet" type="text/css" href="../../ayu.css" disabled ><script id="default-settings" ></script><script src="../../storage.js"></script><script src="../../crates.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../favicon.svg"><style type="text/css">#crate-search{background-image:url("../../down-arrow.svg");}</style></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu" role="button">&#9776;</div><a href='../../lmdb_zero/index.html'><div class='logo-container rust-logo'><img src='../../rust-logo.png' alt='logo'></div></a><h2 class="location">Module open</h2><div class="sidebar-elems"><div class="block items"><ul><li><a href="#structs">Structs</a></li><li><a href="#constants">Constants</a></li></ul></div><div id="sidebar-vars" data-name="open" data-ty="mod" data-relpath="./"></div><script defer src="./sidebar-items.js"></script></div></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!" aria-haspopup="menu" title="themes"><img width="18" height="18" alt="Pick another theme!" src="../../brush.svg"></button><div id="theme-choices" role="menu"></div></div><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><button type="button" id="help-button" title="help">?</button><a id="settings-menu" href="../../settings.html" title="settings"><img width="18" height="18" alt="Change settings" src="../../wheel.svg"></a></div></form></nav><section id="main" class="content"><h1 class="fqn"><span class="in-band">Module <a href="../index.html">lmdb_zero</a>::<wbr><a class="mod" href="#">open</a><button id="copy-path" onclick="copy_path(this)" title="Copy item path to clipboard"><img src="../../clipboard.svg" width="19" height="18" alt="Copy item path"></button></span><span class="out-of-band"><span id="render-detail"><a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">[<span class="inner">&#x2212;</span>]</a></span><a class="srclink" href="../../src/lmdb_zero/env.rs.html#23-136" title="goto source code">[src]</a></span></h1><details class="rustdoc-toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Flags used when opening an LMDB environment.</p>
+</div></details><h2 id="structs" class="section-header"><a href="#structs">Structs</a></h2>
+<div class="item-table"><div class="item-left module-item"><a class="struct" href="struct.Flags.html" title="lmdb_zero::open::Flags struct">Flags</a></div><div class="item-right docblock-short"><p>Flags used when opening an LMDB environment.</p>
+</div></div><h2 id="constants" class="section-header"><a href="#constants">Constants</a></h2>
+<div class="item-table"><div class="item-left module-item"><a class="constant" href="constant.FIXEDMAP.html" title="lmdb_zero::open::FIXEDMAP constant">FIXEDMAP</a></div><div class="item-right docblock-short"><p>Use a fixed address for the mmap region. This flag must be
+specified when creating the environment, and is stored
+persistently in the environment. If successful, the memory map
+will always reside at the same virtual address and pointers
+used to reference data items in the database will be constant
+across multiple invocations. This option may not always work,
+depending on how the operating system has allocated memory to
+shared libraries and other uses. The feature is highly
+experimental.</p>
+</div><div class="item-left module-item"><a class="constant" href="constant.MAPASYNC.html" title="lmdb_zero::open::MAPASYNC constant">MAPASYNC</a></div><div class="item-right docblock-short"><p>When using <code>WRITEMAP</code>, use asynchronous flushes to disk. As
+with <code>NOSYNC</code>, a system crash can then corrupt the database or
+lose the last transactions. Calling <code>Environment::sync()</code>
+ensures on-disk database integrity until next commit. This flag
+may be changed at any time using <code>Environment::set_flags()</code>.</p>
+</div><div class="item-left module-item"><a class="constant" href="constant.NOLOCK.html" title="lmdb_zero::open::NOLOCK constant">NOLOCK</a></div><div class="item-right docblock-short"><p>Don’t do any locking. If concurrent access is anticipated, the
+caller must manage all concurrency itself. For proper operation
+the caller must enforce single-writer semantics, and must
+ensure that no readers are using old transactions while a
+writer is active. The simplest approach is to use an exclusive
+lock so that no readers may be active at all when a writer
+begins.</p>
+</div><div class="item-left module-item"><a class="constant" href="constant.NOMEMINIT.html" title="lmdb_zero::open::NOMEMINIT constant">NOMEMINIT</a></div><div class="item-right docblock-short"><p>Don’t initialize malloc’d memory before writing to unused
+spaces in the data file. By default, memory for pages written
+to the data file is obtained using malloc. While these pages
+may be reused in subsequent transactions, freshly malloc’d
+pages will be initialized to zeroes before use. This avoids
+persisting leftover data from other code (that used the heap
+and subsequently freed the memory) into the data file. Note
+that many other system libraries may allocate and free memory
+from the heap for arbitrary uses. E.g., stdio may use the heap
+for file I/O buffers. This initialization step has a modest
+performance cost so some applications may want to disable it
+using this flag. This option can be a problem for applications
+which handle sensitive data like passwords, and it makes memory
+checkers like Valgrind noisy. This flag is not needed with
+<code>WRITEMAP</code>, which writes directly to the mmap instead of using
+malloc for pages. The initialization is also skipped if
+<code>RESERVE</code> is used; the caller is expected to overwrite all of
+the memory that was reserved in that case. This flag may be
+changed at any time using <code>Environment::set_flags()</code>.</p>
+</div><div class="item-left module-item"><a class="constant" href="constant.NOMETASYNC.html" title="lmdb_zero::open::NOMETASYNC constant">NOMETASYNC</a></div><div class="item-right docblock-short"><p>Flush system buffers to disk only once per transaction, omit
+the metadata flush. Defer that until the system flushes files
+to disk, or next non-<code>RDONLY</code> commit or <code>Environment::sync()</code>.
+This optimization maintains database integrity, but a system
+crash may undo the last committed transaction. I.e. it
+preserves the ACI (atomicity, consistency, isolation) but not D
+(durability) database property. This flag may be changed at any
+time using <code>Environment::set_flags()</code>.</p>
+</div><div class="item-left module-item"><a class="constant" href="constant.NORDAHEAD.html" title="lmdb_zero::open::NORDAHEAD constant">NORDAHEAD</a></div><div class="item-right docblock-short"><p>Turn off readahead. Most operating systems perform readahead on
+read requests by default. This option turns it off if the OS
+supports it. Turning it off may help random read performance
+when the DB is larger than RAM and system RAM is full. The
+option is not implemented on Windows.</p>
+</div><div class="item-left module-item"><a class="constant" href="constant.NOSUBDIR.html" title="lmdb_zero::open::NOSUBDIR constant">NOSUBDIR</a></div><div class="item-right docblock-short"><p>By default, LMDB creates its environment in a directory whose
+pathname is given in path, and creates its data and lock files
+under that directory. With this option, the <code>path</code> passed to
+<code>EnvBuilder::open</code> is used as-is for the database main data
+file. The database lock file is the path with “-lock” appended.</p>
+</div><div class="item-left module-item"><a class="constant" href="constant.NOSYNC.html" title="lmdb_zero::open::NOSYNC constant">NOSYNC</a></div><div class="item-right docblock-short"><p>Don’t flush system buffers to disk when committing a
+transaction. This optimization means a system crash can corrupt
+the database or lose the last transactions if buffers are not
+yet flushed to disk. The risk is governed by how often the
+system flushes dirty buffers to disk and how often
+<code>Environment::sync()</code> is called. However, if the filesystem
+preserves write order and the <code>WRITEMAP</code> flag is not used,
+transactions exhibit ACI (atomicity, consistency, isolation)
+properties and only lose D (durability). I.e. database
+integrity is maintained, but a system crash may undo the final
+transactions. Note that <code>(NOSYNC | WRITEMAP)</code> leaves the system
+with no hint for when to write transactions to disk, unless
+<code>Environment::sync()</code> is called. <code>(MAPASYNC | WRITEMAP)</code> may be
+preferable. This flag may be changed at any time using
+<code>Environment::set_flags()</code>.</p>
+</div><div class="item-left module-item"><a class="constant" href="constant.NOTLS.html" title="lmdb_zero::open::NOTLS constant">NOTLS</a></div><div class="item-right docblock-short"><p>Don’t use Thread-Local Storage. Tie reader locktable slots to
+transaction objects instead of to threads. I.e.
+<code>Transaction::reset()</code> keeps the slot reseved for the
+transaction object. A thread may use parallel read-only
+transactions. A read-only transaction may span threads if the
+user synchronizes its use. Applications that multiplex many
+user threads over individual OS threads need this option. Such
+an application must also serialize the write transactions in an
+OS thread, since LMDB’s write locking is unaware of the user
+threads.</p>
+</div><div class="item-left module-item"><a class="constant" href="constant.RDONLY.html" title="lmdb_zero::open::RDONLY constant">RDONLY</a></div><div class="item-right docblock-short"><p>Open the environment in read-only mode. No write operations
+will be allowed. LMDB will still modify the lock file - except
+on read-only filesystems, where LMDB does not use locks.</p>
+</div><div class="item-left module-item"><a class="constant" href="constant.WRITEMAP.html" title="lmdb_zero::open::WRITEMAP constant">WRITEMAP</a></div><div class="item-right docblock-short"><p>Use a writeable memory map unless <code>RDONLY</code> is set. This is
+faster and uses fewer mallocs, but loses protection from
+application bugs like wild pointer writes and other bad updates
+into the database. Incompatible with nested transactions. Do
+not mix processes with and without <code>WRITEMAP</code> on the same
+environment. This can defeat durability (<code>Environment::sync</code>
+etc).</p>
+</div></div></section><section id="search" class="content hidden"></section><div id="rustdoc-vars" data-root-path="../../" data-current-crate="lmdb_zero" data-search-index-js="../../search-index.js" data-search-js="../../search.js"></div>
+    <script src="../../main.js"></script>
+</body></html>

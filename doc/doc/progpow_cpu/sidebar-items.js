@@ -1,0 +1,1 @@
+initSidebarItems({"mod":[["cache",""],["compute","Ethash implementation See https://github.com/ethereum/wiki/wiki/Ethash"],["progpow","ProgPoW (Programmatic Proof-of-Work) is the Ethereum network’s proposed new Application-Specific Integrated Circuit (ASIC) resistant Proof-of-Work mining algorithm."]]});

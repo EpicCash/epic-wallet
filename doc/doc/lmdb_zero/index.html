@@ -1,0 +1,283 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Near-zero-cost, mostly-safe idiomatic bindings to LMDB."><meta name="keywords" content="rust, rustlang, rust-lang, lmdb_zero"><title>lmdb_zero - Rust</title><link rel="stylesheet" type="text/css" href="../normalize.css"><link rel="stylesheet" type="text/css" href="../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../light.css"  id="themeStyle"><link rel="stylesheet" type="text/css" href="../dark.css" disabled ><link rel="stylesheet" type="text/css" href="../ayu.css" disabled ><script id="default-settings" ></script><script src="../storage.js"></script><script src="../crates.js"></script><noscript><link rel="stylesheet" href="../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../favicon.svg"><style type="text/css">#crate-search{background-image:url("../down-arrow.svg");}</style></head><body class="rustdoc mod crate"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu" role="button">&#9776;</div><a href='../lmdb_zero/index.html'><div class='logo-container rust-logo'><img src='../rust-logo.png' alt='logo'></div></a><h2 class="location">Crate lmdb_zero</h2><div class="block version"><div class="narrow-helper"></div><p>Version 0.4.4</p></div><div class="sidebar-elems"><a id="all-types" href="all.html"><p>See all lmdb_zero's items</p></a><div class="block items"><ul><li><a href="#modules">Modules</a></li><li><a href="#structs">Structs</a></li><li><a href="#enums">Enums</a></li><li><a href="#functions">Functions</a></li><li><a href="#types">Type Definitions</a></li></ul></div><div id="sidebar-vars" data-name="lmdb_zero" data-ty="mod" data-relpath=""></div><script defer src="sidebar-items.js"></script></div></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!" aria-haspopup="menu" title="themes"><img width="18" height="18" alt="Pick another theme!" src="../brush.svg"></button><div id="theme-choices" role="menu"></div></div><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><button type="button" id="help-button" title="help">?</button><a id="settings-menu" href="../settings.html" title="settings"><img width="18" height="18" alt="Change settings" src="../wheel.svg"></a></div></form></nav><section id="main" class="content"><h1 class="fqn"><span class="in-band">Crate <a class="mod" href="#">lmdb_zero</a><button id="copy-path" onclick="copy_path(this)" title="Copy item path to clipboard"><img src="../clipboard.svg" width="19" height="18" alt="Copy item path"></button></span><span class="out-of-band"><span id="render-detail"><a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">[<span class="inner">&#x2212;</span>]</a></span><a class="srclink" href="../src/lmdb_zero/lib.rs.html#10-349" title="goto source code">[src]</a></span></h1><details class="rustdoc-toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Near-zero-cost, mostly-safe idiomatic bindings to LMDB.</p>
+<p>This crate provides an interface to LMDB which as much as possible is not
+abstracted from the model LMDB itself provides, except as necessary to
+integrate with the borrow checker. This means that you don’t get easy
+iterators, but also that you can do almost anything with LMDB through these
+bindings as you can through C.</p>
+<h1 id="example" class="section-header"><a href="#example">Example</a></h1>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">lmdb_zero</span> <span class="kw">as</span> <span class="ident">lmdb</span>;
+<span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">tempdir</span>;
+
+<span class="kw">fn</span> <span class="ident">example</span>(<span class="ident">path</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) {
+  <span class="comment">// Create the environment, that is, the file containing the database(s).</span>
+  <span class="comment">// This is unsafe because you need to ensure certain things about the</span>
+  <span class="comment">// host environment that these bindings can&#39;t help you with.</span>
+  <span class="kw">let</span> <span class="ident">env</span> <span class="op">=</span> <span class="kw">unsafe</span> {
+    <span class="ident">lmdb::EnvBuilder::new</span>().<span class="ident">unwrap</span>().<span class="ident">open</span>(
+      <span class="ident">path</span>, <span class="ident">lmdb::open::Flags::empty</span>(), <span class="number">0o600</span>).<span class="ident">unwrap</span>()
+  };
+  <span class="comment">// Open the default database.</span>
+  <span class="kw">let</span> <span class="ident">db</span> <span class="op">=</span> <span class="ident">lmdb::Database::open</span>(
+    <span class="kw-2">&amp;</span><span class="ident">env</span>, <span class="prelude-val">None</span>, <span class="kw-2">&amp;</span><span class="ident">lmdb::DatabaseOptions::defaults</span>())
+    .<span class="ident">unwrap</span>();
+  {
+    <span class="comment">// Write some data in a transaction</span>
+    <span class="kw">let</span> <span class="ident">txn</span> <span class="op">=</span> <span class="ident">lmdb::WriteTransaction::new</span>(<span class="kw-2">&amp;</span><span class="ident">env</span>).<span class="ident">unwrap</span>();
+    <span class="comment">// An accessor is used to control memory access.</span>
+    <span class="comment">// NB You can only have one live accessor from a particular transaction</span>
+    <span class="comment">// at a time. Violating this results in a panic at runtime.</span>
+    {
+      <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">access</span> <span class="op">=</span> <span class="ident">txn</span>.<span class="ident">access</span>();
+      <span class="ident">access</span>.<span class="ident">put</span>(<span class="kw-2">&amp;</span><span class="ident">db</span>, <span class="string">&quot;Germany&quot;</span>, <span class="string">&quot;Berlin&quot;</span>, <span class="ident">lmdb::put::Flags::empty</span>()).<span class="ident">unwrap</span>();
+      <span class="ident">access</span>.<span class="ident">put</span>(<span class="kw-2">&amp;</span><span class="ident">db</span>, <span class="string">&quot;France&quot;</span>, <span class="string">&quot;Paris&quot;</span>, <span class="ident">lmdb::put::Flags::empty</span>()).<span class="ident">unwrap</span>();
+      <span class="ident">access</span>.<span class="ident">put</span>(<span class="kw-2">&amp;</span><span class="ident">db</span>, <span class="string">&quot;Latvia&quot;</span>, <span class="string">&quot;Rīga&quot;</span>, <span class="ident">lmdb::put::Flags::empty</span>()).<span class="ident">unwrap</span>();
+    }
+    <span class="comment">// Commit the changes so they are visible to later transactions</span>
+    <span class="ident">txn</span>.<span class="ident">commit</span>().<span class="ident">unwrap</span>();
+  }
+
+  {
+    <span class="comment">// Now let&#39;s read the data back</span>
+    <span class="kw">let</span> <span class="ident">txn</span> <span class="op">=</span> <span class="ident">lmdb::ReadTransaction::new</span>(<span class="kw-2">&amp;</span><span class="ident">env</span>).<span class="ident">unwrap</span>();
+    <span class="kw">let</span> <span class="ident">access</span> <span class="op">=</span> <span class="ident">txn</span>.<span class="ident">access</span>();
+
+    <span class="comment">// Get the capital of Latvia. Note that the string is *not* copied; the</span>
+    <span class="comment">// reference actually points into the database memory, and is valid</span>
+    <span class="comment">// until the transaction is dropped or the accessor is mutated.</span>
+    <span class="kw">let</span> <span class="ident">capital_of_latvia</span>: <span class="kw-2">&amp;</span><span class="ident">str</span> <span class="op">=</span> <span class="ident">access</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">db</span>, <span class="string">&quot;Latvia&quot;</span>).<span class="ident">unwrap</span>();
+    <span class="macro">assert_eq!</span>(<span class="string">&quot;Rīga&quot;</span>, <span class="ident">capital_of_latvia</span>);
+
+    <span class="comment">// We can also use cursors to move over the contents of the database.</span>
+    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">cursor</span> <span class="op">=</span> <span class="ident">txn</span>.<span class="ident">cursor</span>(<span class="kw-2">&amp;</span><span class="ident">db</span>).<span class="ident">unwrap</span>();
+    <span class="macro">assert_eq!</span>((<span class="string">&quot;France&quot;</span>, <span class="string">&quot;Paris&quot;</span>), <span class="ident">cursor</span>.<span class="ident">first</span>(<span class="kw-2">&amp;</span><span class="ident">access</span>).<span class="ident">unwrap</span>());
+    <span class="macro">assert_eq!</span>((<span class="string">&quot;Germany&quot;</span>, <span class="string">&quot;Berlin&quot;</span>), <span class="ident">cursor</span>.<span class="ident">next</span>(<span class="kw-2">&amp;</span><span class="ident">access</span>).<span class="ident">unwrap</span>());
+    <span class="macro">assert_eq!</span>((<span class="string">&quot;Latvia&quot;</span>, <span class="string">&quot;Rīga&quot;</span>), <span class="ident">cursor</span>.<span class="ident">next</span>(<span class="kw-2">&amp;</span><span class="ident">access</span>).<span class="ident">unwrap</span>());
+    <span class="macro">assert!</span>(<span class="ident">cursor</span>.<span class="ident">next</span>::<span class="op">&lt;</span><span class="ident">str</span>,<span class="ident">str</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="ident">access</span>).<span class="ident">is_err</span>());
+  }
+}</code></pre></div>
+<h1 id="anatomy-of-this-crate" class="section-header"><a href="#anatomy-of-this-crate">Anatomy of this crate</a></h1>
+<p><code>Environment</code> is the top-level structure. It is created with an
+<code>EnvBuilder</code>. An <code>Environment</code> is a single file (by default in a
+subdirectory) which stores the actual data of all the databases it
+contains. It corresponds to an <code>MDB_env</code> in the C API.</p>
+<p>A <code>Database</code> is a single table of key/value pairs within an environment.
+Each environment has a single anonymous database, and may contain a number
+of named databases. Note that if you want to use named databases, you need
+to use <code>EnvBuilder::set_maxdbs</code> before creating the <code>Environment</code> to make
+room for the handles. A database can only have one <code>Database</code> handle per
+environment at a time.</p>
+<p>All accesses to the data within an environment are done through
+transactions. For this, there are the <code>ReadTransaction</code> and
+<code>WriteTransaction</code> structs. Both of these deref to a <code>ConstTransaction</code>,
+which provides most of the read-only functionality and can be used for
+writing code that can run within either type of transaction. Note that read
+transactions are far cheaper than write transactions.</p>
+<p><code>ReadTransaction</code>s can be reused by using <code>reset()</code> to turn them into
+<code>ResetTransaction</code>s and then <code>refresh()</code> to turn them into fresh
+<code>ReadTransaction</code>s.</p>
+<p>One unusual property of this crate are the <code>ConstAccessor</code> and
+<code>WriteAccessor</code> structs, which are obtained once from a transaction and
+used to perform actual data manipulation. These are needed to work with the
+borrow checker: Cursors have a lifetime bound by their transaction and thus
+borrow it, so we need something else to permit borrowing mutable data. The
+accessors reflect this borrowing: Reading from the database requires an
+immutable borrow of the accessor, while writing (which may invalidate
+pointers) requires a mutable borrow of the accessor, thus causing the
+borrow checker to ensure that all read accesses are disposed before any
+write.</p>
+<p>Finally, the <code>Cursor</code> struct can be created from a transaction to permit
+more flexible access to a database. Each <code>Cursor</code> corresponds to a
+<code>MDB_cursor</code>. Accessing data through a cursor requires borrowing
+appropriately from the accessor of the transaction owning the cursor.</p>
+<p>If you want to define your own types to store in the database, see the
+<code>lmdb_zero::traits</code> submodule.</p>
+<h1 id="lifetimes-and-ownership" class="section-header"><a href="#lifetimes-and-ownership">Lifetimes and Ownership</a></h1>
+<p>Lmdb-zero heavily uses lifetime parameters to allow user code to safely
+retain handles into LMDB without extra runtime overhead.</p>
+<p>While this makes the library very flexible, it also makes it somewhat
+harder to use when its types need to be referenced explicitly, for example
+as struct members. The documentation for each type with lifetime parameters
+therefore includes a short discussion of how the lifetimes are intended to
+interact and how best to work with them.</p>
+<p>It is also possible to opt-out of compile-time lifetime tracking and
+instead use <code>Arc</code> or <code>Rc</code> around various handles. In this case, all the
+lifetime parameters simply become <code>'static</code>. See the next section for
+details.</p>
+<h2 id="ownership-modes" class="section-header"><a href="#ownership-modes">Ownership Modes</a></h2>
+<p>As of version 0.4.0, most APIs which construct a value which holds on to
+some “parent” value (e.g., creating a <code>Database</code> within an <code>Environment</code>)
+accept anything that can be converted into a <a href="https://docs.rs/supercow/0.1.0/supercow/"><code>Supercow</code></a>.
+Deep understanding of <code>Supercow</code> itself is not required to use <code>lmdb-zero</code>.
+The only thing you need to know is that an <code>Into&lt;Supercow&lt;T&gt;&gt;</code> means that
+you can pass in one of three classes of arguments:</p>
+<ul>
+<li>
+<p><code>&amp;T</code>. This is “borrowed mode”. The majority of the documentation in this
+crate uses borrowed mode. This is zero-overhead and is statically
+verifiable (i.e., all usage is checked at compile-time), so it is
+recommended that borrowed mode be used whenever reasonably possible. This
+mode causes the “child” value to hold a normal reference to the parent,
+which means that lifetimes must be tracked in the lifetime parameters. But
+because of this, this mode can be inflexible; for example, you cannot use
+safe Rust to create a <code>struct</code> holding both an <code>Environment</code> and its
+<code>Database</code>s using borrowed mode.</p>
+</li>
+<li>
+<p><code>Arc&lt;T&gt;</code>. This is “shared mode”. For <code>NonSyncSupercow</code>, <code>Rc&lt;T&gt;</code> may also
+be used. The child will hold the <code>Arc</code> or <code>Rc</code>, thus ensuring the parent
+lives at least as long as the child. Because of this, the related lifetime
+parameters can simply be written as <code>'static</code>. It also means that
+<code>Arc</code>/<code>Rc</code> references to the child and parent can be placed together in the
+same struct with safe Rust. This comes at a cost: Constructing values in
+shared mode incurs allocation; additionally, the ability to statically
+verify the lifetime of the parent values is lost.</p>
+</li>
+<li>
+<p><code>T</code>. This is “owned mode”. The parent is moved into the child value and
+owned by the child from thereon. This is most useful when you only ever
+want one child and don’t care about retaining ownership of the parent. As
+with shared mode, it also allows simply using <code>'static</code> as the relevant
+lifetime parameters.</p>
+</li>
+</ul>
+<h1 id="major-differences-from-the-lmdb-c-api" class="section-header"><a href="#major-differences-from-the-lmdb-c-api">Major Differences from the LMDB C API</a></h1>
+<p>Databases cannot be created or destroyed within a transaction due to the
+awkward memory management semantics. For similar reasons, opening a
+database more than once is not permitted (though note that LMDB doesn’t
+strictly allow this either — it just silently returns an existing
+handle).</p>
+<p>Access to data within the environment is guarded by transaction-specific
+“accessors”, which must be used in conjunction with the cursor or
+transaction. This is how these bindings integrate with the borrow checker.</p>
+<p>APIs which obtain a reference to the owner of an object are not supported.</p>
+<p>Various APIs which radically change behaviour (including memory semantics)
+in response to flags are separated into different calls which each express
+their memory semantics clearly.</p>
+<h1 id="non-zero-cost" class="section-header"><a href="#non-zero-cost">Non-Zero Cost</a></h1>
+<p>There are three general areas where this wrapper adds non-zero-cost
+abstractions:</p>
+<ul>
+<li>
+<p>Opening and closing databases adds locking overhead, since in LMDB it is
+unsynchronised. This shouldn’t have much impact since one rarely opens
+and closes databases at a very high rate.</p>
+</li>
+<li>
+<p>There is additional overhead in tracking what database handles are
+currently open so that attempts to reopen one can be prevented.</p>
+</li>
+<li>
+<p>Cursors and transactions track their owners separately. Additionally,
+when two are used in conjunction, a runtime test is required to ensure
+that they actually can be used together. This means that the handle
+values are slightly larger and some function calls have an extra (very
+predictable) branch if the optimiser does not optimise the branch away
+entirely.</p>
+</li>
+<li>
+<p>Using ownership modes other than borrowed (i.e., mundane references)
+incurs extra allocations in addition to the overhead of inherent in that
+ownership mode.</p>
+</li>
+</ul>
+<h1 id="using-zero-copy" class="section-header"><a href="#using-zero-copy">Using Zero-Copy</a></h1>
+<p>This crate is primarily focussed on supporting zero-copy on all operations
+where this is possible. The examples above demonstrate one aspect of this:
+the <code>&amp;str</code>s returned when querying for items are pointers into the database
+itself, valid as long as the accessor is.</p>
+<p>The main traits to look at are <code>lmdb_zero::traits::AsLmdbBytes</code> and
+<code>lmdb_zero::traits::FromLmdbBytes</code>, which are used to cast between byte
+arrays and the types to be stored in the database.
+<code>lmdb_zero::traits::FromReservedLmdbBytes</code> is used if you want to use the
+<code>reserve</code> methods (in which you write the key only to the database and get
+a pointer to a value to fill in after the fact). If you have a
+<code>#[repr(C)]</code>, <code>Copy</code> struct, you can also use <code>lmdb_zero::traits::LmdbRaw</code>
+if you just want to shove the raw struct itself into the database. All of
+these have caveats which can be found on the struct documentation.</p>
+<p>Be aware that using zero-copy to save anything more interesting than byte
+strings means your databases will not be portable to other architectures.
+This mainly concerns byte-order, but types like <code>usize</code> whose size varies
+by platform can also cause problems.</p>
+<h1 id="notes-on-memory-safety" class="section-header"><a href="#notes-on-memory-safety">Notes on Memory Safety</a></h1>
+<p>It is not possible to use lmdb-zero without at least one unsafe block,
+because doing anything with a memory-mapped file requires making
+assumptions about the host environment. Lmdb-zero is not in a position to
+decide these assumptions, and so they are passed up to the caller.</p>
+<p>However, if these assumptions are met, it should be impossible to cause
+memory unsafety (eg, aliasing mutable references; dangling pointers; buffer
+under/overflows) by use of lmdb-zero’s safe API.</p>
+<h1 id="unavailable-lmdb-apis" class="section-header"><a href="#unavailable-lmdb-apis">Unavailable LMDB APIs</a></h1>
+<ul>
+<li>
+<p><code>mdb_env_copy</code>, <code>mdb_env_copyfd</code>: Only the <code>2</code>-suffixed versions that
+take flags are exposed.</p>
+</li>
+<li>
+<p><code>mdb_env_set_userctx</code>, <code>mdb_env_get_userctx</code>: Not generally useful for
+Rust; unclear how ownership would be expressed; would likely end up forcing
+an almost-never-used generic arg on <code>Environment</code> on everyone.</p>
+</li>
+<li>
+<p><code>mdb_env_set_assert</code>: Does not seem useful enough to expose.</p>
+</li>
+<li>
+<p><code>mdb_txn_env</code>, <code>mdb_cursor_txn</code>, <code>mdb_cursor_dbi</code>: Would allow violating
+borrow semantics.</p>
+</li>
+<li>
+<p><code>mdb_cmp</code>, <code>mdb_dcmp</code>: Doesn’t seem useful; this would basically be a
+reinterpret cast from the input values to whatever the table comparator
+expects and then invoking the <code>Ord</code> implementation. If the types match,
+this is strictly inferior to just using <code>Ord</code> directly; if they don’t, it
+at best is obfuscating, and at worst completely broken.</p>
+</li>
+<li>
+<p><code>mdb_set_relfunc</code>, <code>mdb_set_relctx</code>: Currently a noop in LMDB. Even if it
+weren’t, it is unlikely that there is any remotely safe or convenient way
+to provide an interface to it.</p>
+</li>
+<li>
+<p><code>mdb_reader_list</code>: Doesn’t seem useful enough to expose.</p>
+</li>
+</ul>
+</div></details><h2 id="reexports" class="section-header"><a href="#reexports">Re-exports</a></h2>
+<div class="item-table"><div class="item-left import-item"><code>pub use error::<a class="enum" href="error/enum.Error.html" title="enum lmdb_zero::error::Error">Error</a>;</code></div><div class="item-right docblock-short"></div><div class="item-left import-item"><code>pub use error::<a class="trait" href="error/trait.LmdbResultExt.html" title="trait lmdb_zero::error::LmdbResultExt">LmdbResultExt</a>;</code></div><div class="item-right docblock-short"></div><div class="item-left import-item"><code>pub use error::<a class="type" href="error/type.Result.html" title="type lmdb_zero::error::Result">Result</a>;</code></div><div class="item-right docblock-short"></div></div><h2 id="modules" class="section-header"><a href="#modules">Modules</a></h2>
+<div class="item-table"><div class="item-left module-item"><a class="mod" href="copy/index.html" title="lmdb_zero::copy mod">copy</a></div><div class="item-right docblock-short"><p>Flags used when copying an LMDB environment.</p>
+</div><div class="item-left module-item"><a class="mod" href="db/index.html" title="lmdb_zero::db mod">db</a></div><div class="item-right docblock-short"><p>Flags used when opening databases.</p>
+</div><div class="item-left module-item"><a class="mod" href="del/index.html" title="lmdb_zero::del mod">del</a></div><div class="item-right docblock-short"><p>Flags used when deleting items.</p>
+</div><div class="item-left module-item"><a class="mod" href="error/index.html" title="lmdb_zero::error mod">error</a></div><div class="item-right docblock-short"><p>Error values and types returned by LMDB and this wrapper.</p>
+</div><div class="item-left module-item"><a class="mod" href="open/index.html" title="lmdb_zero::open mod">open</a></div><div class="item-right docblock-short"><p>Flags used when opening an LMDB environment.</p>
+</div><div class="item-left module-item"><a class="mod" href="put/index.html" title="lmdb_zero::put mod">put</a></div><div class="item-right docblock-short"><p>Flags used when calling the various <code>put</code> functions.</p>
+</div><div class="item-left module-item"><a class="mod" href="traits/index.html" title="lmdb_zero::traits mod">traits</a></div><div class="item-right docblock-short"><p>Module containing public traits.</p>
+</div></div><h2 id="structs" class="section-header"><a href="#structs">Structs</a></h2>
+<div class="item-table"><div class="item-left module-item"><a class="struct" href="struct.ConstAccessor.html" title="lmdb_zero::ConstAccessor struct">ConstAccessor</a></div><div class="item-right docblock-short"><p>A read-only data accessor obtained from a <code>ConstTransaction</code>.</p>
+</div><div class="item-left module-item"><a class="struct" href="struct.ConstTransaction.html" title="lmdb_zero::ConstTransaction struct">ConstTransaction</a></div><div class="item-right docblock-short"><p>Base functionality for an LMDB transaction.</p>
+</div><div class="item-left module-item"><a class="struct" href="struct.Cursor.html" title="lmdb_zero::Cursor struct">Cursor</a></div><div class="item-right docblock-short"><p>A cursor into an LMDB database.</p>
+</div><div class="item-left module-item"><a class="struct" href="struct.CursorIter.html" title="lmdb_zero::CursorIter struct">CursorIter</a></div><div class="item-right docblock-short"><p>An iterator over items returned by successive calls of some function on
+<code>Cursor</code> until a <code>NOTFOUND</code> error is returned.</p>
+</div><div class="item-left module-item"><a class="struct" href="struct.Database.html" title="lmdb_zero::Database struct">Database</a></div><div class="item-right docblock-short"><p>A handle on an LMDB database within an environment.</p>
+</div><div class="item-left module-item"><a class="struct" href="struct.DatabaseOptions.html" title="lmdb_zero::DatabaseOptions struct">DatabaseOptions</a></div><div class="item-right docblock-short"><p>Describes the options used for creating or opening a database.</p>
+</div><div class="item-left module-item"><a class="struct" href="struct.EnvBuilder.html" title="lmdb_zero::EnvBuilder struct">EnvBuilder</a></div><div class="item-right docblock-short"><p>Handle on an uninitialised LMDB environment to allow configuring pre-open
+options.</p>
+</div><div class="item-left module-item"><a class="struct" href="struct.EnvInfo.html" title="lmdb_zero::EnvInfo struct">EnvInfo</a></div><div class="item-right docblock-short"><p>Configuration information about an environment.</p>
+</div><div class="item-left module-item"><a class="struct" href="struct.Environment.html" title="lmdb_zero::Environment struct">Environment</a></div><div class="item-right docblock-short"><p>An LMDB environment which has been opened to a file.</p>
+</div><div class="item-left module-item"><a class="struct" href="struct.Ignore.html" title="lmdb_zero::Ignore struct">Ignore</a></div><div class="item-right docblock-short"><p>Empty type used to indicate “don’t care” when reading values from LMDB.</p>
+</div><div class="item-left module-item"><a class="struct" href="struct.ReadTransaction.html" title="lmdb_zero::ReadTransaction struct">ReadTransaction</a></div><div class="item-right docblock-short"><p>A read-only LMDB transaction.</p>
+</div><div class="item-left module-item"><a class="struct" href="struct.ResetTransaction.html" title="lmdb_zero::ResetTransaction struct">ResetTransaction</a></div><div class="item-right docblock-short"><p>A read-only LMDB transaction that has been reset.</p>
+</div><div class="item-left module-item"><a class="struct" href="struct.StaleCursor.html" title="lmdb_zero::StaleCursor struct">StaleCursor</a></div><div class="item-right docblock-short"><p>A read-only cursor which has been dissociated from its original
+transaction, so that it can be rebound later.</p>
+</div><div class="item-left module-item"><a class="struct" href="struct.Stat.html" title="lmdb_zero::Stat struct">Stat</a></div><div class="item-right docblock-short"><p>Statistics information about an environment.</p>
+</div><div class="item-left module-item"><a class="struct" href="struct.Unaligned.html" title="lmdb_zero::Unaligned struct">Unaligned</a></div><div class="item-right docblock-short"><p>Wrapper for arbitrary <code>Copy</code> types which lifts their alignment
+restrictions.</p>
+</div><div class="item-left module-item"><a class="struct" href="struct.WriteAccessor.html" title="lmdb_zero::WriteAccessor struct">WriteAccessor</a></div><div class="item-right docblock-short"><p>A read-write data accessor obtained from a <code>WriteTransaction</code>.</p>
+</div><div class="item-left module-item"><a class="struct" href="struct.WriteTransaction.html" title="lmdb_zero::WriteTransaction struct">WriteTransaction</a></div><div class="item-right docblock-short"><p>A read-write LMDB transaction.</p>
+</div></div><h2 id="enums" class="section-header"><a href="#enums">Enums</a></h2>
+<div class="item-table"><div class="item-left module-item"><a class="enum" href="enum.MaybeOwned.html" title="lmdb_zero::MaybeOwned enum">MaybeOwned</a></div><div class="item-right docblock-short"><p>A mutable value which is either owned or borrowed from an owning context.</p>
+</div></div><h2 id="functions" class="section-header"><a href="#functions">Functions</a></h2>
+<div class="item-table"><div class="item-left module-item"><a class="fn" href="fn.unaligned.html" title="lmdb_zero::unaligned fn">unaligned</a></div><div class="item-right docblock-short"><p>Synonym for <code>Unaligned::of_ref()</code>.</p>
+</div><div class="item-left module-item"><a class="fn" href="fn.version.html" title="lmdb_zero::version fn">version</a></div><div class="item-right docblock-short"><p>Returns the LMDB version as (major, minor, revision).</p>
+</div><div class="item-left module-item"><a class="fn" href="fn.version_str.html" title="lmdb_zero::version_str fn">version_str</a></div><div class="item-right docblock-short"><p>Returns the LMDB version as a string.</p>
+</div></div><h2 id="types" class="section-header"><a href="#types">Type Definitions</a></h2>
+<div class="item-table"><div class="item-left module-item"><a class="type" href="type.Fd.html" title="lmdb_zero::Fd type">Fd</a></div><div class="item-right docblock-short"></div><div class="item-left module-item"><a class="type" href="type.FileMode.html" title="lmdb_zero::FileMode type">FileMode</a></div><div class="item-right docblock-short"></div></div></section><section id="search" class="content hidden"></section><div id="rustdoc-vars" data-root-path="../" data-current-crate="lmdb_zero" data-search-index-js="../search-index.js" data-search-js="../search.js"></div>
+    <script src="../main.js"></script>
+</body></html>

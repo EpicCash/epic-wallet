@@ -1,0 +1,1666 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `api&#x2F;src&#x2F;foreign_rpc.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>foreign_rpc.rs - source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../light.css"  id="themeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css" disabled ><link rel="stylesheet" type="text/css" href="../../ayu.css" disabled ><script id="default-settings" ></script><script src="../../storage.js"></script><script src="../../crates.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../favicon.svg"><style type="text/css">#crate-search{background-image:url("../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu" role="button">&#9776;</div><a href='../../epic_wallet_api/index.html'><div class='logo-container rust-logo'><img src='../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!" aria-haspopup="menu" title="themes"><img width="18" height="18" alt="Pick another theme!" src="../../brush.svg"></button><div id="theme-choices" role="menu"></div></div><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><button type="button" id="help-button" title="help">?</button><a id="settings-menu" href="../../settings.html" title="settings"><img width="18" height="18" alt="Change settings" src="../../wheel.svg"></a></div></form></nav><section id="main" class="content"><div class="example-wrap"><pre class="line-numbers"><span id="1">  1</span>
+<span id="2">  2</span>
+<span id="3">  3</span>
+<span id="4">  4</span>
+<span id="5">  5</span>
+<span id="6">  6</span>
+<span id="7">  7</span>
+<span id="8">  8</span>
+<span id="9">  9</span>
+<span id="10"> 10</span>
+<span id="11"> 11</span>
+<span id="12"> 12</span>
+<span id="13"> 13</span>
+<span id="14"> 14</span>
+<span id="15"> 15</span>
+<span id="16"> 16</span>
+<span id="17"> 17</span>
+<span id="18"> 18</span>
+<span id="19"> 19</span>
+<span id="20"> 20</span>
+<span id="21"> 21</span>
+<span id="22"> 22</span>
+<span id="23"> 23</span>
+<span id="24"> 24</span>
+<span id="25"> 25</span>
+<span id="26"> 26</span>
+<span id="27"> 27</span>
+<span id="28"> 28</span>
+<span id="29"> 29</span>
+<span id="30"> 30</span>
+<span id="31"> 31</span>
+<span id="32"> 32</span>
+<span id="33"> 33</span>
+<span id="34"> 34</span>
+<span id="35"> 35</span>
+<span id="36"> 36</span>
+<span id="37"> 37</span>
+<span id="38"> 38</span>
+<span id="39"> 39</span>
+<span id="40"> 40</span>
+<span id="41"> 41</span>
+<span id="42"> 42</span>
+<span id="43"> 43</span>
+<span id="44"> 44</span>
+<span id="45"> 45</span>
+<span id="46"> 46</span>
+<span id="47"> 47</span>
+<span id="48"> 48</span>
+<span id="49"> 49</span>
+<span id="50"> 50</span>
+<span id="51"> 51</span>
+<span id="52"> 52</span>
+<span id="53"> 53</span>
+<span id="54"> 54</span>
+<span id="55"> 55</span>
+<span id="56"> 56</span>
+<span id="57"> 57</span>
+<span id="58"> 58</span>
+<span id="59"> 59</span>
+<span id="60"> 60</span>
+<span id="61"> 61</span>
+<span id="62"> 62</span>
+<span id="63"> 63</span>
+<span id="64"> 64</span>
+<span id="65"> 65</span>
+<span id="66"> 66</span>
+<span id="67"> 67</span>
+<span id="68"> 68</span>
+<span id="69"> 69</span>
+<span id="70"> 70</span>
+<span id="71"> 71</span>
+<span id="72"> 72</span>
+<span id="73"> 73</span>
+<span id="74"> 74</span>
+<span id="75"> 75</span>
+<span id="76"> 76</span>
+<span id="77"> 77</span>
+<span id="78"> 78</span>
+<span id="79"> 79</span>
+<span id="80"> 80</span>
+<span id="81"> 81</span>
+<span id="82"> 82</span>
+<span id="83"> 83</span>
+<span id="84"> 84</span>
+<span id="85"> 85</span>
+<span id="86"> 86</span>
+<span id="87"> 87</span>
+<span id="88"> 88</span>
+<span id="89"> 89</span>
+<span id="90"> 90</span>
+<span id="91"> 91</span>
+<span id="92"> 92</span>
+<span id="93"> 93</span>
+<span id="94"> 94</span>
+<span id="95"> 95</span>
+<span id="96"> 96</span>
+<span id="97"> 97</span>
+<span id="98"> 98</span>
+<span id="99"> 99</span>
+<span id="100">100</span>
+<span id="101">101</span>
+<span id="102">102</span>
+<span id="103">103</span>
+<span id="104">104</span>
+<span id="105">105</span>
+<span id="106">106</span>
+<span id="107">107</span>
+<span id="108">108</span>
+<span id="109">109</span>
+<span id="110">110</span>
+<span id="111">111</span>
+<span id="112">112</span>
+<span id="113">113</span>
+<span id="114">114</span>
+<span id="115">115</span>
+<span id="116">116</span>
+<span id="117">117</span>
+<span id="118">118</span>
+<span id="119">119</span>
+<span id="120">120</span>
+<span id="121">121</span>
+<span id="122">122</span>
+<span id="123">123</span>
+<span id="124">124</span>
+<span id="125">125</span>
+<span id="126">126</span>
+<span id="127">127</span>
+<span id="128">128</span>
+<span id="129">129</span>
+<span id="130">130</span>
+<span id="131">131</span>
+<span id="132">132</span>
+<span id="133">133</span>
+<span id="134">134</span>
+<span id="135">135</span>
+<span id="136">136</span>
+<span id="137">137</span>
+<span id="138">138</span>
+<span id="139">139</span>
+<span id="140">140</span>
+<span id="141">141</span>
+<span id="142">142</span>
+<span id="143">143</span>
+<span id="144">144</span>
+<span id="145">145</span>
+<span id="146">146</span>
+<span id="147">147</span>
+<span id="148">148</span>
+<span id="149">149</span>
+<span id="150">150</span>
+<span id="151">151</span>
+<span id="152">152</span>
+<span id="153">153</span>
+<span id="154">154</span>
+<span id="155">155</span>
+<span id="156">156</span>
+<span id="157">157</span>
+<span id="158">158</span>
+<span id="159">159</span>
+<span id="160">160</span>
+<span id="161">161</span>
+<span id="162">162</span>
+<span id="163">163</span>
+<span id="164">164</span>
+<span id="165">165</span>
+<span id="166">166</span>
+<span id="167">167</span>
+<span id="168">168</span>
+<span id="169">169</span>
+<span id="170">170</span>
+<span id="171">171</span>
+<span id="172">172</span>
+<span id="173">173</span>
+<span id="174">174</span>
+<span id="175">175</span>
+<span id="176">176</span>
+<span id="177">177</span>
+<span id="178">178</span>
+<span id="179">179</span>
+<span id="180">180</span>
+<span id="181">181</span>
+<span id="182">182</span>
+<span id="183">183</span>
+<span id="184">184</span>
+<span id="185">185</span>
+<span id="186">186</span>
+<span id="187">187</span>
+<span id="188">188</span>
+<span id="189">189</span>
+<span id="190">190</span>
+<span id="191">191</span>
+<span id="192">192</span>
+<span id="193">193</span>
+<span id="194">194</span>
+<span id="195">195</span>
+<span id="196">196</span>
+<span id="197">197</span>
+<span id="198">198</span>
+<span id="199">199</span>
+<span id="200">200</span>
+<span id="201">201</span>
+<span id="202">202</span>
+<span id="203">203</span>
+<span id="204">204</span>
+<span id="205">205</span>
+<span id="206">206</span>
+<span id="207">207</span>
+<span id="208">208</span>
+<span id="209">209</span>
+<span id="210">210</span>
+<span id="211">211</span>
+<span id="212">212</span>
+<span id="213">213</span>
+<span id="214">214</span>
+<span id="215">215</span>
+<span id="216">216</span>
+<span id="217">217</span>
+<span id="218">218</span>
+<span id="219">219</span>
+<span id="220">220</span>
+<span id="221">221</span>
+<span id="222">222</span>
+<span id="223">223</span>
+<span id="224">224</span>
+<span id="225">225</span>
+<span id="226">226</span>
+<span id="227">227</span>
+<span id="228">228</span>
+<span id="229">229</span>
+<span id="230">230</span>
+<span id="231">231</span>
+<span id="232">232</span>
+<span id="233">233</span>
+<span id="234">234</span>
+<span id="235">235</span>
+<span id="236">236</span>
+<span id="237">237</span>
+<span id="238">238</span>
+<span id="239">239</span>
+<span id="240">240</span>
+<span id="241">241</span>
+<span id="242">242</span>
+<span id="243">243</span>
+<span id="244">244</span>
+<span id="245">245</span>
+<span id="246">246</span>
+<span id="247">247</span>
+<span id="248">248</span>
+<span id="249">249</span>
+<span id="250">250</span>
+<span id="251">251</span>
+<span id="252">252</span>
+<span id="253">253</span>
+<span id="254">254</span>
+<span id="255">255</span>
+<span id="256">256</span>
+<span id="257">257</span>
+<span id="258">258</span>
+<span id="259">259</span>
+<span id="260">260</span>
+<span id="261">261</span>
+<span id="262">262</span>
+<span id="263">263</span>
+<span id="264">264</span>
+<span id="265">265</span>
+<span id="266">266</span>
+<span id="267">267</span>
+<span id="268">268</span>
+<span id="269">269</span>
+<span id="270">270</span>
+<span id="271">271</span>
+<span id="272">272</span>
+<span id="273">273</span>
+<span id="274">274</span>
+<span id="275">275</span>
+<span id="276">276</span>
+<span id="277">277</span>
+<span id="278">278</span>
+<span id="279">279</span>
+<span id="280">280</span>
+<span id="281">281</span>
+<span id="282">282</span>
+<span id="283">283</span>
+<span id="284">284</span>
+<span id="285">285</span>
+<span id="286">286</span>
+<span id="287">287</span>
+<span id="288">288</span>
+<span id="289">289</span>
+<span id="290">290</span>
+<span id="291">291</span>
+<span id="292">292</span>
+<span id="293">293</span>
+<span id="294">294</span>
+<span id="295">295</span>
+<span id="296">296</span>
+<span id="297">297</span>
+<span id="298">298</span>
+<span id="299">299</span>
+<span id="300">300</span>
+<span id="301">301</span>
+<span id="302">302</span>
+<span id="303">303</span>
+<span id="304">304</span>
+<span id="305">305</span>
+<span id="306">306</span>
+<span id="307">307</span>
+<span id="308">308</span>
+<span id="309">309</span>
+<span id="310">310</span>
+<span id="311">311</span>
+<span id="312">312</span>
+<span id="313">313</span>
+<span id="314">314</span>
+<span id="315">315</span>
+<span id="316">316</span>
+<span id="317">317</span>
+<span id="318">318</span>
+<span id="319">319</span>
+<span id="320">320</span>
+<span id="321">321</span>
+<span id="322">322</span>
+<span id="323">323</span>
+<span id="324">324</span>
+<span id="325">325</span>
+<span id="326">326</span>
+<span id="327">327</span>
+<span id="328">328</span>
+<span id="329">329</span>
+<span id="330">330</span>
+<span id="331">331</span>
+<span id="332">332</span>
+<span id="333">333</span>
+<span id="334">334</span>
+<span id="335">335</span>
+<span id="336">336</span>
+<span id="337">337</span>
+<span id="338">338</span>
+<span id="339">339</span>
+<span id="340">340</span>
+<span id="341">341</span>
+<span id="342">342</span>
+<span id="343">343</span>
+<span id="344">344</span>
+<span id="345">345</span>
+<span id="346">346</span>
+<span id="347">347</span>
+<span id="348">348</span>
+<span id="349">349</span>
+<span id="350">350</span>
+<span id="351">351</span>
+<span id="352">352</span>
+<span id="353">353</span>
+<span id="354">354</span>
+<span id="355">355</span>
+<span id="356">356</span>
+<span id="357">357</span>
+<span id="358">358</span>
+<span id="359">359</span>
+<span id="360">360</span>
+<span id="361">361</span>
+<span id="362">362</span>
+<span id="363">363</span>
+<span id="364">364</span>
+<span id="365">365</span>
+<span id="366">366</span>
+<span id="367">367</span>
+<span id="368">368</span>
+<span id="369">369</span>
+<span id="370">370</span>
+<span id="371">371</span>
+<span id="372">372</span>
+<span id="373">373</span>
+<span id="374">374</span>
+<span id="375">375</span>
+<span id="376">376</span>
+<span id="377">377</span>
+<span id="378">378</span>
+<span id="379">379</span>
+<span id="380">380</span>
+<span id="381">381</span>
+<span id="382">382</span>
+<span id="383">383</span>
+<span id="384">384</span>
+<span id="385">385</span>
+<span id="386">386</span>
+<span id="387">387</span>
+<span id="388">388</span>
+<span id="389">389</span>
+<span id="390">390</span>
+<span id="391">391</span>
+<span id="392">392</span>
+<span id="393">393</span>
+<span id="394">394</span>
+<span id="395">395</span>
+<span id="396">396</span>
+<span id="397">397</span>
+<span id="398">398</span>
+<span id="399">399</span>
+<span id="400">400</span>
+<span id="401">401</span>
+<span id="402">402</span>
+<span id="403">403</span>
+<span id="404">404</span>
+<span id="405">405</span>
+<span id="406">406</span>
+<span id="407">407</span>
+<span id="408">408</span>
+<span id="409">409</span>
+<span id="410">410</span>
+<span id="411">411</span>
+<span id="412">412</span>
+<span id="413">413</span>
+<span id="414">414</span>
+<span id="415">415</span>
+<span id="416">416</span>
+<span id="417">417</span>
+<span id="418">418</span>
+<span id="419">419</span>
+<span id="420">420</span>
+<span id="421">421</span>
+<span id="422">422</span>
+<span id="423">423</span>
+<span id="424">424</span>
+<span id="425">425</span>
+<span id="426">426</span>
+<span id="427">427</span>
+<span id="428">428</span>
+<span id="429">429</span>
+<span id="430">430</span>
+<span id="431">431</span>
+<span id="432">432</span>
+<span id="433">433</span>
+<span id="434">434</span>
+<span id="435">435</span>
+<span id="436">436</span>
+<span id="437">437</span>
+<span id="438">438</span>
+<span id="439">439</span>
+<span id="440">440</span>
+<span id="441">441</span>
+<span id="442">442</span>
+<span id="443">443</span>
+<span id="444">444</span>
+<span id="445">445</span>
+<span id="446">446</span>
+<span id="447">447</span>
+<span id="448">448</span>
+<span id="449">449</span>
+<span id="450">450</span>
+<span id="451">451</span>
+<span id="452">452</span>
+<span id="453">453</span>
+<span id="454">454</span>
+<span id="455">455</span>
+<span id="456">456</span>
+<span id="457">457</span>
+<span id="458">458</span>
+<span id="459">459</span>
+<span id="460">460</span>
+<span id="461">461</span>
+<span id="462">462</span>
+<span id="463">463</span>
+<span id="464">464</span>
+<span id="465">465</span>
+<span id="466">466</span>
+<span id="467">467</span>
+<span id="468">468</span>
+<span id="469">469</span>
+<span id="470">470</span>
+<span id="471">471</span>
+<span id="472">472</span>
+<span id="473">473</span>
+<span id="474">474</span>
+<span id="475">475</span>
+<span id="476">476</span>
+<span id="477">477</span>
+<span id="478">478</span>
+<span id="479">479</span>
+<span id="480">480</span>
+<span id="481">481</span>
+<span id="482">482</span>
+<span id="483">483</span>
+<span id="484">484</span>
+<span id="485">485</span>
+<span id="486">486</span>
+<span id="487">487</span>
+<span id="488">488</span>
+<span id="489">489</span>
+<span id="490">490</span>
+<span id="491">491</span>
+<span id="492">492</span>
+<span id="493">493</span>
+<span id="494">494</span>
+<span id="495">495</span>
+<span id="496">496</span>
+<span id="497">497</span>
+<span id="498">498</span>
+<span id="499">499</span>
+<span id="500">500</span>
+<span id="501">501</span>
+<span id="502">502</span>
+<span id="503">503</span>
+<span id="504">504</span>
+<span id="505">505</span>
+<span id="506">506</span>
+<span id="507">507</span>
+<span id="508">508</span>
+<span id="509">509</span>
+<span id="510">510</span>
+<span id="511">511</span>
+<span id="512">512</span>
+<span id="513">513</span>
+<span id="514">514</span>
+<span id="515">515</span>
+<span id="516">516</span>
+<span id="517">517</span>
+<span id="518">518</span>
+<span id="519">519</span>
+<span id="520">520</span>
+<span id="521">521</span>
+<span id="522">522</span>
+<span id="523">523</span>
+<span id="524">524</span>
+<span id="525">525</span>
+<span id="526">526</span>
+<span id="527">527</span>
+<span id="528">528</span>
+<span id="529">529</span>
+<span id="530">530</span>
+<span id="531">531</span>
+<span id="532">532</span>
+<span id="533">533</span>
+<span id="534">534</span>
+<span id="535">535</span>
+<span id="536">536</span>
+<span id="537">537</span>
+<span id="538">538</span>
+<span id="539">539</span>
+<span id="540">540</span>
+<span id="541">541</span>
+<span id="542">542</span>
+<span id="543">543</span>
+<span id="544">544</span>
+<span id="545">545</span>
+<span id="546">546</span>
+<span id="547">547</span>
+<span id="548">548</span>
+<span id="549">549</span>
+<span id="550">550</span>
+<span id="551">551</span>
+<span id="552">552</span>
+<span id="553">553</span>
+<span id="554">554</span>
+<span id="555">555</span>
+<span id="556">556</span>
+<span id="557">557</span>
+<span id="558">558</span>
+<span id="559">559</span>
+<span id="560">560</span>
+<span id="561">561</span>
+<span id="562">562</span>
+<span id="563">563</span>
+<span id="564">564</span>
+<span id="565">565</span>
+<span id="566">566</span>
+<span id="567">567</span>
+<span id="568">568</span>
+<span id="569">569</span>
+<span id="570">570</span>
+<span id="571">571</span>
+<span id="572">572</span>
+<span id="573">573</span>
+<span id="574">574</span>
+<span id="575">575</span>
+<span id="576">576</span>
+<span id="577">577</span>
+<span id="578">578</span>
+<span id="579">579</span>
+<span id="580">580</span>
+<span id="581">581</span>
+<span id="582">582</span>
+<span id="583">583</span>
+<span id="584">584</span>
+<span id="585">585</span>
+<span id="586">586</span>
+<span id="587">587</span>
+<span id="588">588</span>
+<span id="589">589</span>
+<span id="590">590</span>
+<span id="591">591</span>
+<span id="592">592</span>
+<span id="593">593</span>
+<span id="594">594</span>
+<span id="595">595</span>
+<span id="596">596</span>
+<span id="597">597</span>
+<span id="598">598</span>
+<span id="599">599</span>
+<span id="600">600</span>
+<span id="601">601</span>
+<span id="602">602</span>
+<span id="603">603</span>
+<span id="604">604</span>
+<span id="605">605</span>
+<span id="606">606</span>
+<span id="607">607</span>
+<span id="608">608</span>
+<span id="609">609</span>
+<span id="610">610</span>
+<span id="611">611</span>
+<span id="612">612</span>
+<span id="613">613</span>
+<span id="614">614</span>
+<span id="615">615</span>
+<span id="616">616</span>
+<span id="617">617</span>
+<span id="618">618</span>
+<span id="619">619</span>
+<span id="620">620</span>
+<span id="621">621</span>
+<span id="622">622</span>
+<span id="623">623</span>
+<span id="624">624</span>
+<span id="625">625</span>
+<span id="626">626</span>
+<span id="627">627</span>
+<span id="628">628</span>
+<span id="629">629</span>
+<span id="630">630</span>
+<span id="631">631</span>
+<span id="632">632</span>
+<span id="633">633</span>
+<span id="634">634</span>
+<span id="635">635</span>
+<span id="636">636</span>
+<span id="637">637</span>
+<span id="638">638</span>
+<span id="639">639</span>
+<span id="640">640</span>
+<span id="641">641</span>
+<span id="642">642</span>
+<span id="643">643</span>
+<span id="644">644</span>
+<span id="645">645</span>
+<span id="646">646</span>
+<span id="647">647</span>
+<span id="648">648</span>
+<span id="649">649</span>
+<span id="650">650</span>
+<span id="651">651</span>
+<span id="652">652</span>
+<span id="653">653</span>
+<span id="654">654</span>
+<span id="655">655</span>
+<span id="656">656</span>
+<span id="657">657</span>
+<span id="658">658</span>
+<span id="659">659</span>
+<span id="660">660</span>
+<span id="661">661</span>
+<span id="662">662</span>
+<span id="663">663</span>
+<span id="664">664</span>
+<span id="665">665</span>
+<span id="666">666</span>
+<span id="667">667</span>
+<span id="668">668</span>
+<span id="669">669</span>
+<span id="670">670</span>
+<span id="671">671</span>
+<span id="672">672</span>
+<span id="673">673</span>
+<span id="674">674</span>
+<span id="675">675</span>
+<span id="676">676</span>
+<span id="677">677</span>
+<span id="678">678</span>
+<span id="679">679</span>
+<span id="680">680</span>
+<span id="681">681</span>
+<span id="682">682</span>
+<span id="683">683</span>
+<span id="684">684</span>
+<span id="685">685</span>
+<span id="686">686</span>
+<span id="687">687</span>
+<span id="688">688</span>
+<span id="689">689</span>
+<span id="690">690</span>
+<span id="691">691</span>
+<span id="692">692</span>
+<span id="693">693</span>
+<span id="694">694</span>
+<span id="695">695</span>
+<span id="696">696</span>
+<span id="697">697</span>
+<span id="698">698</span>
+<span id="699">699</span>
+<span id="700">700</span>
+<span id="701">701</span>
+<span id="702">702</span>
+<span id="703">703</span>
+<span id="704">704</span>
+<span id="705">705</span>
+<span id="706">706</span>
+<span id="707">707</span>
+<span id="708">708</span>
+<span id="709">709</span>
+<span id="710">710</span>
+<span id="711">711</span>
+<span id="712">712</span>
+<span id="713">713</span>
+<span id="714">714</span>
+<span id="715">715</span>
+<span id="716">716</span>
+<span id="717">717</span>
+<span id="718">718</span>
+<span id="719">719</span>
+<span id="720">720</span>
+<span id="721">721</span>
+<span id="722">722</span>
+<span id="723">723</span>
+<span id="724">724</span>
+<span id="725">725</span>
+<span id="726">726</span>
+<span id="727">727</span>
+<span id="728">728</span>
+<span id="729">729</span>
+<span id="730">730</span>
+<span id="731">731</span>
+<span id="732">732</span>
+<span id="733">733</span>
+<span id="734">734</span>
+<span id="735">735</span>
+<span id="736">736</span>
+<span id="737">737</span>
+<span id="738">738</span>
+<span id="739">739</span>
+<span id="740">740</span>
+<span id="741">741</span>
+<span id="742">742</span>
+<span id="743">743</span>
+<span id="744">744</span>
+<span id="745">745</span>
+<span id="746">746</span>
+<span id="747">747</span>
+<span id="748">748</span>
+<span id="749">749</span>
+<span id="750">750</span>
+<span id="751">751</span>
+<span id="752">752</span>
+<span id="753">753</span>
+<span id="754">754</span>
+<span id="755">755</span>
+<span id="756">756</span>
+<span id="757">757</span>
+<span id="758">758</span>
+<span id="759">759</span>
+<span id="760">760</span>
+<span id="761">761</span>
+<span id="762">762</span>
+<span id="763">763</span>
+<span id="764">764</span>
+<span id="765">765</span>
+<span id="766">766</span>
+<span id="767">767</span>
+<span id="768">768</span>
+<span id="769">769</span>
+<span id="770">770</span>
+<span id="771">771</span>
+<span id="772">772</span>
+<span id="773">773</span>
+<span id="774">774</span>
+<span id="775">775</span>
+<span id="776">776</span>
+<span id="777">777</span>
+<span id="778">778</span>
+<span id="779">779</span>
+<span id="780">780</span>
+<span id="781">781</span>
+<span id="782">782</span>
+<span id="783">783</span>
+<span id="784">784</span>
+<span id="785">785</span>
+<span id="786">786</span>
+<span id="787">787</span>
+<span id="788">788</span>
+<span id="789">789</span>
+<span id="790">790</span>
+<span id="791">791</span>
+<span id="792">792</span>
+<span id="793">793</span>
+<span id="794">794</span>
+<span id="795">795</span>
+<span id="796">796</span>
+<span id="797">797</span>
+<span id="798">798</span>
+<span id="799">799</span>
+<span id="800">800</span>
+<span id="801">801</span>
+<span id="802">802</span>
+<span id="803">803</span>
+<span id="804">804</span>
+<span id="805">805</span>
+<span id="806">806</span>
+<span id="807">807</span>
+<span id="808">808</span>
+<span id="809">809</span>
+<span id="810">810</span>
+<span id="811">811</span>
+<span id="812">812</span>
+<span id="813">813</span>
+<span id="814">814</span>
+<span id="815">815</span>
+<span id="816">816</span>
+<span id="817">817</span>
+<span id="818">818</span>
+<span id="819">819</span>
+<span id="820">820</span>
+<span id="821">821</span>
+<span id="822">822</span>
+<span id="823">823</span>
+<span id="824">824</span>
+<span id="825">825</span>
+<span id="826">826</span>
+<span id="827">827</span>
+<span id="828">828</span>
+<span id="829">829</span>
+<span id="830">830</span>
+<span id="831">831</span>
+</pre><pre class="rust"><code><span class="comment">// Copyright 2019 The Epic Developers</span>
+<span class="comment">//</span>
+<span class="comment">// Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="comment">// you may not use this file except in compliance with the License.</span>
+<span class="comment">// You may obtain a copy of the License at</span>
+<span class="comment">//</span>
+<span class="comment">//     http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="comment">//</span>
+<span class="comment">// Unless required by applicable law or agreed to in writing, software</span>
+<span class="comment">// distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="comment">// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="comment">// See the License for the specific language governing permissions and</span>
+<span class="comment">// limitations under the License.</span>
+
+<span class="doccomment">//! JSON-RPC Stub generation for the Foreign API</span>
+
+<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::keychain::Keychain</span>;
+<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::libwallet</span>::{
+	<span class="self">self</span>, <span class="ident">BlockFees</span>, <span class="ident">CbData</span>, <span class="ident">ErrorKind</span>, <span class="ident">InitTxArgs</span>, <span class="ident">IssueInvoiceTxArgs</span>, <span class="ident">NodeClient</span>,
+	<span class="ident">NodeVersionInfo</span>, <span class="ident">Slate</span>, <span class="ident">SlateVersion</span>, <span class="ident">VersionInfo</span>, <span class="ident">VersionedCoinbase</span>, <span class="ident">VersionedSlate</span>,
+	<span class="ident">WalletLCProvider</span>,
+};
+<span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">Foreign</span>, <span class="ident">ForeignCheckMiddlewareFn</span>};
+<span class="kw">use</span> <span class="ident">easy_jsonrpc_mw</span>;
+
+<span class="doccomment">/// Public definition used to generate Foreign jsonrpc api.</span>
+<span class="doccomment">/// * When running `epic-wallet listen` with defaults, the V2 api is available at</span>
+<span class="doccomment">/// `localhost:3415/v2/foreign`</span>
+<span class="doccomment">/// * The endpoint only supports POST operations, with the json-rpc request as the body</span>
+<span class="attribute">#[<span class="ident">easy_jsonrpc_mw::rpc</span>]</span>
+<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">ForeignRpc</span> {
+	<span class="doccomment">/**
+	Networked version of [Foreign::check_version](struct.Foreign.html#method.check_version).
+
+	# Json rpc example
+
+	```
+	# epic_wallet_api::doctest_helper_json_rpc_foreign_assert_response!(
+	# r#&quot;
+	{
+		&quot;jsonrpc&quot;: &quot;2.0&quot;,
+		&quot;method&quot;: &quot;check_version&quot;,
+		&quot;id&quot;: 1,
+		&quot;params&quot;: []
+	}
+	# &quot;#
+	# ,
+	# r#&quot;
+	{
+		&quot;id&quot;: 1,
+		&quot;jsonrpc&quot;: &quot;2.0&quot;,
+		&quot;result&quot;: {
+			&quot;Ok&quot;: {
+				&quot;foreign_api_version&quot;: 2,
+				&quot;supported_slate_versions&quot;: [
+					&quot;V3&quot;,
+					&quot;V2&quot;
+				]
+			}
+		}
+	}
+	# &quot;#
+	# ,false, 0, false, false);
+	```
+	*/</span>
+	<span class="kw">fn</span> <span class="ident">check_version</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">VersionInfo</span>, <span class="ident">ErrorKind</span><span class="op">&gt;</span>;
+
+	<span class="doccomment">/**
+	Networked Legacy (non-secure token) version of [Foreign::build_coinbase](struct.Foreign.html#method.build_coinbase).
+
+	# Json rpc example
+
+	```
+	# epic_wallet_api::doctest_helper_json_rpc_foreign_assert_response!(
+	# r#&quot;
+	{
+		&quot;jsonrpc&quot;: &quot;2.0&quot;,
+		&quot;method&quot;: &quot;build_coinbase&quot;,
+		&quot;id&quot;: 1,
+		&quot;params&quot;: [
+			{
+				&quot;fees&quot;: 0,
+				&quot;height&quot;: 0,
+				&quot;key_id&quot;: null
+			}
+		]
+	}
+	# &quot;#
+	# ,
+	# r#&quot;
+	{
+		&quot;id&quot;: 1,
+		&quot;jsonrpc&quot;: &quot;2.0&quot;,
+		&quot;result&quot;: {
+			&quot;Ok&quot;: {
+				&quot;kernel&quot;: {
+					&quot;excess&quot;: &quot;0817b0f50ed29f9641d0741185205f1bfa15b80c727a7a99597fe2ceb073cfc73d&quot;,
+					&quot;excess_sig&quot;: &quot;8f07ddd5e9f5179cff19486034181ed76505baaad53e5d994064127b56c5841b97f48d17b7a42e23a4264ba232741797fef770808ca29450e35fdc3faaa6eb04&quot;,
+					&quot;features&quot;: &quot;Coinbase&quot;,
+					&quot;fee&quot;: &quot;0&quot;,
+					&quot;lock_height&quot;: &quot;0&quot;
+				},
+				&quot;key_id&quot;: &quot;0300000000000000000000000400000000&quot;,
+				&quot;output&quot;: {
+					&quot;commit&quot;: &quot;09bfff863041e74c3068e8b43b2120aed60d5271c07bbf9d6172a8cefa8be6600a&quot;,
+					&quot;features&quot;: &quot;Coinbase&quot;,
+					&quot;proof&quot;: &quot;10437a3646185865241c3459c70cd3e1231a78098d29ba5fd9517aa5bb0890be089157af72d1827113d32a60c8708f83d86be0c154eb23e94b1e3c9130b970090626b2c7da298ce3a52bece998ebc1b8cc0bbc4a974a35194336f32b89cfc787a4dd793cc9626cf01bf08febe0f3e0e06ab6970e3fc9704be457856a693ee2d4508ccabd3ee259da025ff96d3905c62b9318072be0ee38ecd8b1d6097da655489084821d56bb693f7a98da23cdedc708d4b0e1033d0dfe14eef590a9b4776a07a2b9eff0f34ca2e51832a7b9930eaf215c30d60e4219af25c6da985e879a5552c429010be0dcf7405dce523d7c23e800227e7b39be3e8cd6186e4212c2471a038cbc543228e27b16c5e32214ca807fe2c82252cfddf77cc8082ee630bb951b02d7d56e8b857f9d8d2a514cb92695ed3d3a4056b6529b6f8e213d89935f0229755243a02f2c94ef828d1bc74f8cc960b7744d09c6b087269b2f1fcd4cf7c5d57ea45402a45bf2eeab519402e33dd51c9b5a1afb109d0994fc4d252d3820822b7c24800f37f908a8312e01c20ed3c6786c8205bc69d88ecd5484a6474cd9ab223529067eab8e4969621a8e84307b1981c26270ccb137575cc1cace7e9f465633dec761a11d1f137f7a5268ee71e5a43ea6c67400ce422dbeefc88d7568abc7ad332ef14fc6bc625f0fe5fbecbbcda32175bc7a044248b877aa2b26d14530670750961fa3acb47a3a362776aef679f2468d5c6d543cfe9d0f711c7506de6c71502bd228102eff29e53d3b8358eaaedfd1c0bbe484b544c39f14a5134b726c3c3518a0a455ddada5f9967e7ca769fe5dec827a13e01b2897f39dbd507d4a908016efaef6d3ea3888f6ef8d32087f7ddcc18124be7d1809b751585085d259827b8921d8d032a20db5dd5548d2a21727e472e1a1dcd06697953c2e015a74a7fd1aa7bc03d166&quot;
+				}
+			}
+		}
+	}
+	# &quot;#
+	# ,false, 4, false, false);
+	```
+	*/</span>
+
+	<span class="kw">fn</span> <span class="ident">build_coinbase</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">block_fees</span>: <span class="kw-2">&amp;</span><span class="ident">BlockFees</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">VersionedCoinbase</span>, <span class="ident">ErrorKind</span><span class="op">&gt;</span>;
+	<span class="kw">fn</span> <span class="ident">build_foundation</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">block_fees</span>: <span class="kw-2">&amp;</span><span class="ident">BlockFees</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">VersionedCoinbase</span>, <span class="ident">ErrorKind</span><span class="op">&gt;</span>;
+
+	<span class="doccomment">/**
+	Networked version of [Foreign::verify_slate_messages](struct.Foreign.html#method.verify_slate_messages).
+
+	# Json rpc example
+
+	```
+	# epic_wallet_api::doctest_helper_json_rpc_foreign_assert_response!(
+	# r#&quot;
+	{
+		&quot;jsonrpc&quot;: &quot;2.0&quot;,
+		&quot;method&quot;: &quot;verify_slate_messages&quot;,
+		&quot;id&quot;: 1,
+		&quot;params&quot;: [ {
+				&quot;amount&quot;: &quot;6000000000&quot;,
+				&quot;fee&quot;: &quot;8000000&quot;,
+				&quot;height&quot;: &quot;4&quot;,
+				&quot;id&quot;: &quot;0436430c-2b02-624c-2032-570501212b00&quot;,
+				&quot;lock_height&quot;: &quot;4&quot;,
+				&quot;ttl_cutoff_height&quot;: null,
+				&quot;payment_proof&quot;: null,
+				&quot;num_participants&quot;: 2,
+				&quot;participant_data&quot;: [
+				{
+					&quot;id&quot;: &quot;0&quot;,
+					&quot;message&quot;: &quot;my message&quot;,
+					&quot;message_sig&quot;: &quot;8f07ddd5e9f5179cff19486034181ed76505baaad53e5d994064127b56c5841b1d4c1358be398f801eb90d933774b5218fa7e769b11c4c640402253353656f75&quot;,
+					&quot;part_sig&quot;: null,
+					&quot;public_blind_excess&quot;: &quot;034b4df2f0558b73ea72a1ca5c4ab20217c66bbe0829056fca7abe76888e9349ee&quot;,
+					&quot;public_nonce&quot;: &quot;031b84c5567b126440995d3ed5aaba0565d71e1834604819ff9c17f5e9d5dd078f&quot;
+				}
+				],
+				&quot;tx&quot;: {
+					&quot;body&quot;: {
+						&quot;inputs&quot;: [
+						{
+							&quot;commit&quot;: &quot;08e1da9e6dc4d6e808a718b2f110a991dd775d65ce5ae408a4e1f002a4961aa9e7&quot;,
+							&quot;features&quot;: &quot;Coinbase&quot;
+						}
+						],
+						&quot;kernels&quot;: [
+						{
+							&quot;excess&quot;: &quot;000000000000000000000000000000000000000000000000000000000000000000&quot;,
+							&quot;excess_sig&quot;: &quot;00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000&quot;,
+							&quot;features&quot;: &quot;HeightLocked&quot;,
+							&quot;fee&quot;: &quot;8000000&quot;,
+							&quot;lock_height&quot;: &quot;4&quot;
+						}
+						],
+						&quot;outputs&quot;: [
+						{
+							&quot;commit&quot;: &quot;094be57c91787fc2033d5d97fae099f1a6ddb37ea48370f1a138f09524c767fdd3&quot;,
+							&quot;features&quot;: &quot;Plain&quot;,
+							&quot;proof&quot;: &quot;2a42e9e902b70ce44e1fccb14de87ee0a97100bddf12c6bead1b9c5f4eb60300f29c13094fa12ffeee238fb4532b18f6b61cf51b23c1c7e1ad2e41560dc27edc0a2b9e647a0b3e4e806fced5b65e61d0f1f5197d3e2285c632d359e27b6b9206b2caffea4f67e0c7a2812e7a22c134b98cf89bd43d9f28b8bec25cce037a0ac5b1ae8f667e54e1250813a5263004486b4465ad4e641ab2b535736ea26535a11013564f08f483b7dab1c2bcc3ee38eadf2f7850eff7e3459a4bbabf9f0cf6c50d0c0a4120565cd4a2ce3e354c11721cd695760a24c70e0d5a0dfc3c5dcd51dfad6de2c237a682f36dc0b271f21bb3655e5333016aaa42c2efa1446e5f3c0a79ec417c4d30f77556951cb0f05dbfafb82d9f95951a9ea241fda2a6388f73ace036b98acce079f0e4feebccc96290a86dcc89118a901210b245f2d114cf94396e4dbb461e82aa26a0581389707957968c7cdc466213bb1cd417db207ef40c05842ab67a01a9b96eb1430ebc26e795bb491258d326d5174ad549401059e41782121e506744af8af9d8e493644a87d613600888541cbbe538c625883f3eb4aa3102c5cfcc25de8e97af8927619ce6a731b3b8462d51d993066b935b0648d2344ad72e4fd70f347fbd81041042e5ea31cc7b2e3156a920b80ecba487b950ca32ca95fae85b759c936246ecf441a9fdd95e8fee932d6782cdec686064018c857efc47fb4b2a122600d5fdd79af2486f44df7e629184e1c573bc0a9b3feb40b190ef2861a1ab45e2ac2201b9cd42e495deea247269820ed32389a2810ad6c0f9a296d2a2d9c54089fed50b7f5ecfcd33ab9954360e1d7f5598c32128cfcf2a1d8bf14616818da8a5343bfa88f0eedf392e9d4ab1ace1b60324129cd4852c2e27813a9cf71a6ae6229a4fcecc1a756b3e664c5f50af333082616815a3bec8fc0b75b8e4e767d719&quot;
+						}
+						]
+					},
+					&quot;offset&quot;: &quot;d202964900000000d302964900000000d402964900000000d502964900000000&quot;
+				},
+				&quot;version_info&quot;: {
+					&quot;orig_version&quot;: 2,
+					&quot;version&quot;: 2,
+					&quot;block_header_version&quot;: 6
+				}
+			}
+		]
+	}
+	# &quot;#
+	# ,
+	# r#&quot;
+	{
+		&quot;jsonrpc&quot;: &quot;2.0&quot;,
+		&quot;id&quot;: 1,
+		&quot;result&quot;: {
+			&quot;Ok&quot;: null
+		}
+	}
+	# &quot;#
+	# ,false, 1 ,false, false);
+	```
+	*/</span>
+	<span class="kw">fn</span> <span class="ident">verify_slate_messages</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">slate</span>: <span class="ident">VersionedSlate</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">ErrorKind</span><span class="op">&gt;</span>;
+
+	<span class="doccomment">/**
+	Networked version of [Foreign::receive_tx](struct.Foreign.html#method.receive_tx).
+
+	# Json rpc example
+
+	```
+	# epic_wallet_api::doctest_helper_json_rpc_foreign_assert_response!(
+	# r#&quot;
+	{
+		&quot;jsonrpc&quot;: &quot;2.0&quot;,
+		&quot;method&quot;: &quot;receive_tx&quot;,
+		&quot;id&quot;: 1,
+		&quot;params&quot;: [
+			{
+			&quot;version_info&quot;: {
+				&quot;version&quot;: 2,
+				&quot;orig_version&quot;: 2,
+				&quot;block_header_version&quot;: 6
+			},
+			&quot;num_participants&quot;: 2,
+			&quot;id&quot;: &quot;0436430c-2b02-624c-2032-570501212b00&quot;,
+			&quot;tx&quot;: {
+				&quot;offset&quot;: &quot;d202964900000000d302964900000000d402964900000000d502964900000000&quot;,
+				&quot;body&quot;: {
+					&quot;inputs&quot;: [
+						{
+							&quot;features&quot;: &quot;Coinbase&quot;,
+							&quot;commit&quot;: &quot;087df32304c5d4ae8b2af0bc31e700019d722910ef87dd4eec3197b80b207e3045&quot;
+						},
+						{
+							&quot;features&quot;: &quot;Coinbase&quot;,
+							&quot;commit&quot;: &quot;08e1da9e6dc4d6e808a718b2f110a991dd775d65ce5ae408a4e1f002a4961aa9e7&quot;
+						}
+					],
+					&quot;outputs&quot;: [
+						{
+							&quot;features&quot;: &quot;Plain&quot;,
+							&quot;commit&quot;: &quot;0812276cc788e6870612296d926cba9f0e7b9810670710b5a6e6f1ba006d395774&quot;,
+							&quot;proof&quot;: &quot;dcff6175390c602bfa92c2ffd1a9b2d84dcc9ea941f6f317bdd0f875244ef23e696fd17c71df79760ce5ce1a96aab1d15dd057358dc835e972febeb86d50ccec0dad7cfe0246d742eb753cf7b88c045d15bc7123f8cf7155647ccf663fca92a83c9a65d0ed756ea7ebffd2cac90c380a102ed9caaa355d175ed0bf58d3ac2f5e909d6c447dfc6b605e04925c2b17c33ebd1908c965a5541ea5d2ed45a0958e6402f89d7a56df1992e036d836e74017e73ccad5cb3a82b8e139e309792a31b15f3ffd72ed033253428c156c2b9799458a25c1da65b719780a22de7fe7f437ae2fccd22cf7ea357ab5aa66a5ef7d71fb0dc64aa0b5761f68278062bb39bb296c787e4cabc5e2a2933a416ce1c9a9696160386449c437e9120f7bb26e5b0e74d1f2e7d5bcd7aafb2a92b87d1548f1f911fb06af7bd6cc13cee29f7c9cb79021aed18186272af0e9d189ec107c81a8a3aeb4782b0d950e4881aa51b776bb6844b25bce97035b48a9bdb2aea3608687bcdd479d4fa998b5a839ff88558e4a29dff0ed13b55900abb5d439b70793d902ae9ad34587b18c919f6b875c91d14deeb1c373f5e76570d59a6549758f655f1128a54f162dfe8868e1587028e26ad91e528c5ae7ee9335fa58fb59022b5de29d80f0764a9917390d46db899acc6a5b416e25ecc9dccb7153646addcc81cadb5f0078febc7e05d7735aba494f39ef05697bbcc9b47b2ccc79595d75fc13c80678b5e237edce58d731f34c05b1ddcaa649acf2d865bbbc3ceda10508bcdd29d0496744644bf1c3516f6687dfeef5649c7dff90627d642739a59d91a8d1d0c4dc55d74a949e1074427664b467992c9e0f7d3af9d6ea79513e8946ddc0d356bac49878e64e6a95b0a30214214faf2ce317fa622ff3266b32a816e10a18e6d789a5da1f23e67b4f970a68a7bcd9e18825ee274b0483896a40&quot;
+						}
+					],
+					&quot;kernels&quot;: [
+						{
+							&quot;features&quot;: &quot;Plain&quot;,
+							&quot;fee&quot;: &quot;7000000&quot;,
+							&quot;lock_height&quot;: &quot;0&quot;,
+							&quot;excess&quot;: &quot;000000000000000000000000000000000000000000000000000000000000000000&quot;,
+							&quot;excess_sig&quot;: &quot;00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000&quot;
+						}
+					]
+				}
+			},
+			&quot;amount&quot;: &quot;60000000000&quot;,
+			&quot;fee&quot;: &quot;7000000&quot;,
+			&quot;height&quot;: &quot;5&quot;,
+			&quot;lock_height&quot;: &quot;0&quot;,
+			&quot;ttl_cutoff_height&quot;: null,
+			&quot;payment_proof&quot;: null,
+			&quot;participant_data&quot;: [
+				{
+					&quot;id&quot;: &quot;0&quot;,
+					&quot;public_blind_excess&quot;: &quot;033ac2158fa0077f087de60c19d8e431753baa5b63b6e1477f05a2a6e7190d4592&quot;,
+					&quot;public_nonce&quot;: &quot;031b84c5567b126440995d3ed5aaba0565d71e1834604819ff9c17f5e9d5dd078f&quot;,
+					&quot;part_sig&quot;: null,
+					&quot;message&quot;: null,
+					&quot;message_sig&quot;: null
+				}
+			]
+		},
+		null,
+		&quot;Thanks, Yeastplume&quot;
+		]
+	}
+	# &quot;#
+	# ,
+	# r#&quot;
+	{
+	&quot;id&quot;: 1,
+	&quot;jsonrpc&quot;: &quot;2.0&quot;,
+		&quot;result&quot;: {
+			&quot;Ok&quot;: {
+				&quot;amount&quot;: &quot;60000000000&quot;,
+				&quot;fee&quot;: &quot;7000000&quot;,
+				&quot;height&quot;: &quot;5&quot;,
+				&quot;id&quot;: &quot;0436430c-2b02-624c-2032-570501212b00&quot;,
+				&quot;lock_height&quot;: &quot;0&quot;,
+				&quot;ttl_cutoff_height&quot;: null,
+				&quot;payment_proof&quot;: null,
+				&quot;num_participants&quot;: 2,
+				&quot;participant_data&quot;: [
+				{
+					&quot;id&quot;: &quot;0&quot;,
+					&quot;message&quot;: null,
+					&quot;message_sig&quot;: null,
+					&quot;part_sig&quot;: null,
+					&quot;public_blind_excess&quot;: &quot;033ac2158fa0077f087de60c19d8e431753baa5b63b6e1477f05a2a6e7190d4592&quot;,
+					&quot;public_nonce&quot;: &quot;031b84c5567b126440995d3ed5aaba0565d71e1834604819ff9c17f5e9d5dd078f&quot;
+				},
+				{
+					&quot;id&quot;: &quot;1&quot;,
+					&quot;message&quot;: &quot;Thanks, Yeastplume&quot;,
+		  &quot;message_sig&quot;: &quot;8f07ddd5e9f5179cff19486034181ed76505baaad53e5d994064127b56c5841b30a1f1b21eade1b4bd211e1f137fbdbca1b78dc43da21b1695f6a0edf2437ff9&quot;,
+					&quot;part_sig&quot;: &quot;8f07ddd5e9f5179cff19486034181ed76505baaad53e5d994064127b56c5841b2b35bd28dfd2269e0670e0cf9270bd6df2d03fbd64523ee4ae622396055b96fc&quot;,
+					&quot;public_blind_excess&quot;: &quot;038fe0443243dab173c068ef5fa891b242d2b5eb890ea09475e6e381170442ee16&quot;,
+					&quot;public_nonce&quot;: &quot;031b84c5567b126440995d3ed5aaba0565d71e1834604819ff9c17f5e9d5dd078f&quot;
+				}
+				],
+				&quot;tx&quot;: {
+				&quot;body&quot;: {
+					&quot;inputs&quot;: [
+					{
+						&quot;commit&quot;: &quot;087df32304c5d4ae8b2af0bc31e700019d722910ef87dd4eec3197b80b207e3045&quot;,
+						&quot;features&quot;: &quot;Coinbase&quot;
+					},
+					{
+						&quot;commit&quot;: &quot;08e1da9e6dc4d6e808a718b2f110a991dd775d65ce5ae408a4e1f002a4961aa9e7&quot;,
+						&quot;features&quot;: &quot;Coinbase&quot;
+					}
+					],
+					&quot;kernels&quot;: [
+					{
+						&quot;excess&quot;: &quot;000000000000000000000000000000000000000000000000000000000000000000&quot;,
+						&quot;excess_sig&quot;: &quot;00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000&quot;,
+						&quot;features&quot;: &quot;Plain&quot;,
+						&quot;fee&quot;: &quot;7000000&quot;,
+						&quot;lock_height&quot;: &quot;0&quot;
+					}
+					],
+					&quot;outputs&quot;: [
+					{
+						&quot;commit&quot;: &quot;084ee97defa8c37124d4c69baa753e2532535faa81f79ea5e0489db25297d5beb8&quot;,
+						&quot;features&quot;: &quot;Plain&quot;,
+						&quot;proof&quot;: &quot;007df7dddd1efca757b2070740cc604628390eb59e151f96ff2eaa5361f5435fd1aa6ea3febc97fcfe1b3248d040c82de36180392976ba2d1147c2fb021c87ad044f1f9763934d9d3f4431417762eed03c53ce17aedb7824565c1f48fccec9c4abc0d28bd32b02ce9bee40bf6a60cf7c9c203cc24e4b779f901e12c987573698cf7f04e3aace26e71262138605424800adf3295d09f7f45dddf1855c785e98d45eae3cd111d18552e733895458df15e71a13838d789a4cb369f4ddb8aa9c503b080fd88a147245df0522d4136d36a183bd941e6cf94dffc78438b12194d4df7114d1e27a7a2f014920a321223ecbebb2b9642a22f8ed4e74883125f3e757b2f118853ffab1b68f15c1a2d021e583ff3fd1ea28720a81325b3cc2327ba9fb2fd9b2644adb7f3c7b2e319b2536a34f67e6f09346f24da6bcae1b241f8590493476dfe35b183e54f105eb219b601e0e53965409701dc1fd9562c42ad977505ea7bf264f01770569a4a358a70fb0b2c65969fac3b23954f0ca0adace0703243f1dab626509a8656e7a981709c3ac1d51694bafa55aad45c101937cbf3e45d6708c07be71419769a10a4f64f2b7d53a54eac73cdbd3279f91c5f8991a4b17621c36195a9391364fa221e8a8dee21ebc3a6eb9cd2940a3676e7ef3cdd46319bdc11f748785e49ff41bec2c3243255d83c6895bc0c893e6a772d7440a68321246b177709d3bd82d0dc2f5bca40c878e859b6f82319a386e0b7fcbc8010a25178b08418389ba7c6a77f99ac7f4ae5c686ab6574fcd0116f8573bccda3edfdff36c9c92ce2fb8bfb0ce2fe5c6b2498c6eb16fc2d40de9ddcba199a7e93d648abf39d6b248e196de7127e6b812e3080497f2a82afa69a471ab511e753e5b17a1c39c6728a065898af6674608d92a625e96e2f0258fe2eb06a27d0586d889d61f97faaa3facf58cda&quot;
+					},
+					{
+						&quot;commit&quot;: &quot;0812276cc788e6870612296d926cba9f0e7b9810670710b5a6e6f1ba006d395774&quot;,
+						&quot;features&quot;: &quot;Plain&quot;,
+						&quot;proof&quot;: &quot;dcff6175390c602bfa92c2ffd1a9b2d84dcc9ea941f6f317bdd0f875244ef23e696fd17c71df79760ce5ce1a96aab1d15dd057358dc835e972febeb86d50ccec0dad7cfe0246d742eb753cf7b88c045d15bc7123f8cf7155647ccf663fca92a83c9a65d0ed756ea7ebffd2cac90c380a102ed9caaa355d175ed0bf58d3ac2f5e909d6c447dfc6b605e04925c2b17c33ebd1908c965a5541ea5d2ed45a0958e6402f89d7a56df1992e036d836e74017e73ccad5cb3a82b8e139e309792a31b15f3ffd72ed033253428c156c2b9799458a25c1da65b719780a22de7fe7f437ae2fccd22cf7ea357ab5aa66a5ef7d71fb0dc64aa0b5761f68278062bb39bb296c787e4cabc5e2a2933a416ce1c9a9696160386449c437e9120f7bb26e5b0e74d1f2e7d5bcd7aafb2a92b87d1548f1f911fb06af7bd6cc13cee29f7c9cb79021aed18186272af0e9d189ec107c81a8a3aeb4782b0d950e4881aa51b776bb6844b25bce97035b48a9bdb2aea3608687bcdd479d4fa998b5a839ff88558e4a29dff0ed13b55900abb5d439b70793d902ae9ad34587b18c919f6b875c91d14deeb1c373f5e76570d59a6549758f655f1128a54f162dfe8868e1587028e26ad91e528c5ae7ee9335fa58fb59022b5de29d80f0764a9917390d46db899acc6a5b416e25ecc9dccb7153646addcc81cadb5f0078febc7e05d7735aba494f39ef05697bbcc9b47b2ccc79595d75fc13c80678b5e237edce58d731f34c05b1ddcaa649acf2d865bbbc3ceda10508bcdd29d0496744644bf1c3516f6687dfeef5649c7dff90627d642739a59d91a8d1d0c4dc55d74a949e1074427664b467992c9e0f7d3af9d6ea79513e8946ddc0d356bac49878e64e6a95b0a30214214faf2ce317fa622ff3266b32a816e10a18e6d789a5da1f23e67b4f970a68a7bcd9e18825ee274b0483896a40&quot;
+					}
+					]
+				},
+				&quot;offset&quot;: &quot;d202964900000000d302964900000000d402964900000000d502964900000000&quot;
+				},
+				&quot;version_info&quot;: {
+					&quot;orig_version&quot;: 2,
+					&quot;version&quot;: 2,
+					&quot;block_header_version&quot;: 6
+				}
+			}
+		}
+	}
+	# &quot;#
+	# ,false, 5, true, false);
+	```
+	*/</span>
+	<span class="kw">fn</span> <span class="ident">receive_tx</span>(
+		<span class="kw-2">&amp;</span><span class="self">self</span>,
+		<span class="ident">slate</span>: <span class="ident">VersionedSlate</span>,
+		<span class="ident">dest_acct_name</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span>,
+		<span class="ident">message</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span>,
+	) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">VersionedSlate</span>, <span class="ident">ErrorKind</span><span class="op">&gt;</span>;
+
+	<span class="doccomment">/**
+
+	Networked version of [Foreign::finalize_invoice_tx](struct.Foreign.html#method.finalize_invoice_tx).
+
+	# Json rpc example
+
+	```
+	# epic_wallet_api::doctest_helper_json_rpc_foreign_assert_response!(
+	# r#&quot;
+	{
+		&quot;jsonrpc&quot;: &quot;2.0&quot;,
+		&quot;method&quot;: &quot;finalize_invoice_tx&quot;,
+		&quot;id&quot;: 1,
+		&quot;params&quot;: [{
+			&quot;version_info&quot;: {
+				&quot;version&quot;: 2,
+				&quot;orig_version&quot;: 2,
+				&quot;block_header_version&quot;: 6
+			},
+			&quot;num_participants&quot;: 2,
+			&quot;id&quot;: &quot;0436430c-2b02-624c-2032-570501212b00&quot;,
+			&quot;tx&quot;: {
+				&quot;offset&quot;: &quot;d202964900000000d302964900000000d402964900000000d502964900000000&quot;,
+				&quot;body&quot;: {
+					&quot;inputs&quot;: [
+						{
+							&quot;features&quot;: &quot;Coinbase&quot;,
+							&quot;commit&quot;: &quot;09d8836ffd38ffca42567ef965fdcf1f35b05aeb357664d70cd482438ca0ca0c9e&quot;
+						},
+						{
+							&quot;features&quot;: &quot;Coinbase&quot;,
+							&quot;commit&quot;: &quot;089be87c488db1e7c783b19272a83b23bce56a5263163554b345c6f7ffedac517e&quot;
+						}
+					],
+					&quot;outputs&quot;: [
+						{
+							&quot;features&quot;: &quot;Plain&quot;,
+							&quot;commit&quot;: &quot;091454e23b4dbc71f546a41035d69f4c87d0f6efb5ceb119cc0d2eef80ba1928d7&quot;,
+							&quot;proof&quot;: &quot;c841838499e57d3cca5dffca671596c746b3b49150ca62b94928018337dc695ec646c3e38dbd291d7e1113f72c41e0597e0956261cf9384841d6d37953c8108a0285ba2f33d3b86a235c908a7a6ff8b6a2f7d3ee4ab05dd7a1e09064a72d993fec2d4ed03c89ca390598a9340bf8512cb8e57c3d62794386101d4563a3302041dfc364b9f96f2c06eecac1b33d608c59a84bd69f3d075b60896de76babfb538e558c844c6b09feff47dbfad3854275f68c2ce2e0d9a14fc0564bb069e3558df17447557bb501c3b0b97396b0f9b1cbc5f4f50feb33fd6c6f1cbf10b1d150f7c70144e0b28fa749dc4d0d45ac4382611a8e8b2a74f40d61411fd7fd0713ed075f2ce7d30a9b16f758177d94df2e6de611d7e75b87aa8303d544937ef4afec55d17e074817342fb498fb0c6ffca85f431cb520cd434d217ca303f5d194a39d0a93c0e3c37f5e503695502dc2a5cbe31911bc557402b36a9c2749e73ca8803f2962be75001042a03c9fce5dea2189fe05e61d4a7717397ff481566e77804bd51da8fc2f98bce3bab3c2c9b1ffa19b8840a752a8e9e0825cea9927b97c9ddb425ce5a9a689fb428e0890352b5c0fe93111cfaa1e5c6e06daebdbf242630d6b53c676241c33a17faed95901282f6e67b210e187e075f77f2582c9e23f3a386147c9f6a9432418ade828620a4fa0578ac04bb59b36b4ca679fc57d749d8dd47a1a61066ba6e0ff0a434b8f8668d9c9490735dd82c1cb4bcfafb1c213385ece71ef3c66e70aaeddf2bf35674e4f4c78868dfd8475f88fac65fade11de8b372337c6bdcf2d684b89094c732b8acf2bbe4ceedcb807da51171ffae4b51a80f221fb1b4f803ad1e13dff1b4a476297478a23d6382a98c6121018872bfbd85137cb30d230bea9c8ef42848e49f3dc92333a69dd50f525b24dab0b8c286f721e57462e4a538cc6019d&quot;
+						},
+						{
+							&quot;features&quot;: &quot;Plain&quot;,
+							&quot;commit&quot;: &quot;09414416856d650cd42abad97943f8ea32ff19e7d5d10201ff790d1ca941f578ed&quot;,
+							&quot;proof&quot;: &quot;f75fbd6a43556c5a0a18a1b304ce825684560c1f5591b572ea24f704d8b00c2df2b8bcfee98ede60ccacb45e146f3bd8b31e7f84019d68493c6a80be557d42a00db146eff731720c608e27c064dd236ab00a1e4e5d062ad371c1cbf5c3bb9a50edb2e6eaff9727c13b56c0834d311680092beb6aeeb76abe2cf352a4b79698da3a06d39a78c65c9113583a3ed7aef098e08138db7b0b6bbfce9bdcbe583c65590b27634fee1a1cccb59f054132cbc00a712ff0b4d9ce6d58a4a2bf62dce49defce48a5b72236db3632728e2effce93297f675743d41d5fdb5985fd11d7f4da201832274b9d53cbbbe221b39cbb71adf16d8ec00a1ed42f5593721396202bdf6ab802ea927f1e63456b61b679bffcf0bf7151b625f5179facfd2257ffe9e0c21dac4409100860e031a49587f4ad86cef66fcece0ef177bf0bda6f12cec3be09a659dd3feb954c36f655364845bf451b207cf500e44c9d1658fbd5248d2257ad783c6e02a32565ee056731d6a7b06669e6bf373f437c33dbb3b70dd913f83343f029dc288e311d92c0c8b42b227597679ebfad3cf371923530c87da23ff994a9278df2f74ce71687d5531d9594282ce0861954df896be88a01405291f0d51169fe2317e4b0769f41d9472c5ce239f53abd16b551024bc7f705d3bcd13f4118f105685a80b1aaded0bea9884f18600a9d6066c48edc596c62a69d357de14789eb60fe61de82aed04b7d5727ac25b976d1ebf60bdcaf6359329a69cac6db212cc049b5159a6e7b83453139cab4ae57b585f0ba1c8f90906db01a610af7a7a3a66e92223d91121643ad3ebbaf61ee8a2394062b9ea4b493a410ea9937ecb09ee31696412d024e455772788cb8a3b5c82699d1b723f2013f1e3a2c4c2f558d6adc8289147d171b88d9fc41e64c30ef1b064b08f7447b6b24b425103e8588203e7328b845b719&quot;
+						}
+					],
+					&quot;kernels&quot;: [
+						{
+							&quot;features&quot;: &quot;Plain&quot;,
+							&quot;fee&quot;: &quot;700000&quot;,
+							&quot;lock_height&quot;: &quot;0&quot;,
+							&quot;excess&quot;: &quot;000000000000000000000000000000000000000000000000000000000000000000&quot;,
+							&quot;excess_sig&quot;: &quot;00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000&quot;
+						}
+					]
+				}
+			},
+			&quot;amount&quot;: &quot;600000000&quot;,
+			&quot;fee&quot;: &quot;700000&quot;,
+			&quot;height&quot;: &quot;5&quot;,
+			&quot;lock_height&quot;: &quot;0&quot;,
+			&quot;ttl_cutoff_height&quot;: null,
+			&quot;payment_proof&quot;: null,
+			&quot;participant_data&quot;: [
+				{
+					&quot;id&quot;: &quot;1&quot;,
+					&quot;public_blind_excess&quot;: &quot;029e99ff15745fc6f3988957d34340ecdbeea7de7d9d231a827413ec9912c61aad&quot;,
+					&quot;public_nonce&quot;: &quot;031b84c5567b126440995d3ed5aaba0565d71e1834604819ff9c17f5e9d5dd078f&quot;,
+					&quot;part_sig&quot;: null,
+					&quot;message&quot;: null,
+					&quot;message_sig&quot;: null
+				},
+				{
+					&quot;id&quot;: &quot;0&quot;,
+					&quot;public_blind_excess&quot;: &quot;023be94e6254d688b05c0c593089ee551b62034c2a37950cff4ec4b2e2c3f280c4&quot;,
+					&quot;public_nonce&quot;: &quot;031b84c5567b126440995d3ed5aaba0565d71e1834604819ff9c17f5e9d5dd078f&quot;,
+					&quot;part_sig&quot;: &quot;8f07ddd5e9f5179cff19486034181ed76505baaad53e5d994064127b56c5841bea191bb6f1a43b1596ea5954d79816b49e267db71df6e2328b15fc34170fb37f&quot;,
+					&quot;message&quot;: null,
+					&quot;message_sig&quot;: null
+				}
+			]
+		}]
+	}
+	# &quot;#
+	# ,
+	# r#&quot;
+	{
+		&quot;id&quot;: 1,
+		&quot;jsonrpc&quot;: &quot;2.0&quot;,
+		&quot;result&quot;: {
+			&quot;Ok&quot;: {
+				&quot;amount&quot;: &quot;600000000&quot;,
+				&quot;fee&quot;: &quot;700000&quot;,
+				&quot;height&quot;: &quot;5&quot;,
+				&quot;id&quot;: &quot;0436430c-2b02-624c-2032-570501212b00&quot;,
+				&quot;lock_height&quot;: &quot;0&quot;,
+				&quot;ttl_cutoff_height&quot;: null,
+				&quot;payment_proof&quot;: null,
+				&quot;num_participants&quot;: 2,
+				&quot;participant_data&quot;: [
+					{
+						&quot;id&quot;: &quot;1&quot;,
+						&quot;message&quot;: null,
+						&quot;message_sig&quot;: null,
+						&quot;part_sig&quot;: &quot;8f07ddd5e9f5179cff19486034181ed76505baaad53e5d994064127b56c5841bbb71aee3aa45c5f9bbc9f9f2e92b5486b018f3b978a0bd5ffed7e674b16c747d&quot;,
+						&quot;public_blind_excess&quot;: &quot;029e99ff15745fc6f3988957d34340ecdbeea7de7d9d231a827413ec9912c61aad&quot;,
+						&quot;public_nonce&quot;: &quot;031b84c5567b126440995d3ed5aaba0565d71e1834604819ff9c17f5e9d5dd078f&quot;
+					},
+					{
+						&quot;id&quot;: &quot;0&quot;,
+						&quot;message&quot;: null,
+						&quot;message_sig&quot;: null,
+						&quot;part_sig&quot;: &quot;8f07ddd5e9f5179cff19486034181ed76505baaad53e5d994064127b56c5841bea191bb6f1a43b1596ea5954d79816b49e267db71df6e2328b15fc34170fb37f&quot;,
+						&quot;public_blind_excess&quot;: &quot;023be94e6254d688b05c0c593089ee551b62034c2a37950cff4ec4b2e2c3f280c4&quot;,
+						&quot;public_nonce&quot;: &quot;031b84c5567b126440995d3ed5aaba0565d71e1834604819ff9c17f5e9d5dd078f&quot;
+					}
+				],
+				&quot;tx&quot;: {
+					&quot;body&quot;: {
+						&quot;inputs&quot;: [
+							{
+								&quot;commit&quot;: &quot;09d8836ffd38ffca42567ef965fdcf1f35b05aeb357664d70cd482438ca0ca0c9e&quot;,
+								&quot;features&quot;: &quot;Coinbase&quot;
+							},
+							{
+								&quot;commit&quot;: &quot;089be87c488db1e7c783b19272a83b23bce56a5263163554b345c6f7ffedac517e&quot;,
+								&quot;features&quot;: &quot;Coinbase&quot;
+							}
+						],
+						&quot;kernels&quot;: [
+							{
+								&quot;excess&quot;: &quot;08d09187cb93cf5d6b97b28e8ca529912bf35ec8773d3e9af9b3c174a270dc7f05&quot;,
+								&quot;excess_sig&quot;: &quot;66074d25a751c4743342c90ad8ead9454daa00d9b9aed29bca321036d16c4b4da58bc9999cea000f52b45347c1c46a3a4f3f70719696a09289ede2a9c87b27fd&quot;,
+								&quot;features&quot;: &quot;Plain&quot;,
+								&quot;fee&quot;: &quot;700000&quot;,
+								&quot;lock_height&quot;: &quot;0&quot;
+							}
+						],
+						&quot;outputs&quot;: [
+							{
+								&quot;commit&quot;: &quot;091454e23b4dbc71f546a41035d69f4c87d0f6efb5ceb119cc0d2eef80ba1928d7&quot;,
+								&quot;features&quot;: &quot;Plain&quot;,
+								&quot;proof&quot;: &quot;c841838499e57d3cca5dffca671596c746b3b49150ca62b94928018337dc695ec646c3e38dbd291d7e1113f72c41e0597e0956261cf9384841d6d37953c8108a0285ba2f33d3b86a235c908a7a6ff8b6a2f7d3ee4ab05dd7a1e09064a72d993fec2d4ed03c89ca390598a9340bf8512cb8e57c3d62794386101d4563a3302041dfc364b9f96f2c06eecac1b33d608c59a84bd69f3d075b60896de76babfb538e558c844c6b09feff47dbfad3854275f68c2ce2e0d9a14fc0564bb069e3558df17447557bb501c3b0b97396b0f9b1cbc5f4f50feb33fd6c6f1cbf10b1d150f7c70144e0b28fa749dc4d0d45ac4382611a8e8b2a74f40d61411fd7fd0713ed075f2ce7d30a9b16f758177d94df2e6de611d7e75b87aa8303d544937ef4afec55d17e074817342fb498fb0c6ffca85f431cb520cd434d217ca303f5d194a39d0a93c0e3c37f5e503695502dc2a5cbe31911bc557402b36a9c2749e73ca8803f2962be75001042a03c9fce5dea2189fe05e61d4a7717397ff481566e77804bd51da8fc2f98bce3bab3c2c9b1ffa19b8840a752a8e9e0825cea9927b97c9ddb425ce5a9a689fb428e0890352b5c0fe93111cfaa1e5c6e06daebdbf242630d6b53c676241c33a17faed95901282f6e67b210e187e075f77f2582c9e23f3a386147c9f6a9432418ade828620a4fa0578ac04bb59b36b4ca679fc57d749d8dd47a1a61066ba6e0ff0a434b8f8668d9c9490735dd82c1cb4bcfafb1c213385ece71ef3c66e70aaeddf2bf35674e4f4c78868dfd8475f88fac65fade11de8b372337c6bdcf2d684b89094c732b8acf2bbe4ceedcb807da51171ffae4b51a80f221fb1b4f803ad1e13dff1b4a476297478a23d6382a98c6121018872bfbd85137cb30d230bea9c8ef42848e49f3dc92333a69dd50f525b24dab0b8c286f721e57462e4a538cc6019d&quot;
+							},
+							{
+								&quot;commit&quot;: &quot;09414416856d650cd42abad97943f8ea32ff19e7d5d10201ff790d1ca941f578ed&quot;,
+								&quot;features&quot;: &quot;Plain&quot;,
+								&quot;proof&quot;: &quot;f75fbd6a43556c5a0a18a1b304ce825684560c1f5591b572ea24f704d8b00c2df2b8bcfee98ede60ccacb45e146f3bd8b31e7f84019d68493c6a80be557d42a00db146eff731720c608e27c064dd236ab00a1e4e5d062ad371c1cbf5c3bb9a50edb2e6eaff9727c13b56c0834d311680092beb6aeeb76abe2cf352a4b79698da3a06d39a78c65c9113583a3ed7aef098e08138db7b0b6bbfce9bdcbe583c65590b27634fee1a1cccb59f054132cbc00a712ff0b4d9ce6d58a4a2bf62dce49defce48a5b72236db3632728e2effce93297f675743d41d5fdb5985fd11d7f4da201832274b9d53cbbbe221b39cbb71adf16d8ec00a1ed42f5593721396202bdf6ab802ea927f1e63456b61b679bffcf0bf7151b625f5179facfd2257ffe9e0c21dac4409100860e031a49587f4ad86cef66fcece0ef177bf0bda6f12cec3be09a659dd3feb954c36f655364845bf451b207cf500e44c9d1658fbd5248d2257ad783c6e02a32565ee056731d6a7b06669e6bf373f437c33dbb3b70dd913f83343f029dc288e311d92c0c8b42b227597679ebfad3cf371923530c87da23ff994a9278df2f74ce71687d5531d9594282ce0861954df896be88a01405291f0d51169fe2317e4b0769f41d9472c5ce239f53abd16b551024bc7f705d3bcd13f4118f105685a80b1aaded0bea9884f18600a9d6066c48edc596c62a69d357de14789eb60fe61de82aed04b7d5727ac25b976d1ebf60bdcaf6359329a69cac6db212cc049b5159a6e7b83453139cab4ae57b585f0ba1c8f90906db01a610af7a7a3a66e92223d91121643ad3ebbaf61ee8a2394062b9ea4b493a410ea9937ecb09ee31696412d024e455772788cb8a3b5c82699d1b723f2013f1e3a2c4c2f558d6adc8289147d171b88d9fc41e64c30ef1b064b08f7447b6b24b425103e8588203e7328b845b719&quot;
+							}
+						]
+					},
+					&quot;offset&quot;: &quot;d202964900000000d302964900000000d402964900000000d502964900000000&quot;
+				},
+				&quot;version_info&quot;: {
+					&quot;orig_version&quot;: 2,
+					&quot;version&quot;: 2,
+					&quot;block_header_version&quot;: 6
+				}
+			}
+		}
+	}
+	# &quot;#
+	# ,false, 5, false, true);
+	```
+	*/</span>
+	<span class="kw">fn</span> <span class="ident">finalize_invoice_tx</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">slate</span>: <span class="ident">VersionedSlate</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">VersionedSlate</span>, <span class="ident">ErrorKind</span><span class="op">&gt;</span>;
+}
+
+<span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">L</span>, <span class="ident">C</span>, <span class="ident">K</span><span class="op">&gt;</span> <span class="ident">ForeignRpc</span> <span class="kw">for</span> <span class="ident">Foreign</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">L</span>, <span class="ident">C</span>, <span class="ident">K</span><span class="op">&gt;</span>
+<span class="kw">where</span>
+	<span class="ident">L</span>: <span class="ident">WalletLCProvider</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">C</span>, <span class="ident">K</span><span class="op">&gt;</span>,
+	<span class="ident">C</span>: <span class="ident">NodeClient</span> <span class="op">+</span> <span class="lifetime">&#39;a</span>,
+	<span class="ident">K</span>: <span class="ident">Keychain</span> <span class="op">+</span> <span class="lifetime">&#39;a</span>,
+{
+	<span class="kw">fn</span> <span class="ident">check_version</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">VersionInfo</span>, <span class="ident">ErrorKind</span><span class="op">&gt;</span> {
+		<span class="ident">Foreign::check_version</span>(<span class="self">self</span>).<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">e</span>.<span class="ident">kind</span>())
+	}
+
+	<span class="kw">fn</span> <span class="ident">build_coinbase</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">block_fees</span>: <span class="kw-2">&amp;</span><span class="ident">BlockFees</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">VersionedCoinbase</span>, <span class="ident">ErrorKind</span><span class="op">&gt;</span> {
+		<span class="kw">let</span> <span class="ident">cb</span>: <span class="ident">CbData</span> <span class="op">=</span> <span class="ident">Foreign::build_coinbase</span>(<span class="self">self</span>, <span class="ident">block_fees</span>).<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">e</span>.<span class="ident">kind</span>())<span class="question-mark">?</span>;
+		<span class="prelude-val">Ok</span>(<span class="ident">VersionedCoinbase::into_version</span>(<span class="ident">cb</span>, <span class="ident">SlateVersion::V3</span>))
+	}
+
+	<span class="kw">fn</span> <span class="ident">build_foundation</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">block_fees</span>: <span class="kw-2">&amp;</span><span class="ident">BlockFees</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">VersionedCoinbase</span>, <span class="ident">ErrorKind</span><span class="op">&gt;</span> {
+		<span class="kw">let</span> <span class="ident">cb</span>: <span class="ident">CbData</span> <span class="op">=</span> <span class="ident">Foreign::build_foundation</span>(<span class="self">self</span>, <span class="ident">block_fees</span>).<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">e</span>.<span class="ident">kind</span>())<span class="question-mark">?</span>;
+		<span class="prelude-val">Ok</span>(<span class="ident">VersionedCoinbase::into_version</span>(<span class="ident">cb</span>, <span class="ident">SlateVersion::V3</span>))
+	}
+
+	<span class="kw">fn</span> <span class="ident">verify_slate_messages</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">slate</span>: <span class="ident">VersionedSlate</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">ErrorKind</span><span class="op">&gt;</span> {
+		<span class="ident">Foreign::verify_slate_messages</span>(<span class="self">self</span>, <span class="kw-2">&amp;</span><span class="ident">Slate::from</span>(<span class="ident">slate</span>)).<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">e</span>.<span class="ident">kind</span>())
+	}
+
+	<span class="kw">fn</span> <span class="ident">receive_tx</span>(
+		<span class="kw-2">&amp;</span><span class="self">self</span>,
+		<span class="ident">in_slate</span>: <span class="ident">VersionedSlate</span>,
+		<span class="ident">dest_acct_name</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span>,
+		<span class="ident">message</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span>,
+	) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">VersionedSlate</span>, <span class="ident">ErrorKind</span><span class="op">&gt;</span> {
+		<span class="kw">let</span> <span class="ident">version</span> <span class="op">=</span> <span class="ident">in_slate</span>.<span class="ident">version</span>();
+		<span class="kw">let</span> <span class="ident">slate_from</span> <span class="op">=</span> <span class="ident">Slate::from</span>(<span class="ident">in_slate</span>);
+		<span class="kw">let</span> <span class="ident">out_slate</span> <span class="op">=</span> <span class="ident">Foreign::receive_tx</span>(
+			<span class="self">self</span>,
+			<span class="kw-2">&amp;</span><span class="ident">slate_from</span>,
+			<span class="ident">dest_acct_name</span>.<span class="ident">as_ref</span>().<span class="ident">map</span>(<span class="ident">String::as_str</span>),
+			<span class="ident">message</span>,
+		)
+		.<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">e</span>.<span class="ident">kind</span>())<span class="question-mark">?</span>;
+		<span class="prelude-val">Ok</span>(<span class="ident">VersionedSlate::into_version</span>(<span class="ident">out_slate</span>, <span class="ident">version</span>))
+	}
+
+	<span class="kw">fn</span> <span class="ident">finalize_invoice_tx</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">in_slate</span>: <span class="ident">VersionedSlate</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">VersionedSlate</span>, <span class="ident">ErrorKind</span><span class="op">&gt;</span> {
+		<span class="kw">let</span> <span class="ident">version</span> <span class="op">=</span> <span class="ident">in_slate</span>.<span class="ident">version</span>();
+		<span class="kw">let</span> <span class="ident">out_slate</span> <span class="op">=</span>
+			<span class="ident">Foreign::finalize_invoice_tx</span>(<span class="self">self</span>, <span class="kw-2">&amp;</span><span class="ident">Slate::from</span>(<span class="ident">in_slate</span>)).<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">e</span>.<span class="ident">kind</span>())<span class="question-mark">?</span>;
+		<span class="prelude-val">Ok</span>(<span class="ident">VersionedSlate::into_version</span>(<span class="ident">out_slate</span>, <span class="ident">version</span>))
+	}
+}
+
+<span class="kw">fn</span> <span class="ident">test_check_middleware</span>(
+	<span class="ident">_name</span>: <span class="ident">ForeignCheckMiddlewareFn</span>,
+	<span class="ident">_node_version_info</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">NodeVersionInfo</span><span class="op">&gt;</span>,
+	<span class="ident">_slate</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">Slate</span><span class="op">&gt;</span>,
+) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">libwallet::Error</span><span class="op">&gt;</span> {
+	<span class="comment">// TODO: Implement checks</span>
+	<span class="comment">// return Err(ErrorKind::GenericError(&quot;Test Rejection&quot;.into()))?</span>
+	<span class="prelude-val">Ok</span>(())
+}
+
+<span class="doccomment">/// helper to set up a real environment to run integrated doctests</span>
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">run_doctest_foreign</span>(
+	<span class="ident">request</span>: <span class="ident">serde_json::Value</span>,
+	<span class="ident">test_dir</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>,
+	<span class="ident">use_token</span>: <span class="ident">bool</span>,
+	<span class="ident">blocks_to_mine</span>: <span class="ident">u64</span>,
+	<span class="ident">init_tx</span>: <span class="ident">bool</span>,
+	<span class="ident">init_invoice_tx</span>: <span class="ident">bool</span>,
+) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">serde_json::Value</span><span class="op">&gt;</span>, <span class="ident">String</span><span class="op">&gt;</span> {
+	<span class="kw">use</span> <span class="ident">easy_jsonrpc_mw::Handler</span>;
+	<span class="kw">use</span> <span class="ident">epic_wallet_impls::test_framework</span>::{<span class="self">self</span>, <span class="ident">LocalWalletClient</span>, <span class="ident">WalletProxy</span>};
+	<span class="kw">use</span> <span class="ident">epic_wallet_impls</span>::{<span class="ident">DefaultLCProvider</span>, <span class="ident">DefaultWalletImpl</span>};
+	<span class="kw">use</span> <span class="ident">epic_wallet_libwallet</span>::{<span class="ident">api_impl</span>, <span class="ident">WalletInst</span>};
+	<span class="kw">use</span> <span class="ident">epic_wallet_util::epic_keychain::ExtKeychain</span>;
+
+	<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::core::global::ChainTypes</span>;
+	<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::core</span>::{<span class="ident">core::feijoada</span>, <span class="ident">global</span>};
+	<span class="kw">use</span> <span class="ident">epic_wallet_util::epic_util</span> <span class="kw">as</span> <span class="ident">util</span>;
+
+	<span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
+	<span class="kw">use</span> <span class="ident">util::Mutex</span>;
+
+	<span class="kw">use</span> <span class="ident">std::fs</span>;
+	<span class="kw">use</span> <span class="ident">std::thread</span>;
+
+	<span class="ident">util::init_test_logger</span>();
+	<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">fs::remove_dir_all</span>(<span class="ident">test_dir</span>);
+	<span class="ident">global::set_mining_mode</span>(<span class="ident">ChainTypes::AutomatedTesting</span>);
+	<span class="ident">global::set_foundation_path</span>(<span class="string">&quot;../tests/assets/foundation.json&quot;</span>.<span class="ident">to_string</span>());
+	<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">policies</span>: <span class="ident">feijoada::Policy</span> <span class="op">=</span> <span class="ident">feijoada::get_bottles_default</span>();
+	<span class="ident">policies</span>.<span class="ident">insert</span>(<span class="ident">feijoada::PoWType::Cuckatoo</span>, <span class="number">100</span>);
+	<span class="ident">global::set_policy_config</span>(<span class="ident">feijoada::PolicyConfig</span> {
+		<span class="ident">policies</span>: <span class="macro">vec!</span>[<span class="ident">policies</span>.<span class="ident">clone</span>()],
+		..<span class="ident">Default::default</span>()
+	});
+	<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">wallet_proxy</span>: <span class="ident">WalletProxy</span><span class="op">&lt;</span>
+		<span class="ident">DefaultLCProvider</span><span class="op">&lt;</span><span class="ident">LocalWalletClient</span>, <span class="ident">ExtKeychain</span><span class="op">&gt;</span>,
+		<span class="ident">LocalWalletClient</span>,
+		<span class="ident">ExtKeychain</span>,
+	<span class="op">&gt;</span> <span class="op">=</span> <span class="ident">WalletProxy::new</span>(<span class="ident">test_dir</span>);
+	<span class="kw">let</span> <span class="ident">chain</span> <span class="op">=</span> <span class="ident">wallet_proxy</span>.<span class="ident">chain</span>.<span class="ident">clone</span>();
+
+	<span class="kw">let</span> <span class="ident">rec_phrase_1</span> <span class="op">=</span> <span class="ident">util::ZeroingString::from</span>(
+		<span class="string">&quot;fat twenty mean degree forget shell check candy immense awful \
+		 flame next during february bulb bike sun wink theory day kiwi embrace peace lunch&quot;</span>,
+	);
+	<span class="kw">let</span> <span class="ident">empty_string</span> <span class="op">=</span> <span class="ident">util::ZeroingString::from</span>(<span class="string">&quot;&quot;</span>);
+	<span class="kw">let</span> <span class="ident">client1</span> <span class="op">=</span> <span class="ident">LocalWalletClient::new</span>(<span class="string">&quot;wallet1&quot;</span>, <span class="ident">wallet_proxy</span>.<span class="ident">tx</span>.<span class="ident">clone</span>());
+	<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">wallet1</span> <span class="op">=</span>
+		<span class="ident">Box::new</span>(<span class="ident">DefaultWalletImpl</span>::<span class="op">&lt;</span><span class="ident">LocalWalletClient</span><span class="op">&gt;</span><span class="ident">::new</span>(<span class="ident">client1</span>.<span class="ident">clone</span>()).<span class="ident">unwrap</span>())
+			<span class="kw">as</span> <span class="ident">Box</span><span class="op">&lt;</span>
+				<span class="kw">dyn</span> <span class="ident">WalletInst</span><span class="op">&lt;</span>
+					<span class="lifetime">&#39;static</span>,
+					<span class="ident">DefaultLCProvider</span><span class="op">&lt;</span><span class="ident">LocalWalletClient</span>, <span class="ident">ExtKeychain</span><span class="op">&gt;</span>,
+					<span class="ident">LocalWalletClient</span>,
+					<span class="ident">ExtKeychain</span>,
+				<span class="op">&gt;</span>,
+			<span class="op">&gt;</span>;
+	<span class="kw">let</span> <span class="ident">lc</span> <span class="op">=</span> <span class="ident">wallet1</span>.<span class="ident">lc_provider</span>().<span class="ident">unwrap</span>();
+	<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">lc</span>.<span class="ident">set_top_level_directory</span>(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;{}/wallet1&quot;</span>, <span class="ident">test_dir</span>));
+	<span class="ident">lc</span>.<span class="ident">create_wallet</span>(<span class="prelude-val">None</span>, <span class="prelude-val">Some</span>(<span class="ident">rec_phrase_1</span>), <span class="number">32</span>, <span class="ident">empty_string</span>.<span class="ident">clone</span>(), <span class="bool-val">false</span>)
+		.<span class="ident">unwrap</span>();
+	<span class="kw">let</span> <span class="ident">mask1</span> <span class="op">=</span> <span class="ident">lc</span>
+		.<span class="ident">open_wallet</span>(<span class="prelude-val">None</span>, <span class="ident">empty_string</span>.<span class="ident">clone</span>(), <span class="ident">use_token</span>, <span class="bool-val">true</span>)
+		.<span class="ident">unwrap</span>();
+	<span class="kw">let</span> <span class="ident">wallet1</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">Mutex::new</span>(<span class="ident">wallet1</span>));
+
+	<span class="kw">if</span> <span class="ident">mask1</span>.<span class="ident">is_some</span>() {
+		<span class="macro">println!</span>(<span class="string">&quot;WALLET 1 MASK: {:?}&quot;</span>, <span class="ident">mask1</span>.<span class="ident">clone</span>().<span class="ident">unwrap</span>());
+	}
+
+	<span class="ident">wallet_proxy</span>.<span class="ident">add_wallet</span>(
+		<span class="string">&quot;wallet1&quot;</span>,
+		<span class="ident">client1</span>.<span class="ident">get_send_instance</span>(),
+		<span class="ident">wallet1</span>.<span class="ident">clone</span>(),
+		<span class="ident">mask1</span>.<span class="ident">clone</span>(),
+	);
+
+	<span class="kw">let</span> <span class="ident">rec_phrase_2</span> <span class="op">=</span> <span class="ident">util::ZeroingString::from</span>(
+		<span class="string">&quot;hour kingdom ripple lunch razor inquiry coyote clay stamp mean \
+		 sell finish magic kid tiny wage stand panther inside settle feed song hole exile&quot;</span>,
+	);
+	<span class="kw">let</span> <span class="ident">client2</span> <span class="op">=</span> <span class="ident">LocalWalletClient::new</span>(<span class="string">&quot;wallet2&quot;</span>, <span class="ident">wallet_proxy</span>.<span class="ident">tx</span>.<span class="ident">clone</span>());
+	<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">wallet2</span> <span class="op">=</span>
+		<span class="ident">Box::new</span>(<span class="ident">DefaultWalletImpl</span>::<span class="op">&lt;</span><span class="ident">LocalWalletClient</span><span class="op">&gt;</span><span class="ident">::new</span>(<span class="ident">client2</span>.<span class="ident">clone</span>()).<span class="ident">unwrap</span>())
+			<span class="kw">as</span> <span class="ident">Box</span><span class="op">&lt;</span>
+				<span class="kw">dyn</span> <span class="ident">WalletInst</span><span class="op">&lt;</span>
+					<span class="lifetime">&#39;static</span>,
+					<span class="ident">DefaultLCProvider</span><span class="op">&lt;</span><span class="ident">LocalWalletClient</span>, <span class="ident">ExtKeychain</span><span class="op">&gt;</span>,
+					<span class="ident">LocalWalletClient</span>,
+					<span class="ident">ExtKeychain</span>,
+				<span class="op">&gt;</span>,
+			<span class="op">&gt;</span>;
+	<span class="kw">let</span> <span class="ident">lc</span> <span class="op">=</span> <span class="ident">wallet2</span>.<span class="ident">lc_provider</span>().<span class="ident">unwrap</span>();
+	<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">lc</span>.<span class="ident">set_top_level_directory</span>(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;{}/wallet2&quot;</span>, <span class="ident">test_dir</span>));
+	<span class="ident">lc</span>.<span class="ident">create_wallet</span>(<span class="prelude-val">None</span>, <span class="prelude-val">Some</span>(<span class="ident">rec_phrase_2</span>), <span class="number">32</span>, <span class="ident">empty_string</span>.<span class="ident">clone</span>(), <span class="bool-val">false</span>)
+		.<span class="ident">unwrap</span>();
+	<span class="kw">let</span> <span class="ident">mask2</span> <span class="op">=</span> <span class="ident">lc</span>
+		.<span class="ident">open_wallet</span>(<span class="prelude-val">None</span>, <span class="ident">empty_string</span>.<span class="ident">clone</span>(), <span class="ident">use_token</span>, <span class="bool-val">true</span>)
+		.<span class="ident">unwrap</span>();
+	<span class="kw">let</span> <span class="ident">wallet2</span> <span class="op">=</span> <span class="ident">Arc::new</span>(<span class="ident">Mutex::new</span>(<span class="ident">wallet2</span>));
+
+	<span class="ident">wallet_proxy</span>.<span class="ident">add_wallet</span>(
+		<span class="string">&quot;wallet2&quot;</span>,
+		<span class="ident">client2</span>.<span class="ident">get_send_instance</span>(),
+		<span class="ident">wallet2</span>.<span class="ident">clone</span>(),
+		<span class="ident">mask2</span>.<span class="ident">clone</span>(),
+	);
+
+	<span class="comment">// Set the wallet proxy listener running</span>
+	<span class="ident">thread::spawn</span>(<span class="kw">move</span> <span class="op">|</span><span class="op">|</span> {
+		<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Err</span>(<span class="ident">e</span>) <span class="op">=</span> <span class="ident">wallet_proxy</span>.<span class="ident">run</span>() {
+			<span class="macro">error!</span>(<span class="string">&quot;Wallet Proxy error: {}&quot;</span>, <span class="ident">e</span>);
+		}
+	});
+
+	<span class="comment">// Mine a few blocks to wallet 1 so there&#39;s something to send</span>
+	<span class="kw">for</span> <span class="kw">_</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">blocks_to_mine</span> {
+		<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">test_framework::award_blocks_to_wallet</span>(
+			<span class="kw-2">&amp;</span><span class="ident">chain</span>,
+			<span class="ident">wallet1</span>.<span class="ident">clone</span>(),
+			(<span class="kw-2">&amp;</span><span class="ident">mask1</span>).<span class="ident">as_ref</span>(),
+			<span class="number">1</span> <span class="kw">as</span> <span class="ident">usize</span>,
+			<span class="bool-val">false</span>,
+		);
+		<span class="comment">//update local outputs after each block, so transaction IDs stay consistent</span>
+		<span class="kw">let</span> (<span class="ident">wallet_refreshed</span>, <span class="kw">_</span>) <span class="op">=</span> <span class="ident">api_impl::owner::retrieve_summary_info</span>(
+			<span class="ident">wallet1</span>.<span class="ident">clone</span>(),
+			(<span class="kw-2">&amp;</span><span class="ident">mask1</span>).<span class="ident">as_ref</span>(),
+			<span class="kw-2">&amp;</span><span class="prelude-val">None</span>,
+			<span class="bool-val">true</span>,
+			<span class="number">1</span>,
+		)
+		.<span class="ident">unwrap</span>();
+		<span class="macro">assert!</span>(<span class="ident">wallet_refreshed</span>);
+	}
+
+	<span class="kw">if</span> <span class="ident">init_invoice_tx</span> {
+		<span class="kw">let</span> <span class="ident">amount</span> <span class="op">=</span> <span class="number">600_000_000</span>;
+		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">slate</span> <span class="op">=</span> {
+			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">w_lock</span> <span class="op">=</span> <span class="ident">wallet2</span>.<span class="ident">lock</span>();
+			<span class="kw">let</span> <span class="ident">w</span> <span class="op">=</span> <span class="ident">w_lock</span>.<span class="ident">lc_provider</span>().<span class="ident">unwrap</span>().<span class="ident">wallet_inst</span>().<span class="ident">unwrap</span>();
+			<span class="kw">let</span> <span class="ident">args</span> <span class="op">=</span> <span class="ident">IssueInvoiceTxArgs</span> {
+				<span class="ident">amount</span>,
+				..<span class="ident">Default::default</span>()
+			};
+			<span class="ident">api_impl::owner::issue_invoice_tx</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw-2">*</span><span class="kw-2">*</span><span class="ident">w</span>, (<span class="kw-2">&amp;</span><span class="ident">mask2</span>).<span class="ident">as_ref</span>(), <span class="ident">args</span>, <span class="bool-val">true</span>).<span class="ident">unwrap</span>()
+		};
+		<span class="ident">slate</span> <span class="op">=</span> {
+			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">w_lock</span> <span class="op">=</span> <span class="ident">wallet1</span>.<span class="ident">lock</span>();
+			<span class="kw">let</span> <span class="ident">w</span> <span class="op">=</span> <span class="ident">w_lock</span>.<span class="ident">lc_provider</span>().<span class="ident">unwrap</span>().<span class="ident">wallet_inst</span>().<span class="ident">unwrap</span>();
+			<span class="kw">let</span> <span class="ident">args</span> <span class="op">=</span> <span class="ident">InitTxArgs</span> {
+				<span class="ident">src_acct_name</span>: <span class="prelude-val">None</span>,
+				<span class="ident">amount</span>: <span class="ident">slate</span>.<span class="ident">amount</span>,
+				<span class="ident">minimum_confirmations</span>: <span class="number">2</span>,
+				<span class="ident">max_outputs</span>: <span class="number">500</span>,
+				<span class="ident">num_change_outputs</span>: <span class="number">1</span>,
+				<span class="ident">selection_strategy_is_use_all</span>: <span class="bool-val">true</span>,
+				..<span class="ident">Default::default</span>()
+			};
+			<span class="ident">api_impl::owner::process_invoice_tx</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw-2">*</span><span class="kw-2">*</span><span class="ident">w</span>, (<span class="kw-2">&amp;</span><span class="ident">mask1</span>).<span class="ident">as_ref</span>(), <span class="kw-2">&amp;</span><span class="ident">slate</span>, <span class="ident">args</span>, <span class="bool-val">true</span>)
+				.<span class="ident">unwrap</span>()
+		};
+		<span class="macro">println!</span>(<span class="string">&quot;INIT INVOICE SLATE&quot;</span>);
+		<span class="comment">// Spit out slate for input to finalize_invoice_tx</span>
+		<span class="macro">println!</span>(<span class="string">&quot;{}&quot;</span>, <span class="ident">serde_json::to_string_pretty</span>(<span class="kw-2">&amp;</span><span class="ident">slate</span>).<span class="ident">unwrap</span>());
+	}
+
+	<span class="kw">if</span> <span class="ident">init_tx</span> {
+		<span class="kw">let</span> <span class="ident">amount</span> <span class="op">=</span> <span class="number">600_000_000</span>;
+		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">w_lock</span> <span class="op">=</span> <span class="ident">wallet1</span>.<span class="ident">lock</span>();
+		<span class="kw">let</span> <span class="ident">w</span> <span class="op">=</span> <span class="ident">w_lock</span>.<span class="ident">lc_provider</span>().<span class="ident">unwrap</span>().<span class="ident">wallet_inst</span>().<span class="ident">unwrap</span>();
+		<span class="kw">let</span> <span class="ident">args</span> <span class="op">=</span> <span class="ident">InitTxArgs</span> {
+			<span class="ident">src_acct_name</span>: <span class="prelude-val">None</span>,
+			<span class="ident">amount</span>,
+			<span class="ident">minimum_confirmations</span>: <span class="number">2</span>,
+			<span class="ident">max_outputs</span>: <span class="number">500</span>,
+			<span class="ident">num_change_outputs</span>: <span class="number">1</span>,
+			<span class="ident">selection_strategy_is_use_all</span>: <span class="bool-val">true</span>,
+			..<span class="ident">Default::default</span>()
+		};
+		<span class="kw">let</span> <span class="ident">slate</span> <span class="op">=</span> <span class="ident">api_impl::owner::init_send_tx</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw-2">*</span><span class="kw-2">*</span><span class="ident">w</span>, (<span class="kw-2">&amp;</span><span class="ident">mask1</span>).<span class="ident">as_ref</span>(), <span class="ident">args</span>, <span class="bool-val">true</span>).<span class="ident">unwrap</span>();
+		<span class="macro">println!</span>(<span class="string">&quot;INIT SLATE&quot;</span>);
+		<span class="comment">// Spit out slate for input to finalize_tx</span>
+		<span class="macro">println!</span>(<span class="string">&quot;{}&quot;</span>, <span class="ident">serde_json::to_string_pretty</span>(<span class="kw-2">&amp;</span><span class="ident">slate</span>).<span class="ident">unwrap</span>());
+	}
+
+	<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">api_foreign</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">init_invoice_tx</span> {
+		<span class="bool-val">false</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">Foreign::new</span>(<span class="ident">wallet1</span>, <span class="ident">mask1</span>, <span class="prelude-val">Some</span>(<span class="ident">test_check_middleware</span>)),
+		<span class="bool-val">true</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">Foreign::new</span>(<span class="ident">wallet2</span>, <span class="ident">mask2</span>, <span class="prelude-val">Some</span>(<span class="ident">test_check_middleware</span>)),
+	};
+	<span class="ident">api_foreign</span>.<span class="ident">doctest_mode</span> <span class="op">=</span> <span class="bool-val">true</span>;
+	<span class="kw">let</span> <span class="ident">foreign_api</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">api_foreign</span> <span class="kw">as</span> <span class="kw-2">&amp;</span><span class="kw">dyn</span> <span class="ident">ForeignRpc</span>;
+	<span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="ident">foreign_api</span>.<span class="ident">handle_request</span>(<span class="ident">request</span>).<span class="ident">as_option</span>();
+	<span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">fs::remove_dir_all</span>(<span class="ident">test_dir</span>);
+	<span class="prelude-val">Ok</span>(<span class="ident">res</span>)
+}
+
+<span class="attribute">#[<span class="ident">doc</span>(<span class="ident">hidden</span>)]</span>
+<span class="attribute">#[<span class="ident">macro_export</span>]</span>
+<span class="macro">macro_rules!</span> <span class="ident">doctest_helper_json_rpc_foreign_assert_response</span> {
+	(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">request</span>:<span class="ident">expr</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">expected_response</span>:<span class="ident">expr</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">use_token</span>:<span class="ident">expr</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">blocks_to_mine</span>:<span class="ident">expr</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">init_tx</span>:<span class="ident">expr</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">init_invoice_tx</span>:<span class="ident">expr</span>) <span class="op">=</span><span class="op">&gt;</span> {
+		<span class="comment">// create temporary wallet, run jsonrpc request on owner api of wallet, delete wallet, return</span>
+		<span class="comment">// json response.</span>
+		<span class="comment">// In order to prevent leaking tempdirs, This function should not panic.</span>
+		<span class="kw">use</span> <span class="ident">epic_wallet_api::run_doctest_foreign</span>;
+		<span class="kw">use</span> <span class="ident">serde_json</span>;
+		<span class="kw">use</span> <span class="ident">serde_json::Value</span>;
+		<span class="kw">use</span> <span class="ident">tempfile::tempdir</span>;
+
+		<span class="kw">let</span> <span class="ident">dir</span> <span class="op">=</span> <span class="ident">tempdir</span>().<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="macro">format!</span>(<span class="string">&quot;{:#?}&quot;</span>, <span class="ident">e</span>)).<span class="ident">unwrap</span>();
+		<span class="kw">let</span> <span class="ident">dir</span> <span class="op">=</span> <span class="ident">dir</span>
+			.<span class="ident">path</span>()
+			.<span class="ident">to_str</span>()
+			.<span class="ident">ok_or</span>(<span class="string">&quot;Failed to convert tmpdir path to string.&quot;</span>.<span class="ident">to_owned</span>())
+			.<span class="ident">unwrap</span>();
+
+		<span class="kw">let</span> <span class="ident">request_val</span>: <span class="ident">Value</span> <span class="op">=</span> <span class="ident">serde_json::from_str</span>(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">request</span>).<span class="ident">unwrap</span>();
+		<span class="kw">let</span> <span class="ident">expected_response</span>: <span class="ident">Value</span> <span class="op">=</span> <span class="ident">serde_json::from_str</span>(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">expected_response</span>).<span class="ident">unwrap</span>();
+
+		<span class="kw">let</span> <span class="ident">response</span> <span class="op">=</span> <span class="ident">run_doctest_foreign</span>(
+			<span class="ident">request_val</span>,
+			<span class="ident">dir</span>,
+			<span class="macro-nonterminal">$</span><span class="macro-nonterminal">use_token</span>,
+			<span class="macro-nonterminal">$</span><span class="macro-nonterminal">blocks_to_mine</span>,
+			<span class="macro-nonterminal">$</span><span class="macro-nonterminal">init_tx</span>,
+			<span class="macro-nonterminal">$</span><span class="macro-nonterminal">init_invoice_tx</span>,
+		)
+		.<span class="ident">unwrap</span>()
+		.<span class="ident">unwrap</span>();
+
+		<span class="kw">if</span> <span class="ident">response</span> <span class="op">!</span><span class="op">=</span> <span class="ident">expected_response</span> {
+			<span class="macro">panic!</span>(
+				<span class="string">&quot;(left != right) \nleft: {}\nright: {}&quot;</span>,
+				<span class="ident">serde_json::to_string_pretty</span>(<span class="kw-2">&amp;</span><span class="ident">response</span>).<span class="ident">unwrap</span>(),
+				<span class="ident">serde_json::to_string_pretty</span>(<span class="kw-2">&amp;</span><span class="ident">expected_response</span>).<span class="ident">unwrap</span>()
+			);
+		}
+	};
+}
+</code></pre></div>
+</section><section id="search" class="content hidden"></section><div id="rustdoc-vars" data-root-path="../../" data-current-crate="epic_wallet_api" data-search-index-js="../../search-index.js" data-search-js="../../search.js"></div>
+    <script src="../../main.js"></script><script src="../../source-script.js"></script><script src="../../source-files.js"></script>
+</body></html>

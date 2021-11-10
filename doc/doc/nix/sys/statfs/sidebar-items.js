@@ -1,0 +1,1 @@
+initSidebarItems({"fn":[["fstatfs","Describes a mounted file system."],["statfs","Describes a mounted file system."]],"struct":[["Statfs","Describes a mounted file system"]],"type":[["fsid_t","Identifies a mounted file system"]]});

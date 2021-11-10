@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["HistoryIter","Iterator over `Interface` history entries"],["Writer","Provides an interface to write line-by-line output to the terminal device."]]});

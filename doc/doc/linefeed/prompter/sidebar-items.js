@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["Prompter","Provides access to the current state of input while a `read_line` call is in progress."]]});

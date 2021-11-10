@@ -1,0 +1,1 @@
+initSidebarItems({"fn":[["wallet_command",""]],"mod":[["wallet_args",""]]});
