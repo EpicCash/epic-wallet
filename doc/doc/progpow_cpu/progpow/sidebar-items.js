@@ -1,1 +1,0 @@
-initSidebarItems({"fn":[["generate_cdag",""],["keccak_f800_long",""],["keccak_f800_short",""],["progpow",""]],"type":[["CDag",""]]});

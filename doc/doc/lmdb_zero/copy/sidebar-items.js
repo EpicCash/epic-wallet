@@ -1,1 +1,0 @@
-initSidebarItems({"constant":[["COMPACT","Perform compaction while copying: omit free pages and sequentially renumber all pages in output. This option consumes more CPU and runs more slowly than the default."]],"struct":[["Flags","Flags used when copying an LMDB environment."]]});

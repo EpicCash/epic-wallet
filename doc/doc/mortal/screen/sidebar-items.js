@@ -1,1 +1,0 @@
-initSidebarItems({"struct":[["Screen","Provides operations on an underlying terminal device in screen mode."],["ScreenReadGuard","Holds an exclusive lock for read operations on a `Screen`"],["ScreenWriteGuard","Holds an exclusive lock for write operations on a `Screen`"]]});

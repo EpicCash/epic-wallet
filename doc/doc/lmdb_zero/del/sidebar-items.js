@@ -1,1 +1,0 @@
-initSidebarItems({"constant":[["NODUPDATA","Delete all of the data items for the current key instead of just the current item. This flag may only be specified if the database was opened with `DUPSORT`."]],"struct":[["Flags","Flags used when deleting items via cursors."]]});

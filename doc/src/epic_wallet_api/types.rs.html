@@ -317,6 +317,17 @@
 <span id="317">317</span>
 <span id="318">318</span>
 <span id="319">319</span>
+<span id="320">320</span>
+<span id="321">321</span>
+<span id="322">322</span>
+<span id="323">323</span>
+<span id="324">324</span>
+<span id="325">325</span>
+<span id="326">326</span>
+<span id="327">327</span>
+<span id="328">328</span>
+<span id="329">329</span>
+<span id="330">330</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright 2019 The Epic Developers</span>
 <span class="comment">// Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
 <span class="comment">// you may not use this file except in compliance with the License.</span>
@@ -453,6 +464,17 @@
 	}
 }
 
+
+<span class="doccomment">/// JSON-RPC 2.0 Request Id</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Serialize</span>, <span class="ident">Deserialize</span>, <span class="ident">Debug</span>, <span class="ident">Clone</span>)]</span>
+<span class="attribute">#[<span class="ident">serde</span>(<span class="ident">untagged</span>)]</span>
+<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">RpcId</span> {
+    <span class="ident">Null</span>,
+    <span class="ident">Str</span>(<span class="ident">String</span>),
+    <span class="ident">Integer</span>(<span class="ident">u64</span>),
+
+}
+
 <span class="doccomment">/// Wrapper for secure JSON requests</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Serialize</span>, <span class="ident">Deserialize</span>, <span class="ident">Debug</span>, <span class="ident">Clone</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">EncryptedRequest</span> {
@@ -461,14 +483,14 @@
 	<span class="doccomment">/// method</span>
 	<span class="kw">pub</span> <span class="ident">method</span>: <span class="ident">String</span>,
 	<span class="doccomment">/// id</span>
-	<span class="kw">pub</span> <span class="ident">id</span>: <span class="ident">u32</span>,
+	<span class="kw">pub</span> <span class="ident">id</span>: <span class="ident">RpcId</span>,
 	<span class="doccomment">/// Body params, which includes nonce and encrypted request</span>
 	<span class="kw">pub</span> <span class="ident">params</span>: <span class="ident">EncryptedBody</span>,
 }
 
 <span class="kw">impl</span> <span class="ident">EncryptedRequest</span> {
 	<span class="doccomment">/// from json</span>
-	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">from_json</span>(<span class="ident">id</span>: <span class="ident">u32</span>, <span class="ident">json_in</span>: <span class="kw-2">&amp;</span><span class="ident">Value</span>, <span class="ident">enc_key</span>: <span class="kw-2">&amp;</span><span class="ident">SecretKey</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident">Error</span><span class="op">&gt;</span> {
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">from_json</span>(<span class="ident">id</span>: <span class="ident">RpcId</span>, <span class="ident">json_in</span>: <span class="kw-2">&amp;</span><span class="ident">Value</span>, <span class="ident">enc_key</span>: <span class="kw-2">&amp;</span><span class="ident">SecretKey</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident">Error</span><span class="op">&gt;</span> {
 		<span class="prelude-val">Ok</span>(<span class="ident">EncryptedRequest</span> {
 			<span class="ident">jsonrpc</span>: <span class="string">&quot;2.0&quot;</span>.<span class="ident">to_owned</span>(),
 			<span class="ident">method</span>: <span class="string">&quot;encrypted_request_v3&quot;</span>.<span class="ident">to_owned</span>(),
@@ -506,14 +528,14 @@
 	<span class="doccomment">/// JSON RPC response</span>
 	<span class="kw">pub</span> <span class="ident">jsonrpc</span>: <span class="ident">String</span>,
 	<span class="doccomment">/// id</span>
-	<span class="kw">pub</span> <span class="ident">id</span>: <span class="ident">u32</span>,
+	<span class="kw">pub</span> <span class="ident">id</span>: <span class="ident">RpcId</span>,
 	<span class="doccomment">/// result</span>
 	<span class="kw">pub</span> <span class="ident">result</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">String</span>, <span class="ident">EncryptedBody</span><span class="op">&gt;</span>,
 }
 
 <span class="kw">impl</span> <span class="ident">EncryptedResponse</span> {
 	<span class="doccomment">/// from json</span>
-	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">from_json</span>(<span class="ident">id</span>: <span class="ident">u32</span>, <span class="ident">json_in</span>: <span class="kw-2">&amp;</span><span class="ident">Value</span>, <span class="ident">enc_key</span>: <span class="kw-2">&amp;</span><span class="ident">SecretKey</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident">Error</span><span class="op">&gt;</span> {
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">from_json</span>(<span class="ident">id</span>: <span class="ident">RpcId</span>, <span class="ident">json_in</span>: <span class="kw-2">&amp;</span><span class="ident">Value</span>, <span class="ident">enc_key</span>: <span class="kw-2">&amp;</span><span class="ident">SecretKey</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident">Error</span><span class="op">&gt;</span> {
 		<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result_set</span> <span class="op">=</span> <span class="ident">HashMap::new</span>();
 		<span class="ident">result_set</span>.<span class="ident">insert</span>(
 			<span class="string">&quot;Ok&quot;</span>.<span class="ident">to_string</span>(),
@@ -564,14 +586,14 @@
 	<span class="doccomment">/// JSON RPC response</span>
 	<span class="kw">pub</span> <span class="ident">jsonrpc</span>: <span class="ident">String</span>,
 	<span class="doccomment">/// id</span>
-	<span class="kw">pub</span> <span class="ident">id</span>: <span class="ident">u32</span>,
+	<span class="kw">pub</span> <span class="ident">id</span>: <span class="ident">RpcId</span>,
 	<span class="doccomment">/// error</span>
 	<span class="kw">pub</span> <span class="ident">error</span>: <span class="ident">EncryptionError</span>,
 }
 
 <span class="kw">impl</span> <span class="ident">EncryptionErrorResponse</span> {
 	<span class="doccomment">/// Create new response</span>
-	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">id</span>: <span class="ident">u32</span>, <span class="ident">code</span>: <span class="ident">i32</span>, <span class="ident">message</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">id</span>: <span class="ident">RpcId</span>, <span class="ident">code</span>: <span class="ident">i32</span>, <span class="ident">message</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
 		<span class="ident">EncryptionErrorResponse</span> {
 			<span class="ident">jsonrpc</span>: <span class="string">&quot;2.0&quot;</span>.<span class="ident">to_owned</span>(),
 			<span class="ident">id</span>: <span class="ident">id</span>,

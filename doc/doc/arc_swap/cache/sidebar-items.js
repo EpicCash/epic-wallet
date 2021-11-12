@@ -1,1 +1,0 @@
-initSidebarItems({"struct":[["Cache","Caching handle for [ArcSwapAny]."]]});

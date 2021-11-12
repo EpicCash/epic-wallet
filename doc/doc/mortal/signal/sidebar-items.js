@@ -1,1 +1,0 @@
-initSidebarItems({"enum":[["Signal","Signal received through a terminal device"]],"struct":[["SignalSet","Represents a set of `Signal` values"]]});

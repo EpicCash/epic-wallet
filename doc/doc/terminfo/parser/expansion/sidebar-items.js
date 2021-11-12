@@ -1,1 +1,0 @@
-initSidebarItems({"enum":[["Binary",""],["Conditional",""],["Constant",""],["Format",""],["Item",""],["Operation",""],["Unary",""],["Variable",""]],"fn":[["parse",""]],"struct":[["Flags",""],["Print",""]]});

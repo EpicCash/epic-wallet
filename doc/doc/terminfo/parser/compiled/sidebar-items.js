@@ -1,1 +1,0 @@
-initSidebarItems({"fn":[["parse",""]],"struct":[["Database",""],["Extended",""],["Standard",""]]});

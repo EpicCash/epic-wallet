@@ -2220,6 +2220,72 @@
 <span id="2220">2220</span>
 <span id="2221">2221</span>
 <span id="2222">2222</span>
+<span id="2223">2223</span>
+<span id="2224">2224</span>
+<span id="2225">2225</span>
+<span id="2226">2226</span>
+<span id="2227">2227</span>
+<span id="2228">2228</span>
+<span id="2229">2229</span>
+<span id="2230">2230</span>
+<span id="2231">2231</span>
+<span id="2232">2232</span>
+<span id="2233">2233</span>
+<span id="2234">2234</span>
+<span id="2235">2235</span>
+<span id="2236">2236</span>
+<span id="2237">2237</span>
+<span id="2238">2238</span>
+<span id="2239">2239</span>
+<span id="2240">2240</span>
+<span id="2241">2241</span>
+<span id="2242">2242</span>
+<span id="2243">2243</span>
+<span id="2244">2244</span>
+<span id="2245">2245</span>
+<span id="2246">2246</span>
+<span id="2247">2247</span>
+<span id="2248">2248</span>
+<span id="2249">2249</span>
+<span id="2250">2250</span>
+<span id="2251">2251</span>
+<span id="2252">2252</span>
+<span id="2253">2253</span>
+<span id="2254">2254</span>
+<span id="2255">2255</span>
+<span id="2256">2256</span>
+<span id="2257">2257</span>
+<span id="2258">2258</span>
+<span id="2259">2259</span>
+<span id="2260">2260</span>
+<span id="2261">2261</span>
+<span id="2262">2262</span>
+<span id="2263">2263</span>
+<span id="2264">2264</span>
+<span id="2265">2265</span>
+<span id="2266">2266</span>
+<span id="2267">2267</span>
+<span id="2268">2268</span>
+<span id="2269">2269</span>
+<span id="2270">2270</span>
+<span id="2271">2271</span>
+<span id="2272">2272</span>
+<span id="2273">2273</span>
+<span id="2274">2274</span>
+<span id="2275">2275</span>
+<span id="2276">2276</span>
+<span id="2277">2277</span>
+<span id="2278">2278</span>
+<span id="2279">2279</span>
+<span id="2280">2280</span>
+<span id="2281">2281</span>
+<span id="2282">2282</span>
+<span id="2283">2283</span>
+<span id="2284">2284</span>
+<span id="2285">2285</span>
+<span id="2286">2286</span>
+<span id="2287">2287</span>
+<span id="2288">2288</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright 2019 The Epic Developers</span>
 <span class="comment">//</span>
 <span class="comment">// Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
@@ -2531,6 +2597,8 @@
 	<span class="doccomment">/**
 	Networked version of [Owner::retrieve_summary_info](struct.Owner.html#method.retrieve_summary_info).
 
+	# Json rpc example
+
 	```
 	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
 	# r#&quot;
@@ -2580,7 +2648,9 @@
 	) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(<span class="ident">bool</span>, <span class="ident">WalletInfo</span>), <span class="ident">ErrorKind</span><span class="op">&gt;</span>;
 
 	<span class="doccomment">/**
-		Networked version of [Owner::init_send_tx](struct.Owner.html#method.init_send_tx).
+	Networked version of [Owner::init_send_tx](struct.Owner.html#method.init_send_tx).
+
+	# Json rpc example
 
 	```
 		# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
@@ -2680,7 +2750,9 @@
 	<span class="kw">fn</span> <span class="ident">init_send_tx</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">token</span>: <span class="ident">Token</span>, <span class="ident">args</span>: <span class="ident">InitTxArgs</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">VersionedSlate</span>, <span class="ident">ErrorKind</span><span class="op">&gt;</span>;
 
 	<span class="doccomment">/**
-		Networked version of [Owner::issue_invoice_tx](struct.Owner.html#method.issue_invoice_tx).
+	Networked version of [Owner::issue_invoice_tx](struct.Owner.html#method.issue_invoice_tx).
+
+	# Json rpc example
 
 	```
 		# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
@@ -2767,7 +2839,9 @@
 	) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">VersionedSlate</span>, <span class="ident">ErrorKind</span><span class="op">&gt;</span>;
 
 	<span class="doccomment">/**
-		 Networked version of [Owner::process_invoice_tx](struct.Owner.html#method.process_invoice_tx).
+	Networked version of [Owner::process_invoice_tx](struct.Owner.html#method.process_invoice_tx).
+
+	# Json rpc example
 
 	```
 		# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
@@ -2929,6 +3003,8 @@
 	<span class="doccomment">/**
 	Networked version of [Owner::tx_lock_outputs](struct.Owner.html#method.tx_lock_outputs).
 
+	# Json rpc example
+
 	```
 	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
 	# r#&quot;
@@ -3017,6 +3093,8 @@
 
 	<span class="doccomment">/**
 	Networked version of [Owner::finalize_tx](struct.Owner.html#method.finalize_tx).
+
+	# Json rpc example
 
 	```
 	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
@@ -3186,6 +3264,8 @@
 	<span class="doccomment">/**
 	Networked version of [Owner::post_tx](struct.Owner.html#method.post_tx).
 
+	# Json rpc example
+
 	```
 	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
 	# r#&quot;
@@ -3255,6 +3335,7 @@
 	<span class="doccomment">/**
 	Networked version of [Owner::cancel_tx](struct.Owner.html#method.cancel_tx).
 
+	# Json rpc example
 
 	```
 	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
@@ -3292,6 +3373,8 @@
 
 	<span class="doccomment">/**
 	Networked version of [Owner::get_stored_tx](struct.Owner.html#method.get_stored_tx).
+
+	# Json rpc example
 
 	```
 	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
@@ -3395,6 +3478,8 @@
 	<span class="doccomment">/**
 	Networked version of [Owner::verify_slate_messages](struct.Owner.html#method.verify_slate_messages).
 
+	# Json rpc example
+
 	```
 	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
 	# r#&quot;
@@ -3477,6 +3562,7 @@
 	<span class="doccomment">/**
 	Networked version of [Owner::scan](struct.Owner.html#method.scan).
 
+	# Json rpc example
 
 	```
 	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
@@ -3514,6 +3600,8 @@
 
 	<span class="doccomment">/**
 	Networked version of [Owner::node_height](struct.Owner.html#method.node_height).
+
+	# Json rpc example
 
 	```
 	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
@@ -3603,6 +3691,8 @@
 	<span class="doccomment">/**
 	Networked version of [Owner::get_top_level_directory](struct.Owner.html#method.get_top_level_directory).
 
+	# Json rpc example
+
 	```
 	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
 	# r#&quot;
@@ -3632,6 +3722,9 @@
 
 	<span class="doccomment">/**
 	Networked version of [Owner::set_top_level_directory](struct.Owner.html#method.set_top_level_directory).
+
+	# Json rpc example
+
 	```
 	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
 	# r#&quot;
@@ -3663,9 +3756,12 @@
 	<span class="doccomment">/**
 	Networked version of [Owner::create_config](struct.Owner.html#method.create_config).
 
+	# Json rpc example
+
 	Both the `wallet_config` and `logging_config` parameters can be `null`, the examples
 	below are for illustration. Note that the values provided for `log_file_path` and `data_file_dir`
 	will be ignored and replaced with the actual values based on the value of `get_top_level_directory`
+
 	```
 	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
 	# r#&quot;
@@ -3733,6 +3829,9 @@
 
 	<span class="doccomment">/**
 	Networked version of [Owner::create_wallet](struct.Owner.html#method.create_wallet).
+
+	# Json rpc example
+
 	```
 	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
 	# r#&quot;
@@ -3772,6 +3871,9 @@
 
 	<span class="doccomment">/**
 	Networked version of [Owner::open_wallet](struct.Owner.html#method.open_wallet).
+
+	# Json rpc example
+
 	```
 	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
 	# r#&quot;
@@ -3803,6 +3905,9 @@
 
 	<span class="doccomment">/**
 	Networked version of [Owner::close_wallet](struct.Owner.html#method.close_wallet).
+
+	# Json rpc example
+
 	```
 	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
 	# r#&quot;
@@ -3833,6 +3938,9 @@
 
 	<span class="doccomment">/**
 	Networked version of [Owner::get_mnemonic](struct.Owner.html#method.get_mnemonic).
+
+	# Json rpc example
+
 	```
 	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
 	# r#&quot;
@@ -3864,6 +3972,9 @@
 
 	<span class="doccomment">/**
 	Networked version of [Owner::change_password](struct.Owner.html#method.change_password).
+
+	# Json rpc example
+
 	```
 	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
 	# r#&quot;
@@ -3900,6 +4011,9 @@
 
 	<span class="doccomment">/**
 	Networked version of [Owner::delete_wallet](struct.Owner.html#method.delete_wallet).
+
+	# Json rpc example
+
 	```
 	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
 	# r#&quot;
@@ -3929,6 +4043,9 @@
 
 	<span class="doccomment">/**
 	Networked version of [Owner::start_updated](struct.Owner.html#method.start_updater).
+
+	# Json rpc example
+
 	```
 	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
 	# r#&quot;
@@ -3960,6 +4077,9 @@
 
 	<span class="doccomment">/**
 	Networked version of [Owner::stop_updater](struct.Owner.html#method.stop_updater).
+
+	# Json rpc example
+
 	```
 	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
 	# r#&quot;
@@ -3987,6 +4107,9 @@
 
 	<span class="doccomment">/**
 	Networked version of [Owner::get_updater_messages](struct.Owner.html#method.get_updater_messages).
+
+	# Json rpc example
+
 	```
 	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
 	# r#&quot;
@@ -4017,6 +4140,9 @@
 
 	<span class="doccomment">/**
 	Networked version of [Owner::get_public_proof_address](struct.Owner.html#method.get_public_proof_address).
+
+	# Json rpc example
+
 	```
 	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
 	# r#&quot;
@@ -4052,6 +4178,9 @@
 
 	<span class="doccomment">/**
 	Networked version of [Owner::proof_address_from_onion_v3](struct.Owner.html#method.proof_address_from_onion_v3).
+
+	# Json rpc example
+
 	```
 	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
 	# r#&quot;
@@ -4082,6 +4211,9 @@
 
 	<span class="doccomment">/**
 	Networked version of [Owner::set_tor_config](struct.Owner.html#method.set_tor_config).
+
+	# Json rpc example
+
 	```
 	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
 	# r#&quot;

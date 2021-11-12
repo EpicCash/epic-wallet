@@ -1,1 +1,0 @@
-initSidebarItems({"trait":[["OpenTerminalExt","Implements Unix-only extensions for terminal interfaces."],["TerminalExt","Implements Unix-only extensions for terminal interfaces."]]});

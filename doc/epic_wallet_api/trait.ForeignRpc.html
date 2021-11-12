@@ -122,7 +122,7 @@
 			<span class="string">&quot;version_info&quot;</span>: {
 				<span class="string">&quot;orig_version&quot;</span>: <span class="number">2</span>,
 				<span class="string">&quot;version&quot;</span>: <span class="number">2</span>,
-				<span class="string">&quot;block_header_version&quot;</span>: <span class="number">2</span>
+				<span class="string">&quot;block_header_version&quot;</span>: <span class="number">6</span>
 			}
 		}
 	]
@@ -134,8 +134,7 @@
 		<span class="string">&quot;Ok&quot;</span>: <span class="ident">null</span>
 	}
 }</code></pre></div>
-</div></details><details class="rustdoc-toggle" open><summary><div id="tymethod.receive_tx" class="method has-srclink"><div class="rightside"><a class="srclink" href="../src/epic_wallet_api/foreign_rpc.rs.html#357-362" title="goto source code">[src]</a></div><h4 class="code-header">fn <a href="#tymethod.receive_tx" class="fnname">receive_tx</a>(<br>&nbsp;&nbsp;&nbsp;&nbsp;&amp;self, <br>&nbsp;&nbsp;&nbsp;&nbsp;slate: <a class="enum" href="../epic_wallet_libwallet/slate_versions/enum.VersionedSlate.html" title="enum epic_wallet_libwallet::slate_versions::VersionedSlate">VersionedSlate</a>, <br>&nbsp;&nbsp;&nbsp;&nbsp;dest_acct_name: <a class="enum" href="https://doc.rust-lang.org/1.56.1/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="struct" href="https://doc.rust-lang.org/1.56.1/alloc/string/struct.String.html" title="struct alloc::string::String">String</a>&gt;, <br>&nbsp;&nbsp;&nbsp;&nbsp;message: <a class="enum" href="https://doc.rust-lang.org/1.56.1/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="struct" href="https://doc.rust-lang.org/1.56.1/alloc/string/struct.String.html" title="struct alloc::string::String">String</a>&gt;<br>) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.56.1/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="enum" href="../epic_wallet_libwallet/slate_versions/enum.VersionedSlate.html" title="enum epic_wallet_libwallet::slate_versions::VersionedSlate">VersionedSlate</a>, <a class="enum" href="../epic_wallet_libwallet/error/enum.ErrorKind.html" title="enum epic_wallet_libwallet::error::ErrorKind">ErrorKind</a>&gt;</h4></div></summary><div class="docblock">
-<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="ident">Networked</span> <span class="ident">version</span> <span class="ident">of</span> [<span class="ident">Foreign::receive_tx</span>](<span class="kw">struct</span>.<span class="ident">Foreign</span>.<span class="ident">html</span>#<span class="ident">method</span>.<span class="ident">receive_tx</span>).</code></pre></div>
+</div></details><details class="rustdoc-toggle" open><summary><div id="tymethod.receive_tx" class="method has-srclink"><div class="rightside"><a class="srclink" href="../src/epic_wallet_api/foreign_rpc.rs.html#357-362" title="goto source code">[src]</a></div><h4 class="code-header">fn <a href="#tymethod.receive_tx" class="fnname">receive_tx</a>(<br>&nbsp;&nbsp;&nbsp;&nbsp;&amp;self, <br>&nbsp;&nbsp;&nbsp;&nbsp;slate: <a class="enum" href="../epic_wallet_libwallet/slate_versions/enum.VersionedSlate.html" title="enum epic_wallet_libwallet::slate_versions::VersionedSlate">VersionedSlate</a>, <br>&nbsp;&nbsp;&nbsp;&nbsp;dest_acct_name: <a class="enum" href="https://doc.rust-lang.org/1.56.1/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="struct" href="https://doc.rust-lang.org/1.56.1/alloc/string/struct.String.html" title="struct alloc::string::String">String</a>&gt;, <br>&nbsp;&nbsp;&nbsp;&nbsp;message: <a class="enum" href="https://doc.rust-lang.org/1.56.1/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="struct" href="https://doc.rust-lang.org/1.56.1/alloc/string/struct.String.html" title="struct alloc::string::String">String</a>&gt;<br>) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.56.1/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="enum" href="../epic_wallet_libwallet/slate_versions/enum.VersionedSlate.html" title="enum epic_wallet_libwallet::slate_versions::VersionedSlate">VersionedSlate</a>, <a class="enum" href="../epic_wallet_libwallet/error/enum.ErrorKind.html" title="enum epic_wallet_libwallet::error::ErrorKind">ErrorKind</a>&gt;</h4></div></summary><div class="docblock"><p>Networked version of <a href="struct.Foreign.html#method.receive_tx">Foreign::receive_tx</a>.</p>
 <h1 id="json-rpc-example-3" class="section-header"><a href="#json-rpc-example-3">Json rpc example</a></h1>
 <div class="example-wrap"><pre class="rust rust-example-rendered"><code>{
 	<span class="string">&quot;jsonrpc&quot;</span>: <span class="string">&quot;2.0&quot;</span>,
@@ -146,7 +145,7 @@
 		<span class="string">&quot;version_info&quot;</span>: {
 			<span class="string">&quot;version&quot;</span>: <span class="number">2</span>,
 			<span class="string">&quot;orig_version&quot;</span>: <span class="number">2</span>,
-			<span class="string">&quot;block_header_version&quot;</span>: <span class="number">2</span>
+			<span class="string">&quot;block_header_version&quot;</span>: <span class="number">6</span>
 		},
 		<span class="string">&quot;num_participants&quot;</span>: <span class="number">2</span>,
 		<span class="string">&quot;id&quot;</span>: <span class="string">&quot;0436430c-2b02-624c-2032-570501212b00&quot;</span>,
@@ -272,7 +271,7 @@
 			<span class="string">&quot;version_info&quot;</span>: {
 				<span class="string">&quot;orig_version&quot;</span>: <span class="number">2</span>,
 				<span class="string">&quot;version&quot;</span>: <span class="number">2</span>,
-				<span class="string">&quot;block_header_version&quot;</span>: <span class="number">2</span>
+				<span class="string">&quot;block_header_version&quot;</span>: <span class="number">6</span>
 			}
 		}
 	}
@@ -287,7 +286,7 @@
 		<span class="string">&quot;version_info&quot;</span>: {
 			<span class="string">&quot;version&quot;</span>: <span class="number">2</span>,
 			<span class="string">&quot;orig_version&quot;</span>: <span class="number">2</span>,
-			<span class="string">&quot;block_header_version&quot;</span>: <span class="number">2</span>
+			<span class="string">&quot;block_header_version&quot;</span>: <span class="number">6</span>
 		},
 		<span class="string">&quot;num_participants&quot;</span>: <span class="number">2</span>,
 		<span class="string">&quot;id&quot;</span>: <span class="string">&quot;0436430c-2b02-624c-2032-570501212b00&quot;</span>,
@@ -423,7 +422,7 @@
 			<span class="string">&quot;version_info&quot;</span>: {
 				<span class="string">&quot;orig_version&quot;</span>: <span class="number">2</span>,
 				<span class="string">&quot;version&quot;</span>: <span class="number">2</span>,
-				<span class="string">&quot;block_header_version&quot;</span>: <span class="number">2</span>
+				<span class="string">&quot;block_header_version&quot;</span>: <span class="number">6</span>
 			}
 		}
 	}

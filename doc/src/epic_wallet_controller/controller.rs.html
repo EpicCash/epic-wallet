@@ -917,7 +917,7 @@
 
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::apiwallet</span>::{
 	<span class="ident">EncryptedRequest</span>, <span class="ident">EncryptedResponse</span>, <span class="ident">EncryptionErrorResponse</span>, <span class="ident">Foreign</span>,
-	<span class="ident">ForeignCheckMiddlewareFn</span>, <span class="ident">ForeignRpc</span>, <span class="ident">Owner</span>, <span class="ident">OwnerRpc</span>, <span class="ident">OwnerRpcS</span>,
+	<span class="ident">ForeignCheckMiddlewareFn</span>, <span class="ident">ForeignRpc</span>, <span class="ident">Owner</span>, <span class="ident">OwnerRpc</span>, <span class="ident">OwnerRpcS</span>, <span class="ident">RpcId</span>
 };
 <span class="kw">use</span> <span class="ident">easy_jsonrpc_mw</span>;
 <span class="kw">use</span> <span class="ident">easy_jsonrpc_mw</span>::{<span class="ident">Handler</span>, <span class="ident">MaybeReply</span>};
@@ -1310,7 +1310,7 @@
 		<span class="kw">match</span> <span class="ident">OwnerV3Helpers::encryption_enabled</span>(<span class="ident">key</span>) {
 			<span class="bool-val">true</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(()),
 			<span class="bool-val">false</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">EncryptionErrorResponse::new</span>(
-				<span class="number">1</span>,
+				<span class="ident">RpcId::Integer</span>(<span class="number">1</span>),
 				<span class="op">-</span><span class="number">32001</span>,
 				<span class="string">&quot;Encryption must be enabled. Please call &#39;init_secure_api` first&quot;</span>,
 			)
@@ -1353,20 +1353,20 @@
 	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">decrypt_request</span>(
 		<span class="ident">key</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Mutex</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">SecretKey</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 		<span class="ident">req</span>: <span class="kw-2">&amp;</span><span class="ident">serde_json::Value</span>,
-	) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(<span class="ident">u32</span>, <span class="ident">serde_json::Value</span>), <span class="ident">serde_json::Value</span><span class="op">&gt;</span> {
+	) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(<span class="ident">RpcId</span>, <span class="ident">serde_json::Value</span>), <span class="ident">serde_json::Value</span><span class="op">&gt;</span> {
 		<span class="kw">let</span> <span class="ident">share_key_ref</span> <span class="op">=</span> <span class="ident">key</span>.<span class="ident">lock</span>();
 		<span class="kw">let</span> <span class="ident">shared_key</span> <span class="op">=</span> <span class="ident">share_key_ref</span>.<span class="ident">as_ref</span>().<span class="ident">unwrap</span>();
 		<span class="kw">let</span> <span class="ident">enc_req</span>: <span class="ident">EncryptedRequest</span> <span class="op">=</span> <span class="ident">serde_json::from_value</span>(<span class="ident">req</span>.<span class="ident">clone</span>()).<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> {
 			<span class="ident">EncryptionErrorResponse::new</span>(
-				<span class="number">1</span>,
+				<span class="ident">RpcId::Integer</span>(<span class="number">1</span>),
 				<span class="op">-</span><span class="number">32002</span>,
 				<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;Encrypted request format error: {}&quot;</span>, <span class="ident">e</span>),
 			)
 			.<span class="ident">as_json_value</span>()
 		})<span class="question-mark">?</span>;
-		<span class="kw">let</span> <span class="ident">id</span> <span class="op">=</span> <span class="ident">enc_req</span>.<span class="ident">id</span>;
+		<span class="kw">let</span> <span class="ident">id</span> <span class="op">=</span> <span class="ident">enc_req</span>.<span class="ident">id</span>.<span class="ident">clone</span>();
 		<span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="ident">enc_req</span>.<span class="ident">decrypt</span>(<span class="kw-2">&amp;</span><span class="ident">shared_key</span>).<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> {
-			<span class="ident">EncryptionErrorResponse::new</span>(<span class="number">1</span>, <span class="op">-</span><span class="number">32002</span>, <span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;Decryption error: {}&quot;</span>, <span class="ident">e</span>.<span class="ident">kind</span>()))
+			<span class="ident">EncryptionErrorResponse::new</span>(<span class="ident">RpcId::Integer</span>(<span class="number">1</span>), <span class="op">-</span><span class="number">32002</span>, <span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;Decryption error: {}&quot;</span>, <span class="ident">e</span>.<span class="ident">kind</span>()))
 				.<span class="ident">as_json_value</span>()
 		})<span class="question-mark">?</span>;
 		<span class="prelude-val">Ok</span>((<span class="ident">id</span>, <span class="ident">res</span>))
@@ -1375,18 +1375,18 @@
 	<span class="doccomment">/// Encrypt a response</span>
 	<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">encrypt_response</span>(
 		<span class="ident">key</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">Mutex</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">SecretKey</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-		<span class="ident">id</span>: <span class="ident">u32</span>,
+		<span class="ident">id</span>: <span class="ident">RpcId</span>,
 		<span class="ident">res</span>: <span class="kw-2">&amp;</span><span class="ident">serde_json::Value</span>,
 	) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">serde_json::Value</span>, <span class="ident">serde_json::Value</span><span class="op">&gt;</span> {
 		<span class="kw">let</span> <span class="ident">share_key_ref</span> <span class="op">=</span> <span class="ident">key</span>.<span class="ident">lock</span>();
 		<span class="kw">let</span> <span class="ident">shared_key</span> <span class="op">=</span> <span class="ident">share_key_ref</span>.<span class="ident">as_ref</span>().<span class="ident">unwrap</span>();
 		<span class="kw">let</span> <span class="ident">enc_res</span> <span class="op">=</span> <span class="ident">EncryptedResponse::from_json</span>(<span class="ident">id</span>, <span class="ident">res</span>, <span class="kw-2">&amp;</span><span class="ident">shared_key</span>).<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> {
-			<span class="ident">EncryptionErrorResponse::new</span>(<span class="number">1</span>, <span class="op">-</span><span class="number">32003</span>, <span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;EncryptionError: {}&quot;</span>, <span class="ident">e</span>.<span class="ident">kind</span>()))
+			<span class="ident">EncryptionErrorResponse::new</span>(<span class="ident">RpcId::Integer</span>(<span class="number">1</span>), <span class="op">-</span><span class="number">32003</span>, <span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;EncryptionError: {}&quot;</span>, <span class="ident">e</span>.<span class="ident">kind</span>()))
 				.<span class="ident">as_json_value</span>()
 		})<span class="question-mark">?</span>;
 		<span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="ident">enc_res</span>.<span class="ident">as_json_value</span>().<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> {
 			<span class="ident">EncryptionErrorResponse::new</span>(
-				<span class="number">1</span>,
+				<span class="ident">RpcId::Integer</span>(<span class="number">1</span>),
 				<span class="op">-</span><span class="number">32002</span>,
 				<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;Encrypted response format error: {}&quot;</span>, <span class="ident">e</span>),
 			)
@@ -1502,7 +1502,7 @@
 			<span class="kw">let</span> <span class="ident">owner_api_s</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">api</span> <span class="kw">as</span> <span class="kw-2">&amp;</span><span class="kw">dyn</span> <span class="ident">OwnerRpcS</span>;
 			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">is_init_secure_api</span> <span class="op">=</span> <span class="ident">OwnerV3Helpers::is_init_secure_api</span>(<span class="kw-2">&amp;</span><span class="ident">val</span>);
 			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">was_encrypted</span> <span class="op">=</span> <span class="bool-val">false</span>;
-			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">encrypted_req_id</span> <span class="op">=</span> <span class="number">0</span>;
+			<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">encrypted_req_id</span> <span class="op">=</span> <span class="ident">RpcId::Integer</span>(<span class="number">0</span>);
 			<span class="kw">if</span> <span class="op">!</span><span class="ident">is_init_secure_api</span> {
 				<span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Err</span>(<span class="ident">v</span>) <span class="op">=</span> <span class="ident">OwnerV3Helpers::check_encryption_started</span>(<span class="ident">key</span>.<span class="ident">clone</span>()) {
 					<span class="kw">return</span> <span class="ident">ok</span>(<span class="ident">v</span>);

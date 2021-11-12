@@ -1,1 +1,0 @@
-initSidebarItems({"mod":[["config","Configuration file management"],["types","Public types for config modules"]]});

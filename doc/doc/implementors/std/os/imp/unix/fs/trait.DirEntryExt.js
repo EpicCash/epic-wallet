@@ -1,3 +1,0 @@
-(function() {var implementors = {};
-implementors["tokio_fs"] = [{"text":"impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.56.1/std/os/imp/unix/fs/trait.DirEntryExt.html\" title=\"trait std::os::imp::unix::fs::DirEntryExt\">DirEntryExt</a> for <a class=\"struct\" href=\"tokio_fs/struct.DirEntry.html\" title=\"struct tokio_fs::DirEntry\">DirEntry</a>","synthetic":false,"types":["tokio_fs::read_dir::DirEntry"]}];
-if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

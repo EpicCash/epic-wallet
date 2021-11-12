@@ -1,1 +1,0 @@
-initSidebarItems({"struct":[["BasicAuthMiddleware",""],["BasicAuthURIMiddleware",""],["EPIC_BASIC_REALM",""],["EPIC_FOREIGN_BASIC_REALM",""]]});

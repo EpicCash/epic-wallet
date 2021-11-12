@@ -1,1 +1,0 @@
-initSidebarItems({"static":[["ALIASES",""],["BOOLEAN",""],["BOOLEAN_INDEX",""],["NUMBER",""],["NUMBER_INDEX",""],["STRING",""],["STRING_INDEX",""],["TERMCAP",""],["TERMINFO",""]]});

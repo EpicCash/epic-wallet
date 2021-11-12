@@ -1,1 +1,0 @@
-initSidebarItems({"struct":[["LeafSet","Compact (roaring) bitmap representing the set of positions of leaves that are currently unpruned in the MMR."]]});

@@ -1626,6 +1626,27 @@
 <span id="1626">1626</span>
 <span id="1627">1627</span>
 <span id="1628">1628</span>
+<span id="1629">1629</span>
+<span id="1630">1630</span>
+<span id="1631">1631</span>
+<span id="1632">1632</span>
+<span id="1633">1633</span>
+<span id="1634">1634</span>
+<span id="1635">1635</span>
+<span id="1636">1636</span>
+<span id="1637">1637</span>
+<span id="1638">1638</span>
+<span id="1639">1639</span>
+<span id="1640">1640</span>
+<span id="1641">1641</span>
+<span id="1642">1642</span>
+<span id="1643">1643</span>
+<span id="1644">1644</span>
+<span id="1645">1645</span>
+<span id="1646">1646</span>
+<span id="1647">1647</span>
+<span id="1648">1648</span>
+<span id="1649">1649</span>
 </pre><pre class="rust"><code><span class="comment">// Copyright 2019 The Epic Developers</span>
 <span class="comment">//</span>
 <span class="comment">// Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
@@ -1915,6 +1936,8 @@
 	<span class="doccomment">/**
 	Networked version of [Owner::retrieve_summary_info](struct.Owner.html#method.retrieve_summary_info).
 
+	# Json rpc example
+
 	```
 	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
 	# r#&quot;
@@ -1959,7 +1982,9 @@
 	) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(<span class="ident">bool</span>, <span class="ident">WalletInfo</span>), <span class="ident">ErrorKind</span><span class="op">&gt;</span>;
 
 	<span class="doccomment">/**
-		Networked version of [Owner::init_send_tx](struct.Owner.html#method.init_send_tx).
+	Networked version of [Owner::init_send_tx](struct.Owner.html#method.init_send_tx).
+
+	# Json rpc example
 
 	```
 		# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
@@ -2053,7 +2078,9 @@
 	<span class="kw">fn</span> <span class="ident">init_send_tx</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">args</span>: <span class="ident">InitTxArgs</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">VersionedSlate</span>, <span class="ident">ErrorKind</span><span class="op">&gt;</span>;
 
 	<span class="doccomment">/**
-		Networked version of [Owner::issue_invoice_tx](struct.Owner.html#method.issue_invoice_tx).
+	Networked version of [Owner::issue_invoice_tx](struct.Owner.html#method.issue_invoice_tx).
+
+	# Json rpc example
 
 	```
 		# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
@@ -2135,7 +2162,9 @@
 	<span class="kw">fn</span> <span class="ident">issue_invoice_tx</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">args</span>: <span class="ident">IssueInvoiceTxArgs</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">VersionedSlate</span>, <span class="ident">ErrorKind</span><span class="op">&gt;</span>;
 
 	<span class="doccomment">/**
-		 Networked version of [Owner::process_invoice_tx](struct.Owner.html#method.process_invoice_tx).
+	Networked version of [Owner::process_invoice_tx](struct.Owner.html#method.process_invoice_tx).
+
+	# Json rpc example
 
 	```
 		# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
@@ -2295,6 +2324,8 @@
 	<span class="doccomment">/**
 	Networked version of [Owner::tx_lock_outputs](struct.Owner.html#method.tx_lock_outputs).
 
+	# Json rpc example
+
 	```
 	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
 	# r#&quot;
@@ -2380,6 +2411,8 @@
 
 	<span class="doccomment">/**
 	Networked version of [Owner::finalize_tx](struct.Owner.html#method.finalize_tx).
+
+	# Json rpc example
 
 	```
 	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
@@ -2547,6 +2580,8 @@
 	<span class="doccomment">/**
 	Networked version of [Owner::post_tx](struct.Owner.html#method.post_tx).
 
+	# Json rpc example
+
 	```
 	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
 	# r#&quot;
@@ -2615,6 +2650,7 @@
 	<span class="doccomment">/**
 	Networked version of [Owner::cancel_tx](struct.Owner.html#method.cancel_tx).
 
+	# Json rpc example
 
 	```
 	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
@@ -2643,6 +2679,8 @@
 
 	<span class="doccomment">/**
 	Networked version of [Owner::get_stored_tx](struct.Owner.html#method.get_stored_tx).
+
+	# Json rpc example
 
 	```
 	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
@@ -2741,6 +2779,8 @@
 	<span class="doccomment">/**
 	Networked version of [Owner::verify_slate_messages](struct.Owner.html#method.verify_slate_messages).
 
+	# Json rpc example
+
 	```
 	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
 	# r#&quot;
@@ -2821,6 +2861,7 @@
 	<span class="doccomment">/**
 	Networked version of [Owner::scan](struct.Owner.html#method.scan).
 
+	# Json rpc example
 
 	```
 	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
@@ -2850,6 +2891,7 @@
 	<span class="doccomment">/**
 	Networked version of [Owner::node_height](struct.Owner.html#method.node_height).
 
+	# Json rpc example
 
 	```
 	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
@@ -3216,7 +3258,7 @@
 		<span class="comment">// disable for now on windows</span>
 		<span class="comment">// TODO: Fix properly</span>
 		<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">target_os</span> <span class="op">=</span> <span class="string">&quot;windows&quot;</span>))]</span>
-			{
+		{
 			<span class="kw">use</span> <span class="ident">epic_wallet_api::run_doctest_owner</span>;
 			<span class="kw">use</span> <span class="ident">serde_json</span>;
 			<span class="kw">use</span> <span class="ident">serde_json::Value</span>;
@@ -3240,7 +3282,7 @@
 				<span class="macro-nonterminal">$</span><span class="macro-nonterminal">perform_tx</span>,
 				<span class="macro-nonterminal">$</span><span class="macro-nonterminal">lock_tx</span>,
 				<span class="macro-nonterminal">$</span><span class="macro-nonterminal">finalize_tx</span>,
-				)
+			)
 			.<span class="ident">unwrap</span>()
 			.<span class="ident">unwrap</span>();
 
@@ -3250,8 +3292,8 @@
 					<span class="ident">serde_json::to_string_pretty</span>(<span class="kw-2">&amp;</span><span class="ident">response</span>).<span class="ident">unwrap</span>(),
 					<span class="ident">serde_json::to_string_pretty</span>(<span class="kw-2">&amp;</span><span class="ident">expected_response</span>).<span class="ident">unwrap</span>()
 				);
-				}
 			}
+		}
 	};
 }
 </code></pre></div>

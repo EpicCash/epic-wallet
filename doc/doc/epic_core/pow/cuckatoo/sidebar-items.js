@@ -1,1 +1,0 @@
-initSidebarItems({"fn":[["new_cuckatoo_ctx","Instantiate a new CuckatooContext as a PowContext. Note that this can’t be moved in the PoWContext trait as this particular trait needs to be convertible to an object trait."]],"struct":[["CuckatooContext","Cuckatoo solver context"]]});

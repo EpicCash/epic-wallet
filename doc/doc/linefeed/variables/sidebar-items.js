@@ -1,1 +1,0 @@
-initSidebarItems({"enum":[["Variable","Represents a `Reader` variable of a given type"]],"struct":[["VariableIter","Iterator over `Reader` variable values"]]});

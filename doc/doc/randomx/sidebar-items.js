@@ -1,1 +1,0 @@
-initSidebarItems({"fn":[["calculate",""],["slow_hash",""]],"mod":[["ffi",""],["types",""],["utils",""]]});

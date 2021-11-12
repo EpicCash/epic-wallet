@@ -1,1 +1,0 @@
-initSidebarItems({"struct":[["Drain","A draining iterator for `SmallString`."],["FromUtf8Error","A possible error value when creating a `SmallString` from a byte array."],["SmallString","A `String`-like container that can store a small number of bytes inline."]]});

@@ -1,1 +1,0 @@
-initSidebarItems({"fn":[["deserialize","deserialize from either literal or string"],["serialize","serialize into a string"]]});

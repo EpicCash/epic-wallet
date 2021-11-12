@@ -1,3 +1,0 @@
-(function() {var implementors = {};
-implementors["epic_wallet_impls"] = [{"text":"impl NodeClient for <a class=\"struct\" href=\"epic_wallet_impls/struct.HTTPNodeClient.html\" title=\"struct epic_wallet_impls::HTTPNodeClient\">HTTPNodeClient</a>","synthetic":false,"types":["epic_wallet_impls::node_clients::http::HTTPNodeClient"]},{"text":"impl NodeClient for <a class=\"struct\" href=\"epic_wallet_impls/test_framework/struct.LocalWalletClient.html\" title=\"struct epic_wallet_impls::test_framework::LocalWalletClient\">LocalWalletClient</a>","synthetic":false,"types":["epic_wallet_impls::test_framework::testclient::LocalWalletClient"]}];
-if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

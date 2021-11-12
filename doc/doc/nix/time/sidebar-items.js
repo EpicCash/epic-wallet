@@ -1,1 +1,0 @@
-initSidebarItems({"fn":[["clock_getres","Get the resolution of the specified clock, (see clock_getres(2))."],["clock_gettime","Get the time of the specified clock, (see clock_gettime(2))."]],"struct":[["ClockId","Clock identifier"]]});

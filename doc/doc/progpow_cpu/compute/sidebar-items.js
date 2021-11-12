@@ -1,1 +1,0 @@
-initSidebarItems({"constant":[["FNV_PRIME",""]],"fn":[["calculate_dag_item",""],["light_compute","Difficulty quick check for POW preverification"],["slow_hash_block_number",""]],"struct":[["Light",""],["PoF","Computation result"]],"type":[["PoW",""]]});
