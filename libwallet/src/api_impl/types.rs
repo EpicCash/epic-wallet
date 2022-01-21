@@ -23,6 +23,8 @@ use crate::types::OutputData;
 
 use ed25519_dalek::PublicKey as DalekPublicKey;
 use ed25519_dalek::Signature as DalekSignature;
+
+pub use crate::epic_core::core::block_fees::BlockFees;
 /// Send TX API Args
 // TODO: This is here to ensure the legacy V1 API remains intact
 // remove this when v1 api is removed
@@ -166,26 +168,6 @@ impl Default for IssueInvoiceTxArgs {
 			message: None,
 			target_slate_version: None,
 		}
-	}
-}
-
-/// Fees in block to use for coinbase amount calculation
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct BlockFees {
-	/// fees
-	#[serde(with = "secp_ser::string_or_u64")]
-	pub fees: u64,
-	/// height
-	#[serde(with = "secp_ser::string_or_u64")]
-	pub height: u64,
-	/// key id
-	pub key_id: Option<Identifier>,
-}
-
-impl BlockFees {
-	/// return key id
-	pub fn key_id(&self) -> Option<Identifier> {
-		self.key_id.clone()
 	}
 }
 
