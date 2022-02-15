@@ -69,7 +69,7 @@ impl From<std::io::Error> for ParseError {
 }
 
 fn prompt_password_stdout(prompt: &str) -> ZeroingString {
-	ZeroingString::from(rpassword::prompt_password_stdout(prompt).unwrap())
+	ZeroingString::from(rpassword::prompt_password_stdout(prompt).unwrap_or("".to_string()))
 }
 
 pub fn prompt_password(password: &Option<ZeroingString>) -> ZeroingString {
