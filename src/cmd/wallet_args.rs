@@ -39,6 +39,9 @@ use rpassword;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use rustyline::error::ReadlineError;
+use rustyline::Editor;
+
 // define what to do on argument error
 macro_rules! arg_parse {
 	( $r:expr ) => {
@@ -98,22 +101,15 @@ where
 	C: NodeClient + 'static,
 	K: keychain::Keychain + 'static,
 {
-	let interface = Arc::new(Interface::new("recover")?);
 	let mut phrase = ZeroingString::from("");
-	interface.set_report_signal(Signal::Interrupt, true);
-	interface.set_prompt("phrase> ")?;
+	let mut rl = Editor::<()>::new();
+	println!("Please enter your recovery phrase:");
 	loop {
-		println!("Please enter your recovery phrase:");
-		let res = interface.read_line()?;
-		match res {
-			ReadResult::Eof => break,
-			ReadResult::Signal(sig) => {
-				if sig == Signal::Interrupt {
-					interface.cancel_read_line()?;
-					return Err(ParseError::CancelledError);
-				}
-			}
-			ReadResult::Input(line) => {
+		let readline = rl.readline("phrase> ");
+		match readline {
+			Ok(line) => {
+				//rl.add_history_entry(line.as_str());
+				//println!("Line: {}", line);
 				let mut w_lock = wallet.lock();
 				let p = w_lock.lc_provider().unwrap();
 				if p.validate_mnemonic(ZeroingString::from(line.clone()))
@@ -125,12 +121,59 @@ where
 					println!();
 					println!("Recovery word phrase is invalid.");
 					println!();
-					interface.set_buffer(&line)?;
+
+					//interface.set_buffer(&line)?;
 				}
+			}
+			Err(ReadlineError::Interrupted) => {
+				return Err(ParseError::CancelledError);
+			}
+			Err(ReadlineError::Eof) => {
+				return Err(ParseError::CancelledError);
+
+				//break
+			}
+			Err(err) => {
+				println!("Error: {:?}", err);
+				return Err(ParseError::CancelledError);
 			}
 		}
 	}
 	Ok(phrase)
+	/*let interface = Arc::new(Interface::new("recover")?);
+
+	interface.set_report_signal(Signal::Interrupt, true);
+	//println!("Please enter your recovery phrase:");
+	interface.set_prompt("phrase: ")?;
+	//println!();
+	loop {
+
+		let res = interface.read_line()?;
+		match res {
+			ReadResult::Eof => return Ok(ZeroingString::from("")),
+			ReadResult::Signal(sig) => {
+				if sig == Signal::Interrupt {
+					interface.cancel_read_line()?;
+					return Err(ParseError::CancelledError);
+				}
+			}
+			ReadResult::Input(line) => {
+				return Err(ParseError::CancelledError)
+				/*
+				let mut w_lock = wallet.lock();
+				let p = w_lock.lc_provider().unwrap();
+				if p.validate_mnemonic(ZeroingString::from(line.clone())).is_ok() {
+					phrase = ZeroingString::from(line);
+					return Ok(phrase)
+				} else {
+					println!();
+					println!("Recovery word phrase is invalid.");
+					println!();
+					//interface.set_buffer(&line)?;
+				}*/
+			}
+		}
+	}*/
 }
 
 fn prompt_pay_invoice(slate: &Slate, method: &str, dest: &str) -> Result<bool, ParseError> {
@@ -1071,6 +1114,7 @@ where
 	if let Err(e) = res {
 		Err(e)
 	} else {
+		//info!("subcommand");
 		Ok(wallet_args.subcommand().0.to_owned())
 	}
 }
