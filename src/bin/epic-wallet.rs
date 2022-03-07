@@ -96,7 +96,7 @@ fn real_main() -> i32 {
 				current_dir = Some(PathBuf::from(&_path));
 			}
 		}
-        ("listen", Some(init_args)) => {
+		("listen", Some(init_args)) => {
 			if let Some(_path) = init_args.value_of("config_file") {
 				current_dir = Some(PathBuf::from(&_path));
 			}
