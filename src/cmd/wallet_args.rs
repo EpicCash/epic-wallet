@@ -101,28 +101,22 @@ where
 	C: NodeClient + 'static,
 	K: keychain::Keychain + 'static,
 {
-	let mut phrase = ZeroingString::from("");
 	let mut rl = Editor::<()>::new();
 	println!("Please enter your recovery phrase:");
 	loop {
 		let readline = rl.readline("phrase> ");
 		match readline {
 			Ok(line) => {
-				//rl.add_history_entry(line.as_str());
-				//println!("Line: {}", line);
 				let mut w_lock = wallet.lock();
 				let p = w_lock.lc_provider().unwrap();
 				if p.validate_mnemonic(ZeroingString::from(line.clone()))
 					.is_ok()
 				{
-					phrase = ZeroingString::from(line);
-					break;
+					return Ok(ZeroingString::from(line));
 				} else {
 					println!();
-					println!("Recovery word phrase is invalid.");
+					eprintln!("Recovery word phrase is invalid.");
 					println!();
-
-					//interface.set_buffer(&line)?;
 				}
 			}
 			Err(ReadlineError::Interrupted) => {
@@ -130,50 +124,13 @@ where
 			}
 			Err(ReadlineError::Eof) => {
 				return Err(ParseError::CancelledError);
-
-				//break
 			}
 			Err(err) => {
-				println!("Error: {:?}", err);
+				eprintln!("Error: {:?}", err);
 				return Err(ParseError::CancelledError);
 			}
 		}
 	}
-	Ok(phrase)
-	/*let interface = Arc::new(Interface::new("recover")?);
-
-	interface.set_report_signal(Signal::Interrupt, true);
-	//println!("Please enter your recovery phrase:");
-	interface.set_prompt("phrase: ")?;
-	//println!();
-	loop {
-
-		let res = interface.read_line()?;
-		match res {
-			ReadResult::Eof => return Ok(ZeroingString::from("")),
-			ReadResult::Signal(sig) => {
-				if sig == Signal::Interrupt {
-					interface.cancel_read_line()?;
-					return Err(ParseError::CancelledError);
-				}
-			}
-			ReadResult::Input(line) => {
-				return Err(ParseError::CancelledError)
-				/*
-				let mut w_lock = wallet.lock();
-				let p = w_lock.lc_provider().unwrap();
-				if p.validate_mnemonic(ZeroingString::from(line.clone())).is_ok() {
-					phrase = ZeroingString::from(line);
-					return Ok(phrase)
-				} else {
-					println!();
-					println!("Recovery word phrase is invalid.");
-					println!();
-					//interface.set_buffer(&line)?;
-				}*/
-			}
-		}
-	}*/
 }
 
 fn prompt_pay_invoice(slate: &Slate, method: &str, dest: &str) -> Result<bool, ParseError> {
@@ -929,7 +886,7 @@ where
 			node_client,
 		)
 		.unwrap_or_else(|e| {
-			println!("{}", e);
+			eprintln!("{}", e);
 			std::process::exit(1);
 		});
 

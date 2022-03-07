@@ -72,7 +72,7 @@ where
 	thread::sleep(Duration::from_millis(100));
 
 	if let Err(e) = res {
-		println!("Wallet command failed: {}", e);
+		eprintln!("Wallet command failed: {}", e);
 		1
 	} else {
 		println!(
