@@ -27,6 +27,11 @@ args:
       short: t
       long: top_level_dir
       takes_value: true
+  - current_dir:
+      help: Path to epic-wallet dir
+      short: c
+      long: current_dir
+      takes_value: true
   - external:
       help: Listen on 0.0.0.0 interface to allow external connections (default is 127.0.0.1)
       short: e
@@ -73,11 +78,6 @@ subcommands:
             short: n
             long: no_tor
             takes_value: false
-        - config_file:
-            help: Path to a epic-wallet.toml configuration file
-            short: c
-            long: config_file
-            takes_value: true
   - owner_api:
       about: Runs the wallet's local web API
       args:
@@ -90,11 +90,6 @@ subcommands:
             help: Also run the Foreign API
             long: run_foreign
             takes_value: false
-        - config_file:
-            help: Path to a epic-wallet.toml configuration file
-            short: c
-            long: config_file
-            takes_value: true
   - send:
       about: Builds a transaction to send coins and sends to the specified listener directly
       args:

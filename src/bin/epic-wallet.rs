@@ -81,7 +81,9 @@ fn real_main() -> i32 {
 	};
 
 	let mut current_dir = None;
-
+	if let Some(_path) = args.value_of("current_dir") {
+		current_dir = Some(PathBuf::from(&_path));
+	}
 	// special cases for certain lifecycle commands
 	match args.subcommand() {
 		("init", Some(init_args)) => {
@@ -89,16 +91,6 @@ fn real_main() -> i32 {
 				current_dir = Some(env::current_dir().unwrap_or_else(|e| {
 					panic!("Error creating config file: {}", e);
 				}));
-			}
-		}
-		("owner_api", Some(init_args)) => {
-			if let Some(_path) = init_args.value_of("config_file") {
-				current_dir = Some(PathBuf::from(&_path));
-			}
-		}
-        ("listen", Some(init_args)) => {
-			if let Some(_path) = init_args.value_of("config_file") {
-				current_dir = Some(PathBuf::from(&_path));
 			}
 		}
 		_ => {}
@@ -109,6 +101,7 @@ fn real_main() -> i32 {
 	);
 	// Load relevant config, try and load a wallet config file
 	// Use defaults for configuration if config file not found anywhere
+
 	let mut config = config::initial_setup_wallet(&chain_type, current_dir).unwrap_or_else(|e| {
 		panic!("Error loading wallet configuration: {}", e);
 	});
