@@ -35,9 +35,26 @@ use epic_wallet_util::epic_keychain as keychain;
 use failure::Fail;
 use linefeed::terminal::Signal;
 use linefeed::{Interface, ReadResult};
+use log::warn;
 use rpassword;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+
+const V2_TO_V3_INSTRUCTIONS: &str = r"
+1. Roll back your `epic` and `epic-wallet` to v2.
+2. With `epic-wallet` CLI v2 execute the command
+    a. `epic-wallet init -r`
+    b. it will ask for your mnemonics to recover your wallet
+3. Still with v2, run the chain check to scan the chain
+    a. `epic-wallet check`
+4. Verify your wallet:
+    a. `epic-wallet info`
+5. Install `epic-wallet` CLI v3:
+	a. Windows: https://github.com/EpicCash/epic/blob/2.17/doc/windows.org
+	b. Linux: https://github.com/EpicCash/epic/blob/2.17/doc/running.org
+6. Verify your wallet again:
+    a. `epic-wallet info`
+";
 
 // define what to do on argument error
 macro_rules! arg_parse {
@@ -982,6 +999,7 @@ where
 		}
 		("send", Some(args)) => {
 			let a = arg_parse!(parse_send_args(&args));
+			warn!("IF YOU ARE SEEING A WRONG VALUE TO YOUR WALLET BALANCE, THAT MEANS YOU DID NOT FOLLOW THE UPGRADE PROCESS FOR THE WALLET V2 -> V3. PLEASE FOLLOW THE INSTRUCTIONS BELOW AND IF YOU HAVE ANY OTHER PROBLEMS, SEND A MESSAGE ON: https://t.me/EpicCash \n{}", V2_TO_V3_INSTRUCTIONS);
 			command::send(
 				wallet,
 				km,
@@ -992,6 +1010,7 @@ where
 		}
 		("receive", Some(args)) => {
 			let a = arg_parse!(parse_receive_args(&args));
+			warn!("IF YOU ARE SEEING A WRONG VALUE TO YOUR WALLET BALANCE, THAT MEANS YOU DID NOT FOLLOW THE UPGRADE PROCESS FOR THE WALLET V2 -> V3: \n{}", V2_TO_V3_INSTRUCTIONS);
 			command::receive(wallet, km, &global_wallet_args, a)
 		}
 		("finalize", Some(args)) => {
@@ -1000,10 +1019,12 @@ where
 		}
 		("invoice", Some(args)) => {
 			let a = arg_parse!(parse_issue_invoice_args(&args));
+			warn!("IF YOU ARE SEEING A WRONG VALUE TO YOUR WALLET BALANCE, THAT MEANS YOU DID NOT FOLLOW THE UPGRADE PROCESS FOR THE WALLET V2 -> V3: \n{}", V2_TO_V3_INSTRUCTIONS);
 			command::issue_invoice_tx(wallet, km, a)
 		}
 		("pay", Some(args)) => {
 			let a = arg_parse!(parse_process_invoice_args(&args, !test_mode));
+			warn!("IF YOU ARE SEEING A WRONG VALUE TO YOUR WALLET BALANCE, THAT MEANS YOU DID NOT FOLLOW THE UPGRADE PROCESS FOR THE WALLET V2 -> V3: \n{}", V2_TO_V3_INSTRUCTIONS);
 			command::process_invoice(
 				wallet,
 				km,
@@ -1014,6 +1035,7 @@ where
 		}
 		("info", Some(args)) => {
 			let a = arg_parse!(parse_info_args(&args));
+			warn!("IF YOU ARE SEEING A WRONG VALUE TO YOUR WALLET BALANCE, THAT MEANS YOU DID NOT FOLLOW THE UPGRADE PROCESS FOR THE WALLET V2 -> V3: \n{}", V2_TO_V3_INSTRUCTIONS);
 			command::info(
 				wallet,
 				km,
@@ -1061,6 +1083,7 @@ where
 		("address", Some(_)) => command::address(wallet, &global_wallet_args, km),
 		("scan", Some(args)) => {
 			let a = arg_parse!(parse_check_args(&args));
+			warn!("IF YOU ARE SEEING A WRONG VALUE TO YOUR WALLET BALANCE, THAT MEANS YOU DID NOT FOLLOW THE UPGRADE PROCESS FOR THE WALLET V2 -> V3: \n{}", V2_TO_V3_INSTRUCTIONS);
 			command::scan(wallet, km, a)
 		}
 		_ => {
