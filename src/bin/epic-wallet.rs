@@ -27,6 +27,7 @@ use epic_wallet_impls::HTTPNodeClient;
 use epic_wallet_util::epic_core as core;
 use epic_wallet_util::epic_util as util;
 use std::env;
+use std::fs;
 use std::path::PathBuf;
 
 use epic_wallet::cmd;
@@ -81,7 +82,15 @@ fn real_main() -> i32 {
 	};
 
 	let mut current_dir = None;
-
+	if let Some(_path) = args.value_of("current_dir") {
+		let current_dir_exist = PathBuf::from(&_path);
+		if !current_dir_exist.exists() {
+			fs::create_dir_all(current_dir_exist.clone()).unwrap_or_else(|e| {
+				panic!("Error creating current_dir: {:?}", e);
+			});
+		}
+		current_dir = Some(current_dir_exist);
+	}
 	// special cases for certain lifecycle commands
 	match args.subcommand() {
 		("init", Some(init_args)) => {
@@ -91,24 +100,12 @@ fn real_main() -> i32 {
 				}));
 			}
 		}
-		("owner_api", Some(init_args)) => {
-			if let Some(_path) = init_args.value_of("config_file") {
-				current_dir = Some(PathBuf::from(&_path));
-			}
-		}
-		("listen", Some(init_args)) => {
-			if let Some(_path) = init_args.value_of("config_file") {
-				current_dir = Some(PathBuf::from(&_path));
-			}
-		}
 		_ => {}
 	}
-	println!(
-		"######### current_dir{:?} #####################",
-		current_dir
-	);
+
 	// Load relevant config, try and load a wallet config file
 	// Use defaults for configuration if config file not found anywhere
+
 	let mut config = config::initial_setup_wallet(&chain_type, current_dir).unwrap_or_else(|e| {
 		panic!("Error loading wallet configuration: {}", e);
 	});
