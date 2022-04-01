@@ -105,7 +105,7 @@ pub trait OwnerRpcS {
 		"id": 1
 	}
 	# "#
-	# ,true, 4, false, false, false);
+	# ,true, 4, false, false, false, false);
 	```
 	 */
 	fn create_account_path(&self, token: Token, label: &String) -> Result<Identifier, ErrorKind>;
@@ -348,7 +348,7 @@ pub trait OwnerRpcS {
 		}
 	}
 	# "#
-	# ,true, 4, false, false, false);
+	# ,true, 4, false, false, false, false);
 	```
 	 */
 
@@ -455,7 +455,7 @@ pub trait OwnerRpcS {
 	  }
 	}
 		# "#
-		# ,true, 4, false, false, false);
+		# ,true, 4, false, false, false, false);
 	```
 	*/
 
@@ -540,7 +540,7 @@ pub trait OwnerRpcS {
 			}
 		}
 		# "#
-		# ,true, 4, false, false, false);
+		# ,true, 4, false, false, false, false);
 	```
 	*/
 
@@ -701,7 +701,7 @@ pub trait OwnerRpcS {
 		}
 	}
 	# "#
-	# ,true, 4, false, false, false);
+	# ,true, 4, false, false, false, false);
 	```
 	*/
 
@@ -792,7 +792,7 @@ pub trait OwnerRpcS {
 		}
 	}
 	# "#
-	# ,true, 5 ,true, false, false);
+	# ,true, 5 ,true, false, false, false);
 
 	```
 	 */
@@ -1266,7 +1266,7 @@ pub trait OwnerRpcS {
 		}
 	}
 	# "#
-	# ,true, 0 ,false, false, false);
+	# ,true, 0 ,false, false, false, false);
 	```
 	*/
 	fn verify_slate_messages(&self, token: Token, slate: VersionedSlate) -> Result<(), ErrorKind>;
@@ -1924,7 +1924,7 @@ pub trait OwnerRpcS {
 	/**
 	Networked version of [Owner::retrieve_payment_proof](struct.Owner.html#method.retrieve_payment_proof).
 	```
-	# grin_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
+	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
 	# r#"
 	{
 		"jsonrpc": "2.0",
@@ -1945,12 +1945,12 @@ pub trait OwnerRpcS {
 		"jsonrpc": "2.0",
 		"result": {
 			"Ok": {
-				"amount": "60000000000",
-				"excess": "09bac6083b05a32a9d9b37710c70dd0a1ef9329fde0848558976b6f1b81d80ceed",
+				"amount": "600000000",
+				"excess": "08d09187cb93cf5d6b97b28e8ca529912bf35ec8773d3e9af9b3c174a270dc7f05",
 				"recipient_address": "pa7wkkdgs5bkteha7lykl7ff2wztgdrxxo442xdcq2lnaphe5aidd4id",
-				"recipient_sig": "42b6f2bbcee432185993867d1a338e260454ead536bf728f4dcc8f535508715e92a0695486ba3c9945d8ecb2cf7f703a955780253b12d0048f02d318c8f08702",
+				"recipient_sig": "b9ac5e18fd13ce72923cc47796bd5af09b5247c52da3634c9b934d4e111a43f53f1c55e3f3be36a79450e18f8989d81a0c21c4b2c16c208753a9971a5ffee406",
 				"sender_address": "glg5mojiqvhywjriwhooiytn3tptlvlmw7h567lezssyek3y2tjzznad",
-				"sender_sig": "5e3f5596852e83f6db7152fc51c41b4ed8742eb8045fa85a6965c52d09fcb46ba67d4f86660c9f3dc55ab84faea79d11c3831aa77934f7e90695e63d523f8604"
+				"sender_sig": "d26fa48e9a32058b4dc9e9098edd3b98bf2e5286024adc5f7555aa4804acdb1c5506412dfae7d087c138d727da427e14c6c5b7dc2008fc7ed55ab95e8bac3e06"
 			}
 		}
 	}
@@ -1970,7 +1970,7 @@ pub trait OwnerRpcS {
 	/**
 	Networked version of [Owner::verify_payment_proof](struct.Owner.html#method.verify_payment_proof).
 	```
-	# grin_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
+	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
 	# r#"
 	{
 		"jsonrpc": "2.0",
@@ -1978,12 +1978,12 @@ pub trait OwnerRpcS {
 		"params": {
 			"token": "d202964900000000d302964900000000d402964900000000d502964900000000",
 			"proof": {
-				"amount": "60000000000",
-				"excess": "09bac6083b05a32a9d9b37710c70dd0a1ef9329fde0848558976b6f1b81d80ceed",
+				"amount": "600000000",
+				"excess": "08d09187cb93cf5d6b97b28e8ca529912bf35ec8773d3e9af9b3c174a270dc7f05",
 				"recipient_address": "pa7wkkdgs5bkteha7lykl7ff2wztgdrxxo442xdcq2lnaphe5aidd4id",
-				"recipient_sig": "42b6f2bbcee432185993867d1a338e260454ead536bf728f4dcc8f535508715e92a0695486ba3c9945d8ecb2cf7f703a955780253b12d0048f02d318c8f08702",
+				"recipient_sig": "b9ac5e18fd13ce72923cc47796bd5af09b5247c52da3634c9b934d4e111a43f53f1c55e3f3be36a79450e18f8989d81a0c21c4b2c16c208753a9971a5ffee406",
 				"sender_address": "glg5mojiqvhywjriwhooiytn3tptlvlmw7h567lezssyek3y2tjzznad",
-				"sender_sig": "5e3f5596852e83f6db7152fc51c41b4ed8742eb8045fa85a6965c52d09fcb46ba67d4f86660c9f3dc55ab84faea79d11c3831aa77934f7e90695e63d523f8604"
+				"sender_sig": "d26fa48e9a32058b4dc9e9098edd3b98bf2e5286024adc5f7555aa4804acdb1c5506412dfae7d087c138d727da427e14c6c5b7dc2008fc7ed55ab95e8bac3e06"
 			}
 		},
 		"id": 1

@@ -98,7 +98,7 @@ pub trait OwnerRpc: Sync + Send {
 		"id": 1
 	}
 	# "#
-	# ,false, 4, false, false, false);
+	# ,false, 4, false, false, false, false);
 	```
 	 */
 	fn create_account_path(&self, label: &String) -> Result<Identifier, ErrorKind>;
@@ -322,7 +322,7 @@ pub trait OwnerRpc: Sync + Send {
 		}
 	}
 	# "#
-	# ,false, 4, false, false, false);
+	# ,false, 4, false, false, false, false);
 	```
 	 */
 
@@ -422,7 +422,7 @@ pub trait OwnerRpc: Sync + Send {
 	  }
 	}
 		# "#
-		# ,false, 4, false, false, false);
+		# ,false, 4, false, false, false, false);
 	```
 	*/
 
@@ -506,7 +506,7 @@ pub trait OwnerRpc: Sync + Send {
 			}
 		}
 		# "#
-		# ,false, 4, false, false, false);
+		# ,false, 4, false, false, false, false);
 	```
 	*/
 
@@ -662,7 +662,7 @@ pub trait OwnerRpc: Sync + Send {
 		}
 	}
 	# "#
-	# ,false, 4, false, false, false);
+	# ,false, 4, false, false, false, false);
 	```
 	*/
 
@@ -750,7 +750,7 @@ pub trait OwnerRpc: Sync + Send {
 		}
 	}
 	# "#
-	# ,false, 5 ,true, false, false);
+	# ,false, 5 ,true, false, false, false);
 
 	```
 	 */
@@ -1204,7 +1204,7 @@ pub trait OwnerRpc: Sync + Send {
 		}
 	}
 	# "#
-	# ,false, 0 ,false, false, false);
+	# ,false, 0 ,false, false, false, false);
 	```
 	*/
 	fn verify_slate_messages(&self, slate: VersionedSlate) -> Result<(), ErrorKind>;

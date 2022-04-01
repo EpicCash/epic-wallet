@@ -133,7 +133,7 @@ fn payment_proofs_test_impl(test_dir: &'static str) -> Result<(), libwallet::Err
 		slate = sender_api.finalize_tx(m, &slate)?;
 
 		sender_api.post_tx(m, &slate.tx, true)?;
- 		Ok(())
+
 		// Check payment proof here
 		let (_, txs) = sender_api.retrieve_txs(m, true, None, Some(slate.id))?;
 		let tx = txs[0].clone();
@@ -164,7 +164,7 @@ fn payment_proofs_test_impl(test_dir: &'static str) -> Result<(), libwallet::Err
  		Ok(())
  	})?;
 	//thread::sleep(Duration::from_millis(200));
-	//Ok(())
+	Ok(())
 }
 
 #[test]

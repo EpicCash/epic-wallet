@@ -26,12 +26,12 @@ dirs = "1.0.3"
 
 # For beta release
 
-epic_core     = { git = "https://github.com/EpicCash/epic", branch = "3.0.0"}
-epic_keychain = { git = "https://github.com/EpicCash/epic", branch = "3.0.0" }
-epic_chain    = { git = "https://github.com/EpicCash/epic", branch = "3.0.0" }
-epic_util     = { git = "https://github.com/EpicCash/epic", branch = "3.0.0" }
-epic_api      = { git = "https://github.com/EpicCash/epic", branch = "3.0.0" }
-epic_store    = { git = "https://github.com/EpicCash/epic", branch = "3.0.0" }
+#epic_core     = { git = "https://github.com/EpicCash/epic", branch = "3.0.0"}
+#epic_keychain = { git = "https://github.com/EpicCash/epic", branch = "3.0.0" }
+#epic_chain    = { git = "https://github.com/EpicCash/epic", branch = "3.0.0" }
+#epic_util     = { git = "https://github.com/EpicCash/epic", branch = "3.0.0" }
+#epic_api      = { git = "https://github.com/EpicCash/epic", branch = "3.0.0" }
+#epic_store    = { git = "https://github.com/EpicCash/epic", branch = "3.0.0" }
 
 # For bleeding edge
 # epic_core = { git = "https://github.com/mimblewimble/epic", branch = "master" }
@@ -42,12 +42,12 @@ epic_store    = { git = "https://github.com/EpicCash/epic", branch = "3.0.0" }
 # epic_store = { git = "https://github.com/mimblewimble/epic", branch = "master" }
 
 # For local testing
-# epic_core = { path = "../../epic/core"}
-# epic_keychain = { path = "../../epic/keychain"}
-# epic_chain = { path = "../../epic/chain"}
-# epic_util = { path = "../../epic/util"}
-# epic_api = { path = "../../epic/api"}
-# epic_store = { path = "../../epic/store"}
+epic_core = { path = "../../epic/core"}
+epic_keychain = { path = "../../epic/keychain"}
+epic_chain = { path = "../../epic/chain"}
+epic_util = { path = "../../epic/util"}
+epic_api = { path = "../../epic/api"}
+epic_store = { path = "../../epic/store"}
 
 [dev-dependencies]
 pretty_assertions = "0.5.1"
