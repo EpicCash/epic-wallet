@@ -134,6 +134,17 @@ impl EncryptedBody {
 	}
 }
 
+
+/// JSON-RPC 2.0 Request Id
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(untagged)]
+pub enum RpcId {
+    Null,
+    Str(String),
+    Integer(u64),
+
+}
+
 /// Wrapper for secure JSON requests
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct EncryptedRequest {
@@ -142,14 +153,14 @@ pub struct EncryptedRequest {
 	/// method
 	pub method: String,
 	/// id
-	pub id: u32,
+	pub id: RpcId,
 	/// Body params, which includes nonce and encrypted request
 	pub params: EncryptedBody,
 }
 
 impl EncryptedRequest {
 	/// from json
-	pub fn from_json(id: u32, json_in: &Value, enc_key: &SecretKey) -> Result<Self, Error> {
+	pub fn from_json(id: RpcId, json_in: &Value, enc_key: &SecretKey) -> Result<Self, Error> {
 		Ok(EncryptedRequest {
 			jsonrpc: "2.0".to_owned(),
 			method: "encrypted_request_v3".to_owned(),
@@ -187,14 +198,14 @@ pub struct EncryptedResponse {
 	/// JSON RPC response
 	pub jsonrpc: String,
 	/// id
-	pub id: u32,
+	pub id: RpcId,
 	/// result
 	pub result: HashMap<String, EncryptedBody>,
 }
 
 impl EncryptedResponse {
 	/// from json
-	pub fn from_json(id: u32, json_in: &Value, enc_key: &SecretKey) -> Result<Self, Error> {
+	pub fn from_json(id: RpcId, json_in: &Value, enc_key: &SecretKey) -> Result<Self, Error> {
 		let mut result_set = HashMap::new();
 		result_set.insert(
 			"Ok".to_string(),
@@ -245,14 +256,14 @@ pub struct EncryptionErrorResponse {
 	/// JSON RPC response
 	pub jsonrpc: String,
 	/// id
-	pub id: u32,
+	pub id: RpcId,
 	/// error
 	pub error: EncryptionError,
 }
 
 impl EncryptionErrorResponse {
 	/// Create new response
-	pub fn new(id: u32, code: i32, message: &str) -> Self {
+	pub fn new(id: RpcId, code: i32, message: &str) -> Self {
 		EncryptionErrorResponse {
 			jsonrpc: "2.0".to_owned(),
 			id: id,

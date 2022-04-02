@@ -19,7 +19,7 @@ extern crate log;
 
 extern crate epic_wallet;
 
-use epic_wallet_api::ECDHPubkey;
+use epic_wallet_api::{ECDHPubkey, RpcId};
 use epic_wallet_impls::test_framework::{self, LocalWalletClient, WalletProxy};
 
 use clap::App;
@@ -148,7 +148,7 @@ fn owner_v3_lifecycle() -> Result<(), epic_wallet_controller::Error> {
 	// 2) get the top level directory, should default to ~/.epic/auto
 	let req = include_str!("data/v3_reqs/get_top_level.req.json");
 	let res =
-		send_request_enc::<String>(1, 1, "http://127.0.0.1:43420/v3/owner", &req, &shared_key)?;
+		send_request_enc::<String>(RpcId::Integer(1), 1, "http://127.0.0.1:43420/v3/owner", &req, &shared_key)?;
 	println!("RES 2: {:?}", res);
 	assert!(res.is_ok());
 	assert!(res.unwrap().contains("auto"));
@@ -162,20 +162,14 @@ fn owner_v3_lifecycle() -> Result<(), epic_wallet_controller::Error> {
 			"dir": format!("{}/wallet1", test_dir)
 		}
 	});
-	let res = send_request_enc::<String>(
-		1,
-		1,
-		"http://127.0.0.1:43420/v3/owner",
-		&req.to_string(),
-		&shared_key,
-	)?;
+	let res = send_request_enc::<String>(RpcId::Integer(1), 1, "http://127.0.0.1:43420/v3/owner", &req.to_string(), &shared_key)?;
 	println!("RES 3: {:?}", res);
 	assert!(res.is_ok());
 
 	// 4) create a configuration file in top level directory
 	let req = include_str!("data/v3_reqs/create_config.req.json");
 	let res =
-		send_request_enc::<String>(1, 1, "http://127.0.0.1:43420/v3/owner", &req, &shared_key)?;
+		send_request_enc::<String>(RpcId::Integer(1), 1, "http://127.0.0.1:43420/v3/owner", &req, &shared_key)?;
 	println!("RES 4: {:?}", res);
 	assert!(res.is_ok());
 	let pb = PathBuf::from(format!("{}/wallet1/epic-wallet.toml", test_dir));
@@ -184,28 +178,28 @@ fn owner_v3_lifecycle() -> Result<(), epic_wallet_controller::Error> {
 	// 5) Try and perform an operation without having a wallet open
 	let req = include_str!("data/v3_reqs/retrieve_info.req.json");
 	let res =
-		send_request_enc::<String>(1, 1, "http://127.0.0.1:43420/v3/owner", &req, &shared_key)?;
+		send_request_enc::<String>(RpcId::Integer(1), 1, "http://127.0.0.1:43420/v3/owner", &req, &shared_key)?;
 	println!("RES 5: {:?}", res);
 	assert!(res.is_err());
 
 	// 6) Create a wallet
 	let req = include_str!("data/v3_reqs/create_wallet.req.json");
 	let res =
-		send_request_enc::<String>(1, 1, "http://127.0.0.1:43420/v3/owner", &req, &shared_key)?;
+		send_request_enc::<String>(RpcId::Integer(1), 1, "http://127.0.0.1:43420/v3/owner", &req, &shared_key)?;
 	println!("RES 6: {:?}", res);
 	assert!(res.is_ok());
 
 	// 7) Try and create a wallet when one exists
 	let req = include_str!("data/v3_reqs/create_wallet.req.json");
 	let res =
-		send_request_enc::<String>(1, 1, "http://127.0.0.1:43420/v3/owner", &req, &shared_key)?;
+		send_request_enc::<String>(RpcId::Integer(1), 1, "http://127.0.0.1:43420/v3/owner", &req, &shared_key)?;
 	println!("RES 7: {:?}", res);
 	assert!(res.is_err());
 
 	// 8) Open the wallet
 	let req = include_str!("data/v3_reqs/open_wallet.req.json");
 	let res =
-		send_request_enc::<String>(1, 1, "http://127.0.0.1:43420/v3/owner", &req, &shared_key)?;
+		send_request_enc::<String>(RpcId::Integer(1), 1, "http://127.0.0.1:43420/v3/owner", &req, &shared_key)?;
 	println!("RES 8: {:?}", res);
 	assert!(res.is_ok());
 	let token = res.unwrap();
@@ -223,7 +217,7 @@ fn owner_v3_lifecycle() -> Result<(), epic_wallet_controller::Error> {
 	});
 
 	let res = send_request_enc::<RetrieveSummaryInfoResp>(
-		1,
+		RpcId::Integer(1),
 		1,
 		"http://127.0.0.1:43420/v3/owner",
 		&req.to_string(),
@@ -245,7 +239,7 @@ fn owner_v3_lifecycle() -> Result<(), epic_wallet_controller::Error> {
 	});
 
 	let res = send_request_enc::<RetrieveSummaryInfoResp>(
-		1,
+		RpcId::Integer(1),
 		1,
 		"http://127.0.0.1:43420/v3/owner",
 		&req.to_string(),
@@ -257,7 +251,7 @@ fn owner_v3_lifecycle() -> Result<(), epic_wallet_controller::Error> {
 	// 11) Close the wallet
 	let req = include_str!("data/v3_reqs/close_wallet.req.json");
 	let res =
-		send_request_enc::<String>(1, 1, "http://127.0.0.1:43420/v3/owner", &req, &shared_key)?;
+		send_request_enc::<String>(RpcId::Integer(1), 1, "http://127.0.0.1:43420/v3/owner", &req, &shared_key)?;
 	println!("RES 11: {:?}", res);
 	assert!(res.is_ok());
 
@@ -274,7 +268,7 @@ fn owner_v3_lifecycle() -> Result<(), epic_wallet_controller::Error> {
 	});
 
 	let res = send_request_enc::<RetrieveSummaryInfoResp>(
-		1,
+		RpcId::Integer(1),
 		1,
 		"http://127.0.0.1:43420/v3/owner",
 		&req.to_string(),
@@ -286,7 +280,7 @@ fn owner_v3_lifecycle() -> Result<(), epic_wallet_controller::Error> {
 	// 13) Open the wallet again
 	let req = include_str!("data/v3_reqs/open_wallet.req.json");
 	let res =
-		send_request_enc::<String>(1, 1, "http://127.0.0.1:43420/v3/owner", &req, &shared_key)?;
+		send_request_enc::<String>(RpcId::Integer(1), 1, "http://127.0.0.1:43420/v3/owner", &req, &shared_key)?;
 	println!("RES 13: {:?}", res);
 	assert!(res.is_ok());
 	let token = res.unwrap();
@@ -303,7 +297,7 @@ fn owner_v3_lifecycle() -> Result<(), epic_wallet_controller::Error> {
 		}
 	});
 	let res = send_request_enc::<RetrieveSummaryInfoResp>(
-		1,
+		RpcId::Integer(1),
 		1,
 		"http://127.0.0.1:43420/v3/owner",
 		&req.to_string(),
@@ -328,7 +322,7 @@ fn owner_v3_lifecycle() -> Result<(), epic_wallet_controller::Error> {
 		}
 	});
 	let res = send_request_enc::<VersionedSlate>(
-		1,
+		RpcId::Integer(1),
 		1,
 		"http://127.0.0.1:43420/v3/owner",
 		&req.to_string(),
@@ -375,20 +369,20 @@ fn owner_v3_lifecycle() -> Result<(), epic_wallet_controller::Error> {
 	//17) Change the password
 	let req = include_str!("data/v3_reqs/close_wallet.req.json");
 	let res =
-		send_request_enc::<String>(1, 1, "http://127.0.0.1:43420/v3/owner", &req, &shared_key)?;
+		send_request_enc::<String>(RpcId::Integer(1), 1, "http://127.0.0.1:43420/v3/owner", &req, &shared_key)?;
 	println!("RES 17: {:?}", res);
 	assert!(res.is_ok());
 
 	let req = include_str!("data/v3_reqs/change_password.req.json");
 	let res =
-		send_request_enc::<String>(1, 1, "http://127.0.0.1:43420/v3/owner", &req, &shared_key)?;
+		send_request_enc::<String>(RpcId::Integer(1), 1, "http://127.0.0.1:43420/v3/owner", &req, &shared_key)?;
 	println!("RES 17a: {:?}", res);
 	assert!(res.is_ok());
 
 	// 18) trying to open with old password should fail
 	let req = include_str!("data/v3_reqs/open_wallet.req.json");
 	let res =
-		send_request_enc::<String>(1, 1, "http://127.0.0.1:43420/v3/owner", &req, &shared_key)?;
+		send_request_enc::<String>(RpcId::Integer(1), 1, "http://127.0.0.1:43420/v3/owner", &req, &shared_key)?;
 	println!("RES 18: {:?}", res);
 	assert!(res.is_err());
 
@@ -402,13 +396,7 @@ fn owner_v3_lifecycle() -> Result<(), epic_wallet_controller::Error> {
 			"password": "password"
 		}
 	});
-	let res = send_request_enc::<String>(
-		1,
-		1,
-		"http://127.0.0.1:43420/v3/owner",
-		&req.to_string(),
-		&shared_key,
-	)?;
+	let res = send_request_enc::<String>(RpcId::Integer(1), 1, "http://127.0.0.1:43420/v3/owner", &req.to_string(), &shared_key)?;
 	println!("RES 19: {:?}", res);
 	assert!(res.is_ok());
 	let token = res.unwrap();
@@ -427,7 +415,7 @@ fn owner_v3_lifecycle() -> Result<(), epic_wallet_controller::Error> {
 	});
 
 	let res = send_request_enc::<RetrieveSummaryInfoResp>(
-		1,
+		RpcId::Integer(1),
 		1,
 		"http://127.0.0.1:43420/v3/owner",
 		&req.to_string(),
@@ -449,13 +437,7 @@ fn owner_v3_lifecycle() -> Result<(), epic_wallet_controller::Error> {
 		}
 	});
 
-	let res = send_request_enc::<String>(
-		1,
-		1,
-		"http://127.0.0.1:43420/v3/owner",
-		&req.to_string(),
-		&shared_key,
-	)?;
+	let res = send_request_enc::<String>(RpcId::Integer(1), 1, "http://127.0.0.1:43420/v3/owner", &req.to_string(), &shared_key)?;
 	assert!(res.is_ok());
 	println!("RES 21: {:?}", res);
 	thread::sleep(Duration::from_millis(5000));
@@ -470,13 +452,7 @@ fn owner_v3_lifecycle() -> Result<(), epic_wallet_controller::Error> {
 		}
 	});
 
-	let res = send_request_enc::<String>(
-		1,
-		1,
-		"http://127.0.0.1:43420/v3/owner",
-		&req.to_string(),
-		&shared_key,
-	)?;
+	let res = send_request_enc::<String>(RpcId::Integer(1), 1, "http://127.0.0.1:43420/v3/owner", &req.to_string(), &shared_key)?;
 	assert!(res.is_ok());
 	println!("RES 22: {:?}", res);
 
@@ -488,32 +464,26 @@ fn owner_v3_lifecycle() -> Result<(), epic_wallet_controller::Error> {
 		"params": null
 	});
 
-	let res = send_request_enc::<String>(
-		1,
-		1,
-		"http://127.0.0.1:43420/v3/owner",
-		&req.to_string(),
-		&shared_key,
-	)?;
+	let res = send_request_enc::<String>(RpcId::Integer(1), 1, "http://127.0.0.1:43420/v3/owner", &req.to_string(), &shared_key)?;
 	assert!(res.is_ok());
 	println!("RES 23: {:?}", res);
 
 	// 24) Delete the wallet (close first)
 	let req = include_str!("data/v3_reqs/close_wallet.req.json");
 	let res =
-		send_request_enc::<String>(1, 1, "http://127.0.0.1:43420/v3/owner", &req, &shared_key)?;
+		send_request_enc::<String>(RpcId::Integer(1), 1, "http://127.0.0.1:43420/v3/owner", &req, &shared_key)?;
 	assert!(res.is_ok());
 
 	let req = include_str!("data/v3_reqs/delete_wallet.req.json");
 	let res =
-		send_request_enc::<String>(1, 1, "http://127.0.0.1:43420/v3/owner", &req, &shared_key)?;
+		send_request_enc::<String>(RpcId::Integer(1), 1, "http://127.0.0.1:43420/v3/owner", &req, &shared_key)?;
 	println!("RES 24: {:?}", res);
 	assert!(res.is_ok());
 
 	// 25) Wallet should be gone
 	let req = include_str!("data/v3_reqs/open_wallet.req.json");
 	let res =
-		send_request_enc::<String>(1, 1, "http://127.0.0.1:43420/v3/owner", &req, &shared_key)?;
+		send_request_enc::<String>(RpcId::Integer(1), 1, "http://127.0.0.1:43420/v3/owner", &req, &shared_key)?;
 	println!("RES 25: {:?}", res);
 	assert!(res.is_err());
 

@@ -71,7 +71,7 @@ fn basic_transaction_api(test_dir: &'static str) -> Result<(), libwallet::Error>
 	});
 
 	// few values to keep things shorter
-	let reward = core::consensus::REWARD;
+	let reward = core::consensus::BLOCK_TIME_SEC * core::consensus::EPIC_BASE;
 	let cm = global::coinbase_maturity();
 	// mine a few blocks
 	let _ = test_framework::award_blocks_to_wallet(&chain, wallet1.clone(), mask1, 10, false);
@@ -380,7 +380,7 @@ fn tx_rollback(test_dir: &'static str) -> Result<(), libwallet::Error> {
 	});
 
 	// few values to keep things shorter
-	let reward = core::consensus::REWARD;
+	let reward = core::consensus::BLOCK_TIME_SEC * core::consensus::EPIC_BASE;
 	let cm = global::coinbase_maturity(); // assume all testing precedes soft fork height
 									  // mine a few blocks
 	let _ = test_framework::award_blocks_to_wallet(&chain, wallet1.clone(), mask1, 5, false);

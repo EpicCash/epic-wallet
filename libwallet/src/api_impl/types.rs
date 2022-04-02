@@ -22,7 +22,9 @@ use crate::slate_versions::SlateVersion;
 use crate::types::OutputData;
 
 use ed25519_dalek::PublicKey as DalekPublicKey;
+use ed25519_dalek::Signature as DalekSignature;
 
+pub use crate::epic_core::core::block_fees::BlockFees;
 /// Send TX API Args
 // TODO: This is here to ensure the legacy V1 API remains intact
 // remove this when v1 api is removed
@@ -169,26 +171,6 @@ impl Default for IssueInvoiceTxArgs {
 	}
 }
 
-/// Fees in block to use for coinbase amount calculation
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct BlockFees {
-	/// fees
-	#[serde(with = "secp_ser::string_or_u64")]
-	pub fees: u64,
-	/// height
-	#[serde(with = "secp_ser::string_or_u64")]
-	pub height: u64,
-	/// key id
-	pub key_id: Option<Identifier>,
-}
-
-impl BlockFees {
-	/// return key id
-	pub fn key_id(&self) -> Option<Identifier> {
-		self.key_id.clone()
-	}
-}
-
 /// Map Outputdata to commits
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct OutputCommitMapping {
@@ -221,4 +203,28 @@ pub struct VersionInfo {
 	pub foreign_api_version: u16,
 	/// Slate version
 	pub supported_slate_versions: Vec<SlateVersion>,
+}
+
+/// Packaged Payment Proof
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct PaymentProof {
+	/// Amount
+	#[serde(with = "secp_ser::string_or_u64")]
+	pub amount: u64,
+	/// Kernel Excess
+	#[serde(
+		serialize_with = "secp_ser::as_hex",
+		deserialize_with = "secp_ser::commitment_from_hex"
+	)]
+	pub excess: pedersen::Commitment,
+	/// Recipient Wallet Address (Onion V3)
+	pub recipient_address: String,
+	/// Recipient Signature
+	#[serde(with = "dalek_ser::dalek_sig_serde")]
+	pub recipient_sig: DalekSignature,
+	/// Sender Wallet Address (Onion V3)
+	pub sender_address: String,
+	/// Sender Signature
+	#[serde(with = "dalek_ser::dalek_sig_serde")]
+	pub sender_sig: DalekSignature,
 }

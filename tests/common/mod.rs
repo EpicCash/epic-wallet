@@ -24,8 +24,8 @@ use std::sync::Arc;
 use std::{env, fs};
 use util::{Mutex, ZeroingString};
 
-use epic_wallet_api::{EncryptedRequest, EncryptedResponse};
-use epic_wallet_config::{GlobalWalletConfig, WalletConfig, GRIN_WALLET_DIR};
+use epic_wallet_api::{EncryptedRequest, EncryptedResponse, RpcId};
+use epic_wallet_config::{GlobalWalletConfig, WalletConfig, EPIC_WALLET_DIR};
 use epic_wallet_impls::{DefaultLCProvider, DefaultWalletImpl};
 use epic_wallet_libwallet::{NodeClient, WalletInfo, WalletInst};
 use epic_wallet_util::epic_core::core::feijoada;
@@ -69,7 +69,7 @@ macro_rules! setup_proxy {
 		println!("{:?}", target);
 		if !target.exists() {
 			execute_command(&app, $test_dir, "wallet1", &$client1, arg_vec.clone())?;
-			}
+		}
 
 		// add wallet to proxy
 		let config1 = initial_setup_wallet($test_dir, "wallet1");
@@ -80,14 +80,14 @@ macro_rules! setup_proxy {
 			$client1.clone(),
 			"password",
 			"default",
-			)?;
+		)?;
 		let $mask1 = (&mask1_i).as_ref();
 		wallet_proxy.add_wallet(
 			"wallet1",
 			$client1.get_send_instance(),
 			$wallet1.clone(),
 			mask1_i.clone(),
-			);
+		);
 
 		// Create wallet 2, which will run a listener
 		let $client2 = LocalWalletClient::new("wallet2", wallet_proxy.tx.clone());
@@ -95,7 +95,7 @@ macro_rules! setup_proxy {
 		let target = std::path::PathBuf::from(format!("{}/wallet2/epic-wallet.toml", $test_dir));
 		if !target.exists() {
 			execute_command(&app, $test_dir, "wallet2", &$client2, arg_vec.clone())?;
-			}
+		}
 
 		let config2 = initial_setup_wallet($test_dir, "wallet2");
 		let wallet_config2 = config2.clone().members.unwrap().wallet;
@@ -105,21 +105,21 @@ macro_rules! setup_proxy {
 			$client2.clone(),
 			"password",
 			"default",
-			)?;
+		)?;
 		let $mask2 = (&mask2_i).as_ref();
 		wallet_proxy.add_wallet(
 			"wallet2",
 			$client2.get_send_instance(),
 			$wallet2.clone(),
 			mask2_i.clone(),
-			);
+		);
 
 		// Set the wallet proxy listener running
 		thread::spawn(move || {
 			if let Err(e) = wallet_proxy.run() {
 				error!("Wallet Proxy error: {}", e);
-				}
-			});
+			}
+		});
 	};
 }
 
@@ -250,7 +250,7 @@ pub fn instantiate_wallet(
 	// remove `wallet_data` from end of path as
 	// new lifecycle provider assumes epic_wallet.toml is in root of data directory
 	let mut top_level_wallet_dir = PathBuf::from(wallet_config.clone().data_file_dir);
-	if top_level_wallet_dir.ends_with(GRIN_WALLET_DIR) {
+	if top_level_wallet_dir.ends_with(EPIC_WALLET_DIR) {
 		top_level_wallet_dir.pop();
 		wallet_config.data_file_dir = top_level_wallet_dir.to_str().unwrap().into();
 	}
@@ -380,7 +380,7 @@ where
 
 #[allow(dead_code)]
 pub fn send_request_enc<OUT>(
-	sec_req_id: u32,
+	sec_req_id: RpcId,
 	internal_request_id: u32,
 	dest: &str,
 	req: &str,

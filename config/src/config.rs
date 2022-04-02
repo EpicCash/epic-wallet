@@ -34,9 +34,9 @@ use crate::util::logger::LoggingConfig;
 /// Wallet configuration file name
 pub const WALLET_CONFIG_FILE_NAME: &'static str = "epic-wallet.toml";
 const WALLET_LOG_FILE_NAME: &'static str = "epic-wallet.log";
-const GRIN_HOME: &'static str = ".epic";
+const EPIC_HOME: &'static str = ".epic";
 /// Wallet data directory
-pub const GRIN_WALLET_DIR: &'static str = "wallet_data";
+pub const EPIC_WALLET_DIR: &'static str = "wallet_data";
 /// Node API secret
 pub const API_SECRET_FILE_NAME: &'static str = ".api_secret";
 /// Owner API secret
@@ -48,7 +48,7 @@ fn get_epic_path(chain_type: &global::ChainTypes) -> Result<PathBuf, ConfigError
 		Some(p) => p,
 		None => PathBuf::new(),
 	};
-	epic_path.push(GRIN_HOME);
+	epic_path.push(EPIC_HOME);
 	epic_path.push(chain_type.shortname());
 	// Create if the default path doesn't exist
 	if !epic_path.exists() {
@@ -239,7 +239,7 @@ impl GlobalWalletConfig {
 	/// Update paths
 	pub fn update_paths(&mut self, wallet_home: &PathBuf) {
 		let mut wallet_path = wallet_home.clone();
-		wallet_path.push(GRIN_WALLET_DIR);
+		wallet_path.push(EPIC_WALLET_DIR);
 		self.members.as_mut().unwrap().wallet.data_file_dir =
 			wallet_path.to_str().unwrap().to_owned();
 		let mut secret_path = wallet_home.clone();

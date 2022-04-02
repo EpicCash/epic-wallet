@@ -1,0 +1,1 @@
+window.ALL_CRATES = ["epic_wallet","epic_wallet_api","epic_wallet_config","epic_wallet_controller","epic_wallet_impls","epic_wallet_libwallet","epic_wallet_util"];

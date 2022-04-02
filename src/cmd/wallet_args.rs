@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::api::TLSConfig;
-use crate::config::GRIN_WALLET_DIR;
+use crate::config::EPIC_WALLET_DIR;
 use crate::util::file::get_first_line;
 use crate::util::{to_hex, Mutex, ZeroingString};
 /// Argument parsing and error handling for wallet commands
@@ -46,8 +46,8 @@ macro_rules! arg_parse {
 			Ok(res) => res,
 			Err(e) => {
 				return Err(ErrorKind::ArgumentError(format!("{}", e)).into());
-				}
 			}
+		}
 	};
 }
 /// Simple error definition, just so we can return errors from all commands
@@ -69,7 +69,7 @@ impl From<std::io::Error> for ParseError {
 }
 
 fn prompt_password_stdout(prompt: &str) -> ZeroingString {
-	ZeroingString::from(rpassword::prompt_password_stdout(prompt).unwrap())
+	ZeroingString::from(rpassword::prompt_password_stdout(prompt).unwrap_or("".to_string()))
 }
 
 pub fn prompt_password(password: &Option<ZeroingString>) -> ZeroingString {
@@ -775,6 +775,43 @@ pub fn parse_cancel_args(args: &ArgMatches) -> Result<command::CancelArgs, Parse
 		tx_id_string: tx_id_string.to_owned(),
 	})
 }
+pub fn parse_export_proof_args(args: &ArgMatches) -> Result<command::ProofExportArgs, ParseError> {
+	let output_file = parse_required(args, "output")?;
+	let tx_id = match args.value_of("id") {
+		None => None,
+		Some(tx) => Some(parse_u64(tx, "id")? as u32),
+	};
+	let tx_slate_id = match args.value_of("txid") {
+		None => None,
+		Some(tx) => match tx.parse() {
+			Ok(t) => Some(t),
+			Err(e) => {
+				let msg = format!("Could not parse txid parameter. e={}", e);
+				return Err(ParseError::ArgumentError(msg));
+			}
+		},
+	};
+	if tx_id.is_some() && tx_slate_id.is_some() {
+		let msg = format!("At most one of 'id' (-i) or 'txid' (-t) may be provided.");
+		return Err(ParseError::ArgumentError(msg));
+	}
+	if tx_id.is_none() && tx_slate_id.is_none() {
+		let msg = format!("Either 'id' (-i) or 'txid' (-t) must be provided.");
+		return Err(ParseError::ArgumentError(msg));
+	}
+	Ok(command::ProofExportArgs {
+		output_file: output_file.to_owned(),
+		id: tx_id,
+		tx_slate_id: tx_slate_id,
+	})
+}
+
+pub fn parse_verify_proof_args(args: &ArgMatches) -> Result<command::ProofVerifyArgs, ParseError> {
+	let input_file = parse_required(args, "input")?;
+	Ok(command::ProofVerifyArgs {
+		input_file: input_file.to_owned(),
+	})
+}
 
 pub fn wallet_command<C, F>(
 	wallet_args: &ArgMatches,
@@ -826,7 +863,7 @@ where
 	// remove `wallet_data` from end of path as
 	// new lifecycle provider assumes epic_wallet.toml is in root of data directory
 	let mut top_level_wallet_dir = PathBuf::from(wallet_config.clone().data_file_dir);
-	if top_level_wallet_dir.ends_with(GRIN_WALLET_DIR) {
+	if top_level_wallet_dir.ends_with(EPIC_WALLET_DIR) {
 		top_level_wallet_dir.pop();
 		wallet_config.data_file_dir = top_level_wallet_dir.to_str().unwrap().into();
 	}
@@ -1012,6 +1049,14 @@ where
 		("cancel", Some(args)) => {
 			let a = arg_parse!(parse_cancel_args(&args));
 			command::cancel(wallet, km, a)
+		}
+		("export_proof", Some(args)) => {
+			let a = arg_parse!(parse_export_proof_args(&args));
+			command::proof_export(wallet, km, a)
+		}
+		("verify_proof", Some(args)) => {
+			let a = arg_parse!(parse_verify_proof_args(&args));
+			command::proof_verify(wallet, km, a)
 		}
 		("address", Some(_)) => command::address(wallet, &global_wallet_args, km),
 		("scan", Some(args)) => {

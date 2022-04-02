@@ -19,7 +19,7 @@
 use crate::api::{self, LocatedTxKernel};
 use crate::chain::types::NoopAdapter;
 use crate::chain::Chain;
-use crate::core::core::verifier_cache::LruVerifierCache;
+
 use crate::core::core::{Transaction, TxKernel};
 use crate::core::global::{set_mining_mode, ChainTypes};
 use crate::core::{pow, ser};
@@ -97,14 +97,12 @@ where
 	pub fn new(chain_dir: &str) -> Self {
 		set_mining_mode(ChainTypes::AutomatedTesting);
 		let genesis_block = pow::mine_genesis_block().unwrap();
-		let verifier_cache = Arc::new(RwLock::new(LruVerifierCache::new()));
 		let dir_name = format!("{}/.epic", chain_dir);
 		let c = Chain::init(
 			dir_name.to_string(),
 			Arc::new(NoopAdapter {}),
 			genesis_block,
 			pow::verify_size,
-			verifier_cache,
 			false,
 		)
 		.unwrap();
@@ -353,7 +351,15 @@ where
 		let max = split[2].parse::<u64>().unwrap();
 		let commit_bytes = util::from_hex(excess).unwrap();
 		let commit = pedersen::Commitment::from_vec(commit_bytes);
-		let k = super::get_kernel_local(self.chain.clone(), &commit, Some(min), Some(max));
+		let min = match min {
+			0 => None,
+			m => Some(m),
+		};
+		let max = match max {
+			0 => None,
+			m => Some(m),
+		};
+		let k = super::get_kernel_local(self.chain.clone(), &commit, min, max);
 		Ok(WalletProxyMessage {
 			sender_id: "node".to_owned(),
 			dest: m.sender_id,

@@ -21,7 +21,7 @@ use crate::epic_core::core::committed::Committed;
 use crate::epic_core::core::transaction::{
 	Input, KernelFeatures, Output, Transaction, TransactionBody, TxKernel, Weighting,
 };
-use crate::epic_core::core::verifier_cache::LruVerifierCache;
+
 use crate::epic_core::libtx::{aggsig, build, proof::ProofBuild, secp_ser, tx_fee};
 use crate::epic_core::map_vec;
 use crate::epic_keychain::{BlindSum, BlindingFactor, Keychain};
@@ -47,7 +47,7 @@ use crate::slate_versions::v3::{
 	CoinbaseV3, InputV3, OutputV3, ParticipantDataV3, PaymentInfoV3, SlateV3, TransactionBodyV3,
 	TransactionV3, TxKernelV3, VersionCompatInfoV3,
 };
-use crate::slate_versions::{CURRENT_SLATE_VERSION, GRIN_BLOCK_HEADER_VERSION};
+use crate::slate_versions::{CURRENT_SLATE_VERSION, EPIC_BLOCK_HEADER_VERSION};
 use crate::types::CbData;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -258,7 +258,7 @@ impl Slate {
 			version_info: VersionCompatInfo {
 				version: CURRENT_SLATE_VERSION,
 				orig_version: CURRENT_SLATE_VERSION,
-				block_header_version: GRIN_BLOCK_HEADER_VERSION,
+				block_header_version: EPIC_BLOCK_HEADER_VERSION,
 			},
 			payment_proof: None,
 		}
@@ -708,8 +708,7 @@ impl Slate {
 
 		// confirm the overall transaction is valid (including the updated kernel)
 		// accounting for tx weight limits
-		let verifier_cache = Arc::new(RwLock::new(LruVerifierCache::new()));
-		let _ = final_tx.validate(Weighting::AsTransaction, verifier_cache)?;
+		let _ = final_tx.validate(Weighting::AsTransaction)?;
 
 		self.tx = final_tx;
 		Ok(())

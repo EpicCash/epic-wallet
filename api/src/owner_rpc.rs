@@ -23,7 +23,7 @@ use crate::libwallet::{
 	OutputCommitMapping, Slate, SlateVersion, TxLogEntry, VersionedSlate, WalletInfo,
 	WalletLCProvider,
 };
-use crate::util::Mutex;
+use crate::util::{from_hex, Mutex};
 use crate::{Owner, OwnerRpcS};
 use easy_jsonrpc_mw;
 use std::sync::Arc;
@@ -64,7 +64,7 @@ pub trait OwnerRpc: Sync + Send {
 		"id": 1
 	}
 	# "#
-	# , false, 4, false, false, false);
+	# , false, 4, false, false, false, false);
 	```
 	*/
 	#[deprecated(
@@ -128,7 +128,7 @@ pub trait OwnerRpc: Sync + Send {
 		"id": 1
 	}
 	# "#
-	# , false, 4, false, false, false);
+	# , false, 4, false, false, false, false);
 	```
 	 */
 	fn set_active_account(&self, label: &String) -> Result<(), ErrorKind>;
@@ -194,7 +194,7 @@ pub trait OwnerRpc: Sync + Send {
 		}
 	}
 	# "#
-	# , false, 2, false, false, false);
+	# , false, 2, false, false, false, false);
 	```
 	*/
 	fn retrieve_outputs(
@@ -273,7 +273,7 @@ pub trait OwnerRpc: Sync + Send {
 	  }
 	}
 	# "#
-	# , false, 2, false, false, false);
+	# , false, 2, false, false, false, false);
 	```
 	*/
 
@@ -286,6 +286,8 @@ pub trait OwnerRpc: Sync + Send {
 
 	/**
 	Networked version of [Owner::retrieve_summary_info](struct.Owner.html#method.retrieve_summary_info).
+
+	# Json rpc example
 
 	```
 	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
@@ -331,7 +333,9 @@ pub trait OwnerRpc: Sync + Send {
 	) -> Result<(bool, WalletInfo), ErrorKind>;
 
 	/**
-		Networked version of [Owner::init_send_tx](struct.Owner.html#method.init_send_tx).
+	Networked version of [Owner::init_send_tx](struct.Owner.html#method.init_send_tx).
+
+	# Json rpc example
 
 	```
 		# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
@@ -425,7 +429,9 @@ pub trait OwnerRpc: Sync + Send {
 	fn init_send_tx(&self, args: InitTxArgs) -> Result<VersionedSlate, ErrorKind>;
 
 	/**
-		Networked version of [Owner::issue_invoice_tx](struct.Owner.html#method.issue_invoice_tx).
+	Networked version of [Owner::issue_invoice_tx](struct.Owner.html#method.issue_invoice_tx).
+
+	# Json rpc example
 
 	```
 		# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
@@ -507,7 +513,9 @@ pub trait OwnerRpc: Sync + Send {
 	fn issue_invoice_tx(&self, args: IssueInvoiceTxArgs) -> Result<VersionedSlate, ErrorKind>;
 
 	/**
-		 Networked version of [Owner::process_invoice_tx](struct.Owner.html#method.process_invoice_tx).
+	Networked version of [Owner::process_invoice_tx](struct.Owner.html#method.process_invoice_tx).
+
+	# Json rpc example
 
 	```
 		# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
@@ -667,6 +675,8 @@ pub trait OwnerRpc: Sync + Send {
 	/**
 	Networked version of [Owner::tx_lock_outputs](struct.Owner.html#method.tx_lock_outputs).
 
+	# Json rpc example
+
 	```
 	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
 	# r#"
@@ -752,6 +762,8 @@ pub trait OwnerRpc: Sync + Send {
 
 	/**
 	Networked version of [Owner::finalize_tx](struct.Owner.html#method.finalize_tx).
+
+	# Json rpc example
 
 	```
 	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
@@ -911,13 +923,15 @@ pub trait OwnerRpc: Sync + Send {
 		}
 	}
 	# "#
-	# , false, 5, true, true, false);
+	# , false, 5, true, true, false, false);
 	```
 	 */
 	fn finalize_tx(&self, slate: VersionedSlate) -> Result<VersionedSlate, ErrorKind>;
 
 	/**
 	Networked version of [Owner::post_tx](struct.Owner.html#method.post_tx).
+
+	# Json rpc example
 
 	```
 	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
@@ -978,7 +992,7 @@ pub trait OwnerRpc: Sync + Send {
 		}
 	}
 	# "#
-	# , false, 5, true, true, true);
+	# , false, 5, true, true, true, false);
 	```
 	 */
 
@@ -987,6 +1001,7 @@ pub trait OwnerRpc: Sync + Send {
 	/**
 	Networked version of [Owner::cancel_tx](struct.Owner.html#method.cancel_tx).
 
+	# Json rpc example
 
 	```
 	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
@@ -1008,13 +1023,15 @@ pub trait OwnerRpc: Sync + Send {
 		}
 	}
 	# "#
-	# , false, 5, true, true, false);
+	# , false, 5, true, true, false, false);
 	```
 	 */
 	fn cancel_tx(&self, tx_id: Option<u32>, tx_slate_id: Option<Uuid>) -> Result<(), ErrorKind>;
 
 	/**
 	Networked version of [Owner::get_stored_tx](struct.Owner.html#method.get_stored_tx).
+
+	# Json rpc example
 
 	```
 	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
@@ -1105,13 +1122,15 @@ pub trait OwnerRpc: Sync + Send {
 		}
 	}
 	# "#
-	# , false, 5, true, true, false);
+	# , false, 5, true, true, false, false);
 	```
 	 */
 	fn get_stored_tx(&self, tx: &TxLogEntry) -> Result<Option<TransactionV3>, ErrorKind>;
 
 	/**
 	Networked version of [Owner::verify_slate_messages](struct.Owner.html#method.verify_slate_messages).
+
+	# Json rpc example
 
 	```
 	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
@@ -1193,6 +1212,7 @@ pub trait OwnerRpc: Sync + Send {
 	/**
 	Networked version of [Owner::scan](struct.Owner.html#method.scan).
 
+	# Json rpc example
 
 	```
 	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
@@ -1214,7 +1234,7 @@ pub trait OwnerRpc: Sync + Send {
 		}
 	}
 	# "#
-	# , false, 1, false, false, false);
+	# , false, 1, false, false, false, false);
 	```
 	 */
 	fn scan(&self, start_height: Option<u64>, delete_unconfirmed: bool) -> Result<(), ErrorKind>;
@@ -1222,6 +1242,7 @@ pub trait OwnerRpc: Sync + Send {
 	/**
 	Networked version of [Owner::node_height](struct.Owner.html#method.node_height).
 
+	# Json rpc example
 
 	```
 	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
@@ -1247,7 +1268,7 @@ pub trait OwnerRpc: Sync + Send {
 		}
 	}
 	# "#
-	# , false, 5, false, false, false);
+	# , false, 5, false, false, false, false);
 	```
 	 */
 	fn node_height(&self) -> Result<NodeHeightResult, ErrorKind>;
@@ -1374,6 +1395,7 @@ pub fn run_doctest_owner(
 	perform_tx: bool,
 	lock_tx: bool,
 	finalize_tx: bool,
+	payment_proof: bool,
 ) -> Result<Option<serde_json::Value>, String> {
 	use easy_jsonrpc_mw::Handler;
 	use epic_wallet_impls::test_framework::{self, LocalWalletClient, WalletProxy};
@@ -1383,8 +1405,8 @@ pub fn run_doctest_owner(
 
 	use crate::core::global::ChainTypes;
 	use crate::core::{core::feijoada, global};
+	use ed25519_dalek::PublicKey as DalekPublicKey;
 	use epic_wallet_util::epic_util as util;
-
 	use std::fs;
 	use std::thread;
 
@@ -1442,7 +1464,7 @@ pub fn run_doctest_owner(
 		wallet1.clone(),
 		mask1.clone(),
 	);
-
+	let mut slate_outer = Slate::blank(2);
 	let rec_phrase_2 = util::ZeroingString::from(
 		"hour kingdom ripple lunch razor inquiry coyote clay stamp mean \
 		 sell finish magic kid tiny wage stand panther inside settle feed song hole exile",
@@ -1512,6 +1534,18 @@ pub fn run_doctest_owner(
 		let amount = 600_000_000;
 		let mut w_lock = wallet1.lock();
 		let w = w_lock.lc_provider().unwrap().wallet_inst().unwrap();
+		let proof_address = match payment_proof {
+			true => {
+				let bytes = from_hex(
+					"783f6528669742a990e0faf0a5fca5d5b3330e37bbb9cd5c628696d03ce4e810".to_string(),
+				)
+				.unwrap();
+				let mut b = [0u8; 32];
+				b.copy_from_slice(&bytes[0..32]);
+				Some(DalekPublicKey::from_bytes(&b).unwrap())
+			}
+			false => None,
+		};
 		let args = InitTxArgs {
 			src_acct_name: None,
 			amount,
@@ -1519,6 +1553,7 @@ pub fn run_doctest_owner(
 			max_outputs: 500,
 			num_change_outputs: 1,
 			selection_strategy_is_use_all: true,
+			payment_proof_recipient_address: proof_address,
 			..Default::default()
 		};
 		let mut slate =
@@ -1550,6 +1585,10 @@ pub fn run_doctest_owner(
 			error!("FINALIZED TX SLATE");
 			println!("{}", serde_json::to_string_pretty(&slate).unwrap());
 		}
+		slate_outer = slate;
+	}
+	if payment_proof {
+		let _ = api_impl::owner::post_tx(&client1, &slate_outer.tx, true).unwrap();
 	}
 
 	if perform_tx && lock_tx && finalize_tx {
@@ -1579,7 +1618,7 @@ pub fn run_doctest_owner(
 #[doc(hidden)]
 #[macro_export]
 macro_rules! doctest_helper_json_rpc_owner_assert_response {
-	($request:expr, $expected_response:expr, $use_token:expr, $blocks_to_mine:expr, $perform_tx:expr, $lock_tx:expr, $finalize_tx:expr) => {
+	($request:expr, $expected_response:expr, $use_token:expr, $blocks_to_mine:expr, $perform_tx:expr, $lock_tx:expr, $finalize_tx:expr, $payment_proof:expr) => {
 		// create temporary wallet, run jsonrpc request on owner api of wallet, delete wallet, return
 		// json response.
 		// In order to prevent leaking tempdirs, This function should not panic.
@@ -1588,7 +1627,7 @@ macro_rules! doctest_helper_json_rpc_owner_assert_response {
 		// disable for now on windows
 		// TODO: Fix properly
 		#[cfg(not(target_os = "windows"))]
-			{
+		{
 			use epic_wallet_api::run_doctest_owner;
 			use serde_json;
 			use serde_json::Value;
@@ -1612,7 +1651,8 @@ macro_rules! doctest_helper_json_rpc_owner_assert_response {
 				$perform_tx,
 				$lock_tx,
 				$finalize_tx,
-				)
+				$payment_proof,
+			)
 			.unwrap()
 			.unwrap();
 
@@ -1622,7 +1662,7 @@ macro_rules! doctest_helper_json_rpc_owner_assert_response {
 					serde_json::to_string_pretty(&response).unwrap(),
 					serde_json::to_string_pretty(&expected_response).unwrap()
 				);
-				}
 			}
+		}
 	};
 }
