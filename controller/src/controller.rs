@@ -39,7 +39,7 @@ use crate::impls::tor::process as tor_process;
 
 use crate::apiwallet::{
 	EncryptedRequest, EncryptedResponse, EncryptionErrorResponse, Foreign,
-	ForeignCheckMiddlewareFn, ForeignRpc, Owner, OwnerRpc, OwnerRpcS, RpcId
+	ForeignCheckMiddlewareFn, ForeignRpc, Owner, OwnerRpc, OwnerRpcS, RpcId,
 };
 use easy_jsonrpc_mw;
 use easy_jsonrpc_mw::{Handler, MaybeReply};
@@ -488,8 +488,12 @@ impl OwnerV3Helpers {
 		})?;
 		let id = enc_req.id.clone();
 		let res = enc_req.decrypt(&shared_key).map_err(|e| {
-			EncryptionErrorResponse::new(RpcId::Integer(1), -32002, &format!("Decryption error: {}", e.kind()))
-				.as_json_value()
+			EncryptionErrorResponse::new(
+				RpcId::Integer(1),
+				-32002,
+				&format!("Decryption error: {}", e.kind()),
+			)
+			.as_json_value()
 		})?;
 		Ok((id, res))
 	}
@@ -503,8 +507,12 @@ impl OwnerV3Helpers {
 		let share_key_ref = key.lock();
 		let shared_key = share_key_ref.as_ref().unwrap();
 		let enc_res = EncryptedResponse::from_json(id, res, &shared_key).map_err(|e| {
-			EncryptionErrorResponse::new(RpcId::Integer(1), -32003, &format!("EncryptionError: {}", e.kind()))
-				.as_json_value()
+			EncryptionErrorResponse::new(
+				RpcId::Integer(1),
+				-32003,
+				&format!("EncryptionError: {}", e.kind()),
+			)
+			.as_json_value()
 		})?;
 		let res = enc_res.as_json_value().map_err(|e| {
 			EncryptionErrorResponse::new(

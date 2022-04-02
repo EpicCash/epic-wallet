@@ -134,15 +134,13 @@ impl EncryptedBody {
 	}
 }
 
-
 /// JSON-RPC 2.0 Request Id
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(untagged)]
 pub enum RpcId {
-    Null,
-    Str(String),
-    Integer(u64),
-
+	Null,
+	Str(String),
+	Integer(u64),
 }
 
 /// Wrapper for secure JSON requests
