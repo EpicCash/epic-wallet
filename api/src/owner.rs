@@ -2042,7 +2042,7 @@ where
 	/// # Example
 	/// Set up as in [`new`](struct.Owner.html#method.new) method above.
 	/// ```
-	/// # grin_wallet_api::doctest_helper_setup_doc_env!(wallet, wallet_config);
+	/// # epic_wallet_api::doctest_helper_setup_doc_env!(wallet, wallet_config);
 	///
 	/// let api_owner = Owner::new(wallet.clone());
 	/// let update_from_node = true;
@@ -2111,7 +2111,7 @@ where
 	/// # Example
 	/// Set up as in [`new`](struct.Owner.html#method.new) method above.
 	/// ```
-	/// # grin_wallet_api::doctest_helper_setup_doc_env!(wallet, wallet_config);
+	/// # epic_wallet_api::doctest_helper_setup_doc_env!(wallet, wallet_config);
 	///
 	/// let api_owner = Owner::new(wallet.clone());
 	/// let update_from_node = true;
