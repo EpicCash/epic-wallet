@@ -2,13 +2,15 @@
 
 ## Requirements
 
-**The requirements for building the wallet are the same from the epic server. You can check them in the topic [Requirements](https://gitlab.com/epiccash/epic/blob/master/doc/build.md#requirements) in the Epic server build instructions.**
+**The requirements for building the wallet are the same from the epic server. You can check them in the topic [Requirements](https://github.com/EpicCash/epic/blob/master/doc/build.md#requirements) in the Epic server build instructions.**
 
 ## Build steps
 
 ```sh
-git clone https://gitlab.com/epiccash/epicwallet
+git clone https://github.com/EpicCash/epic-wallet
 cd epicwallet
+git submodule update --init --recursive
+cargo update
 cargo build --release
 ```
 
@@ -24,8 +26,8 @@ A successful build gets you:
 
 **To run the epic-wallet, you also need an epic server running.**
 
-- Instruction of how to run the epic server using the .deb package can be found in the topic [Running the Epic Server](https://gitlab.com/epiccash/epic/blob/master/doc/running.org#run_epic).
-- If you want to build it from source code, instructions can be found [here](https://gitlab.com/epiccash/epic/blob/master/doc/build.md).
+- Instruction of how to run the epic server using the .deb package can be found in the topic [Running the Epic Server](https://github.com/EpicCash/epic/blob/master/doc/running.org#wallet_server).
+- If you want to build it from source code, instructions can be found [here](https://github.com/EpicCash/epic/blob/master/doc/build.md).
 
 If you want to execute the epic wallet, in the root directory of your Epic Wallet installation open a new terminal session and execute the following steps:
 
@@ -47,7 +49,7 @@ If you want to execute the epic wallet, in the root directory of your Epic Walle
     ./epic-wallet init
     ```
 
-      More information about the wallet initialization can be found in the topic [Initialize the Wallet](https://gitlab.com/epiccash/epic/blob/epic-documentation/doc/running.org#init_wallet).
+      More information about the wallet initialization can be found in the topic [Initialize the Wallet](https://github.com/EpicCash/epic/blob/master/doc/running.org#initializing-from-a-custom-directory).
 
 4. After you have initialized your wallet, you can run it in listening mode executing the following command in the terminal:
 
@@ -55,4 +57,4 @@ If you want to execute the epic wallet, in the root directory of your Epic Walle
       ./epic-wallet -e listen 
       ```
 
-      More information about the epic wallet listening mode can be found in the topic [Running the wallet API](https://gitlab.com/epiccash/epic/blob/epic-documentation/doc/running.org#run_wallet).
+      More information about the epic wallet listening mode can be found in the topic [Running the wallet API](https://github.com/EpicCash/epic/blob/master/doc/running.org#running-the-wallet-api).
