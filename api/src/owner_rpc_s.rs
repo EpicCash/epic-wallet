@@ -1945,8 +1945,8 @@ pub trait OwnerRpcS {
 		"jsonrpc": "2.0",
 		"result": {
 			"Ok": {
-				"amount": "6000000000",
-				"excess": "09bac6083b05a32a9d9b37710c70dd0a1ef9329fde0848558976b6f1b81d80ceed",
+				"amount": "600000000",
+				"excess": "08d09187cb93cf5d6b97b28e8ca529912bf35ec8773d3e9af9b3c174a270dc7f05",
 				"recipient_address": "pa7wkkdgs5bkteha7lykl7ff2wztgdrxxo442xdcq2lnaphe5aidd4id",
 				"recipient_sig": "b9ac5e18fd13ce72923cc47796bd5af09b5247c52da3634c9b934d4e111a43f53f1c55e3f3be36a79450e18f8989d81a0c21c4b2c16c208753a9971a5ffee406",
 				"sender_address": "glg5mojiqvhywjriwhooiytn3tptlvlmw7h567lezssyek3y2tjzznad",
@@ -1978,8 +1978,8 @@ pub trait OwnerRpcS {
 		"params": {
 			"token": "d202964900000000d302964900000000d402964900000000d502964900000000",
 			"proof": {
-				"amount": "600000000000",
-				"excess": "09bac6083b05a32a9d9b37710c70dd0a1ef9329fde0848558976b6f1b81d80ceed",
+				"amount": "600000000",
+				"excess": "08d09187cb93cf5d6b97b28e8ca529912bf35ec8773d3e9af9b3c174a270dc7f05",
 				"recipient_address": "pa7wkkdgs5bkteha7lykl7ff2wztgdrxxo442xdcq2lnaphe5aidd4id",
 				"recipient_sig": "b9ac5e18fd13ce72923cc47796bd5af09b5247c52da3634c9b934d4e111a43f53f1c55e3f3be36a79450e18f8989d81a0c21c4b2c16c208753a9971a5ffee406",
 				"sender_address": "glg5mojiqvhywjriwhooiytn3tptlvlmw7h567lezssyek3y2tjzznad",

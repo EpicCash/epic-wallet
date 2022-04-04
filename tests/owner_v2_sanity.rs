@@ -49,7 +49,7 @@ fn owner_v2_sanity() -> Result<(), epic_wallet_controller::Error> {
 	let client1_2 = client1.clone();
 
 	// run the owner listener on wallet 1
-	let arg_vec = vec!["epic-wallet", "-p", "password", "owner_api"];
+	let arg_vec = vec!["epic-wallet", "-p", "password", "owner_api", "-l", "23420"];
 	// Set running
 	thread::spawn(move || {
 		let yml = load_yaml!("../src/bin/epic-wallet.yml");
@@ -78,7 +78,7 @@ fn owner_v2_sanity() -> Result<(), epic_wallet_controller::Error> {
 
 	// 1) Send simple retrieve_info request to owner listener
 	let req = include_str!("data/v2_reqs/retrieve_info.req.json");
-	let res = send_request(1, "http://127.0.0.1:3420/v2/owner", req)?;
+	let res = send_request(1, "http://127.0.0.1:23420/v2/owner", req)?;
 	assert!(res.is_ok());
 	let value: RetrieveSummaryInfoResp = res.unwrap();
 	assert_eq!(value.1.amount_currently_spendable, 10205440000);
