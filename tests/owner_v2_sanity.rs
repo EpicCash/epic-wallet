@@ -22,10 +22,10 @@ extern crate epic_wallet;
 use epic_wallet_impls::test_framework::{self, LocalWalletClient, WalletProxy};
 
 use clap::App;
-use std::thread;
-use std::time::Duration;
 use epic_wallet_impls::DefaultLCProvider;
 use epic_wallet_util::epic_keychain::ExtKeychain;
+use std::thread;
+use std::time::Duration;
 
 #[macro_use]
 mod common;
