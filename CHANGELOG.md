@@ -1,6 +1,6 @@
 
 
-epic-wallet (3.0.0)
+# epic-wallet 3.0.0
 
   - Fix: owner_rpcs verify and payment proof tests
   - Code: rust format code rustfmt
@@ -28,7 +28,7 @@ epic-wallet (3.0.0)
   - Make libwallet slate public
 
 
-epic-wallet (3.0.0-alpha-3)
+# epic-wallet 3.0.0-alpha-3
 
   - Change epic source to 3.0.0-alpha-5
   - Make libwallet slate public
@@ -41,13 +41,13 @@ epic-wallet (3.0.0-alpha-3)
   - Fix: github url
   - Fix: proof version
 
-epic-wallet (3.0.0-alpha-2)
+# epic-wallet 3.0.0-alpha-2
 
   - Fix: conflict with epic server
   - Now cargo install also produces a .crates2.json artifact.
   - Updating references to the server.
 
-epic-wallet (3.0.0-alpha-1)
+# epic-wallet 3.0.0-alpha-1
 
   - Add config for debian package
   - Fix: header version
@@ -56,7 +56,7 @@ epic-wallet (3.0.0-alpha-1)
   - Integrates with grin 3.0.0
 
 
-epic-wallet (2.3.0-1)
+# epic-wallet 2.3.0-1
 
   - Adequating the tests
   - Fix: foundation.json path
@@ -89,27 +89,27 @@ epic-wallet (2.3.0-1)
   - Improve the message of error on seed recover
 
 
-epic-wallet (2.2.2-1)
+# epic-wallet 2.2.2-1
 
   - Release version
 
 
-epic-wallet (2.0.0-1)
+# epic-wallet 2.0.0-1
 
   - Fix: copyright notices.
 
 
-epic-wallet (1.6.0-2)
+# epic-wallet 1.6.0-2
 
   - Fix: debian/control description
 
 
-epic-wallet (1.6.0-1)
+# epic-wallet 1.6.0-1
 
   - Add windows installer
 
 
-epic-wallet (1.2.0-1)
+# epic-wallet 1.2.0-1
 
   - Update the rewards to match the whitepaper
   - Fix: indentation
@@ -117,18 +117,18 @@ epic-wallet (1.2.0-1)
   - Aborting package build in case of error.
 
 
-epic-wallet (1.0.2-1)
+# epic-wallet 1.0.2-1
 
   - Updating with the epic node
 
 
-epic-wallet (1.0.0-2)
+# epic-wallet 1.0.0-2
 
   - Fix: dependencies
   - Removing the pipe from the network
 
 
-epic-wallet (1.0.0-1)
+# epic-wallet 1.0.0-1
 
   - Initial release
   - Merge branch 'master' of https://github.com/mimblewimble/grin-wallet
