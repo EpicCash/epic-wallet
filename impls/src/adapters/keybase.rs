@@ -18,8 +18,8 @@ use crate::adapters::{SlateReceiver, SlateSender};
 use crate::config::WalletConfig;
 use crate::keychain::ExtKeychain;
 use crate::libwallet::api_impl::foreign;
-use crate::libwallet::{Error, ErrorKind, Slate, WalletInst};
-use crate::util::ZeroingString;
+use crate::libwallet::{Error, ErrorKind, NodeClient, Slate, WalletInst, WalletLCProvider};
+use crate::util::{Mutex, ZeroingString};
 use crate::{DefaultLCProvider, DefaultWalletImpl, HTTPNodeClient};
 use serde::Serialize;
 use serde_json::{from_str, json, to_string, Value};
@@ -28,6 +28,10 @@ use std::process::{Command, Stdio};
 use std::str::from_utf8;
 use std::thread::sleep;
 use std::time::{Duration, Instant};
+
+use crate::keychain::Keychain;
+use crate::util::secp::key::SecretKey;
+use std::sync::Arc;
 
 const TTL: u16 = 60; // TODO: Pass this as a parameter
 const LISTEN_SLEEP_DURATION: Duration = Duration::from_millis(5000);
@@ -346,31 +350,23 @@ impl KeybaseAllChannels {
 
 impl SlateReceiver for KeybaseAllChannels {
 	/// Start a listener, passing received messages to the wallet api directly
-	#[allow(unreachable_code)]
-	fn listen(
+
+	fn listen<L, C, K>(
 		&self,
+		wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K> + 'static>>>,
+		keychain_mask: Arc<Mutex<Option<SecretKey>>>,
 		config: WalletConfig,
-		passphrase: ZeroingString,
-		account: &str,
-		node_api_secret: Option<String>,
-	) -> Result<(), Error> {
-		let node_client = HTTPNodeClient::new(&config.check_node_api_http_addr, node_api_secret);
-		let mut wallet = Box::new(
-			DefaultWalletImpl::<'static, HTTPNodeClient>::new(node_client.clone()).unwrap(),
-		)
-			as Box<
-				dyn WalletInst<
-					'static,
-					DefaultLCProvider<HTTPNodeClient, ExtKeychain>,
-					HTTPNodeClient,
-					ExtKeychain,
-				>,
-			>;
-		let lc = wallet.lc_provider().unwrap();
-		lc.set_top_level_directory(&config.data_file_dir)?;
-		let mask = lc.open_wallet(None, passphrase, true, false)?;
-		let wallet_inst = lc.wallet_inst()?;
-		wallet_inst.set_parent_key_id_by_name(account)?;
+	) -> Result<(), Error>
+	where
+		L: WalletLCProvider<'static, C, K> + 'static,
+		C: NodeClient + 'static,
+		K: Keychain + 'static,
+	{
+		let mask = keychain_mask.lock();
+		// eventually want to read a list of service config keys
+		let mut w_lock = wallet.lock();
+		let lc = w_lock.lc_provider()?;
+		let w_inst = lc.wallet_inst()?;
 
 		info!("Listening for transactions on keybase ...");
 		loop {
@@ -412,8 +408,8 @@ impl SlateReceiver for KeybaseAllChannels {
 						}
 						let res = {
 							let r = foreign::receive_tx(
-								&mut **wallet_inst,
-								Some(mask.as_ref().unwrap()),
+								&mut **w_inst,
+								(mask).as_ref(),
 								&slate,
 								None,
 								None,

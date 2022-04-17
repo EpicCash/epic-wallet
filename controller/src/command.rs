@@ -145,12 +145,9 @@ where
 			g_args.tls_conf.clone(),
 			tor_config.use_tor_listener,
 		),
-		"keybase" => KeybaseAllChannels::new()?.listen(
-			config.clone(),
-			g_args.password.clone().unwrap(),
-			&g_args.account,
-			g_args.node_api_secret.clone(),
-		),
+		"keybase" => {
+			KeybaseAllChannels::new()?.listen(wallet.clone(), keychain_mask, config.clone())
+		}
 		method => {
 			return Err(ErrorKind::ArgumentError(format!(
 				"No listener for method \"{}\".",

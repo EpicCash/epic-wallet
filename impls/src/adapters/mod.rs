@@ -21,9 +21,14 @@ pub use self::http::{HttpSlateSender, SchemeNotHttp};
 pub use self::keybase::{KeybaseAllChannels, KeybaseChannel};
 
 use crate::config::{TorConfig, WalletConfig};
-use crate::libwallet::{Error, ErrorKind, Slate};
+use crate::libwallet::{Error, ErrorKind, NodeClient, Slate, WalletInst, WalletLCProvider};
 use crate::tor::config::complete_tor_address;
 use crate::util::ZeroingString;
+
+use crate::keychain::Keychain;
+use crate::util::secp::key::SecretKey;
+use crate::util::Mutex;
+use std::sync::Arc;
 
 /// Sends transactions to a corresponding SlateReceiver
 pub trait SlateSender {
@@ -36,13 +41,16 @@ pub trait SlateReceiver {
 	/// Start a listener, passing received messages to the wallet api directly
 	/// Takes a wallet config for now to avoid needing all sorts of awkward
 	/// type parameters on this trait
-	fn listen(
+	fn listen<L, C, K>(
 		&self,
+		wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K> + 'static>>>,
+		keychain_mask: Arc<Mutex<Option<SecretKey>>>,
 		config: WalletConfig,
-		passphrase: ZeroingString,
-		account: &str,
-		node_api_secret: Option<String>,
-	) -> Result<(), Error>;
+	) -> Result<(), Error>
+	where
+		L: WalletLCProvider<'static, C, K> + 'static,
+		C: NodeClient + 'static,
+		K: Keychain + 'static;
 }
 
 /// Posts slates to be read later by a corresponding getter
