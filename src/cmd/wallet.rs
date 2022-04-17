@@ -20,7 +20,6 @@ use semver::Version;
 use std::thread;
 use std::time::Duration;
 
-
 const MIN_COMPAT_NODE_VERSION: &str = "3.0.0";
 
 pub fn wallet_command<C>(
