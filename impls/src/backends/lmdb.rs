@@ -44,6 +44,7 @@ use rand::thread_rng;
 pub const DB_DIR: &'static str = "db";
 pub const TX_SAVE_DIR: &'static str = "saved_txs";
 
+const OUTPUT_HISTORY_PREFIX: u8 = 'h' as u8;
 const OUTPUT_PREFIX: u8 = 'o' as u8;
 const DERIV_PREFIX: u8 = 'd' as u8;
 const CONFIRMED_HEIGHT_PREFIX: u8 = 'c' as u8;
@@ -506,7 +507,8 @@ where
 	}
 
 	fn save(&mut self, out: OutputData) -> Result<(), Error> {
-		// Save the output data to the db.
+		
+		// Save the updated output data to the db.
 		{
 			let key = match out.mmr_index {
 				Some(i) => to_key_u64(OUTPUT_PREFIX, &mut out.key_id.to_bytes().to_vec(), i),
