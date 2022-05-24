@@ -711,7 +711,8 @@ where
 			updated_from_node: true,
 		}),
 		Err(_) => {
-			let outputs = retrieve_outputs(wallet_inst, keychain_mask, &None, true, false, false, None)?;
+			let outputs =
+				retrieve_outputs(wallet_inst, keychain_mask, &None, true, false, false, None)?;
 			let height = match outputs.1.iter().map(|m| m.output.height).max() {
 				Some(height) => height,
 				None => 0,

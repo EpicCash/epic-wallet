@@ -516,8 +516,15 @@ where
 		if let Ok(output_history_id) = self.next_output_history_id() {
 			if let Ok(previous_output) = self.get(&out.key_id, &out.mmr_index) {
 				if previous_output != out {
-					let output_history_key = to_key(OUTPUT_HISTORY_PREFIX, &mut output_history_id.to_le_bytes().to_vec());
-					self.db.borrow().as_ref().unwrap().put_ser(&output_history_key, &previous_output);
+					let output_history_key = to_key(
+						OUTPUT_HISTORY_PREFIX,
+						&mut output_history_id.to_le_bytes().to_vec(),
+					);
+					self.db
+						.borrow()
+						.as_ref()
+						.unwrap()
+						.put_ser(&output_history_key, &previous_output);
 				}
 			}
 		}
@@ -585,7 +592,13 @@ where
 	fn next_output_history_id(&mut self) -> Result<u32, Error> {
 		let mut first_output_history_id = vec![0];
 		let output_history_key_id = to_key(OUTPUT_HISTORY_ID_PREFIX, &mut first_output_history_id);
-		let last_output_history_id = match self.db.borrow().as_ref().unwrap().get_ser(&output_history_key_id)? {
+		let last_output_history_id = match self
+			.db
+			.borrow()
+			.as_ref()
+			.unwrap()
+			.get_ser(&output_history_key_id)?
+		{
 			Some(t) => t,
 			None => 0,
 		};

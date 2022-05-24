@@ -673,7 +673,8 @@ where
 {
 	controller::owner_single_use(wallet.clone(), keychain_mask, |api, m| {
 		let res = api.node_height(m)?;
-		let (validated, outputs) = api.retrieve_outputs(m, g_args.show_spent, true, args.show_full_history, None)?;
+		let (validated, outputs) =
+			api.retrieve_outputs(m, g_args.show_spent, true, args.show_full_history, None)?;
 		display::outputs(&g_args.account, res.height, validated, outputs, dark_scheme)?;
 		Ok(())
 	})?;

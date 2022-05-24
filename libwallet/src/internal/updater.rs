@@ -51,16 +51,15 @@ where
 	K: Keychain + 'a,
 {
 	// just read the wallet here, no need for a write lock
-	let mut outputs = if show_full_history {
-		wallet.history_iter()
-			.filter(|out| show_spent || out.status != OutputStatus::Spent)
-			.collect::<Vec<_>>()
-	} else {
-		wallet.iter()
-			.filter(|out| show_spent || out.status != OutputStatus::Spent)
-			.collect::<Vec<_>>()
-	};
+	let mut outputs = wallet.iter()
+		.filter(|out| show_spent || out.status != OutputStatus::Spent)
+		.collect::<Vec<_>>();
 	
+	if show_full_history {
+		outputs.append(&mut wallet.history_iter()
+			.filter(|out| show_spent || out.status != OutputStatus::Spent)
+			.collect::<Vec<_>>());
+	}
 
 	// only include outputs with a given tx_id if provided
 	if let Some(id) = tx_id {
