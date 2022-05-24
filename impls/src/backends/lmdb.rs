@@ -45,6 +45,7 @@ pub const DB_DIR: &'static str = "db";
 pub const TX_SAVE_DIR: &'static str = "saved_txs";
 
 const OUTPUT_HISTORY_PREFIX: u8 = 'h' as u8;
+const OUTPUT_HISTORY_ID_PREFIX: u8 = 'j' as u8;
 const OUTPUT_PREFIX: u8 = 'o' as u8;
 const DERIV_PREFIX: u8 = 'd' as u8;
 const CONFIRMED_HEIGHT_PREFIX: u8 = 'c' as u8;
@@ -307,6 +308,10 @@ where
 		Box::new(self.db.iter(&[OUTPUT_PREFIX]).unwrap().map(|o| o.1))
 	}
 
+	fn history_iter<'a>(&'a self) -> Box<dyn Iterator<Item = OutputData> + 'a> {
+		Box::new(self.db.iter(&[OUTPUT_HISTORY_PREFIX]).unwrap().map(|o| o.1))
+	}
+
 	fn get_tx_log_entry(&self, u: &Uuid) -> Result<Option<TxLogEntry>, Error> {
 		let key = to_key(TX_LOG_ENTRY_PREFIX, &mut u.as_bytes().to_vec());
 		self.db.get_ser(&key).map_err(|e| e.into())
@@ -507,7 +512,16 @@ where
 	}
 
 	fn save(&mut self, out: OutputData) -> Result<(), Error> {
-		
+		// Save the previous output data to the db.
+		if let Ok(output_history_id) = self.next_output_history_id() {
+			if let Ok(previous_output) = self.get(&out.key_id, &out.mmr_index) {
+				if previous_output != out {
+					let output_history_key = to_key(OUTPUT_HISTORY_PREFIX, &mut output_history_id.to_le_bytes().to_vec());
+					self.db.borrow().as_ref().unwrap().put_ser(&output_history_key, &previous_output);
+				}
+			}
+		}
+
 		// Save the updated output data to the db.
 		{
 			let key = match out.mmr_index {
@@ -543,6 +557,18 @@ where
 		)
 	}
 
+	fn history_iter(&self) -> Box<dyn Iterator<Item = OutputData>> {
+		Box::new(
+			self.db
+				.borrow()
+				.as_ref()
+				.unwrap()
+				.iter(&[OUTPUT_HISTORY_PREFIX])
+				.unwrap()
+				.map(|o| o.1),
+		)
+	}
+
 	fn delete(&mut self, id: &Identifier, mmr_index: &Option<u64>) -> Result<(), Error> {
 		// Delete the output data.
 		{
@@ -554,6 +580,21 @@ where
 		}
 
 		Ok(())
+	}
+
+	fn next_output_history_id(&mut self) -> Result<u32, Error> {
+		let mut first_output_history_id = vec![0];
+		let output_history_key_id = to_key(OUTPUT_HISTORY_ID_PREFIX, &mut first_output_history_id);
+		let last_output_history_id = match self.db.borrow().as_ref().unwrap().get_ser(&output_history_key_id)? {
+			Some(t) => t,
+			None => 0,
+		};
+		self.db
+			.borrow()
+			.as_ref()
+			.unwrap()
+			.put_ser(&output_history_key_id, &(last_output_history_id + 1))?;
+		Ok(last_output_history_id)
 	}
 
 	fn next_tx_log_id(&mut self, parent_key_id: &Identifier) -> Result<u32, Error> {

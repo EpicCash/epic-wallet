@@ -683,6 +683,13 @@ pub fn parse_info_args(args: &ArgMatches) -> Result<command::InfoArgs, ParseErro
 	})
 }
 
+pub fn parse_outputs_args(args: &ArgMatches) -> Result<command::OutputsArgs, ParseError> {
+	let show_full_history = args.is_present("show_full_history");
+	Ok(command::OutputsArgs {
+		show_full_history: show_full_history,
+	})
+}
+
 pub fn parse_check_args(args: &ArgMatches) -> Result<command::CheckArgs, ParseError> {
 	let delete_unconfirmed = args.is_present("delete_unconfirmed");
 	let start_height = parse_u64_or_none(args.value_of("start_height"));
@@ -1022,12 +1029,16 @@ where
 				wallet_config.dark_background_color_scheme.unwrap_or(true),
 			)
 		}
-		("outputs", Some(_)) => command::outputs(
-			wallet,
-			km,
-			&global_wallet_args,
-			wallet_config.dark_background_color_scheme.unwrap_or(true),
-		),
+		("outputs", Some(args)) => {
+			let a = arg_parse!(parse_outputs_args(&args));
+			command::outputs(
+				wallet,
+				km,
+				&global_wallet_args,
+				a,
+				wallet_config.dark_background_color_scheme.unwrap_or(true),
+			)
+		}
 		("txs", Some(args)) => {
 			let a = arg_parse!(parse_txs_args(&args));
 			command::txs(

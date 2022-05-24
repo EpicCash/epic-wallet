@@ -182,6 +182,9 @@ where
 	/// Iterate over all output data stored by the backend
 	fn iter<'a>(&'a self) -> Box<dyn Iterator<Item = OutputData> + 'a>;
 
+	/// Iterate over all outputs available in the output history table
+	fn history_iter<'a>(&'a self) -> Box<dyn Iterator<Item = OutputData> + 'a>;
+
 	/// Get output data by id
 	fn get(&self, id: &Identifier, mmr_index: &Option<u64>) -> Result<OutputData, Error>;
 
@@ -257,6 +260,9 @@ where
 	/// Iterate over all output data stored by the backend
 	fn iter(&self) -> Box<dyn Iterator<Item = OutputData>>;
 
+	/// Iterate over all outputs available in the output history table
+	fn history_iter(&self) -> Box<dyn Iterator<Item = OutputData>>;
+
 	/// Delete data about an output from the backend
 	fn delete(&mut self, id: &Identifier, mmr_index: &Option<u64>) -> Result<(), Error>;
 
@@ -275,6 +281,9 @@ where
 
 	/// Save flag indicating whether wallet needs a full UTXO scan
 	fn save_init_status<'a>(&mut self, value: WalletInitStatus) -> Result<(), Error>;
+
+	/// get next output history table id
+	fn next_output_history_id(&mut self) -> Result<u32, Error>;
 
 	/// get next tx log entry for the parent
 	fn next_tx_log_id(&mut self, parent_key_id: &Identifier) -> Result<u32, Error>;

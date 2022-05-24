@@ -390,6 +390,7 @@ where
 		keychain_mask: Option<&SecretKey>,
 		include_spent: bool,
 		refresh_from_node: bool,
+		show_full_history: bool,
 		tx_id: Option<u32>,
 	) -> Result<(bool, Vec<OutputCommitMapping>), Error> {
 		let tx = {
@@ -406,6 +407,7 @@ where
 			&tx,
 			include_spent,
 			refresh_from_node,
+			show_full_history,
 			tx_id,
 		)
 	}

@@ -1298,7 +1298,7 @@ where
 		refresh_from_node: bool,
 		tx_id: Option<u32>,
 	) -> Result<(bool, Vec<OutputCommitMapping>), ErrorKind> {
-		Owner::retrieve_outputs(self, None, include_spent, refresh_from_node, tx_id)
+		Owner::retrieve_outputs(self, None, include_spent, refresh_from_node, false, tx_id)
 			.map_err(|e| e.kind())
 	}
 

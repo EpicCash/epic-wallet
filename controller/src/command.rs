@@ -654,10 +654,16 @@ where
 	Ok(())
 }
 
+/// Outputs command args
+pub struct OutputsArgs {
+	pub show_full_history: bool,
+}
+
 pub fn outputs<L, C, K>(
 	wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K>>>>,
 	keychain_mask: Option<&SecretKey>,
 	g_args: &GlobalArgs,
+	args: OutputsArgs,
 	dark_scheme: bool,
 ) -> Result<(), Error>
 where
@@ -667,7 +673,7 @@ where
 {
 	controller::owner_single_use(wallet.clone(), keychain_mask, |api, m| {
 		let res = api.node_height(m)?;
-		let (validated, outputs) = api.retrieve_outputs(m, g_args.show_spent, true, None)?;
+		let (validated, outputs) = api.retrieve_outputs(m, g_args.show_spent, true, args.show_full_history, None)?;
 		display::outputs(&g_args.account, res.height, validated, outputs, dark_scheme)?;
 		Ok(())
 	})?;
@@ -721,7 +727,7 @@ where
 		};
 
 		if id.is_some() {
-			let (_, outputs) = api.retrieve_outputs(m, true, false, id)?;
+			let (_, outputs) = api.retrieve_outputs(m, true, false, false, id)?;
 			display::outputs(&g_args.account, res.height, validated, outputs, dark_scheme)?;
 			// should only be one here, but just in case
 			for tx in txs {

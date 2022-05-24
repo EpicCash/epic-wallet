@@ -41,6 +41,7 @@ pub fn retrieve_outputs<'a, T: ?Sized, C, K>(
 	wallet: &mut T,
 	keychain_mask: Option<&SecretKey>,
 	show_spent: bool,
+	show_full_history: bool,
 	tx_id: Option<u32>,
 	parent_key_id: Option<&Identifier>,
 ) -> Result<Vec<OutputCommitMapping>, Error>
@@ -50,10 +51,16 @@ where
 	K: Keychain + 'a,
 {
 	// just read the wallet here, no need for a write lock
-	let mut outputs = wallet
-		.iter()
-		.filter(|out| show_spent || out.status != OutputStatus::Spent)
-		.collect::<Vec<_>>();
+	let mut outputs = if show_full_history {
+		wallet.history_iter()
+			.filter(|out| show_spent || out.status != OutputStatus::Spent)
+			.collect::<Vec<_>>()
+	} else {
+		wallet.iter()
+			.filter(|out| show_spent || out.status != OutputStatus::Spent)
+			.collect::<Vec<_>>()
+	};
+	
 
 	// only include outputs with a given tx_id if provided
 	if let Some(id) = tx_id {

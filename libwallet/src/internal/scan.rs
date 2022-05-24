@@ -367,7 +367,7 @@ where
 	// Now, get all outputs owned by this wallet (regardless of account)
 	let wallet_outputs = {
 		wallet_lock!(wallet_inst, w);
-		updater::retrieve_outputs(&mut **w, keychain_mask, true, None, None)?
+		updater::retrieve_outputs(&mut **w, keychain_mask, true, false, None, None)?
 	};
 
 	let mut missing_outs = vec![];
