@@ -31,7 +31,7 @@ use crate::store::{self, option_to_not_found, to_key, to_key_u64};
 use crate::core::core::Transaction;
 use crate::core::ser;
 use crate::libwallet::{
-	AcctPathMapping, Context, Error, ErrorKind, NodeClient, OutputData, ScannedBlockInfo,
+	AcctPathMapping, Context, Error, ErrorKind, NodeClient, OutputData, OutputStatus, ScannedBlockInfo,
 	TxLogEntry, WalletBackend, WalletInitStatus, WalletOutputBatch,
 };
 use crate::util::secp::constants::SECRET_KEY_SIZE;
@@ -513,22 +513,11 @@ where
 
 	fn save(&mut self, out: OutputData) -> Result<(), Error> {
 		// Save the previous output data to the db.
-		if let Ok(output_history_id) = self.next_output_history_id() {
-			if let Ok(previous_output) = self.get(&out.key_id, &out.mmr_index) {
-				if previous_output != out {
-					let output_history_key = to_key(
-						OUTPUT_HISTORY_PREFIX,
-						&mut output_history_id.to_le_bytes().to_vec(),
-					);
-					self.db
-						.borrow()
-						.as_ref()
-						.unwrap()
-						.put_ser(&output_history_key, &previous_output);
-				}
+		if let Ok(previous_output) = self.get(&out.key_id, &out.mmr_index) {
+			if previous_output != out {
+				self.save_output_history(previous_output);
 			}
 		}
-
 		// Save the updated output data to the db.
 		{
 			let key = match out.mmr_index {
@@ -539,6 +528,30 @@ where
 		}
 
 		Ok(())
+	}
+
+	fn save_output_history(&mut self, out: OutputData) -> Result<(), Error> {
+		// Ensure that the previous_output has not been registered in the output history table yet.
+		let outputs_in_history_table = self.history_iter().collect::<Vec<_>>();
+		let mut output_already_registered = false;
+
+		for mut o in outputs_in_history_table {
+			o.key_id = out.key_id.clone();
+			if o == out {
+				output_already_registered = true;
+				break; 
+			}
+		}
+			
+		// Save the previous output data to the db.
+		if !output_already_registered {
+			if let Ok(output_history_id) = self.next_output_history_id() {
+				let output_history_key = to_key(OUTPUT_HISTORY_PREFIX, &mut output_history_id.to_le_bytes().to_vec());
+				self.db.borrow().as_ref().unwrap().put_ser(&output_history_key, &out);
+			}
+		}
+
+		Ok(())	
 	}
 
 	fn get(&self, id: &Identifier, mmr_index: &Option<u64>) -> Result<OutputData, Error> {
@@ -576,7 +589,17 @@ where
 		)
 	}
 
-	fn delete(&mut self, id: &Identifier, mmr_index: &Option<u64>) -> Result<(), Error> {
+	fn delete(&mut self, id: &Identifier, mmr_index: &Option<u64>, tx_id: &Option<u32>) -> Result<(), Error> {
+		
+		// Save the previous output data to the db.
+		if let Ok(mut previous_output) = self.get(&id, &mmr_index) {
+			self.save_output_history(previous_output.clone());
+			// Save the output with a deleted status in the output history table.
+			previous_output.status = OutputStatus::Deleted;
+			previous_output.tx_log_entry = *tx_id;
+			self.save_output_history(previous_output);
+		}
+		
 		// Delete the output data.
 		{
 			let key = match mmr_index {

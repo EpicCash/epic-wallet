@@ -469,7 +469,7 @@ where
 			cancel_tx_log_entry(wallet_inst.clone(), keychain_mask, &o)?;
 			wallet_lock!(wallet_inst, w);
 			let mut batch = w.batch(keychain_mask)?;
-			batch.delete(&o.key_id, &o.mmr_index)?;
+			batch.delete(&o.key_id, &o.mmr_index, &o.tx_log_entry)?;
 			batch.commit()?;
 		}
 	}

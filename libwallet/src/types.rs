@@ -254,6 +254,9 @@ where
 	/// Add or update data about an output to the backend
 	fn save(&mut self, out: OutputData) -> Result<(), Error>;
 
+	/// Add data about an output in the output history table 
+	fn save_output_history(&mut self, out: OutputData) -> Result<(), Error>;
+	
 	/// Gets output data by id
 	fn get(&self, id: &Identifier, mmr_index: &Option<u64>) -> Result<OutputData, Error>;
 
@@ -264,7 +267,7 @@ where
 	fn history_iter(&self) -> Box<dyn Iterator<Item = OutputData>>;
 
 	/// Delete data about an output from the backend
-	fn delete(&mut self, id: &Identifier, mmr_index: &Option<u64>) -> Result<(), Error>;
+	fn delete(&mut self, id: &Identifier, mmr_index: &Option<u64>, tx_id: &Option<u32>) -> Result<(), Error>;
 
 	/// Save last stored child index of a given parent
 	fn save_child_index(&mut self, parent_key_id: &Identifier, child_n: u32) -> Result<(), Error>;
@@ -526,6 +529,8 @@ pub enum OutputStatus {
 	Locked,
 	/// Spent
 	Spent,
+	/// Deleted
+	Deleted
 }
 
 impl fmt::Display for OutputStatus {
@@ -535,6 +540,7 @@ impl fmt::Display for OutputStatus {
 			OutputStatus::Unspent => write!(f, "Unspent"),
 			OutputStatus::Locked => write!(f, "Locked"),
 			OutputStatus::Spent => write!(f, "Spent"),
+			OutputStatus::Deleted => write!(f, "Deleted"),
 		}
 	}
 }

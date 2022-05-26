@@ -51,14 +51,18 @@ where
 	K: Keychain + 'a,
 {
 	// just read the wallet here, no need for a write lock
-	let mut outputs = wallet.iter()
+	let mut outputs = wallet
+		.iter()
 		.filter(|out| show_spent || out.status != OutputStatus::Spent)
 		.collect::<Vec<_>>();
-	
+
 	if show_full_history {
-		outputs.append(&mut wallet.history_iter()
-			.filter(|out| show_spent || out.status != OutputStatus::Spent)
-			.collect::<Vec<_>>());
+		outputs.append(
+			&mut wallet
+				.history_iter()
+				.filter(|out| show_spent || out.status != OutputStatus::Spent)
+				.collect::<Vec<_>>(),
+		);
 	}
 
 	// only include outputs with a given tx_id if provided
@@ -77,7 +81,7 @@ where
 			.collect();
 	}
 
-	outputs.sort_by_key(|out| out.n_child);
+	outputs.sort_by_key(|out| (out.n_child, out.tx_log_entry));
 	let keychain = wallet.keychain(keychain_mask)?;
 
 	let res = outputs
@@ -228,7 +232,7 @@ where
 	for mut o in outputs {
 		// unlock locked outputs
 		if o.status == OutputStatus::Unconfirmed {
-			batch.delete(&o.key_id, &o.mmr_index)?;
+			batch.delete(&o.key_id, &o.mmr_index, &Some(tx.id))?;
 		}
 		if o.status == OutputStatus::Locked {
 			o.status = OutputStatus::Unspent;
@@ -400,7 +404,7 @@ where
 	}
 	let mut batch = wallet.batch(keychain_mask)?;
 	for id in ids_to_del {
-		batch.delete(&id, &None)?;
+		batch.delete(&id, &None, &None)?;
 	}
 	batch.commit()?;
 	Ok(())
@@ -455,6 +459,7 @@ where
 				locked_total += out.value;
 			}
 			OutputStatus::Spent => {}
+			OutputStatus::Deleted => {}
 		}
 	}
 
