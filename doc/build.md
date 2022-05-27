@@ -8,7 +8,7 @@
 
 ```sh
 git clone https://github.com/EpicCash/epic-wallet
-cd epicwallet
+cd epic-wallet
 git submodule update --init --recursive
 cargo update
 cargo build --release
