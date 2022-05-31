@@ -31,8 +31,8 @@ use crate::store::{self, option_to_not_found, to_key, to_key_u64};
 use crate::core::core::Transaction;
 use crate::core::ser;
 use crate::libwallet::{
-	AcctPathMapping, Context, Error, ErrorKind, NodeClient, OutputData, ScannedBlockInfo,
-	TxLogEntry, WalletBackend, WalletInitStatus, WalletOutputBatch,
+	AcctPathMapping, Context, Error, ErrorKind, NodeClient, OutputData, OutputStatus,
+	ScannedBlockInfo, TxLogEntry, WalletBackend, WalletInitStatus, WalletOutputBatch,
 };
 use crate::util::secp::constants::SECRET_KEY_SIZE;
 use crate::util::secp::key::SecretKey;
@@ -44,6 +44,8 @@ use rand::thread_rng;
 pub const DB_DIR: &'static str = "db";
 pub const TX_SAVE_DIR: &'static str = "saved_txs";
 
+const OUTPUT_HISTORY_PREFIX: u8 = 'h' as u8;
+const OUTPUT_HISTORY_ID_PREFIX: u8 = 'j' as u8;
 const OUTPUT_PREFIX: u8 = 'o' as u8;
 const DERIV_PREFIX: u8 = 'd' as u8;
 const CONFIRMED_HEIGHT_PREFIX: u8 = 'c' as u8;
@@ -306,6 +308,10 @@ where
 		Box::new(self.db.iter(&[OUTPUT_PREFIX]).unwrap().map(|o| o.1))
 	}
 
+	fn history_iter<'a>(&'a self) -> Box<dyn Iterator<Item = OutputData> + 'a> {
+		Box::new(self.db.iter(&[OUTPUT_HISTORY_PREFIX]).unwrap().map(|o| o.1))
+	}
+
 	fn get_tx_log_entry(&self, u: &Uuid) -> Result<Option<TxLogEntry>, Error> {
 		let key = to_key(TX_LOG_ENTRY_PREFIX, &mut u.as_bytes().to_vec());
 		self.db.get_ser(&key).map_err(|e| e.into())
@@ -506,13 +512,50 @@ where
 	}
 
 	fn save(&mut self, out: OutputData) -> Result<(), Error> {
-		// Save the output data to the db.
+		// Save the previous output data to the db.
+		if let Ok(previous_output) = self.get(&out.key_id, &out.mmr_index) {
+			if previous_output != out {
+				self.save_output_history(previous_output);
+			}
+		}
+		// Save the updated output data to the db.
 		{
 			let key = match out.mmr_index {
 				Some(i) => to_key_u64(OUTPUT_PREFIX, &mut out.key_id.to_bytes().to_vec(), i),
 				None => to_key(OUTPUT_PREFIX, &mut out.key_id.to_bytes().to_vec()),
 			};
 			self.db.borrow().as_ref().unwrap().put_ser(&key, &out)?;
+		}
+
+		Ok(())
+	}
+
+	fn save_output_history(&mut self, out: OutputData) -> Result<(), Error> {
+		// Ensure that the previous_output has not been registered in the output history table yet.
+		let outputs_in_history_table = self.history_iter().collect::<Vec<_>>();
+		let mut output_already_registered = false;
+
+		for mut o in outputs_in_history_table {
+			o.key_id = out.key_id.clone();
+			if o == out {
+				output_already_registered = true;
+				break;
+			}
+		}
+
+		// Save the previous output data to the db.
+		if !output_already_registered {
+			if let Ok(output_history_id) = self.next_output_history_id() {
+				let output_history_key = to_key(
+					OUTPUT_HISTORY_PREFIX,
+					&mut output_history_id.to_le_bytes().to_vec(),
+				);
+				self.db
+					.borrow()
+					.as_ref()
+					.unwrap()
+					.put_ser(&output_history_key, &out);
+			}
 		}
 
 		Ok(())
@@ -541,7 +584,33 @@ where
 		)
 	}
 
-	fn delete(&mut self, id: &Identifier, mmr_index: &Option<u64>) -> Result<(), Error> {
+	fn history_iter(&self) -> Box<dyn Iterator<Item = OutputData>> {
+		Box::new(
+			self.db
+				.borrow()
+				.as_ref()
+				.unwrap()
+				.iter(&[OUTPUT_HISTORY_PREFIX])
+				.unwrap()
+				.map(|o| o.1),
+		)
+	}
+
+	fn delete(
+		&mut self,
+		id: &Identifier,
+		mmr_index: &Option<u64>,
+		tx_id: &Option<u32>,
+	) -> Result<(), Error> {
+		// Save the previous output data to the db.
+		if let Ok(mut previous_output) = self.get(&id, &mmr_index) {
+			self.save_output_history(previous_output.clone());
+			// Save the output with a deleted status in the output history table.
+			previous_output.status = OutputStatus::Deleted;
+			previous_output.tx_log_entry = *tx_id;
+			self.save_output_history(previous_output);
+		}
+
 		// Delete the output data.
 		{
 			let key = match mmr_index {
@@ -552,6 +621,27 @@ where
 		}
 
 		Ok(())
+	}
+
+	fn next_output_history_id(&mut self) -> Result<u32, Error> {
+		let mut first_output_history_id = vec![0];
+		let output_history_key_id = to_key(OUTPUT_HISTORY_ID_PREFIX, &mut first_output_history_id);
+		let last_output_history_id = match self
+			.db
+			.borrow()
+			.as_ref()
+			.unwrap()
+			.get_ser(&output_history_key_id)?
+		{
+			Some(t) => t,
+			None => 0,
+		};
+		self.db
+			.borrow()
+			.as_ref()
+			.unwrap()
+			.put_ser(&output_history_key_id, &(last_output_history_id + 1))?;
+		Ok(last_output_history_id)
 	}
 
 	fn next_tx_log_id(&mut self, parent_key_id: &Identifier) -> Result<u32, Error> {

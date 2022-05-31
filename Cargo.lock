@@ -120,7 +120,7 @@ dependencies = [
  "cc",
  "cfg-if 1.0.0",
  "libc",
- "miniz_oxide",
+ "miniz_oxide 0.4.4",
  "object",
  "rustc-demangle",
 ]
@@ -143,9 +143,9 @@ checksum = "904dfeac50f3cdaba28fc6f57fdcddb75f49ed61346676a78c4ffe55877802fd"
 
 [[package]]
 name = "base64ct"
-version = "1.3.1"
+version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a30f9c631ae8b97868a2e841015b72f2c99b05e3f03a14d543b843816a0a5b4d"
+checksum = "dea908e7347a8c64e378c17e30ef880ad73e3b4498346b055c2c00ea342f3179"
 
 [[package]]
 name = "bigint"
@@ -240,7 +240,7 @@ version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4152116fd6e9dadb291ae18fc1ec3575ed6d84c29642d97890f4b4a3417297e4"
 dependencies = [
- "generic-array 0.14.4",
+ "generic-array 0.14.5",
 ]
 
 [[package]]
@@ -383,9 +383,9 @@ dependencies = [
 
 [[package]]
 name = "cmake"
-version = "0.1.46"
+version = "0.1.48"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b7b858541263efe664aead4a5209a4ae5c5d2811167d4ed4ee0944503f8d2089"
+checksum = "e8ad8cef104ac57b68b89df3208164d228503abbdce70f6880ffa3d970e7443a"
 dependencies = [
  "cc",
 ]
@@ -398,27 +398,26 @@ checksum = "245097e9a4535ee1e3e3931fcfcd55a796a44c643e8596ff6566d68f09b87bbc"
 
 [[package]]
 name = "cpufeatures"
-version = "0.2.1"
+version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "95059428f66df56b63431fdb4e1947ed2190586af5c5a8a8b71122bdf5a7f469"
+checksum = "59a6001667ab124aebae2a495118e11d30984c3a653e99d86d58971708cf5e4b"
 dependencies = [
  "libc",
 ]
 
 [[package]]
 name = "crc32fast"
-version = "1.3.0"
+version = "1.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "738c290dfaea84fc1ca15ad9c168d083b05a714e1efddd8edaab678dc28d2836"
+checksum = "b540bd8bc810d3885c6ea91e2018302f68baba2129ab3e88f32389ee9370880d"
 dependencies = [
  "cfg-if 1.0.0",
 ]
 
 [[package]]
 name = "croaring"
-version = "0.3.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "71152d60cec9dfdc5d9d793bccfa9ad95927372b80cd00e983db5eb2ce103e3b"
+version = "0.3.10"
+source = "git+https://github.com/EricShimizuKarbstein/croaring-rs.git?branch=not-native-march#59e23d8d8b0cef377d6dc506a1b872b09eebba47"
 dependencies = [
  "croaring-sys",
  "libc",
@@ -426,9 +425,8 @@ dependencies = [
 
 [[package]]
 name = "croaring-sys"
-version = "0.3.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ac84a4f975e67fc418be3911b7ca9aa74ee8a9717ca75452da7d6839421e2d67"
+version = "0.3.10"
+source = "git+https://github.com/EricShimizuKarbstein/croaring-rs.git?branch=not-native-march#59e23d8d8b0cef377d6dc506a1b872b09eebba47"
 dependencies = [
  "bindgen",
  "cc",
@@ -545,7 +543,7 @@ version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b1d1a86f49236c215f271d40892d5fc950490551400b02ef360692c29815c714"
 dependencies = [
- "generic-array 0.14.4",
+ "generic-array 0.14.5",
  "subtle",
 ]
 
@@ -619,7 +617,7 @@ version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d3dd60d1080a57a05ab032377049e0591415d2b31afd7028356dbf3cc6dcb066"
 dependencies = [
- "generic-array 0.14.4",
+ "generic-array 0.14.5",
 ]
 
 [[package]]
@@ -739,7 +737,7 @@ dependencies = [
 [[package]]
 name = "epic_api"
 version = "3.0.0"
-source = "git+https://github.com/EpicCash/epic?branch=3.0.0#d04842f107a3b224f0392de103eb0b7cdf2a6b2f"
+source = "git+https://github.com/EpicCash/epic?branch=master#59c5d4ac13f27258a2fc14d3ed7ef37b13872746"
 dependencies = [
  "bigint",
  "easy-jsonrpc-mw",
@@ -774,7 +772,7 @@ dependencies = [
 [[package]]
 name = "epic_chain"
 version = "3.0.0"
-source = "git+https://github.com/EpicCash/epic?branch=3.0.0#d04842f107a3b224f0392de103eb0b7cdf2a6b2f"
+source = "git+https://github.com/EpicCash/epic?branch=master#59c5d4ac13f27258a2fc14d3ed7ef37b13872746"
 dependencies = [
  "bigint",
  "bit-vec",
@@ -799,7 +797,7 @@ dependencies = [
 [[package]]
 name = "epic_core"
 version = "3.0.0"
-source = "git+https://github.com/EpicCash/epic?branch=3.0.0#d04842f107a3b224f0392de103eb0b7cdf2a6b2f"
+source = "git+https://github.com/EpicCash/epic?branch=master#59c5d4ac13f27258a2fc14d3ed7ef37b13872746"
 dependencies = [
  "bigint",
  "blake2-rfc",
@@ -833,7 +831,7 @@ dependencies = [
 [[package]]
 name = "epic_keychain"
 version = "3.0.0"
-source = "git+https://github.com/EpicCash/epic?branch=3.0.0#d04842f107a3b224f0392de103eb0b7cdf2a6b2f"
+source = "git+https://github.com/EpicCash/epic?branch=master#59c5d4ac13f27258a2fc14d3ed7ef37b13872746"
 dependencies = [
  "blake2-rfc",
  "byteorder 1.4.3",
@@ -848,7 +846,7 @@ dependencies = [
  "serde",
  "serde_derive",
  "serde_json",
- "sha2 0.9.8",
+ "sha2 0.9.9",
  "uuid 0.6.5",
  "zeroize",
 ]
@@ -856,7 +854,7 @@ dependencies = [
 [[package]]
 name = "epic_p2p"
 version = "3.0.0"
-source = "git+https://github.com/EpicCash/epic?branch=3.0.0#d04842f107a3b224f0392de103eb0b7cdf2a6b2f"
+source = "git+https://github.com/EpicCash/epic?branch=master#59c5d4ac13f27258a2fc14d3ed7ef37b13872746"
 dependencies = [
  "bitflags 1.3.2",
  "bytes",
@@ -879,7 +877,7 @@ dependencies = [
 [[package]]
 name = "epic_pool"
 version = "3.0.0"
-source = "git+https://github.com/EpicCash/epic?branch=3.0.0#d04842f107a3b224f0392de103eb0b7cdf2a6b2f"
+source = "git+https://github.com/EpicCash/epic?branch=master#59c5d4ac13f27258a2fc14d3ed7ef37b13872746"
 dependencies = [
  "blake2-rfc",
  "chrono",
@@ -898,7 +896,7 @@ dependencies = [
 [[package]]
 name = "epic_store"
 version = "3.0.0"
-source = "git+https://github.com/EpicCash/epic?branch=3.0.0#d04842f107a3b224f0392de103eb0b7cdf2a6b2f"
+source = "git+https://github.com/EpicCash/epic?branch=master#59c5d4ac13f27258a2fc14d3ed7ef37b13872746"
 dependencies = [
  "byteorder 1.4.3",
  "croaring",
@@ -919,7 +917,7 @@ dependencies = [
 [[package]]
 name = "epic_util"
 version = "3.0.0"
-source = "git+https://github.com/EpicCash/epic?branch=3.0.0#d04842f107a3b224f0392de103eb0b7cdf2a6b2f"
+source = "git+https://github.com/EpicCash/epic?branch=master#59c5d4ac13f27258a2fc14d3ed7ef37b13872746"
 dependencies = [
  "backtrace",
  "base64 0.9.3",
@@ -1142,9 +1140,9 @@ checksum = "e88a8acf291dafb59c2d96e8f59828f3838bb1a70398823ade51a84de6a6deed"
 
 [[package]]
 name = "filetime"
-version = "0.2.15"
+version = "0.2.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "975ccf83d8d9d0d84682850a38c8169027be83368805971cc4f238c2b245bc98"
+checksum = "c0408e2626025178a6a7f7ffc05a25bc47103229f19c113755de7bf63816290c"
 dependencies = [
  "cfg-if 1.0.0",
  "libc",
@@ -1166,14 +1164,14 @@ dependencies = [
 
 [[package]]
 name = "flate2"
-version = "1.0.22"
+version = "1.0.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e6988e897c1c9c485f43b47a529cef42fde0547f9d8d41a7062518f1d8fc53f"
+checksum = "b39522e96686d38f4bc984b9198e3a0613264abaebaff2c5c918bfa6b6da09af"
 dependencies = [
  "cfg-if 1.0.0",
  "crc32fast",
  "libc",
- "miniz_oxide",
+ "miniz_oxide 0.5.1",
 ]
 
 [[package]]
@@ -1247,12 +1245,12 @@ dependencies = [
 
 [[package]]
 name = "generic-array"
-version = "0.14.4"
+version = "0.14.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "501466ecc8a30d1d3b7fc9229b122b2ce8ed6e9d9223f1138d4babb253e51817"
+checksum = "fd48d33ec7f05fbfa152300fdad764757cbded343c1aa1cff2fbaf4134851803"
 dependencies = [
  "typenum",
- "version_check 0.9.3",
+ "version_check 0.9.4",
 ]
 
 [[package]]
@@ -1808,6 +1806,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "miniz_oxide"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d2b29bd4bc3f33391105ebee3589c19197c4271e3e5a9ec9bfe8127eeff8f082"
+dependencies = [
+ "adler",
+]
+
+[[package]]
 name = "mio"
 version = "0.6.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1964,7 +1971,7 @@ checksum = "e63899ad0da84ce718c14936262a41cee2c79c981fc0a0e7c7beb47d5a07e8c1"
 dependencies = [
  "num-integer",
  "num-traits 0.2.14",
- "rand 0.4.6",
+ "rand 0.3.23",
  "rustc-serialize",
 ]
 
@@ -2011,9 +2018,9 @@ dependencies = [
 
 [[package]]
 name = "num-iter"
-version = "0.1.42"
+version = "0.1.43"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b2021c8337a54d21aca0d59a92577a029af9431cb59b909b03252b9c164fad59"
+checksum = "7d03e6c028c5dc5cac6e2dec0efda81fc887605bb3d884578bb6d6bf7514e252"
 dependencies = [
  "autocfg 1.0.1",
  "num-integer",
@@ -2224,7 +2231,7 @@ dependencies = [
  "crypto-mac",
  "hmac",
  "password-hash",
- "sha2 0.9.8",
+ "sha2 0.9.9",
 ]
 
 [[package]]
@@ -2652,7 +2659,7 @@ dependencies = [
 [[package]]
 name = "randomx"
 version = "0.1.1"
-source = "git+https://github.com/EpicCash/randomx-rust.git#b64040eb95b4721a398434eb05fb699782ecfde4"
+source = "git+https://github.com/EpicCash/randomx-rust.git#a852669d2e17ee22fa3fcd43c4e0dab9830729fd"
 dependencies = [
  "bigint",
  "bindgen",
@@ -2957,9 +2964,9 @@ dependencies = [
 
 [[package]]
 name = "serde_yaml"
-version = "0.8.23"
+version = "0.8.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a4a521f2940385c165a24ee286aa8599633d162077a54bdcae2a6fd5a7bfa7a0"
+checksum = "707d15895415db6628332b737c838b88c598522e4dc70647e59b72312924aebc"
 dependencies = [
  "indexmap",
  "ryu",
@@ -2981,9 +2988,9 @@ dependencies = [
 
 [[package]]
 name = "sha2"
-version = "0.9.8"
+version = "0.9.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b69f9a4c9740d74c5baa3fd2e547f9525fa8088a8a958e0ca2409a514e33f5fa"
+checksum = "4d58a1e1bf39749807d89cf2d98ac2dfa0ff1cb3faa38fbb64dd88ac8013d800"
 dependencies = [
  "block-buffer 0.9.0",
  "cfg-if 1.0.0",
@@ -3166,9 +3173,9 @@ dependencies = [
 
 [[package]]
 name = "termcolor"
-version = "1.1.2"
+version = "1.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2dfed899f0eb03f32ee8c6a0aabdb8a7949659e3466561fc0adf54e26d88c5f4"
+checksum = "bab24d30b911b2376f3a13cc2cd443142f0c81dda04c118693e35b3835757755"
 dependencies = [
  "winapi-util",
 ]
@@ -3196,18 +3203,18 @@ dependencies = [
 
 [[package]]
 name = "thiserror"
-version = "1.0.30"
+version = "1.0.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "854babe52e4df1653706b98fcfc05843010039b406875930a70e4d9644e5c417"
+checksum = "bd829fe32373d27f76265620b5309d0340cb8550f523c1dda251d6298069069a"
 dependencies = [
  "thiserror-impl",
 ]
 
 [[package]]
 name = "thiserror-impl"
-version = "1.0.30"
+version = "1.0.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aa32fd3f627f367fe16f893e2597ae3c05020f8bba2666a4e6ea73d377e5714b"
+checksum = "0396bc89e626244658bef819e22d0cc459e795a5ebe878e6ec336d1674a8d79a"
 dependencies = [
  "proc-macro2 1.0.34",
  "quote 1.0.10",
@@ -3685,9 +3692,9 @@ checksum = "914b1a6776c4c929a602fafd8bc742e06365d4bcbe48c30f9cca5824f70dc9dd"
 
 [[package]]
 name = "version_check"
-version = "0.9.3"
+version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5fecdca9a5291cc2b8dcf7dc02453fee791a280f3743cb0905f8822ae463b3fe"
+checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 
 [[package]]
 name = "void"
@@ -3828,18 +3835,18 @@ dependencies = [
 
 [[package]]
 name = "zeroize"
-version = "1.4.3"
+version = "1.5.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d68d9dcec5f9b43a30d38c49f91dfedfaac384cb8f085faca366c26207dd1619"
+checksum = "94693807d016b2f2d2e14420eb3bfcca689311ff775dcf113d74ea624b7cdf07"
 dependencies = [
  "zeroize_derive",
 ]
 
 [[package]]
 name = "zeroize_derive"
-version = "1.2.2"
+version = "1.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "65f1a51723ec88c66d5d1fe80c841f17f63587d6691901d66be9bec6c3b51f73"
+checksum = "3f8f187641dad4f680d25c4bfc4225b418165984179f26ca76ec4fb6441d3a17"
 dependencies = [
  "proc-macro2 1.0.34",
  "quote 1.0.10",
