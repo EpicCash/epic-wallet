@@ -83,18 +83,14 @@ where
 		// attempt to unwind message from the RP and get a value
 		// will fail if it's not ours
 		let info = {
-			// Before HF+2wk, try legacy rewind first
-			let info_legacy = if valid_header_version(*height, legacy_version) {
+			// Try new rewind first
+			let info_new = proof::rewind(keychain.secp(), &builder, *commit, None, *proof)?;
+
+			// If new didn't work, try legacy rewind
+			if info_new.is_none() {
 				proof::rewind(keychain.secp(), &legacy_builder, *commit, None, *proof)?
 			} else {
-				None
-			};
-
-			// If legacy didn't work, try new rewind
-			if info_legacy.is_none() {
-				proof::rewind(keychain.secp(), &builder, *commit, None, *proof)?
-			} else {
-				info_legacy
+				info_new
 			}
 		};
 
