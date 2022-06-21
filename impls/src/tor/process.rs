@@ -50,10 +50,12 @@ extern crate regex;
 extern crate timer;
 
 use regex::Regex;
+use std::env;
 use std::fs::{self, File};
 use std::io;
 use std::io::Write;
 use std::io::{BufRead, BufReader};
+use std::path::PathBuf;
 use std::path::{Path, MAIN_SEPARATOR};
 use std::process::{Child, ChildStdout, Command, Stdio};
 use std::sync::mpsc::channel;
@@ -153,7 +155,12 @@ impl TorProcess {
 	// The tor process will have its stdout piped, so if the stdout lines are not consumed they
 	// will keep accumulating over time, increasing the consumed memory.
 	pub fn launch(&mut self) -> Result<&mut Self, Error> {
-		let mut tor = Command::new(&self.tor_cmd);
+
+		let mut dir = env::current_exe().unwrap();
+		dir.pop();
+		dir.push(&self.tor_cmd);
+        print!("################ {:?}#######################", dir);
+		let mut tor = Command::new(dir);
 
 		if let Some(ref d) = self.working_dir {
 			tor.current_dir(&d);
