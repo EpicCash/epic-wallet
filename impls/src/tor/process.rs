@@ -156,11 +156,11 @@ impl TorProcess {
 	// will keep accumulating over time, increasing the consumed memory.
 	pub fn launch(&mut self) -> Result<&mut Self, Error> {
 
-		let mut dir = env::current_exe().unwrap();
-		dir.pop();
-		dir.push(&self.tor_cmd);
-        print!("################ {:?}#######################", dir);
-		let mut tor = Command::new(dir);
+        let mut tor_exe_dir = env::current_exe().unwrap();
+		tor_exe_dir.pop();
+		tor_exe_dir.push(&self.tor_cmd);
+
+		let mut tor = Command::new(tor_exe_dir);
 
 		if let Some(ref d) = self.working_dir {
 			tor.current_dir(&d);

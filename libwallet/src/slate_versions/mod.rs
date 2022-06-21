@@ -94,7 +94,6 @@ impl From<VersionedSlate> for Slate {
 	}
 }
 
-
 #[derive(Deserialize, Serialize)]
 #[serde(untagged)]
 /// Versions are ordered newest to oldest so serde attempts to
