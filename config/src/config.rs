@@ -59,6 +59,7 @@ fn get_epic_path(chain_type: &global::ChainTypes) -> Result<PathBuf, ConfigError
 
 fn check_config_current_dir(path: &str) -> Option<PathBuf> {
 	let p = env::current_dir();
+
 	let mut c = match p {
 		Ok(c) => c,
 		Err(_) => {
