@@ -24,14 +24,14 @@ dirs = "1.0.3"
 # epic_api = "2.0.0"
 # epic_store = "2.0.0"
 
-# For beta release
 
-epic_core     = { git = "https://github.com/EpicCash/epic", branch = "mobile"}
-epic_keychain = { git = "https://github.com/EpicCash/epic", branch = "mobile" }
-epic_chain    = { git = "https://github.com/EpicCash/epic", branch = "mobile" }
-epic_util     = { git = "https://github.com/EpicCash/epic", branch = "mobile" }
-epic_api      = { git = "https://github.com/EpicCash/epic", branch = "mobile" }
-epic_store    = { git = "https://github.com/EpicCash/epic", branch = "mobile" }
+epic_core     = { git = "https://github.com/EpicCash/epic", branch = "master" }
+epic_keychain = { git = "https://github.com/EpicCash/epic", branch = "master" }
+epic_chain    = { git = "https://github.com/EpicCash/epic", branch = "master" }
+epic_util     = { git = "https://github.com/EpicCash/epic", branch = "master" }
+epic_api      = { git = "https://github.com/EpicCash/epic", branch = "master" }
+epic_store    = { git = "https://github.com/EpicCash/epic", branch = "master" }
+
 
 # For bleeding edge
 # epic_core = { git = "https://github.com/mimblewimble/epic", branch = "master" }

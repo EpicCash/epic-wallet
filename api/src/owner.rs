@@ -390,6 +390,7 @@ where
 		keychain_mask: Option<&SecretKey>,
 		include_spent: bool,
 		refresh_from_node: bool,
+		show_full_history: bool,
 		tx_id: Option<u32>,
 	) -> Result<(bool, Vec<OutputCommitMapping>), Error> {
 		let tx = {
@@ -406,6 +407,7 @@ where
 			&tx,
 			include_spent,
 			refresh_from_node,
+			show_full_history,
 			tx_id,
 		)
 	}
@@ -2042,7 +2044,7 @@ where
 	/// # Example
 	/// Set up as in [`new`](struct.Owner.html#method.new) method above.
 	/// ```
-	/// # grin_wallet_api::doctest_helper_setup_doc_env!(wallet, wallet_config);
+	/// # epic_wallet_api::doctest_helper_setup_doc_env!(wallet, wallet_config);
 	///
 	/// let api_owner = Owner::new(wallet.clone());
 	/// let update_from_node = true;
@@ -2111,7 +2113,7 @@ where
 	/// # Example
 	/// Set up as in [`new`](struct.Owner.html#method.new) method above.
 	/// ```
-	/// # grin_wallet_api::doctest_helper_setup_doc_env!(wallet, wallet_config);
+	/// # epic_wallet_api::doctest_helper_setup_doc_env!(wallet, wallet_config);
 	///
 	/// let api_owner = Owner::new(wallet.clone());
 	/// let update_from_node = true;
