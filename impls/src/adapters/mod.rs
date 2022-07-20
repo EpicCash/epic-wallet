@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-mod file;
 mod emoji;
+mod file;
 pub mod http;
 mod keybase;
 
-pub use self::file::PathToSlate;
 pub use self::emoji::EmojiSlate;
+pub use self::file::PathToSlate;
 pub use self::http::{HttpSlateSender, SchemeNotHttp};
 pub use self::keybase::{KeybaseAllChannels, KeybaseChannel};
 

@@ -19,7 +19,7 @@ use crate::config::{TorConfig, WalletConfig, WALLET_CONFIG_FILE_NAME};
 use crate::core::{core, global};
 use crate::error::{Error, ErrorKind};
 use crate::impls::{create_sender, KeybaseAllChannels, SlateGetter as _, SlateReceiver as _};
-use crate::impls::{PathToSlate, SlatePutter, EmojiSlate};
+use crate::impls::{EmojiSlate, PathToSlate, SlatePutter};
 use crate::keychain;
 use crate::libwallet::{
 	self, address, InitTxArgs, IssueInvoiceTxArgs, NodeClient, PaymentProof, WalletInst,

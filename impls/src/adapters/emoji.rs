@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::cmp::Reverse;
 use bitvec::prelude::*;
 use emoji::{self, Emoji};
+use std::cmp::Reverse;
 
 use crate::libwallet::{Error, Slate};
 
@@ -24,41 +24,41 @@ pub struct EmojiSlate();
 // println!("{:?}", emoji::food_and_drink::food_marine::CRAB.glyph);
 
 impl EmojiSlate {
-    fn byte2bitvec(&self, byte: u8) -> BitVec{
-        let mut bit_vec = BitVec::new();
-        for i in 0..8 {
-            let mut bit = byte << i;
-            bit = bit >> 7;
-            
-            if bit == 1 {
-                bit_vec.push(true);
-            }else{
-                bit_vec.push(false);
-            }
-        }
-        return bit_vec;
-    }
+	fn byte2bitvec(&self, byte: u8) -> BitVec {
+		let mut bit_vec = BitVec::new();
+		for i in 0..8 {
+			let mut bit = byte << i;
+			bit = bit >> 7;
 
-    fn setExtraBits(&self, data_len: usize) -> BitVec {
-        let mut bit_vec = BitVec::new();
-        let extra_bits = (10 - ((data_len*8) % 10)) as u8;
-        let mut extra_bits_vec = self.byte2bitvec(extra_bits);
+			if bit == 1 {
+				bit_vec.push(true);
+			} else {
+				bit_vec.push(false);
+			}
+		}
+		return bit_vec;
+	}
 
-        for i in 0..6 {
-            bit_vec.push(false);
-        }
-        for i in 4..extra_bits_vec.len() {
-            bit_vec.push(extra_bits_vec[i]);
-        }
-        for i in 0..extra_bits {
-            bit_vec.push(false);
-        }
+	fn setExtraBits(&self, data_len: usize) -> BitVec {
+		let mut bit_vec = BitVec::new();
+		let extra_bits = (10 - ((data_len * 8) % 10)) as u8;
+		let mut extra_bits_vec = self.byte2bitvec(extra_bits);
 
-        return bit_vec;
-    }
+		for i in 0..6 {
+			bit_vec.push(false);
+		}
+		for i in 4..extra_bits_vec.len() {
+			bit_vec.push(extra_bits_vec[i]);
+		}
+		for i in 0..extra_bits {
+			bit_vec.push(false);
+		}
 
-    fn emojiMapping(&self, map: Vec<u16>) -> String {
-        let emoji_map = [
+		return bit_vec;
+	}
+
+	fn emojiMapping(&self, map: Vec<u16>) -> String {
+		let emoji_map = [
             emoji::activities::arts_and_crafts::ARTIST_PALETTE,
             emoji::activities::arts_and_crafts::PERFORMING_ARTS,
             emoji::activities::arts_and_crafts::THREAD,
@@ -1019,7 +1019,7 @@ impl EmojiSlate {
             emoji::people_and_body::person_sport::MAN_CARTWHEELING,
             emoji::people_and_body::person_symbol::BUSTS_IN_SILHOUETTE,
             emoji::people_and_body::person_symbol::BUST_IN_SILHOUETTE,
-            emoji::people_and_body::person_symbol::FOOTPRINTS,            
+            emoji::people_and_body::person_symbol::FOOTPRINTS,
             emoji::people_and_body::person_symbol::SPEAKING_HEAD,
             emoji::smileys_and_emotion::emotion::BOMB,
             emoji::smileys_and_emotion::emotion::DASHING_AWAY,
@@ -1085,52 +1085,52 @@ impl EmojiSlate {
             emoji::travel_and_places::transport_water::CANOE
         ];
 
-        let mut emoji_string = "".to_owned();
-        for value in map {
-            emoji_string.push_str(emoji_map[value as usize].glyph);
-        }
+		let mut emoji_string = "".to_owned();
+		for value in map {
+			emoji_string.push_str(emoji_map[value as usize].glyph);
+		}
 
-        return emoji_string;
-    }
+		return emoji_string;
+	}
 
-    pub fn encode(&self, slate: &Slate) -> String{
-        let slate_str = format!("{:?}", slate).into_bytes();
-        
-        let mut bitstream: BitVec = BitVec::new();
+	pub fn encode(&self, slate: &Slate) -> String {
+		let slate_str = format!("{:?}", slate).into_bytes();
 
-        for bit in self.setExtraBits(slate_str.len()) {
-            bitstream.push(bit);
-        }
+		let mut bitstream: BitVec = BitVec::new();
 
-        for i in 0..slate_str.len() {
-            let char_bitvector = self.byte2bitvec(slate_str[i]);
-            for bit in char_bitvector {
-                bitstream.push(bit);
-            }
-        }
+		for bit in self.setExtraBits(slate_str.len()) {
+			bitstream.push(bit);
+		}
 
-        let mut emoji_map_idx = Vec::new();
-        while bitstream.len() > 0 {
-            let slice = bitstream.drain(0..10);
-            let mut bv: BitVec = BitVec::new();
-            for i in 0..6 {
-                bv.push(false);
-            }
-            for bit in slice{
-                bv.push(bit);
-            }
-            bv.reverse();
+		for i in 0..slate_str.len() {
+			let char_bitvector = self.byte2bitvec(slate_str[i]);
+			for bit in char_bitvector {
+				bitstream.push(bit);
+			}
+		}
 
-            emoji_map_idx.push(bv.load::<u16>());
-        }
+		let mut emoji_map_idx = Vec::new();
+		while bitstream.len() > 0 {
+			let slice = bitstream.drain(0..10);
+			let mut bv: BitVec = BitVec::new();
+			for i in 0..6 {
+				bv.push(false);
+			}
+			for bit in slice {
+				bv.push(bit);
+			}
+			bv.reverse();
 
-        let emoji_string = self.emojiMapping(emoji_map_idx);
+			emoji_map_idx.push(bv.load::<u16>());
+		}
 
-        return emoji_string;
-    }
+		let emoji_string = self.emojiMapping(emoji_map_idx);
 
-    // fn emoji_id_definition(&self, &idx: Vec<u64>) -> String{
-    //     println!("{:?}", idx);
-    //     return "";
-    // }
+		return emoji_string;
+	}
+
+	// fn emoji_id_definition(&self, &idx: Vec<u64>) -> String{
+	//     println!("{:?}", idx);
+	//     return "";
+	// }
 }
