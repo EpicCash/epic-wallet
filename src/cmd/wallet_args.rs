@@ -424,6 +424,8 @@ pub fn parse_send_args(args: &ArgMatches) -> Result<command::SendArgs, ParseErro
 				Some(d) => d,
 				None => "default",
 			}
+		} else if method == "emoji" {
+			""
 		} else {
 			if !estimate_selection_strategies {
 				parse_required(args, "dest")?

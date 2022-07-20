@@ -13,10 +13,12 @@
 // limitations under the License.
 
 mod file;
+mod emoji;
 pub mod http;
 mod keybase;
 
 pub use self::file::PathToSlate;
+pub use self::emoji::EmojiSlate;
 pub use self::http::{HttpSlateSender, SchemeNotHttp};
 pub use self::keybase::{KeybaseAllChannels, KeybaseChannel};
 

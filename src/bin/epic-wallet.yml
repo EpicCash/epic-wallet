@@ -130,6 +130,7 @@ subcommands:
               - file
               - self
               - keybase
+              - emoji
             default_value: http
             takes_value: true
         - dest:

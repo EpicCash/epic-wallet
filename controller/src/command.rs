@@ -19,7 +19,7 @@ use crate::config::{TorConfig, WalletConfig, WALLET_CONFIG_FILE_NAME};
 use crate::core::{core, global};
 use crate::error::{Error, ErrorKind};
 use crate::impls::{create_sender, KeybaseAllChannels, SlateGetter as _, SlateReceiver as _};
-use crate::impls::{PathToSlate, SlatePutter};
+use crate::impls::{PathToSlate, SlatePutter, EmojiSlate};
 use crate::keychain;
 use crate::libwallet::{
 	self, address, InitTxArgs, IssueInvoiceTxArgs, NodeClient, PaymentProof, WalletInst,
@@ -323,6 +323,11 @@ where
 			};
 
 			match args.method.as_str() {
+				"emoji" => {
+					println!("{}", EmojiSlate().encode(&slate));
+					api.tx_lock_outputs(m, &slate, 0)?;
+					return Ok(());
+				}
 				"file" => {
 					PathToSlate((&args.dest).into()).put_tx(&slate)?;
 					api.tx_lock_outputs(m, &slate, 0)?;
