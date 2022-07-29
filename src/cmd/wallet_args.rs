@@ -510,29 +510,45 @@ pub fn parse_receive_args(receive_args: &ArgMatches) -> Result<command::ReceiveA
 		false => None,
 	};
 
+	// method
+	let method = parse_required(receive_args, "method")?;
+
 	// input
 	let tx_file = parse_required(receive_args, "input")?;
 
 	// validate input
-	if !Path::new(&tx_file).is_file() {
-		let msg = format!("File {} not found.", &tx_file);
-		return Err(ParseError::ArgumentError(msg));
+	if method == "file"{
+		if !Path::new(&tx_file).is_file() {
+			let msg = format!("File {} not found.", &tx_file);
+			return Err(ParseError::ArgumentError(msg));
+		}
 	}
 
 	Ok(command::ReceiveArgs {
 		input: tx_file.to_owned(),
 		message: message,
+		method: method.to_string(),
 	})
 }
 
 pub fn parse_finalize_args(args: &ArgMatches) -> Result<command::FinalizeArgs, ParseError> {
 	let fluff = args.is_present("fluff");
 	let nopost = args.is_present("nopost");
-	let tx_file = parse_required(args, "input")?;
 
-	if !Path::new(&tx_file).is_file() {
-		let msg = format!("File {} not found.", tx_file);
-		return Err(ParseError::ArgumentError(msg));
+	// method
+	let method = parse_required(args, "method")?;
+
+	// input
+	let input = parse_required(args, "input")?;
+
+	// validate input
+	if method == "file"{
+
+		if !Path::new(&input).is_file() {
+			let msg = format!("File {} not found.", input);
+			return Err(ParseError::ArgumentError(msg));
+		}
+		
 	}
 
 	let dest_file = match args.is_present("dest") {
@@ -541,7 +557,8 @@ pub fn parse_finalize_args(args: &ArgMatches) -> Result<command::FinalizeArgs, P
 	};
 
 	Ok(command::FinalizeArgs {
-		input: tx_file.to_owned(),
+		method: method.to_string(),
+		input: input.to_owned(),
 		fluff: fluff,
 		nopost: nopost,
 		dest: dest_file.to_owned(),
