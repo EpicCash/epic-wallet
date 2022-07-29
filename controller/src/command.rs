@@ -395,10 +395,10 @@ where
 	let mut slate;
 	if method == "emoji" {
 		slate = EmojiSlate().decode(&args.input.as_str())?;
-	}else{
+	} else {
 		slate = PathToSlate((&args.input).into()).get_tx()?;
 	}
-	
+
 	let km = match keychain_mask.as_ref() {
 		None => None,
 		Some(&m) => Some(m.to_owned()),
