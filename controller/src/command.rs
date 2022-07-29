@@ -414,14 +414,14 @@ where
 	if method == "emoji" {
 		println!("\n\nThis is your response emoji string. Please send it back to the payer to finalize the transaction:\n\n{}", EmojiSlate().encode(&slate));
 		info!("Response emoji.response generated, and can be sent back to the transaction originator.");
-	}else{
+	} else {
 		PathToSlate(format!("{}.response", args.input).into()).put_tx(&slate)?;
 		info!(
 			"Response file {}.response generated, and can be sent back to the transaction originator.",
 			args.input
 		);
 	}
-	
+
 	Ok(())
 }
 
@@ -448,7 +448,7 @@ where
 	let mut slate;
 	if method == "emoji" {
 		slate = EmojiSlate().decode(&args.input.as_str())?;
-	}else{
+	} else {
 		slate = PathToSlate((&args.input).into()).get_tx()?;
 	}
 

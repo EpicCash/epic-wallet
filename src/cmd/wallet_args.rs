@@ -517,7 +517,7 @@ pub fn parse_receive_args(receive_args: &ArgMatches) -> Result<command::ReceiveA
 	let tx_file = parse_required(receive_args, "input")?;
 
 	// validate input
-	if method == "file"{
+	if method == "file" {
 		if !Path::new(&tx_file).is_file() {
 			let msg = format!("File {} not found.", &tx_file);
 			return Err(ParseError::ArgumentError(msg));
@@ -542,13 +542,11 @@ pub fn parse_finalize_args(args: &ArgMatches) -> Result<command::FinalizeArgs, P
 	let input = parse_required(args, "input")?;
 
 	// validate input
-	if method == "file"{
-
+	if method == "file" {
 		if !Path::new(&input).is_file() {
 			let msg = format!("File {} not found.", input);
 			return Err(ParseError::ArgumentError(msg));
 		}
-		
 	}
 
 	let dest_file = match args.is_present("dest") {
