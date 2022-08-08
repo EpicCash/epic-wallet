@@ -19,7 +19,6 @@ use std::collections::HashMap;
 use uuid::Uuid;
 
 use crate::epic_core::consensus::{cumulative_reward_foundation, header_version, reward};
-use crate::epic_core::core::block::HeaderVersion;
 use crate::epic_core::core::{Output, TxKernel};
 use crate::epic_core::global;
 use crate::epic_core::libtx::proof::{LegacyProofBuilder, ProofBuilder};
@@ -55,7 +54,7 @@ where
 		.iter()
 		.filter(|out| show_spent || out.status != OutputStatus::Spent)
 		.collect::<Vec<_>>();
-
+		
 	if show_full_history {
 		outputs.append(
 			&mut wallet
