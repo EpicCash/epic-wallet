@@ -16,7 +16,7 @@ serde_derive = "1"
 toml = "0.4"
 dirs = "1.0.3"
 
-epic_wallet_util = { path = "../util", version = "3.0.0" }
+epic_wallet_util = { path = "../util", version = "3.2.2-1" }
 
 [dev-dependencies]
 pretty_assertions = "0.5.1"

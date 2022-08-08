@@ -1,6 +1,6 @@
 [package]
 name = "epic_wallet_util"
-version = "3.0.0"
+version = "3.2.2-1"
 authors = ["Epic Developers <mimblewimble@lists.launchpad.net>"]
 description = "Util, for generic utilities and to re-export epic crates"
 license = "Apache-2.0"
@@ -25,13 +25,20 @@ dirs = "1.0.3"
 # epic_store = "2.0.0"
 
 # For beta release
+# epic_core     = { git = "https://github.com/EpicCash/epic", branch = "master" }
+# epic_keychain = { git = "https://github.com/EpicCash/epic", branch = "master" }
+# epic_chain    = { git = "https://github.com/EpicCash/epic", branch = "master" }
+# epic_util     = { git = "https://github.com/EpicCash/epic", branch = "master" }
+# epic_api      = { git = "https://github.com/EpicCash/epic", branch = "master" }
+# epic_store    = { git = "https://github.com/EpicCash/epic", branch = "master" }
 
-epic_core     = { git = "https://github.com/EpicCash/epic", branch = "master"}
-epic_keychain = { git = "https://github.com/EpicCash/epic", branch = "master" }
-epic_chain    = { git = "https://github.com/EpicCash/epic", branch = "master" }
-epic_util     = { git = "https://github.com/EpicCash/epic", branch = "master" }
-epic_api      = { git = "https://github.com/EpicCash/epic", branch = "master" }
-epic_store    = { git = "https://github.com/EpicCash/epic", branch = "master" }
+# For alpha release
+epic_core     = { git = "https://github.com/EpicCash/epic", branch = "develop" }
+epic_keychain = { git = "https://github.com/EpicCash/epic", branch = "develop" }
+epic_chain    = { git = "https://github.com/EpicCash/epic", branch = "develop" }
+epic_util     = { git = "https://github.com/EpicCash/epic", branch = "develop" }
+epic_api      = { git = "https://github.com/EpicCash/epic", branch = "develop" }
+epic_store    = { git = "https://github.com/EpicCash/epic", branch = "develop" }
 
 # For bleeding edge
 # epic_core = { git = "https://github.com/mimblewimble/epic", branch = "master" }

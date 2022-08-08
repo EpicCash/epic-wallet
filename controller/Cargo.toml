@@ -1,6 +1,6 @@
 [package]
 name = "epic_wallet_controller"
-version = "3.0.0"
+version = "3.2.2-1"
 authors = ["Epic Developers <mimblewimble@lists.launchpad.net>"]
 description = "Controllers for epic wallet instantiation"
 license = "Apache-2.0"
@@ -32,9 +32,8 @@ chrono = { version = "0.4.4", features = ["serde"] }
 easy-jsonrpc-mw = "0.5.3"
 lazy_static = "1"
 
-epic_wallet_util = { path = "../util", version = "3.0.0" }
-
-epic_wallet_api = { path = "../api", version = "3.0.0" }
-epic_wallet_impls = { path = "../impls", version = "3.0.0" }
-epic_wallet_libwallet = { path = "../libwallet", version = "3.0.0" }
+epic_wallet_util = { path = "../util", version = "3.2.2-1" }
+epic_wallet_api = { path = "../api", version = "3.2.2-1" }
+epic_wallet_impls = { path = "../impls", version = "3.2.2-1" }
+epic_wallet_libwallet = { path = "../libwallet", version = "3.2.2-1" }
 epic_wallet_config = { path = "../config", version = "3.0.0" }
