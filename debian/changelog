@@ -1,10 +1,31 @@
+epic (3.2.2~alpha-1) UNRELEASED; urgency=medium
+
+  [ João Victor da Silva ]
+  * Solved the biggest problem of version 3, we solved the problem of coins that disappeared after recover,
+  * Fixed issue #20.
+
+  [ Raul Silva ]
+  * Add the emoji transaction method.
+  
+  [ Marcio Macedo ]
+  * Fix the history show method (fix issue #26): 
+  * Add new method and flag on epic-wallet outputs called show_full_history.
+  * This method shows the lost outputs that have been deleted by the chain in the past.
+
+  [ Johannes Hahn ]
+  * Fixed: Unwrap error on empty password for keybase listener
+
+ -- João Victor da Silva <joao.silva@brickabode.com>  Mon, 8 Aug 2022 12:00:00 +0000
+
 epic-wallet (3.0.0~alpha-2) bionic; urgency=medium
+
   [ Yuri Albuquerque ]
   * Fixes conflict with epic server
 
  -- Ubuntu <ubuntu@ip-172-31-26-231.ec2.internal>  Tue, 27 Feb 2020 17:02:00 +0000
 
 epic-wallet (3.0.0~alpha-1) bionic; urgency=medium
+
   [ Yuri Albuquerque ]
   * Integrates with grin 3.0.0
 
