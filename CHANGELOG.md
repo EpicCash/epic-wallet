@@ -1,4 +1,9 @@
+# epic-wallet 3.2.2-alpha-1
 
+  - [#20](https://github.com/EpicCash/epic-wallet/issues/20) Fix: wrong balance after the recovery process
+  - Feat: Emoji transaction method
+  - [#26](https://github.com/EpicCash/epic-wallet/issues/26) Add -f,--show_full_history to output history
+  - Fix: Unwrap error on empty password for keybase listener
 
 # epic-wallet 3.0.0
 
