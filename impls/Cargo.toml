@@ -26,6 +26,8 @@ tokio-core = "0.1"
 tokio-retry = "0.1"
 uuid = { version = "0.7", features = ["serde", "v4"] }
 chrono = { version = "0.4.4", features = ["serde"] }
+bitvec = "1"
+emoji = "0.2.1"
 
 #http client (copied from epic)
 http = "0.1.5"

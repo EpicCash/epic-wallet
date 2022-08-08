@@ -130,6 +130,7 @@ subcommands:
               - file
               - self
               - keybase
+              - emoji
             default_value: http
             takes_value: true
         - dest:
@@ -173,14 +174,32 @@ subcommands:
             short: g
             long: message
             takes_value: true
+        - method:
+            help: Method of receiving this transaction
+            short: m
+            long: method
+            possible_values:
+              - file
+              - emoji
+            default_value: file
+            takes_value: true
         - input:
-            help: Partial transaction to process, expects the sender's transaction file.
+            help: Partial transaction to process, expects the sender's transaction file or emoji string.
             short: i
             long: input
             takes_value: true
   - finalize:
       about: Processes a receiver's transaction file to finalize a transfer.
       args:
+        - method:
+            help: Method for finalize this transaction
+            short: m
+            long: method
+            possible_values:
+              - file
+              - emoji
+            default_value: file
+            takes_value: true
         - input:
             help: Partial transaction to process, expects the receiver's transaction file.
             short: i
