@@ -1,4 +1,4 @@
-epic (3.2.2~alpha-1) UNRELEASED; urgency=medium
+epic-wallet (3.2.2~alpha-1) UNRELEASED; urgency=medium
 
   [ João Victor da Silva ]
   * Solved the biggest problem of version 3, we solved the problem of coins that disappeared after recover,
