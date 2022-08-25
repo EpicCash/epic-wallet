@@ -242,7 +242,7 @@ impl TorProcess {
 		let mut raw_line = String::new();
 
 		while stdout
-			.read_line(&mut raw_line)
+			.read_line_lossy(&mut raw_line)
 			.map_err(|err| Error::Process(format!("{}", err)))?
 			> 0
 		{
@@ -287,6 +287,54 @@ impl TorProcess {
 		}
 	}
 }
+// This is copied from [here](https://github.com/rust-lang/rust/blob/d3cba254e464303a6495942f3a831c2bbd7f1768/src/libstd/io/mod.rs#L2495),
+// but converted into a "lossy" version
+#[derive(Debug)]
+pub struct LossyLines<B> {
+    buf: B,
+}
+
+impl<B: BufReadLossy> Iterator for LossyLines<B> {
+    type Item = io::Result<String>;
+
+    fn next(&mut self) -> Option<io::Result<String>> {
+        let mut buf = String::new();
+        match self.buf.read_line_lossy(&mut buf) {
+            Ok(0) => None,
+            Ok(_n) => {
+                if buf.ends_with('\n') {
+                    buf.pop();
+                    if buf.ends_with('\r') {
+                        buf.pop();
+                    }
+                }
+                Some(Ok(buf))
+            }
+            Err(e) => Some(Err(e)),
+        }
+    }
+}
+
+// A lossy way to read lines
+pub trait BufReadLossy: BufRead {
+    fn read_line_lossy(&mut self, buf: &mut String) -> io::Result<usize> {
+        let mut buffer = Vec::new();
+        let size = self.read_until(b'\n', &mut buffer)?;
+        let s = String::from_utf8_lossy(&buffer);
+        buf.push_str(&s);
+        Ok(size)
+    }
+
+    fn lines_lossy(self) -> LossyLines<Self>
+    where
+        Self: Sized,
+    {
+        LossyLines { buf: self }
+    }
+}
+
+// Implement `BufReadLossy` for all types that implement `BufRead`
+impl<T: BufRead> BufReadLossy for T {}
 
 impl Drop for TorProcess {
 	// kill the child
