@@ -31,12 +31,6 @@ use std::env;
 use std::fs;
 use std::path::PathBuf;
 
-use dhat::DhatAlloc;
-#[cfg(feature = "dhat-heap")]
-#[cfg(feature = "dhat-ad-hoc")]
-#[global_allocator]
-static ALLOCATOR: DhatAlloc = DhatAlloc;
-
 // include build information
 pub mod built_info {
 	include!(concat!(env!("OUT_DIR"), "/built.rs"));

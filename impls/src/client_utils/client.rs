@@ -306,7 +306,7 @@ impl Client {
 					client
 						.request(req)
 						.map_err(|e| {
-							ErrorKind::RequestError(format!("Cannot make request: {}", e)).into()
+							ErrorKind::RequestError(format!("Cannot make request: {}", e)).into() // here
 						})
 						.and_then(|resp| {
 							if !resp.status().is_success() {

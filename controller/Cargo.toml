@@ -31,9 +31,18 @@ url = "1.7.0"
 chrono = { version = "0.4.4", features = ["serde"] }
 easy-jsonrpc-mw = "0.5.3"
 lazy_static = "1"
+dhat = "0.3.0"
 
 epic_wallet_util = { path = "../util", version = "3.2.2-1" }
 epic_wallet_api = { path = "../api", version = "3.2.2-1" }
 epic_wallet_impls = { path = "../impls", version = "3.2.2-1" }
 epic_wallet_libwallet = { path = "../libwallet", version = "3.2.2-1" }
 epic_wallet_config = { path = "../config", version = "3.0.0" }
+
+[profile.release]
+debug=1
+
+[features]
+default = ["dhat-ad-hoc", "dhat-heap"]
+dhat-ad-hoc = []
+dhat-heap = []

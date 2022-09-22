@@ -36,6 +36,12 @@ use std::thread;
 use std::time::Duration;
 use uuid::Uuid;
 
+use dhat;
+
+#[cfg(feature = "dhat-heap")]
+#[global_allocator]
+static ALLOC: dhat::Alloc = dhat::Alloc;
+
 fn show_recovery_phrase(phrase: ZeroingString) {
 	println!("Your recovery phrase is:");
 	println!();
@@ -266,6 +272,8 @@ where
 	C: NodeClient + 'static,
 	K: keychain::Keychain + 'static,
 {
+	#[cfg(feature = "dhat-heap")]
+	let _profiler = dhat::Profiler::new_heap();
 	controller::owner_single_use(wallet.clone(), keychain_mask, |api, m| {
 		if args.estimate_selection_strategies {
 			let strategies = vec!["smallest", "all"]
