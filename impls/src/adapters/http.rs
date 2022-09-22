@@ -133,7 +133,7 @@ impl HttpSlateSender {
 	) -> Result<String, ClientError>
 	where
 		IN: Serialize,
-	{	
+	{
 		let nnow = time::Instant::now();
 		println!("			Inside post!");
 		let mut client = Client::new();
@@ -142,7 +142,10 @@ impl HttpSlateSender {
 			client.use_socks = true;
 			client.socks_proxy_addr = self.socks_proxy_addr.clone();
 		}
-		println!("			Inside post - After if self.use_socks | Elapsed {:?}", nnow.elapsed());
+		println!(
+			"			Inside post - After if self.use_socks | Elapsed {:?}",
+			nnow.elapsed()
+		);
 		let req = client.create_post_request(url, api_secret, &input)?;
 		println!("			Inside post - After req | Elapsed {:?}", nnow.elapsed());
 		let res = client.send_request(req)?;

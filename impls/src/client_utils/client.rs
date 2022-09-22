@@ -30,9 +30,9 @@ use serde::{Deserialize, Serialize};
 use serde_json;
 use std::fmt::{self, Display};
 use std::net::SocketAddr;
+use std::time;
 use std::time::Duration;
 use tokio::runtime::Runtime;
-use std::time;
 
 /// Errors that can be returned by an ApiEndpoint implementation.
 #[derive(Debug)]
@@ -306,7 +306,10 @@ impl Client {
 				connector.set_write_timeout(Some(Duration::from_secs(20)));
 				println!("				After conector's timeout | Elapsed {:?}", nnow.elapsed());
 				let client = hyper::Client::builder().build::<_, hyper::Body>(connector);
-				println!("				After hyper::Client::builder() | Elapsed {:?}", nnow.elapsed());
+				println!(
+					"				After hyper::Client::builder() | Elapsed {:?}",
+					nnow.elapsed()
+				);
 				println!("-- req: {:?} --", req);
 				let bbox = Box::new(
 					client
