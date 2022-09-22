@@ -32,6 +32,7 @@ use std::fmt::{self, Display};
 use std::net::SocketAddr;
 use std::time::Duration;
 use tokio::runtime::Runtime;
+use std::time;
 
 /// Errors that can be returned by an ApiEndpoint implementation.
 #[derive(Debug)]
@@ -296,13 +297,18 @@ impl Client {
 		//TODO: redundant code, enjoy figuring out type params for dynamic dispatch of client
 		match self.use_socks {
 			false => {
-				let https = hyper_rustls::HttpsConnector::new(1);
+				let nnow = time::Instant::now();
+				println!("				Inside send_request_async!");
+				let https = hyper_rustls::HttpsConnector::new(4);
 				let mut connector = TimeoutConnector::new(https);
 				connector.set_connect_timeout(Some(Duration::from_secs(20)));
 				connector.set_read_timeout(Some(Duration::from_secs(20)));
 				connector.set_write_timeout(Some(Duration::from_secs(20)));
+				println!("				After conector's timeout | Elapsed {:?}", nnow.elapsed());
 				let client = hyper::Client::builder().build::<_, hyper::Body>(connector);
-				Box::new(
+				println!("				After hyper::Client::builder() | Elapsed {:?}", nnow.elapsed());
+				println!("-- req: {:?} --", req);
+				let bbox = Box::new(
 					client
 						.request(req)
 						.map_err(|e| {
@@ -333,7 +339,9 @@ impl Client {
 								)
 							}
 						}),
-				)
+				);
+				println!("				After box | Elapsed {:?}", nnow.elapsed());
+				bbox
 			}
 			true => {
 				let addr = match self.socks_proxy_addr {
@@ -388,9 +396,15 @@ impl Client {
 	}
 
 	pub fn send_request(&self, req: Request<Body>) -> Result<String, Error> {
+		let nnow = time::Instant::now();
+		println!("	Before send_request_async!");
 		let task = self.send_request_async(req);
+		println!("	After send_request_async | Elapsed {:?}", nnow.elapsed());
 		let mut rt =
 			Runtime::new().context(ErrorKind::Internal("can't create Tokio runtime".to_owned()))?;
-		Ok(rt.block_on(task)?)
+		println!("	After rt | Elapsed {:?}", nnow.elapsed());
+		let tem = rt.block_on(task)?;
+		println!("	After rt.block_on | Elapsed {:?}", nnow.elapsed());
+		Ok(tem)
 	}
 }

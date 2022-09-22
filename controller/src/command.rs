@@ -33,6 +33,7 @@ use std::fs::File;
 use std::io::{Read, Write};
 use std::sync::Arc;
 use std::thread;
+use std::time;
 use std::time::Duration;
 use uuid::Uuid;
 
@@ -364,7 +365,10 @@ where
 				e
 			})?;
 			slate = api.finalize_tx(m, &slate)?;
+			let nnow = time::Instant::now();
+			println!("Before api.post_tx!");
 			let result = api.post_tx(m, &slate.tx, args.fluff);
+			println!("After api.post_tx | Elapsed {:?}", nnow.elapsed());
 			match result {
 				Ok(_) => {
 					info!("Tx sent ok",);

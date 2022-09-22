@@ -21,6 +21,7 @@ use serde::Serialize;
 use serde_json::{json, Value};
 use std::net::SocketAddr;
 use std::path::MAIN_SEPARATOR;
+use std::time;
 
 use crate::tor::config as tor_config;
 use crate::tor::process as tor_process;
@@ -132,14 +133,20 @@ impl HttpSlateSender {
 	) -> Result<String, ClientError>
 	where
 		IN: Serialize,
-	{
+	{	
+		let nnow = time::Instant::now();
+		println!("			Inside post!");
 		let mut client = Client::new();
+		println!("			Inside post - After client | Elapsed {:?}", nnow.elapsed());
 		if self.use_socks {
 			client.use_socks = true;
 			client.socks_proxy_addr = self.socks_proxy_addr.clone();
 		}
+		println!("			Inside post - After if self.use_socks | Elapsed {:?}", nnow.elapsed());
 		let req = client.create_post_request(url, api_secret, &input)?;
+		println!("			Inside post - After req | Elapsed {:?}", nnow.elapsed());
 		let res = client.send_request(req)?;
+		println!("			Inside post - After res | Elapsed {:?}", nnow.elapsed());
 		Ok(res)
 	}
 }
@@ -204,12 +211,14 @@ impl SlateSender for HttpSlateSender {
 					]
 		});
 		trace!("Sending receive_tx request: {}", req);
-
+		let nnow = time::Instant::now();
+		println!("		Before self.post!");
 		let res: String = self.post(&url_str, None, req).map_err(|e| {
 			let report = format!("Posting transaction slate (is recipient listening?): {}", e);
 			error!("{}", report);
 			ErrorKind::ClientCallback(report)
 		})?;
+		println!("		After self.post | Elapsed {:?}", nnow.elapsed());
 
 		let res: Value = serde_json::from_str(&res).unwrap();
 		trace!("Response: {}", res);
