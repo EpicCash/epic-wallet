@@ -32,6 +32,7 @@ use std::fmt::{self, Display};
 use std::net::SocketAddr;
 use std::time::Duration;
 use tokio::runtime::Runtime;
+use std::time;
 
 /// Errors that can be returned by an ApiEndpoint implementation.
 #[derive(Debug)]
@@ -302,22 +303,31 @@ impl Client {
 				connector.set_read_timeout(Some(Duration::from_secs(20)));
 				connector.set_write_timeout(Some(Duration::from_secs(20)));
 				let client = hyper::Client::builder().build::<_, hyper::Body>(connector);
-				Box::new(
-					client
-						.request(req)
-						.map_err(|e| {
-							ErrorKind::RequestError(format!("Cannot make request: {}", e)).into()
-						})
+				let nnow = time::Instant::now();
+				println!("-Before request!");
+				println!("==== {:?} ====", req);
+				let client_req = client.request(req);
+				println!("-After client_req | Elapsed {:?}", nnow.elapsed());
+				let error_client = client_req.map_err(|e| {
+					ErrorKind::RequestError(format!("Cannot make request: {}", e)).into()
+				});
+				println!("-After error_client | Elapsed {:?}", nnow.elapsed());
+				let bbox = Box::new(
+						error_client
 						.and_then(|resp| {
 							if !resp.status().is_success() {
-								Either::A(err(ErrorKind::RequestError(format!(
+								let nnnow = time::Instant::now();
+								let a_a = Either::A(err(ErrorKind::RequestError(format!(
 									"Wrong response code: {} with data {:?}",
 									resp.status(),
 									resp.body()
 								))
-								.into()))
+								.into()));
+								println!("-After Either.A | Elapsed {:?}", nnnow.elapsed());
+								a_a
 							} else {
-								Either::B(
+								let nnnow = time::Instant::now();
+								let b_b = Either::B(
 									resp.into_body()
 										.map_err(|e| {
 											ErrorKind::RequestError(format!(
@@ -330,10 +340,14 @@ impl Client {
 										.and_then(|ch| {
 											ok(String::from_utf8_lossy(&ch.to_vec()).to_string())
 										}),
-								)
-							}
-						}),
-				)
+									);
+								println!("-After Either.B | Elapsed {:?}", nnnow.elapsed());
+								b_b
+								}
+							}),
+				);
+				println!("-After box | Elapsed {:?}", nnow.elapsed());	
+				bbox
 			}
 			true => {
 				let addr = match self.socks_proxy_addr {
