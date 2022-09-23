@@ -30,9 +30,9 @@ use serde::{Deserialize, Serialize};
 use serde_json;
 use std::fmt::{self, Display};
 use std::net::SocketAddr;
+use std::time;
 use std::time::Duration;
 use tokio::runtime::Runtime;
-use std::time;
 
 /// Errors that can be returned by an ApiEndpoint implementation.
 #[derive(Debug)]
@@ -312,41 +312,38 @@ impl Client {
 					ErrorKind::RequestError(format!("Cannot make request: {}", e)).into()
 				});
 				println!("-After error_client | Elapsed {:?}", nnow.elapsed());
-				let bbox = Box::new(
-						error_client
-						.and_then(|resp| {
-							if !resp.status().is_success() {
-								let nnnow = time::Instant::now();
-								let a_a = Either::A(err(ErrorKind::RequestError(format!(
-									"Wrong response code: {} with data {:?}",
-									resp.status(),
-									resp.body()
-								))
-								.into()));
-								println!("-After Either.A | Elapsed {:?}", nnnow.elapsed());
-								a_a
-							} else {
-								let nnnow = time::Instant::now();
-								let b_b = Either::B(
-									resp.into_body()
-										.map_err(|e| {
-											ErrorKind::RequestError(format!(
-												"Cannot read response body: {}",
-												e
-											))
-											.into()
-										})
-										.concat2()
-										.and_then(|ch| {
-											ok(String::from_utf8_lossy(&ch.to_vec()).to_string())
-										}),
-									);
-								println!("-After Either.B | Elapsed {:?}", nnnow.elapsed());
-								b_b
-								}
-							}),
-				);
-				println!("-After box | Elapsed {:?}", nnow.elapsed());	
+				let bbox = Box::new(error_client.and_then(|resp| {
+					if !resp.status().is_success() {
+						let nnnow = time::Instant::now();
+						let a_a = Either::A(err(ErrorKind::RequestError(format!(
+							"Wrong response code: {} with data {:?}",
+							resp.status(),
+							resp.body()
+						))
+						.into()));
+						println!("-After Either.A | Elapsed {:?}", nnnow.elapsed());
+						a_a
+					} else {
+						let nnnow = time::Instant::now();
+						let b_b = Either::B(
+							resp.into_body()
+								.map_err(|e| {
+									ErrorKind::RequestError(format!(
+										"Cannot read response body: {}",
+										e
+									))
+									.into()
+								})
+								.concat2()
+								.and_then(|ch| {
+									ok(String::from_utf8_lossy(&ch.to_vec()).to_string())
+								}),
+						);
+						println!("-After Either.B | Elapsed {:?}", nnnow.elapsed());
+						b_b
+					}
+				}));
+				println!("-After box | Elapsed {:?}", nnow.elapsed());
 				bbox
 			}
 			true => {

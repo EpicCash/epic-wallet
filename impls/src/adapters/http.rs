@@ -133,7 +133,7 @@ impl HttpSlateSender {
 	) -> Result<String, ClientError>
 	where
 		IN: Serialize,
-	{	
+	{
 		let mut client = Client::new();
 		if self.use_socks {
 			client.use_socks = true;
