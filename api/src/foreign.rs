@@ -23,6 +23,7 @@ use crate::libwallet::{
 use crate::util::secp::key::SecretKey;
 use crate::util::Mutex;
 use std::sync::Arc;
+use std::time;
 
 /// ForeignAPI Middleware Check callback
 pub type ForeignCheckMiddleware =
@@ -401,6 +402,8 @@ where
 	) -> Result<Slate, Error> {
 		let mut w_lock = self.wallet_inst.lock();
 		let w = w_lock.lc_provider()?.wallet_inst()?;
+		let nnow = time::Instant::now();
+		println!("%Inside receive_tx - Before res!");
 		if let Some(m) = self.middleware.as_ref() {
 			m(
 				ForeignCheckMiddlewareFn::ReceiveTx,
@@ -408,14 +411,17 @@ where
 				Some(slate),
 			)?;
 		}
-		foreign::receive_tx(
+		println!("%After middleware.as_ref | Elapsed {:?}", nnow.elapsed());
+		let for_receive = foreign::receive_tx(
 			&mut **w,
 			(&self.keychain_mask).as_ref(),
 			slate,
 			dest_acct_name,
 			message,
 			self.doctest_mode,
-		)
+		);
+		println!("%After foreign::receive_tx | Elapsed {:?}", nnow.elapsed());
+		for_receive
 	}
 
 	/// Finalizes an invoice transaction initiated by this wallet's Owner api.

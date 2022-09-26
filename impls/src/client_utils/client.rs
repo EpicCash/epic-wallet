@@ -33,6 +33,7 @@ use std::net::SocketAddr;
 use std::time;
 use std::time::Duration;
 use tokio::runtime::Runtime;
+use futures::future::FutureResult;
 
 /// Errors that can be returned by an ApiEndpoint implementation.
 #[derive(Debug)]
@@ -316,30 +317,29 @@ impl Client {
 					if !resp.status().is_success() {
 						let nnnow = time::Instant::now();
 						let a_a = Either::A(err(ErrorKind::RequestError(format!(
-							"Wrong response code: {} with data {:?}",
-							resp.status(),
-							resp.body()
+							"Wrong response code",
 						))
 						.into()));
-						println!("-After Either.A | Elapsed {:?}", nnnow.elapsed());
+						println!("--After Either.A | Elapsed {:?}", nnnow.elapsed());
 						a_a
 					} else {
 						let nnnow = time::Instant::now();
+						println!("--Inside Either.B | Elapsed {:?} ", nnnow.elapsed());
+						let resp_into_body = resp.into_body();
+						println!("--After resp_into_body | Elapsed {:?} ", nnnow.elapsed());
+						let map_error_resp = resp_into_body
+						.map_err(|e|
+							panic!("Error: {}",e)
+						)
+						.concat2()
+						.and_then(|ch| {
+							ok(String::from_utf8_lossy(&ch.to_vec()).to_string())
+						});
+						println!("--After map_error_resp | Elapsed {:?} ", nnnow.elapsed());
 						let b_b = Either::B(
-							resp.into_body()
-								.map_err(|e| {
-									ErrorKind::RequestError(format!(
-										"Cannot read response body: {}",
-										e
-									))
-									.into()
-								})
-								.concat2()
-								.and_then(|ch| {
-									ok(String::from_utf8_lossy(&ch.to_vec()).to_string())
-								}),
+							map_error_resp
 						);
-						println!("-After Either.B | Elapsed {:?}", nnnow.elapsed());
+						println!("--After Either.B | Elapsed {:?}", nnnow.elapsed());
 						b_b
 					}
 				}));
@@ -399,9 +399,15 @@ impl Client {
 	}
 
 	pub fn send_request(&self, req: Request<Body>) -> Result<String, Error> {
+		let nnow = time::Instant::now();
+		println!("++Before++");
 		let task = self.send_request_async(req);
+		println!("++After task | Elapsed {:?}", nnow.elapsed());
 		let mut rt =
 			Runtime::new().context(ErrorKind::Internal("can't create Tokio runtime".to_owned()))?;
-		Ok(rt.block_on(task)?)
+		println!("++After rt | Elapsed {:?}", nnow.elapsed());
+		let rt_block = rt.block_on(task)?;
+		println!("++After block_on | Elapsed {:?}", nnow.elapsed());
+		Ok(rt_block)
 	}
 }

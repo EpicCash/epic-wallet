@@ -17,6 +17,7 @@
 
 use std::collections::HashMap;
 use uuid::Uuid;
+use std::time;
 
 use crate::epic_core::consensus::{cumulative_reward_foundation, header_version, reward};
 use crate::epic_core::core::{Output, TxKernel};
@@ -112,6 +113,8 @@ where
 	C: NodeClient + 'a,
 	K: Keychain + 'a,
 {
+	let nnow = time::Instant::now();
+	println!("!!Inside retrieve_txs!");
 	let mut txs: Vec<TxLogEntry> = wallet
 		.tx_log_iter()
 		.filter(|tx_entry| {
@@ -138,7 +141,9 @@ where
 			f_pk && f_tx_id && f_txs && f_outstanding
 		})
 		.collect();
+	println!("!!After wallet.tx_log_iter | Elapsed {:?}", nnow.elapsed());
 	txs.sort_by_key(|tx| tx.creation_ts);
+	println!("!!After txs.sort_by_key | Elapsed {:?}", nnow.elapsed());
 	Ok(txs)
 }
 

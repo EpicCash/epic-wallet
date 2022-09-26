@@ -17,6 +17,7 @@
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use std::io::Cursor;
 use uuid::Uuid;
+use std::time;
 
 use crate::epic_core::consensus::valid_header_version;
 use crate::epic_core::core::HeaderVersion;
@@ -389,17 +390,23 @@ where
 	C: NodeClient + 'a,
 	K: Keychain + 'a,
 {
+	let nnow = time::Instant::now();
+	println!("@Inside update_message!");
 	let tx_vec = updater::retrieve_txs(wallet, None, Some(slate.id), None, false)?;
+	println!("@After tx_vec = updater::retrieve_txs | Elapsed {:?}", nnow.elapsed());
 	if tx_vec.is_empty() {
 		return Err(ErrorKind::TransactionDoesntExist(slate.id.to_string()))?;
 	}
 	let mut batch = wallet.batch(keychain_mask)?;
+	println!("@After batch | Elapsed {:?}", nnow.elapsed());
 	for mut tx in tx_vec.into_iter() {
 		tx.messages = Some(slate.participant_messages());
 		let parent_key = tx.parent_key_id.clone();
 		batch.save_tx_log_entry(tx, &parent_key)?;
 	}
+	println!("@After for tx_vec.into_iter | Elapsed {:?}", nnow.elapsed());
 	batch.commit()?;
+	println!("@After commit | Elapsed {:?}", nnow.elapsed());
 	Ok(())
 }
 

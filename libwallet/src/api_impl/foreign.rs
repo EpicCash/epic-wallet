@@ -15,6 +15,8 @@
 //! Generic implementation of owner API functions
 use strum::IntoEnumIterator;
 
+use std::time;
+
 use crate::api_impl::owner::check_ttl;
 use crate::epic_keychain::Keychain;
 use crate::epic_util::secp::key::SecretKey;
@@ -85,8 +87,12 @@ where
 	C: NodeClient + 'a,
 	K: Keychain + 'a,
 {
+	let nnow = time::Instant::now();
+	println!("#Inside receive_tx!");
 	let mut ret_slate = slate.clone();
+	println!("#After ret_slate | Elapsed {:?}", nnow.elapsed());
 	check_ttl(w, &ret_slate)?;
+	println!("#After check_ttl | Elapsed {:?}", nnow.elapsed());
 	let parent_key_id = match dest_acct_name {
 		Some(d) => {
 			let pm = w.get_acct_path(d.to_owned())?;
@@ -97,6 +103,7 @@ where
 		}
 		None => w.parent_key_id(),
 	};
+	println!("#After parent_key_id | Elapsed {:?}", nnow.elapsed());
 	// Don't do this multiple times
 	let tx = updater::retrieve_txs(
 		&mut *w,
@@ -105,11 +112,13 @@ where
 		Some(&parent_key_id),
 		use_test_rng,
 	)?;
+	println!("#After updater::retrieve_txs | Elapsed {:?}", nnow.elapsed());
 	for t in &tx {
 		if t.tx_type == TxLogEntryType::TxReceived {
 			return Err(ErrorKind::TransactionAlreadyReceived(ret_slate.id.to_string()).into());
 		}
 	}
+	println!("#After log print | Elapsed {:?}", nnow.elapsed());
 
 	let message = match message {
 		Some(mut m) => {
@@ -118,6 +127,7 @@ where
 		}
 		None => None,
 	};
+	println!("#After message | Elapsed {:?}", nnow.elapsed());
 
 	tx::add_output_to_slate(
 		&mut *w,
@@ -129,11 +139,13 @@ where
 		false,
 		use_test_rng,
 	)?;
+	println!("#After tx::add_output_to_slate | Elapsed {:?}", nnow.elapsed());
 	tx::update_message(&mut *w, keychain_mask, &mut ret_slate)?;
-
+	println!("#After tx::update_message | Elapsed {:?}", nnow.elapsed());
 	let keychain = w.keychain(keychain_mask)?;
+	println!("#After keychain | Elapsed {:?}", nnow.elapsed());
 	let excess = ret_slate.calc_excess(&keychain)?;
-
+	println!("#After excess | Elapsed {:?}", nnow.elapsed());
 	if let Some(ref mut p) = ret_slate.payment_proof {
 		let sig = tx::create_payment_proof_signature(
 			ret_slate.amount,
@@ -144,7 +156,7 @@ where
 
 		p.receiver_signature = Some(sig);
 	}
-
+	println!("#Inside and After receive_tx | Elapsed {:?}", nnow.elapsed());
 	Ok(ret_slate)
 }
 
