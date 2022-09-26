@@ -112,7 +112,10 @@ where
 		Some(&parent_key_id),
 		use_test_rng,
 	)?;
-	println!("#After updater::retrieve_txs | Elapsed {:?}", nnow.elapsed());
+	println!(
+		"#After updater::retrieve_txs | Elapsed {:?}",
+		nnow.elapsed()
+	);
 	for t in &tx {
 		if t.tx_type == TxLogEntryType::TxReceived {
 			return Err(ErrorKind::TransactionAlreadyReceived(ret_slate.id.to_string()).into());
@@ -139,7 +142,10 @@ where
 		false,
 		use_test_rng,
 	)?;
-	println!("#After tx::add_output_to_slate | Elapsed {:?}", nnow.elapsed());
+	println!(
+		"#After tx::add_output_to_slate | Elapsed {:?}",
+		nnow.elapsed()
+	);
 	tx::update_message(&mut *w, keychain_mask, &mut ret_slate)?;
 	println!("#After tx::update_message | Elapsed {:?}", nnow.elapsed());
 	let keychain = w.keychain(keychain_mask)?;
@@ -156,7 +162,10 @@ where
 
 		p.receiver_signature = Some(sig);
 	}
-	println!("#Inside and After receive_tx | Elapsed {:?}", nnow.elapsed());
+	println!(
+		"#Inside and After receive_tx | Elapsed {:?}",
+		nnow.elapsed()
+	);
 	Ok(ret_slate)
 }
 

@@ -18,6 +18,7 @@ use crate::client_utils::Socksv5Connector;
 use crate::util::to_base64;
 use failure::{Backtrace, Context, Fail, ResultExt};
 use futures::future::result;
+use futures::future::FutureResult;
 use futures::future::{err, ok, Either};
 use futures::stream::Stream;
 use http::uri::{InvalidUri, Uri};
@@ -33,7 +34,6 @@ use std::net::SocketAddr;
 use std::time;
 use std::time::Duration;
 use tokio::runtime::Runtime;
-use futures::future::FutureResult;
 
 /// Errors that can be returned by an ApiEndpoint implementation.
 #[derive(Debug)]
@@ -328,17 +328,11 @@ impl Client {
 						let resp_into_body = resp.into_body();
 						println!("--After resp_into_body | Elapsed {:?} ", nnnow.elapsed());
 						let map_error_resp = resp_into_body
-						.map_err(|e|
-							panic!("Error: {}",e)
-						)
-						.concat2()
-						.and_then(|ch| {
-							ok(String::from_utf8_lossy(&ch.to_vec()).to_string())
-						});
+							.map_err(|e| panic!("Error: {}", e))
+							.concat2()
+							.and_then(|ch| ok(String::from_utf8_lossy(&ch.to_vec()).to_string()));
 						println!("--After map_error_resp | Elapsed {:?} ", nnnow.elapsed());
-						let b_b = Either::B(
-							map_error_resp
-						);
+						let b_b = Either::B(map_error_resp);
 						println!("--After Either.B | Elapsed {:?}", nnnow.elapsed());
 						b_b
 					}

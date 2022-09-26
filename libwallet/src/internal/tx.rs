@@ -16,8 +16,8 @@
 
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use std::io::Cursor;
-use uuid::Uuid;
 use std::time;
+use uuid::Uuid;
 
 use crate::epic_core::consensus::valid_header_version;
 use crate::epic_core::core::HeaderVersion;
@@ -393,7 +393,10 @@ where
 	let nnow = time::Instant::now();
 	println!("@Inside update_message!");
 	let tx_vec = updater::retrieve_txs(wallet, None, Some(slate.id), None, false)?;
-	println!("@After tx_vec = updater::retrieve_txs | Elapsed {:?}", nnow.elapsed());
+	println!(
+		"@After tx_vec = updater::retrieve_txs | Elapsed {:?}",
+		nnow.elapsed()
+	);
 	if tx_vec.is_empty() {
 		return Err(ErrorKind::TransactionDoesntExist(slate.id.to_string()))?;
 	}
