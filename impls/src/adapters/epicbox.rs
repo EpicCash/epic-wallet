@@ -16,13 +16,13 @@
 use crate::adapters::SlateReceiver;
 use crate::config::WalletConfig;
 use crate::keychain::Keychain;
+use crate::libwallet::EpicboxAddress;
 use crate::libwallet::{Error, NodeClient, WalletInst, WalletLCProvider};
 use crate::util::secp::key::SecretKey;
 use crate::util::Mutex;
 use std::sync::Arc;
 use std::thread::sleep;
 use std::time::Duration;
-use crate::libwallet::EpicboxAddress;
 
 use ws::util::Token;
 use ws::{

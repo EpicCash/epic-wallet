@@ -155,8 +155,7 @@ impl TorProcess {
 	// The tor process will have its stdout piped, so if the stdout lines are not consumed they
 	// will keep accumulating over time, increasing the consumed memory.
 	pub fn launch(&mut self) -> Result<&mut Self, Error> {
-
-        let mut tor_exe_dir = env::current_exe().unwrap();
+		let mut tor_exe_dir = env::current_exe().unwrap();
 		tor_exe_dir.pop();
 		tor_exe_dir.push(&self.tor_cmd);
 
@@ -291,46 +290,46 @@ impl TorProcess {
 // but converted into a "lossy" version
 #[derive(Debug)]
 pub struct LossyLines<B> {
-    buf: B,
+	buf: B,
 }
 
 impl<B: BufReadLossy> Iterator for LossyLines<B> {
-    type Item = io::Result<String>;
+	type Item = io::Result<String>;
 
-    fn next(&mut self) -> Option<io::Result<String>> {
-        let mut buf = String::new();
-        match self.buf.read_line_lossy(&mut buf) {
-            Ok(0) => None,
-            Ok(_n) => {
-                if buf.ends_with('\n') {
-                    buf.pop();
-                    if buf.ends_with('\r') {
-                        buf.pop();
-                    }
-                }
-                Some(Ok(buf))
-            }
-            Err(e) => Some(Err(e)),
-        }
-    }
+	fn next(&mut self) -> Option<io::Result<String>> {
+		let mut buf = String::new();
+		match self.buf.read_line_lossy(&mut buf) {
+			Ok(0) => None,
+			Ok(_n) => {
+				if buf.ends_with('\n') {
+					buf.pop();
+					if buf.ends_with('\r') {
+						buf.pop();
+					}
+				}
+				Some(Ok(buf))
+			}
+			Err(e) => Some(Err(e)),
+		}
+	}
 }
 
 // A lossy way to read lines
 pub trait BufReadLossy: BufRead {
-    fn read_line_lossy(&mut self, buf: &mut String) -> io::Result<usize> {
-        let mut buffer = Vec::new();
-        let size = self.read_until(b'\n', &mut buffer)?;
-        let s = String::from_utf8_lossy(&buffer);
-        buf.push_str(&s);
-        Ok(size)
-    }
+	fn read_line_lossy(&mut self, buf: &mut String) -> io::Result<usize> {
+		let mut buffer = Vec::new();
+		let size = self.read_until(b'\n', &mut buffer)?;
+		let s = String::from_utf8_lossy(&buffer);
+		buf.push_str(&s);
+		Ok(size)
+	}
 
-    fn lines_lossy(self) -> LossyLines<Self>
-    where
-        Self: Sized,
-    {
-        LossyLines { buf: self }
-    }
+	fn lines_lossy(self) -> LossyLines<Self>
+	where
+		Self: Sized,
+	{
+		LossyLines { buf: self }
+	}
 }
 
 // Implement `BufReadLossy` for all types that implement `BufRead`
