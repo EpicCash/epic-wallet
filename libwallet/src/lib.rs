@@ -46,6 +46,8 @@ extern crate strum_macros;
 
 pub mod address;
 pub mod api_impl;
+mod base58;
+mod epicbox_address;
 mod error;
 mod internal;
 pub mod slate;
@@ -63,6 +65,7 @@ pub use api_impl::types::{
 	BlockFees, InitTxArgs, InitTxSendArgs, IssueInvoiceTxArgs, NodeHeightResult,
 	OutputCommitMapping, PaymentProof, SendTXArgs, VersionInfo,
 };
+pub use epicbox_address::EpicboxAddress;
 pub use internal::scan::scan;
 pub use slate_versions::ser as dalek_ser;
 pub use types::{

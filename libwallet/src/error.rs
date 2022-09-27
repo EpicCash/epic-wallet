@@ -245,6 +245,17 @@ pub enum ErrorKind {
 	#[fail(display = "Transaction Expired")]
 	TransactionExpired,
 
+	#[fail(display = "Invalid base58 character!")]
+	InvalidBase58Character(char, usize),
+	#[fail(display = "Invalid base58 length")]
+	InvalidBase58Length,
+	#[fail(display = "Invalid base58 checksum")]
+	InvalidBase58Checksum,
+	#[fail(display = "Invalid base58 version bytes")]
+	InvalidBase58Version,
+	#[fail(display = "Invalid key")]
+	InvalidBase58Key,
+
 	/// Other
 	#[fail(display = "Generic error: {}", _0)]
 	GenericError(String),

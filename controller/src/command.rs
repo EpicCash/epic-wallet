@@ -18,7 +18,9 @@ use crate::api::TLSConfig;
 use crate::config::{TorConfig, WalletConfig, WALLET_CONFIG_FILE_NAME};
 use crate::core::{core, global};
 use crate::error::{Error, ErrorKind};
-use crate::impls::{create_sender, KeybaseAllChannels, SlateGetter as _, SlateReceiver as _};
+use crate::impls::{
+	create_sender, EpicboxAllChannels, KeybaseAllChannels, SlateGetter as _, SlateReceiver as _,
+};
 use crate::impls::{PathToSlate, SlatePutter};
 use crate::keychain;
 use crate::libwallet::{
@@ -147,6 +149,9 @@ where
 		),
 		"keybase" => {
 			KeybaseAllChannels::new()?.listen(wallet.clone(), keychain_mask, config.clone())
+		}
+		"epicbox" => {
+			EpicboxAllChannels::new()?.listen(wallet.clone(), keychain_mask, config.clone())
 		}
 		method => {
 			return Err(ErrorKind::ArgumentError(format!(

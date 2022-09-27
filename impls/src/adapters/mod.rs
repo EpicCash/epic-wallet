@@ -12,18 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+mod epicbox;
 mod file;
 pub mod http;
 mod keybase;
 
+pub use self::epicbox::EpicboxAllChannels;
 pub use self::file::PathToSlate;
 pub use self::http::{HttpSlateSender, SchemeNotHttp};
 pub use self::keybase::{KeybaseAllChannels, KeybaseChannel};
-
 use crate::config::{TorConfig, WalletConfig};
 use crate::libwallet::{Error, ErrorKind, NodeClient, Slate, WalletInst, WalletLCProvider};
 use crate::tor::config::complete_tor_address;
-use crate::util::ZeroingString;
 
 use crate::keychain::Keychain;
 use crate::util::secp::key::SecretKey;
