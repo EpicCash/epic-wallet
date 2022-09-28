@@ -255,6 +255,10 @@ pub enum ErrorKind {
 	InvalidBase58Version,
 	#[fail(display = "Invalid key")]
 	InvalidBase58Key,
+	#[fail(display = "Epicbox websocket terminated unexpectedly")]
+	EpicboxWebsocketAbnormalTermination,
+	#[fail(display = "Could not parse number from string")]
+	NumberParsingError,
 
 	/// Other
 	#[fail(display = "Generic error: {}", _0)]

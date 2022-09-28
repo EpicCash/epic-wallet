@@ -25,7 +25,7 @@ use crate::epic_util::logger::LoggingConfig;
 use crate::epic_util::secp::key::{PublicKey, SecretKey};
 use crate::epic_util::secp::{self, pedersen, Secp256k1};
 use crate::epic_util::ZeroingString;
-use crate::error::{Address, Error, ErrorKind, VersionedSlate};
+use crate::error::{Error, ErrorKind};
 use crate::slate::ParticipantMessages;
 use crate::slate_versions::ser as dalek_ser;
 use chrono::prelude::*;
@@ -36,64 +36,8 @@ use serde;
 use serde_json;
 use std::collections::HashMap;
 use std::fmt;
+
 use uuid::Uuid;
-
-pub trait Publisher: Send {
-	fn post_slate(&self, slate: &VersionedSlate, to: &dyn Address) -> Result<(), Error>;
-}
-
-pub struct Controller<W, C, K, P>
-where
-	W: WalletBackend<C, K>,
-	C: NodeClient,
-	K: Keychain,
-	P: Publisher,
-{
-	name: String,
-	owner: Owner<W, C, K>,
-	foreign: Foreign<W, C, K>,
-	publisher: P,
-}
-
-impl<W, C, K, P> Controller<W, C, K, P>
-where
-	W: WalletBackend<C, K>,
-	C: NodeClient,
-	K: Keychain,
-	P: Publisher,
-{
-	pub fn new(
-		name: &str,
-		container: Arc<Mutex<Container<W, C, K>>>,
-		publisher: P,
-	) -> Result<Self, Error> {
-		Ok(Self {
-			name: name.to_string(),
-			owner: Owner::new(container.clone()),
-			foreign: Foreign::new(container),
-			publisher,
-		})
-	}
-
-	fn process_incoming_slate(
-		&self,
-		address: Option<String>,
-		slate: &mut Slate,
-		tx_proof: Option<&mut TxProof>,
-	) -> Result<bool, Error> {
-		if slate.num_participants > slate.participant_data.len() {
-			if slate.tx.inputs().len() == 0 {
-				// TODO: invoicing
-			} else {
-				*slate = self.foreign.receive_tx(slate, None, address, None)?;
-			}
-			Ok(false)
-		} else {
-			self.owner.finalize_tx(slate, tx_proof)?;
-			Ok(true)
-		}
-	}
-}
 
 /// Combined trait to allow dynamic wallet dispatch
 pub trait WalletInst<'a, L, C, K>: Send + Sync

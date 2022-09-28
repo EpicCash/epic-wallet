@@ -149,22 +149,6 @@ where
 			tor_config.use_tor_listener,
 		),
 		"keybase" => {
-			/*let mut w_lock = wallet.lock();
-			let w = w_lock.lc_provider()?.wallet_inst()?;
-			//let parent_key_id = w.parent_key_id();
-
-			let mask = keychain_mask.lock();
-
-			let k = w.keychain(keychain_mask)?;
-
-			let pub_key = PublicKey::from_secret_key(k.secp(), &mask).unwrap();
-
-			let address = EpicboxAddress::new(
-				pub_key,
-				Some(config.epicbox_domain.clone()),
-				config.epicbox_port,
-			);*/
-
 			let mask = keychain_mask.lock();
 			// eventually want to read a list of service config keys
 			let mut w_lock = wallet.lock();
@@ -185,6 +169,7 @@ where
 				keychain_mask.clone(),
 				config.clone(),
 				&address,
+				&sec_key,
 			)
 		}
 		"epicbox" => {
@@ -209,6 +194,7 @@ where
 				keychain_mask.clone(),
 				config.clone(),
 				&address,
+				&sec_key,
 			)
 		}
 		method => {

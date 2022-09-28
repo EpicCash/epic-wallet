@@ -35,6 +35,7 @@ use epic_wallet_config as config;
 mod adapters;
 mod backends;
 mod client_utils;
+pub mod epicbox;
 mod error;
 mod lifecycle;
 mod node_clients;

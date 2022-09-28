@@ -358,6 +358,7 @@ impl SlateReceiver for KeybaseAllChannels {
 		keychain_mask: Arc<Mutex<Option<SecretKey>>>,
 		config: WalletConfig,
 		_address: &EpicboxAddress,
+        _secret_key: &SecretKey,
 	) -> Result<(), Error>
 	where
 		L: WalletLCProvider<'static, C, K> + 'static,

@@ -49,6 +49,7 @@ pub trait SlateReceiver {
 		keychain_mask: Arc<Mutex<Option<SecretKey>>>,
 		config: WalletConfig,
 		address: &EpicboxAddress,
+		secret_key: &SecretKey,
 	) -> Result<(), Error>
 	where
 		L: WalletLCProvider<'static, C, K> + 'static,
