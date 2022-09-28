@@ -25,7 +25,7 @@ use crate::epic_util::logger::LoggingConfig;
 use crate::epic_util::secp::key::{PublicKey, SecretKey};
 use crate::epic_util::secp::{self, pedersen, Secp256k1};
 use crate::epic_util::ZeroingString;
-use crate::error::{Error, ErrorKind, VersionedSlate, Address};
+use crate::error::{Address, Error, ErrorKind, VersionedSlate};
 use crate::slate::ParticipantMessages;
 use crate::slate_versions::ser as dalek_ser;
 use chrono::prelude::*;

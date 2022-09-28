@@ -18,7 +18,8 @@ use crate::config::WalletConfig;
 use crate::keychain::Keychain;
 use crate::libwallet::EpicboxAddress;
 use crate::libwallet::{
-	Controller, Error, NodeClient, Publisher, WalletInst, WalletLCProvider, DEFAULT_EPICBOX_PORT,VersionedSlate
+	Controller, Error, NodeClient, Publisher, VersionedSlate, WalletInst, WalletLCProvider,
+	DEFAULT_EPICBOX_PORT,
 };
 use crate::util::secp::key::SecretKey;
 use crate::util::Mutex;
