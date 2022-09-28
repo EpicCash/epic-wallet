@@ -18,6 +18,7 @@ use crate::adapters::{SlateReceiver, SlateSender};
 use crate::config::WalletConfig;
 
 use crate::libwallet::api_impl::foreign;
+use crate::libwallet::EpicboxAddress;
 use crate::libwallet::{Error, ErrorKind, NodeClient, Slate, WalletInst, WalletLCProvider};
 use crate::util::Mutex;
 
@@ -356,6 +357,7 @@ impl SlateReceiver for KeybaseAllChannels {
 		wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K> + 'static>>>,
 		keychain_mask: Arc<Mutex<Option<SecretKey>>>,
 		config: WalletConfig,
+		_address: &EpicboxAddress,
 	) -> Result<(), Error>
 	where
 		L: WalletLCProvider<'static, C, K> + 'static,

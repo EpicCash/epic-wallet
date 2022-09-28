@@ -65,7 +65,7 @@ pub use api_impl::types::{
 	BlockFees, InitTxArgs, InitTxSendArgs, IssueInvoiceTxArgs, NodeHeightResult,
 	OutputCommitMapping, PaymentProof, SendTXArgs, VersionInfo,
 };
-pub use epicbox_address::EpicboxAddress;
+pub use epicbox_address::{EpicboxAddress, DEFAULT_EPICBOX_PORT};
 pub use internal::scan::scan;
 pub use slate_versions::ser as dalek_ser;
 pub use types::{

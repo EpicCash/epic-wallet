@@ -24,9 +24,10 @@ use crate::impls::{
 use crate::impls::{PathToSlate, SlatePutter};
 use crate::keychain;
 use crate::libwallet::{
-	self, address, InitTxArgs, IssueInvoiceTxArgs, NodeClient, PaymentProof, WalletInst,
-	WalletLCProvider,
+	self, address, EpicboxAddress, InitTxArgs, IssueInvoiceTxArgs, NodeClient, PaymentProof,
+	WalletInst, WalletLCProvider,
 };
+use crate::util::secp::key::PublicKey;
 use crate::util::secp::key::SecretKey;
 use crate::util::{to_hex, Mutex, ZeroingString};
 use crate::{controller, display};
@@ -148,10 +149,67 @@ where
 			tor_config.use_tor_listener,
 		),
 		"keybase" => {
-			KeybaseAllChannels::new()?.listen(wallet.clone(), keychain_mask, config.clone())
+			/*let mut w_lock = wallet.lock();
+			let w = w_lock.lc_provider()?.wallet_inst()?;
+			//let parent_key_id = w.parent_key_id();
+
+			let mask = keychain_mask.lock();
+
+			let k = w.keychain(keychain_mask)?;
+
+			let pub_key = PublicKey::from_secret_key(k.secp(), &mask).unwrap();
+
+			let address = EpicboxAddress::new(
+				pub_key,
+				Some(config.epicbox_domain.clone()),
+				config.epicbox_port,
+			);*/
+
+			let mask = keychain_mask.lock();
+			// eventually want to read a list of service config keys
+			let mut w_lock = wallet.lock();
+			let lc = w_lock.lc_provider()?;
+			let w_inst = lc.wallet_inst()?;
+			let k = w_inst.keychain((&mask).as_ref())?;
+			let parent_key_id = w_inst.parent_key_id();
+			let sec_key = address::address_from_derivation_path(&k, &parent_key_id, 0)
+				.map_err(|e| ErrorKind::ArgumentError(format!("{:?}", e).into()))?;
+			let pub_key = PublicKey::from_secret_key(k.secp(), &sec_key).unwrap();
+			let address = EpicboxAddress::new(
+				pub_key,
+				Some(config.epicbox_domain.clone()),
+				config.epicbox_port,
+			);
+			KeybaseAllChannels::new()?.listen(
+				wallet.clone(),
+				keychain_mask.clone(),
+				config.clone(),
+				&address,
+			)
 		}
 		"epicbox" => {
-			EpicboxAllChannels::new()?.listen(wallet.clone(), keychain_mask, config.clone())
+			let mask = keychain_mask.lock();
+			// eventually want to read a list of service config keys
+			let mut w_lock = wallet.lock();
+			let lc = w_lock.lc_provider()?;
+			let w_inst = lc.wallet_inst()?;
+			let k = w_inst.keychain((&mask).as_ref())?;
+			let parent_key_id = w_inst.parent_key_id();
+			let sec_key = address::address_from_derivation_path(&k, &parent_key_id, 0)
+				.map_err(|e| ErrorKind::ArgumentError(format!("{:?}", e).into()))?;
+			let pub_key = PublicKey::from_secret_key(k.secp(), &sec_key).unwrap();
+			let address = EpicboxAddress::new(
+				pub_key,
+				Some(config.epicbox_domain.clone()),
+				config.epicbox_port,
+			);
+			println!("epicbox address {:?}", address.clone());
+			EpicboxAllChannels::new()?.listen(
+				wallet.clone(),
+				keychain_mask.clone(),
+				config.clone(),
+				&address,
+			)
 		}
 		method => {
 			return Err(ErrorKind::ArgumentError(format!(

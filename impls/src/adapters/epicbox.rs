@@ -17,7 +17,9 @@ use crate::adapters::SlateReceiver;
 use crate::config::WalletConfig;
 use crate::keychain::Keychain;
 use crate::libwallet::EpicboxAddress;
-use crate::libwallet::{Error, NodeClient, WalletInst, WalletLCProvider};
+use crate::libwallet::{
+	Controller, Error, NodeClient, Publisher, WalletInst, WalletLCProvider, DEFAULT_EPICBOX_PORT,VersionedSlate
+};
 use crate::util::secp::key::SecretKey;
 use crate::util::Mutex;
 use std::sync::Arc;
@@ -65,23 +67,35 @@ impl SlateReceiver for EpicboxAllChannels {
 		let lc = w_lock.lc_provider()?;
 		let w_inst = lc.wallet_inst()?;
 
-		info!("Listening for transactions on epicbox ...");
-
 		let url = {
 			let cloned_address = address.clone();
-			match self.protocol_unsecure {
-				true => format!(
+			match config.epicbox_protocol_unsecure {
+				Some(true) => format!(
 					"ws://{}:{}",
 					cloned_address.domain,
 					cloned_address.port.unwrap_or(DEFAULT_EPICBOX_PORT)
 				),
-				false => format!(
+				Some(false) => format!(
+					"wss://{}:{}",
+					cloned_address.domain,
+					cloned_address.port.unwrap_or(DEFAULT_EPICBOX_PORT)
+				),
+				None => format!(
 					"wss://{}:{}",
 					cloned_address.domain,
 					cloned_address.port.unwrap_or(DEFAULT_EPICBOX_PORT)
 				),
 			}
 		};
+
+		info!(
+			"Listening for transactions on epicbox ... on {:?}",
+			url.clone()
+		);
+
+		let cloned_address = address.clone();
+		let cloned_inner = self.inner.clone();
+		let cloned_handler = handler.clone();
 
 		loop {
 			// listen for messages from all channels with topic SLATE_NEW
