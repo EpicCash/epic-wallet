@@ -44,7 +44,7 @@ pub mod tor;
 pub mod test_framework;
 
 pub use crate::adapters::{
-	create_sender, Container, EpicboxBroker, EpicboxController, EpicboxListener, EpicboxPublisher,
+	create_sender, Container, EpicboxBroker, EpicboxController, EpicboxPublisher,
 	EpicboxSubscriber, HttpSlateSender, KeybaseAllChannels, KeybaseChannel, PathToSlate,
 	SlateGetter, SlatePutter, SlateReceiver, SlateSender, Subscriber,
 };

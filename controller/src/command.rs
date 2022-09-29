@@ -20,8 +20,8 @@ use crate::core::{core, global};
 use crate::error::{Error, ErrorKind};
 use crate::impls::Subscriber;
 use crate::impls::{
-	create_sender, Container, EpicboxBroker, EpicboxController, EpicboxListener, EpicboxPublisher,
-	EpicboxSubscriber, KeybaseAllChannels, SlateGetter as _, SlateReceiver as _,
+	create_sender, Container, EpicboxController, EpicboxPublisher, EpicboxSubscriber,
+	KeybaseAllChannels, SlateGetter as _, SlateReceiver as _,
 };
 use crate::impls::{PathToSlate, SlatePutter};
 use crate::keychain;
@@ -178,41 +178,23 @@ where
 				config.epicbox_protocol_unsecure.unwrap_or(false),
 			)?;
 
-			let subscriber = EpicboxSubscriber::new(&publisher)?;
-
-			/*EpicboxBroker::new()?.listen(
-				wallet.clone(),
-				keychain_mask.clone(),
-				config.clone(),
-				&address,
-				&sec_key,
-			)*/
+			let mut subscriber = EpicboxSubscriber::new(&publisher)?;
 
 			let container = Container::new(config.clone());
 
 			let caddress = address.clone();
-			let mut csubscriber = subscriber.clone();
 			let cpublisher = publisher.clone();
-			/*let _handle = thread::spawn(move || {
-				let controller =
-					EpicboxController::new(&caddress.stripped(), container, cpublisher)
-						.expect("could not start epicbox controller!");
-				csubscriber
-					.start(controller)
-					.expect("something went wrong!");
-				()
-			});*/
-			let controller = EpicboxController::new(&caddress.stripped(), container, cpublisher)
-				.expect("could not start epicbox controller!");
-			csubscriber
-				.start(controller)
-				.expect("something went wrong!");
-			/*let _ = Box::new(EpicboxListener {
-				address,
-				publisher,
-				subscriber,
-				handle,
-			});*/
+
+			let controller = EpicboxController::new(
+				&caddress.stripped(),
+				container,
+				cpublisher,
+				wallet.clone(),
+				keychain_mask.clone(),
+			)
+			.expect("could not start epicbox controller!");
+			subscriber.start(controller).expect("something went wrong!");
+
 			Ok(())
 		}
 		method => {

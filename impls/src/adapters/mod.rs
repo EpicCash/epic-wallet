@@ -18,8 +18,7 @@ pub mod http;
 mod keybase;
 
 pub use self::epicbox::{
-	Container, EpicboxBroker, EpicboxController, EpicboxListener, EpicboxPublisher,
-	EpicboxSubscriber, Subscriber,
+	Container, EpicboxBroker, EpicboxController, EpicboxPublisher, EpicboxSubscriber, Subscriber,
 };
 pub use self::file::PathToSlate;
 pub use self::http::{HttpSlateSender, SchemeNotHttp};

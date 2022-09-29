@@ -125,14 +125,21 @@ impl EpicboxSubscriber {
 	}
 }
 
-pub struct EpicboxController<P>
+pub struct EpicboxController<P, L, C, K>
 where
 	P: Publisher,
+	L: WalletLCProvider<'static, C, K> + 'static,
+	C: NodeClient + 'static,
+	K: Keychain + 'static,
 {
 	name: String,
 	//owner: Owner<W, C, K>,
 	//foreign: Foreign<W, C, K>,
 	publisher: P,
+	/// Wallet instance
+	pub wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K> + 'static>>>,
+	/// Keychain mask
+	pub keychain_mask: Arc<Mutex<Option<SecretKey>>>,
 }
 pub struct Container {
 	pub config: WalletConfig,
@@ -180,16 +187,27 @@ impl Container {
 			.ok_or(ErrorKind::NoListener(format!("{}", interface)))
 	}
 }
-impl<P> EpicboxController<P>
+impl<P, L, C, K> EpicboxController<P, L, C, K>
 where
 	P: Publisher,
+	L: WalletLCProvider<'static, C, K> + 'static,
+	C: NodeClient + 'static,
+	K: Keychain + 'static,
 {
-	pub fn new(name: &str, container: Arc<Mutex<Container>>, publisher: P) -> Result<Self, Error> {
+	pub fn new(
+		name: &str,
+		container: Arc<Mutex<Container>>,
+		publisher: P,
+		wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K> + 'static>>>,
+		keychain_mask: Arc<Mutex<Option<SecretKey>>>,
+	) -> Result<Self, Error> {
 		Ok(Self {
 			name: name.to_string(),
 			//owner: Owner::new(container.clone()),
 			//foreign: Foreign::new(container),
 			publisher,
+			wallet,
+			keychain_mask,
 		})
 	}
 
@@ -220,9 +238,12 @@ pub trait SubscriptionHandler: Send {
 	fn on_reestablished(&self);
 }
 
-impl<P> SubscriptionHandler for EpicboxController<P>
+impl<P, L, C, K> SubscriptionHandler for EpicboxController<P, L, C, K>
 where
 	P: Publisher,
+	L: WalletLCProvider<'static, C, K> + 'static,
+	C: NodeClient + 'static,
+	K: Keychain + 'static,
 {
 	fn on_open(&self) {
 		//        println!("Listener for {} started", self.name);
@@ -307,16 +328,22 @@ where
 	}
 }
 pub trait Subscriber {
-	fn start<P>(&mut self, handler: EpicboxController<P>) -> Result<(), Error>
+	fn start<P, L, C, K>(&mut self, handler: EpicboxController<P, L, C, K>) -> Result<(), Error>
 	where
-		P: Publisher;
+		P: Publisher,
+		L: WalletLCProvider<'static, C, K> + 'static,
+		C: NodeClient + 'static,
+		K: Keychain + 'static;
 	fn stop(&self);
 	fn is_running(&self) -> bool;
 }
 impl Subscriber for EpicboxSubscriber {
-	fn start<P>(&mut self, handler: EpicboxController<P>) -> Result<(), Error>
+	fn start<P, L, C, K>(&mut self, handler: EpicboxController<P, L, C, K>) -> Result<(), Error>
 	where
 		P: Publisher,
+		L: WalletLCProvider<'static, C, K> + 'static,
+		C: NodeClient + 'static,
+		K: Keychain + 'static,
 	{
 		self.broker
 			.subscribe(&self.address, &self.secret_key, handler)?;
@@ -360,14 +387,17 @@ impl EpicboxBroker {
 	}
 	/// Start a listener, passing received messages to the wallet api directly
 
-	pub fn subscribe<P>(
+	pub fn subscribe<P, L, C, K>(
 		&self,
 		address: &EpicboxAddress,
 		secret_key: &SecretKey,
-		handler: EpicboxController<P>,
+		handler: EpicboxController<P, L, C, K>,
 	) -> Result<(), Error>
 	where
 		P: Publisher,
+		L: WalletLCProvider<'static, C, K> + 'static,
+		C: NodeClient + 'static,
+		K: Keychain + 'static,
 	{
 		let handler = Arc::new(Mutex::new(handler));
 		let url = {
@@ -494,21 +524,27 @@ impl EpicboxBroker {
 	}
 }
 
-struct EpicboxClient<P>
+struct EpicboxClient<P, L, C, K>
 where
+	L: WalletLCProvider<'static, C, K> + 'static,
+	C: NodeClient + 'static,
+	K: Keychain + 'static,
 	P: Publisher,
 {
 	sender: Sender,
-	handler: Arc<Mutex<EpicboxController<P>>>,
+	handler: Arc<Mutex<EpicboxController<P, L, C, K>>>,
 	challenge: Option<String>,
 	address: EpicboxAddress,
 	secret_key: SecretKey,
 	connection_meta_data: Arc<Mutex<ConnectionMetadata>>,
 }
 
-impl<P> EpicboxClient<P>
+impl<P, L, C, K> EpicboxClient<P, L, C, K>
 where
 	P: Publisher,
+	L: WalletLCProvider<'static, C, K> + 'static,
+	C: NodeClient + 'static,
+	K: Keychain + 'static,
 {
 	fn subscribe(&self, challenge: &str) -> Result<(), Error> {
 		println!("subscribe challenge {:?}", challenge);
@@ -530,9 +566,12 @@ where
 	}
 }
 
-impl<P> Handler for EpicboxClient<P>
+impl<P, L, C, K> Handler for EpicboxClient<P, L, C, K>
 where
 	P: Publisher,
+	L: WalletLCProvider<'static, C, K> + 'static,
+	C: NodeClient + 'static,
+	K: Keychain + 'static,
 {
 	fn on_open(&mut self, _shake: Handshake) -> WsResult<()> {
 		println!("######## Handler on_open ########");
