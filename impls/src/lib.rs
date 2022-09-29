@@ -39,12 +39,14 @@ pub mod epicbox;
 mod error;
 mod lifecycle;
 mod node_clients;
-pub mod test_framework;
 pub mod tor;
 
+pub mod test_framework;
+
 pub use crate::adapters::{
-	create_sender, EpicboxAllChannels, HttpSlateSender, KeybaseAllChannels, KeybaseChannel,
-	PathToSlate, SlateGetter, SlatePutter, SlateReceiver, SlateSender,
+	create_sender, Container, EpicboxBroker, EpicboxController, EpicboxListener, EpicboxPublisher,
+	EpicboxSubscriber, HttpSlateSender, KeybaseAllChannels, KeybaseChannel, PathToSlate,
+	SlateGetter, SlatePutter, SlateReceiver, SlateSender, Subscriber,
 };
 pub use crate::backends::{wallet_db_exists, LMDBBackend};
 pub use crate::error::{Error, ErrorKind};
@@ -69,9 +71,7 @@ where
 {
 	pub fn new(node_client: C) -> Result<Self, Error> {
 		let lc_provider = DefaultLCProvider::new(node_client);
-		Ok(DefaultWalletImpl {
-			lc_provider: lc_provider,
-		})
+		Ok(DefaultWalletImpl { lc_provider })
 	}
 }
 

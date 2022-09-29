@@ -614,7 +614,7 @@ where
 			wallet,
 			owner_api,
 			shared_key: Arc::new(Mutex::new(None)),
-			keychain_mask: keychain_mask,
+			keychain_mask,
 			running_foreign,
 		}
 	}

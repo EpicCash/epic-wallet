@@ -17,14 +17,15 @@ mod file;
 pub mod http;
 mod keybase;
 
-pub use self::epicbox::EpicboxAllChannels;
+pub use self::epicbox::{
+	Container, EpicboxBroker, EpicboxController, EpicboxListener, EpicboxPublisher,
+	EpicboxSubscriber, Subscriber,
+};
 pub use self::file::PathToSlate;
 pub use self::http::{HttpSlateSender, SchemeNotHttp};
 pub use self::keybase::{KeybaseAllChannels, KeybaseChannel};
 use crate::config::{TorConfig, WalletConfig};
-use crate::libwallet::{
-	EpicboxAddress, Error, ErrorKind, NodeClient, Slate, WalletInst, WalletLCProvider,
-};
+use crate::libwallet::{Error, ErrorKind, NodeClient, Slate, WalletInst, WalletLCProvider};
 use crate::tor::config::complete_tor_address;
 
 use crate::keychain::Keychain;
@@ -48,8 +49,6 @@ pub trait SlateReceiver {
 		wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K> + 'static>>>,
 		keychain_mask: Arc<Mutex<Option<SecretKey>>>,
 		config: WalletConfig,
-		address: &EpicboxAddress,
-		secret_key: &SecretKey,
 	) -> Result<(), Error>
 	where
 		L: WalletLCProvider<'static, C, K> + 'static,

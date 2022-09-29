@@ -17,7 +17,8 @@ use crate::epic_core::global::is_floonet;
 use crate::epic_util::secp::key::PublicKey;
 use crate::epic_util::secp::Secp256k1;
 use crate::error::{Error, ErrorKind};
-
+use regex::Regex;
+use std::fmt::{self, Debug, Display};
 const EPICBOX_ADDRESS_VERSION_MAINNET: [u8; 2] = [1, 0];
 const EPICBOX_ADDRESS_VERSION_TESTNET: [u8; 2] = [1, 136];
 const ADDRESS_REGEX: &str = r"^((?P<address_type>keybase|epicbox|http|https)://).+$";
@@ -36,12 +37,23 @@ pub fn version_bytes() -> Vec<u8> {
 		EPICBOX_ADDRESS_VERSION_MAINNET.to_vec()
 	}
 }
-
+#[derive(PartialEq)]
+pub enum AddressType {
+	Epicbox,
+}
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct EpicboxAddress {
 	pub public_key: String,
 	pub domain: String,
 	pub port: Option<u16>,
+}
+
+pub trait Address: Debug + Display {
+	fn from_str(s: &str) -> Result<Self, Error>
+	where
+		Self: Sized;
+	fn address_type(&self) -> AddressType;
+	fn stripped(&self) -> String;
 }
 
 impl EpicboxAddress {
@@ -57,6 +69,52 @@ impl EpicboxAddress {
 		PublicKey::from_base58_check(&self.public_key, version_bytes())
 	}
 }
+
+impl Address for EpicboxAddress {
+	fn from_str(s: &str) -> Result<Self, Error> {
+		let re = Regex::new(EPICBOX_ADDRESS_REGEX).unwrap();
+
+		let captures = re.captures(s);
+		if captures.is_none() {
+			Err(ErrorKind::EpicboxAddressParsingError(s.to_string()))?;
+		}
+
+		let captures = captures.unwrap();
+		let public_key = captures.name("public_key").unwrap().as_str().to_string();
+		let domain = captures.name("domain").map(|m| m.as_str().to_string());
+		let port = captures
+			.name("port")
+			.map(|m| u16::from_str_radix(m.as_str(), 10).unwrap());
+
+		let public_key = PublicKey::from_base58_check(&public_key, version_bytes())?;
+
+		Ok(EpicboxAddress::new(public_key, domain, port))
+	}
+
+	fn address_type(&self) -> AddressType {
+		AddressType::Epicbox
+	}
+
+	fn stripped(&self) -> String {
+		format!("{}", self)
+	}
+}
+
+impl Display for EpicboxAddress {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		write!(f, "{}", self.public_key)?;
+		if self.domain != DEFAULT_EPICBOX_DOMAIN
+			|| (self.port.is_some() && self.port.unwrap() != DEFAULT_EPICBOX_PORT)
+		{
+			write!(f, "@{}", self.domain)?;
+			if self.port.is_some() && self.port.unwrap() != DEFAULT_EPICBOX_PORT {
+				write!(f, ":{}", self.port.unwrap())?;
+			}
+		}
+		Ok(())
+	}
+}
+
 pub trait Base58<T> {
 	fn from_base58(str: &str) -> Result<T, Error>;
 	fn to_base58(&self) -> String;

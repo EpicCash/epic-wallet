@@ -259,6 +259,16 @@ pub enum ErrorKind {
 	EpicboxWebsocketAbnormalTermination,
 	#[fail(display = "Could not parse number from string")]
 	NumberParsingError,
+	#[fail(display = "Listener for {} closed", 0)]
+	ClosedListener(String),
+	#[fail(display = "Unable to encrypt message")]
+	Encryption,
+	#[fail(display = "Unable to decrypt message")]
+	Decryption,
+	#[fail(display = "Could not parse '{}' to a epicbox address", 0)]
+	EpicboxAddressParsingError(String),
+	#[fail(display = "No listener on {}", 0)]
+	NoListener(String),
 
 	/// Other
 	#[fail(display = "Generic error: {}", _0)]

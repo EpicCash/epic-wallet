@@ -18,8 +18,10 @@ use crate::api::TLSConfig;
 use crate::config::{TorConfig, WalletConfig, WALLET_CONFIG_FILE_NAME};
 use crate::core::{core, global};
 use crate::error::{Error, ErrorKind};
+use crate::impls::Subscriber;
 use crate::impls::{
-	create_sender, EpicboxAllChannels, KeybaseAllChannels, SlateGetter as _, SlateReceiver as _,
+	create_sender, Container, EpicboxBroker, EpicboxController, EpicboxListener, EpicboxPublisher,
+	EpicboxSubscriber, KeybaseAllChannels, SlateGetter as _, SlateReceiver as _,
 };
 use crate::impls::{PathToSlate, SlatePutter};
 use crate::keychain;
@@ -31,6 +33,7 @@ use crate::util::secp::key::PublicKey;
 use crate::util::secp::key::SecretKey;
 use crate::util::{to_hex, Mutex, ZeroingString};
 use crate::{controller, display};
+use epic_wallet_libwallet::Address;
 use serde_json as json;
 use std::fs::File;
 use std::io::{Read, Write};
@@ -149,28 +152,7 @@ where
 			tor_config.use_tor_listener,
 		),
 		"keybase" => {
-			let mask = keychain_mask.lock();
-			// eventually want to read a list of service config keys
-			let mut w_lock = wallet.lock();
-			let lc = w_lock.lc_provider()?;
-			let w_inst = lc.wallet_inst()?;
-			let k = w_inst.keychain((&mask).as_ref())?;
-			let parent_key_id = w_inst.parent_key_id();
-			let sec_key = address::address_from_derivation_path(&k, &parent_key_id, 0)
-				.map_err(|e| ErrorKind::ArgumentError(format!("{:?}", e).into()))?;
-			let pub_key = PublicKey::from_secret_key(k.secp(), &sec_key).unwrap();
-			let address = EpicboxAddress::new(
-				pub_key,
-				Some(config.epicbox_domain.clone()),
-				config.epicbox_port,
-			);
-			KeybaseAllChannels::new()?.listen(
-				wallet.clone(),
-				keychain_mask.clone(),
-				config.clone(),
-				&address,
-				&sec_key,
-			)
+			KeybaseAllChannels::new()?.listen(wallet.clone(), keychain_mask.clone(), config.clone())
 		}
 		"epicbox" => {
 			let mask = keychain_mask.lock();
@@ -189,13 +171,49 @@ where
 				config.epicbox_port,
 			);
 			println!("epicbox address {:?}", address.clone());
-			EpicboxAllChannels::new()?.listen(
+
+			let publisher = EpicboxPublisher::new(
+				&address,
+				&sec_key,
+				config.epicbox_protocol_unsecure.unwrap_or(false),
+			)?;
+
+			let subscriber = EpicboxSubscriber::new(&publisher)?;
+
+			/*EpicboxBroker::new()?.listen(
 				wallet.clone(),
 				keychain_mask.clone(),
 				config.clone(),
 				&address,
 				&sec_key,
-			)
+			)*/
+
+			let container = Container::new(config.clone());
+
+			let caddress = address.clone();
+			let mut csubscriber = subscriber.clone();
+			let cpublisher = publisher.clone();
+			/*let _handle = thread::spawn(move || {
+				let controller =
+					EpicboxController::new(&caddress.stripped(), container, cpublisher)
+						.expect("could not start epicbox controller!");
+				csubscriber
+					.start(controller)
+					.expect("something went wrong!");
+				()
+			});*/
+			let controller = EpicboxController::new(&caddress.stripped(), container, cpublisher)
+				.expect("could not start epicbox controller!");
+			csubscriber
+				.start(controller)
+				.expect("something went wrong!");
+			/*let _ = Box::new(EpicboxListener {
+				address,
+				publisher,
+				subscriber,
+				handle,
+			});*/
+			Ok(())
 		}
 		method => {
 			return Err(ErrorKind::ArgumentError(format!(
