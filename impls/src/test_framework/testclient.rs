@@ -34,7 +34,7 @@ use crate::util;
 use crate::util::secp::key::SecretKey;
 use crate::util::secp::pedersen;
 use crate::util::secp::pedersen::Commitment;
-use crate::util::{Mutex, RwLock};
+use crate::util::Mutex;
 use failure::ResultExt;
 use serde_json;
 use std::collections::HashMap;
@@ -110,8 +110,8 @@ where
 		let retval = WalletProxy {
 			chain_dir: chain_dir.to_owned(),
 			chain: Arc::new(c),
-			tx: tx,
-			rx: rx,
+			tx,
+			rx,
 			wallets: HashMap::new(),
 			running: Arc::new(AtomicBool::new(false)),
 		};

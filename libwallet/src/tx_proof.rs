@@ -19,6 +19,7 @@ use crate::epic_util::secp::key::SecretKey;
 use crate::epic_util::secp::pedersen::Commitment;
 use crate::epic_util::secp::Signature;
 use crate::message::EncryptedMessage;
+
 use crate::{Address, EpicboxAddress};
 use failure::Fail;
 use serde::{Deserialize, Serialize};
@@ -91,6 +92,8 @@ impl TxProof {
 
 		let slate: VersionedSlate =
 			serde_json::from_str(&decrypted_message).map_err(|_| ErrorKind::ParseSlate)?;
+		//let slate = Slate::deserialize_upgrade(&decrypted_message)
+		//	.map_err(|_| ErrorKind::DecryptMessage)?;
 
 		Ok((destination, slate))
 	}

@@ -988,6 +988,8 @@ where
 				Some(tor_config),
 				a,
 				wallet_config.dark_background_color_scheme.unwrap_or(true),
+				&wallet_config,
+				Arc::new(Mutex::new(keychain_mask.clone())),
 			)
 		}
 		("receive", Some(args)) => {

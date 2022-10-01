@@ -22,6 +22,8 @@ use blake2_rfc as blake2;
 extern crate serde_derive;
 #[macro_use]
 extern crate log;
+
+use epic_wallet_config as config;
 use epic_wallet_libwallet as libwallet;
 use epic_wallet_util::epic_api as api;
 use epic_wallet_util::epic_chain as chain;
@@ -29,8 +31,6 @@ use epic_wallet_util::epic_core as core;
 use epic_wallet_util::epic_keychain as keychain;
 use epic_wallet_util::epic_store as store;
 use epic_wallet_util::epic_util as util;
-
-use epic_wallet_config as config;
 
 mod adapters;
 mod backends;
@@ -44,9 +44,10 @@ pub mod tor;
 pub mod test_framework;
 
 pub use crate::adapters::{
-	create_sender, Container, EpicboxBroker, EpicboxController, EpicboxPublisher,
-	EpicboxSubscriber, HttpSlateSender, KeybaseAllChannels, KeybaseChannel, PathToSlate,
-	SlateGetter, SlatePutter, SlateReceiver, SlateSender, Subscriber,
+	create_sender, Adapter, Container, EpicboxAdapter, EpicboxBroker, EpicboxController,
+	EpicboxListener, EpicboxPublisher, EpicboxSubscriber, HttpSlateSender, KeybaseAllChannels,
+	KeybaseChannel, Listener, ListenerInterface, PathToSlate, SlateGetter, SlatePutter,
+	SlateReceiver, SlateSender, Subscriber,
 };
 pub use crate::backends::{wallet_db_exists, LMDBBackend};
 pub use crate::error::{Error, ErrorKind};

@@ -18,7 +18,8 @@ pub mod http;
 mod keybase;
 
 pub use self::epicbox::{
-	Container, EpicboxBroker, EpicboxController, EpicboxPublisher, EpicboxSubscriber, Subscriber,
+	Adapter, Container, EpicboxAdapter, EpicboxBroker, EpicboxController, EpicboxListener,
+	EpicboxPublisher, EpicboxSubscriber, Listener, ListenerInterface, Subscriber,
 };
 pub use self::file::PathToSlate;
 pub use self::http::{HttpSlateSender, SchemeNotHttp};
@@ -106,6 +107,7 @@ pub fn create_sender(
 			),
 		},
 		"keybase" => Box::new(KeybaseChannel::new(dest.to_owned())?),
+
 		"self" => {
 			return Err(ErrorKind::WalletComms(
 				"No sender implementation for \"self\".".to_string(),

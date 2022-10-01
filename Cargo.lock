@@ -1124,6 +1124,7 @@ dependencies = [
  "hyper-rustls",
  "hyper-timeout",
  "log",
+ "parking_lot 0.6.4",
  "rand 0.5.6",
  "regex",
  "ring",

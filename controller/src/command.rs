@@ -20,8 +20,9 @@ use crate::core::{core, global};
 use crate::error::{Error, ErrorKind};
 use crate::impls::Subscriber;
 use crate::impls::{
-	create_sender, Container, EpicboxController, EpicboxPublisher, EpicboxSubscriber,
-	KeybaseAllChannels, SlateGetter as _, SlateReceiver as _,
+	create_sender, Adapter, Container, EpicboxAdapter, EpicboxController, EpicboxListener,
+	EpicboxPublisher, EpicboxSubscriber, KeybaseAllChannels, Listener, ListenerInterface,
+	SlateGetter as _, SlateReceiver as _,
 };
 use crate::impls::{PathToSlate, SlatePutter};
 use crate::keychain;
@@ -29,16 +30,19 @@ use crate::libwallet::{
 	self, address, EpicboxAddress, InitTxArgs, IssueInvoiceTxArgs, NodeClient, PaymentProof,
 	WalletInst, WalletLCProvider,
 };
+use crate::libwallet::{Slate, SlateVersion, VersionedSlate};
 use crate::util::secp::key::PublicKey;
 use crate::util::secp::key::SecretKey;
 use crate::util::{to_hex, Mutex, ZeroingString};
 use crate::{controller, display};
 use epic_wallet_libwallet::Address;
+
 use serde_json as json;
 use std::fs::File;
 use std::io::{Read, Write};
 use std::sync::Arc;
 use std::thread;
+use std::thread::spawn;
 use std::time::Duration;
 use uuid::Uuid;
 
@@ -155,44 +159,47 @@ where
 			KeybaseAllChannels::new()?.listen(wallet.clone(), keychain_mask.clone(), config.clone())
 		}
 		"epicbox" => {
-			let mask = keychain_mask.lock();
-			// eventually want to read a list of service config keys
-			let mut w_lock = wallet.lock();
-			let lc = w_lock.lc_provider()?;
-			let w_inst = lc.wallet_inst()?;
-			let k = w_inst.keychain((&mask).as_ref())?;
-			let parent_key_id = w_inst.parent_key_id();
-			let sec_key = address::address_from_derivation_path(&k, &parent_key_id, 0)
-				.map_err(|e| ErrorKind::ArgumentError(format!("{:?}", e).into()))?;
-			let pub_key = PublicKey::from_secret_key(k.secp(), &sec_key).unwrap();
-			let address = EpicboxAddress::new(
-				pub_key,
-				Some(config.epicbox_domain.clone()),
-				config.epicbox_port,
-			);
-			println!("epicbox address {:?}", address.clone());
+			//Todo: find other way
+			let (address, sec_key) = {
+				let a_keychain = keychain_mask.clone();
+				let a_wallet = wallet.clone();
+				let mask = a_keychain.lock();
+				let mut w_lock = a_wallet.lock();
+				let lc = w_lock.lc_provider()?;
+				let w_inst = lc.wallet_inst()?;
+				let k = w_inst.keychain((&mask).as_ref())?;
+				let parent_key_id = w_inst.parent_key_id();
+				let sec_key = address::address_from_derivation_path(&k, &parent_key_id, 0)
+					.map_err(|e| ErrorKind::ArgumentError(format!("{:?}", e).into()))?;
+				let pub_key = PublicKey::from_secret_key(k.secp(), &sec_key).unwrap();
+
+				let address = EpicboxAddress::new(
+					pub_key.clone(),
+					Some(config.epicbox_domain.clone()),
+					config.epicbox_port,
+				);
+				(address, sec_key)
+			};
 
 			let publisher = EpicboxPublisher::new(
-				&address,
-				&sec_key,
+				address.clone(),
+				sec_key,
 				config.epicbox_protocol_unsecure.unwrap_or(false),
 			)?;
 
 			let mut subscriber = EpicboxSubscriber::new(&publisher)?;
-
 			let container = Container::new(config.clone());
-
-			let caddress = address.clone();
 			let cpublisher = publisher.clone();
 
 			let controller = EpicboxController::new(
-				&caddress.stripped(),
+				&address.stripped(),
 				container,
 				cpublisher,
 				wallet.clone(),
 				keychain_mask.clone(),
 			)
 			.expect("could not start epicbox controller!");
+
 			subscriber.start(controller).expect("something went wrong!");
 
 			Ok(())
@@ -309,6 +316,8 @@ pub fn send<L, C, K>(
 	tor_config: Option<TorConfig>,
 	args: SendArgs,
 	dark_scheme: bool,
+	config: &WalletConfig,
+	e_keychain_mask: Arc<Mutex<Option<SecretKey>>>,
 ) -> Result<(), Error>
 where
 	L: WalletLCProvider<'static, C, K> + 'static,
@@ -388,8 +397,31 @@ where
 						Ok(())
 					})?;
 				}
+				"epicbox" => {
+					let container = Container::new(config.clone());
+					let adapter: Box<dyn Adapter> = EpicboxAdapter::new(&container);
+					let listener = start_epicbox(
+						container.clone(),
+						wallet.clone(),
+						e_keychain_mask.clone(),
+						config.clone(),
+					)
+					.unwrap();
+					container
+						.lock()
+						.listeners
+						.insert(ListenerInterface::Epicbox, listener);
+
+					let vslate = VersionedSlate::into_version(slate.clone(), SlateVersion::V2);
+					adapter.send_tx_async(&args.dest, &vslate)?;
+
+					let slate: Slate = vslate.into();
+					api.tx_lock_outputs(m, &slate, 0)?;
+					return Ok(());
+				}
 				method => {
 					let sender = create_sender(method, &args.dest, tor_config)?;
+
 					slate = sender.send_tx(&slate)?;
 					api.tx_lock_outputs(m, &slate, 0)?;
 				}
@@ -415,6 +447,72 @@ where
 		Ok(())
 	})?;
 	Ok(())
+}
+
+pub fn start_epicbox<L, C, K>(
+	container: Arc<Mutex<Container>>,
+	wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K> + 'static>>>,
+	keychain_mask: Arc<Mutex<Option<SecretKey>>>,
+	config: WalletConfig,
+) -> Result<Box<dyn Listener>, Error>
+where
+	L: WalletLCProvider<'static, C, K> + 'static,
+	C: NodeClient + 'static,
+	K: keychain::Keychain + 'static,
+{
+	let (address, sec_key) = {
+		let a_keychain = keychain_mask.clone();
+		let a_wallet = wallet.clone();
+		let mask = a_keychain.lock();
+		let mut w_lock = a_wallet.lock();
+		let lc = w_lock.lc_provider()?;
+		let w_inst = lc.wallet_inst()?;
+		let k = w_inst.keychain((&mask).as_ref())?;
+		let parent_key_id = w_inst.parent_key_id();
+		let sec_key = address::address_from_derivation_path(&k, &parent_key_id, 0)
+			.map_err(|e| ErrorKind::ArgumentError(format!("{:?}", e).into()))?;
+		let pub_key = PublicKey::from_secret_key(k.secp(), &sec_key).unwrap();
+
+		let address = EpicboxAddress::new(
+			pub_key.clone(),
+			Some(config.epicbox_domain.clone()),
+			config.epicbox_port,
+		);
+		(address, sec_key)
+	};
+
+	let publisher = EpicboxPublisher::new(
+		address.clone(),
+		sec_key,
+		config.epicbox_protocol_unsecure.unwrap_or(false),
+	)?;
+
+	let subscriber = EpicboxSubscriber::new(&publisher)?;
+
+	let caddress = address.clone();
+	let mut csubscriber = subscriber.clone();
+	let cpublisher = publisher.clone();
+	let handle = spawn(move || {
+		let controller = EpicboxController::new(
+			&caddress.stripped(),
+			container,
+			cpublisher,
+			wallet.clone(),
+			keychain_mask.clone(),
+		)
+		.expect("could not start epicbox controller!");
+		csubscriber
+			.start(controller)
+			.expect("something went wrong!");
+		()
+	});
+
+	Ok(Box::new(EpicboxListener {
+		address,
+		publisher,
+		subscriber,
+		handle,
+	}))
 }
 
 /// Receive command argument

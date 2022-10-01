@@ -18,25 +18,87 @@ use crate::epicbox::protocol::{ProtocolRequest, ProtocolResponse};
 use crate::keychain::Keychain;
 use crate::libwallet::crypto::{sign_challenge, Hex};
 use crate::libwallet::message::EncryptedMessage;
-use crate::libwallet::Slate;
-use crate::libwallet::VersionedSlate;
+
+use crate::libwallet::wallet_lock;
 use crate::libwallet::{Address, AddressType, EpicboxAddress, TxProof};
 use crate::libwallet::{
-	Error, ErrorKind, NodeClient, WalletBackend, WalletInst, WalletLCProvider, DEFAULT_EPICBOX_PORT,
+	Error, ErrorKind, NodeClient, WalletInst, WalletLCProvider, DEFAULT_EPICBOX_PORT,
 };
+use crate::libwallet::{Slate, VersionedSlate};
 use crate::util::secp::key::SecretKey;
 use crate::util::Mutex;
+
 use std::collections::HashMap;
-use std::fmt::{self, Debug, Display};
-use std::marker::PhantomData;
+use std::fmt::{self, Debug};
+
 use std::sync::Arc;
 use std::thread::JoinHandle;
+
+use crate::libwallet::api_impl::foreign;
+use crate::libwallet::api_impl::owner;
 
 use ws::util::Token;
 use ws::{
 	connect, CloseCode, Error as WsError, ErrorKind as WsErrorKind, Handler, Handshake, Message,
 	Result as WsResult, Sender,
 };
+// Copyright 2019 The vault713 Developers
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+/// Epicbox 'plugin' implementation
+
+/// Encapsulate wallet to wallet communication functions
+pub trait Adapter {
+	/// Whether this adapter supports sync mode
+	fn supports_sync(&self) -> bool;
+
+	/// Send a transaction slate to another listening wallet and return result
+	fn send_tx_sync(&self, addr: &str, slate: &VersionedSlate) -> Result<VersionedSlate, Error>;
+
+	/// Send a transaction asynchronously (result will be returned via the listener)
+	fn send_tx_async(&self, addr: &str, slate: &VersionedSlate) -> Result<(), Error>;
+}
+#[derive(Clone)]
+pub struct EpicboxAdapter<'a> {
+	container: &'a Arc<Mutex<Container>>,
+}
+
+impl<'a> EpicboxAdapter<'a> {
+	/// Create
+	pub fn new(container: &'a Arc<Mutex<Container>>) -> Box<Self> {
+		Box::new(Self { container })
+	}
+}
+
+impl<'a> Adapter for EpicboxAdapter<'a> {
+	fn supports_sync(&self) -> bool {
+		false
+	}
+
+	fn send_tx_sync(&self, _dest: &str, _slate: &VersionedSlate) -> Result<VersionedSlate, Error> {
+		unimplemented!();
+	}
+
+	fn send_tx_async(&self, dest: &str, slate: &VersionedSlate) -> Result<(), Error> {
+		println!("EpicboxAdapter send_tx_async");
+		let c = self.container.lock();
+		println!("EpicboxAdapter send_tx_async lock container");
+		c.listener(ListenerInterface::Epicbox)?
+			.publish(slate, &dest.to_owned())
+	}
+}
+
 #[derive(Clone)]
 pub struct EpicboxBroker {
 	inner: Arc<Mutex<Option<Sender>>>,
@@ -95,14 +157,14 @@ impl Listener for EpicboxListener {
 
 impl EpicboxPublisher {
 	pub fn new(
-		address: &EpicboxAddress,
-		secret_key: &SecretKey,
+		address: EpicboxAddress,
+		secret_key: SecretKey,
 		protocol_unsecure: bool,
 	) -> Result<Self, Error> {
 		Ok(Self {
-			address: address.clone(),
+			address,
 			broker: EpicboxBroker::new(protocol_unsecure)?,
-			secret_key: secret_key.clone(),
+			secret_key,
 		})
 	}
 }
@@ -133,8 +195,6 @@ where
 	K: Keychain + 'static,
 {
 	name: String,
-	//owner: Owner<W, C, K>,
-	//foreign: Foreign<W, C, K>,
 	publisher: P,
 	/// Wallet instance
 	pub wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K> + 'static>>>,
@@ -143,10 +203,26 @@ where
 }
 pub struct Container {
 	pub config: WalletConfig,
-
 	pub account: String,
 	pub listeners: HashMap<ListenerInterface, Box<dyn Listener>>,
 }
+impl Container {
+	pub fn new(config: WalletConfig) -> Arc<Mutex<Self>> {
+		let container = Self {
+			config,
+			account: String::from("default"),
+			listeners: HashMap::with_capacity(4),
+		};
+		Arc::new(Mutex::new(container))
+	}
+
+	pub fn listener(&self, interface: ListenerInterface) -> Result<&Box<dyn Listener>, ErrorKind> {
+		self.listeners
+			.get(&interface)
+			.ok_or(ErrorKind::NoListener(format!("{}", interface)))
+	}
+}
+
 pub trait Listener: Sync + Send + 'static {
 	fn interface(&self) -> ListenerInterface;
 	fn address(&self) -> String;
@@ -171,22 +247,7 @@ impl fmt::Display for ListenerInterface {
 		}
 	}
 }
-impl Container {
-	pub fn new(config: WalletConfig) -> Arc<Mutex<Self>> {
-		let container = Self {
-			config,
-			account: String::from("default"),
-			listeners: HashMap::with_capacity(4),
-		};
-		Arc::new(Mutex::new(container))
-	}
 
-	pub fn listener(&self, interface: ListenerInterface) -> Result<&Box<dyn Listener>, ErrorKind> {
-		self.listeners
-			.get(&interface)
-			.ok_or(ErrorKind::NoListener(format!("{}", interface)))
-	}
-}
 impl<P, L, C, K> EpicboxController<P, L, C, K>
 where
 	P: Publisher,
@@ -196,15 +257,14 @@ where
 {
 	pub fn new(
 		name: &str,
-		container: Arc<Mutex<Container>>,
+		// TODO: check if container is required
+		_container: Arc<Mutex<Container>>,
 		publisher: P,
 		wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K> + 'static>>>,
 		keychain_mask: Arc<Mutex<Option<SecretKey>>>,
 	) -> Result<Self, Error> {
 		Ok(Self {
 			name: name.to_string(),
-			//owner: Owner::new(container.clone()),
-			//foreign: Foreign::new(container),
 			publisher,
 			wallet,
 			keychain_mask,
@@ -213,19 +273,28 @@ where
 
 	fn process_incoming_slate(
 		&self,
-		address: Option<String>,
+		_address: Option<String>,
 		slate: &mut Slate,
-		tx_proof: Option<&mut TxProof>,
+		_tx_proof: Option<&mut TxProof>,
 	) -> Result<bool, Error> {
+		/* build owner and foreign here */
+		//let wallet = self.wallet.clone();
+		let mask = self.keychain_mask.lock();
+		wallet_lock!(self.wallet, w);
+
 		if slate.num_participants > slate.participant_data.len() {
 			if slate.tx.inputs().len() == 0 {
 				// TODO: invoicing
 			} else {
-				//*slate = self.foreign.receive_tx(slate, None, address, None)?;
+				let ret_slate =
+					foreign::receive_tx(&mut **w, (mask).as_ref(), &slate, None, None, false);
+				*slate = ret_slate.unwrap();
 			}
+
 			Ok(false)
 		} else {
-			//self.owner.finalize_tx(slate)?;
+			let slate = owner::finalize_tx(&mut **w, (mask).as_ref(), slate)?;
+			owner::post_tx(w.w2n_client(), &slate.tx, false)?;
 			Ok(true)
 		}
 	}
@@ -277,7 +346,7 @@ where
 			.process_incoming_slate(Some(from.to_string()), &mut slate, tx_proof)
 			.and_then(|is_finalized| {
 				if !is_finalized {
-					let id = slate.id.clone();
+					let _id = slate.id.clone();
 					let slate = VersionedSlate::into_version(slate, version);
 
 					self.publisher
@@ -287,18 +356,9 @@ where
 							e
 						})
 						.expect("failed posting slate!");
-					println!(
-						"Slate {} sent back to {} successfully",
-						id.to_string(),
-						from.stripped()
-					);
+				} else {
+					println!("Slate [{}] finalized successfully", slate.id.to_string());
 				}
-				/*else {
-					println!(
-						"Slate [{}] finalized successfully",
-						slate.id.to_string()
-					);
-				}*/
 				Ok(())
 			});
 
@@ -547,7 +607,6 @@ where
 	K: Keychain + 'static,
 {
 	fn subscribe(&self, challenge: &str) -> Result<(), Error> {
-		println!("subscribe challenge {:?}", challenge);
 		let signature = sign_challenge(&challenge, &self.secret_key)?.to_hex();
 		let request = ProtocolRequest::Subscribe {
 			address: self.address.public_key.to_string(),
@@ -574,8 +633,6 @@ where
 	K: Keychain + 'static,
 {
 	fn on_open(&mut self, _shake: Handshake) -> WsResult<()> {
-		println!("######## Handler on_open ########");
-
 		let mut guard = self.connection_meta_data.lock();
 
 		if guard.connected_at_least_once {
@@ -593,8 +650,6 @@ where
 	}
 
 	fn on_timeout(&mut self, event: Token) -> WsResult<()> {
-		println!("######## Handler on_timeout ########");
-
 		match event {
 			KEEPALIVE_TOKEN => {
 				self.sender.ping(vec![])?;
@@ -608,7 +663,7 @@ where
 	}
 
 	fn on_message(&mut self, msg: Message) -> WsResult<()> {
-		println!("######## Handler on_message ########");
+		println!("######## Handler on_message ######## {:?}", msg);
 
 		let response = match serde_json::from_str::<ProtocolResponse>(&msg.to_string()) {
 			Ok(x) => x,

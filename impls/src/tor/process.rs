@@ -55,7 +55,6 @@ use std::fs::{self, File};
 use std::io;
 use std::io::Write;
 use std::io::{BufRead, BufReader};
-use std::path::PathBuf;
 use std::path::{Path, MAIN_SEPARATOR};
 use std::process::{Child, ChildStdout, Command, Stdio};
 use std::sync::mpsc::channel;

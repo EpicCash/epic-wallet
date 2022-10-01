@@ -131,6 +131,7 @@ subcommands:
               - file
               - self
               - keybase
+              - epicbox
             default_value: http
             takes_value: true
         - dest:
