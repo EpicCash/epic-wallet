@@ -415,7 +415,7 @@ where
 					let vslate = VersionedSlate::into_version(slate.clone(), SlateVersion::V2);
 					adapter.send_tx_async(&args.dest, &vslate)?;
 
-					let slate: Slate = vslate.into();
+					//let slate: Slate = vslate.into();
 					api.tx_lock_outputs(m, &slate, 0)?;
 					return Ok(());
 				}
