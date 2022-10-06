@@ -26,10 +26,11 @@ use crate::keychain::{Identifier, Keychain};
 use crate::libwallet::api_impl::owner_updater::{start_updater_log_thread, StatusMessage};
 use crate::libwallet::api_impl::{owner, owner_updater};
 use crate::libwallet::{
-	address, AcctPathMapping, Error, ErrorKind, InitTxArgs, IssueInvoiceTxArgs, NodeClient,
-	NodeHeightResult, OutputCommitMapping, PaymentProof, Slate, TxLogEntry, WalletInfo, WalletInst,
-	WalletLCProvider,
+	address, AcctPathMapping, EpicboxAddress, Error, ErrorKind, InitTxArgs, IssueInvoiceTxArgs,
+	NodeClient, NodeHeightResult, OutputCommitMapping, PaymentProof, Slate, TxLogEntry, WalletInfo,
+	WalletInst, WalletLCProvider,
 };
+
 use crate::util::logger::LoggingConfig;
 use crate::util::secp::key::SecretKey;
 use crate::util::{from_hex, static_secp_instance, Mutex, ZeroingString};
@@ -1908,6 +1909,70 @@ where
 		let mut q = self.updater_messages.lock();
 		let index = q.len().saturating_sub(count);
 		Ok(q.split_off(index))
+	}
+
+	/// Retrieve the public "addresses" associated with the active account at the
+	/// given derivation path.
+	///
+	/// In this case, an "address" means a Dalek ed25519 public key corresponding to
+	/// a private key derived as follows:
+	///
+	/// e.g. The default parent account is at
+	///
+	/// `m/0/0`
+	///
+	/// With output blinding factors created as
+	///
+	/// `m/0/0/0`
+	/// `m/0/0/1` etc...
+	///
+	/// The corresponding public address derivation path would be at:
+	///
+	/// `m/0/1`
+	///
+	/// With addresses created as:
+	///
+	/// `m/0/1/0`
+	/// `m/0/1/1` etc...
+	///
+	/// Note that these addresses correspond to the public keys used in the addresses
+	/// of TOR hidden services configured by the wallet listener.
+	///
+	/// # Arguments
+	///
+	/// * `keychain_mask` - Wallet secret mask to XOR against the stored wallet seed before using, if
+	/// * `derivation_index` - The index along the derivation path to retrieve an address for
+	///
+	/// # Returns
+	/// * Ok with a DalekPublicKey representing the address
+	/// * or [`libwallet::Error`](../epic_wallet_libwallet/struct.Error.html) if an error is encountered.
+	///
+	/// # Example
+	/// Set up as in [`new`](struct.Owner.html#method.new) method above.
+	/// ```
+	/// # epic_wallet_api::doctest_helper_setup_doc_env!(wallet, wallet_config);
+	///
+	/// use epic_core::global::ChainTypes;
+	///
+	/// use std::time::Duration;
+	///
+	/// // Set up as above
+	/// # let api_owner = Owner::new(wallet.clone());
+	///
+	/// let res = api_owner.get_public_address(None, 0);
+	///
+	/// if let Ok(_) = res {
+	///   // ...
+	/// }
+	///
+	/// ```
+
+	pub fn get_public_address(
+		&self,
+		keychain_mask: Option<&SecretKey>,
+		derivation_index: u32,
+	) -> Result<EpicboxAddress, Error> {
+		owner::get_public_address(self.wallet_inst.clone(), keychain_mask, derivation_index)
 	}
 
 	/// Retrieve the public proof "addresses" associated with the active account at the

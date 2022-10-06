@@ -30,7 +30,7 @@ use crate::libwallet::{
 	self, address, EpicboxAddress, InitTxArgs, IssueInvoiceTxArgs, NodeClient, PaymentProof,
 	WalletInst, WalletLCProvider,
 };
-use crate::libwallet::{Slate, SlateVersion, VersionedSlate};
+use crate::libwallet::{SlateVersion, VersionedSlate};
 use crate::util::secp::key::PublicKey;
 use crate::util::secp::key::SecretKey;
 use crate::util::{to_hex, Mutex, ZeroingString};
@@ -1042,8 +1042,15 @@ where
 		// Just address at derivation index 0 for now
 		let pub_key = api.get_public_proof_address(m, 0)?;
 		let result = address::onion_v3_from_pubkey(&pub_key);
+
+		let address = api.get_public_address(m, 0)?;
+
 		match result {
 			Ok(a) => {
+				println!();
+				println!("Address for account - {}", g_args.account);
+				println!("-------------------------------------");
+				println!("{}", address.public_key);
 				println!();
 				println!("Public Proof Address for account - {}", g_args.account);
 				println!("-------------------------------------");

@@ -286,6 +286,7 @@ where
 			if slate.tx.inputs().len() == 0 {
 				// TODO: invoicing
 			} else {
+				println!("foreign::receive_tx");
 				let ret_slate =
 					foreign::receive_tx(&mut **w, (mask).as_ref(), &slate, None, None, false);
 				*slate = ret_slate.unwrap();
@@ -293,6 +294,7 @@ where
 
 			Ok(false)
 		} else {
+			println!("owner::finalize_tx and post");
 			let slate = owner::finalize_tx(&mut **w, (mask).as_ref(), slate)?;
 			owner::post_tx(w.w2n_client(), &slate.tx, false)?;
 			Ok(true)
@@ -538,6 +540,11 @@ impl EpicboxBroker {
 			return Err(ErrorKind::ClosedListener("epicbox".to_string()).into());
 		}
 
+		println!(
+			"####################### post slate ###################### {}",
+			serde_json::to_string(&slate).unwrap()
+		);
+
 		let pkey = to.public_key()?;
 		let skey = secret_key.clone();
 		let message =
@@ -545,6 +552,11 @@ impl EpicboxBroker {
 				.map_err(|_| WsError::new(WsErrorKind::Protocol, "could not encrypt slate!"))
 				.unwrap();
 		let message_ser = serde_json::to_string(&message).unwrap();
+
+		println!(
+			"####################### post message_ser ###################### {}",
+			serde_json::to_string(&message_ser).unwrap()
+		);
 
 		let mut challenge = String::new();
 		challenge.push_str(&message_ser);
@@ -556,11 +568,6 @@ impl EpicboxBroker {
 			str: message_ser,
 			signature,
 		};
-
-		println!(
-			"####################### post slate ###################### {}",
-			serde_json::to_string(&request).unwrap()
-		);
 
 		if let Some(ref sender) = *self.inner.lock() {
 			sender

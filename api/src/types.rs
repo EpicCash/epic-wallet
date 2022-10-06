@@ -162,7 +162,7 @@ impl EncryptedRequest {
 		Ok(EncryptedRequest {
 			jsonrpc: "2.0".to_owned(),
 			method: "encrypted_request_v3".to_owned(),
-			id: id,
+			id,
 			params: EncryptedBody::from_json(json_in, enc_key)?,
 		})
 	}
@@ -211,7 +211,7 @@ impl EncryptedResponse {
 		);
 		Ok(EncryptedResponse {
 			jsonrpc: "2.0".to_owned(),
-			id: id,
+			id,
 			result: result_set,
 		})
 	}
@@ -264,9 +264,9 @@ impl EncryptionErrorResponse {
 	pub fn new(id: RpcId, code: i32, message: &str) -> Self {
 		EncryptionErrorResponse {
 			jsonrpc: "2.0".to_owned(),
-			id: id,
+			id,
 			error: EncryptionError {
-				code: code,
+				code,
 				message: message.to_owned(),
 			},
 		}

@@ -4231,9 +4231,9 @@ checksum = "c811ca4a8c853ef420abd8592ba53ddbbac90410fab6903b3e79972a631f7680"
 
 [[package]]
 name = "ws"
-version = "0.8.1"
+version = "0.9.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ec91ea61b83ce033c43c06c52ddc7532f465c0153281610d44c58b74083aee1a"
+checksum = "25fe90c75f236a0a00247d5900226aea4f2d7b05ccc34da9e7a8880ff59b5848"
 dependencies = [
  "byteorder 1.4.3",
  "bytes",
@@ -4242,10 +4242,10 @@ dependencies = [
  "mio",
  "mio-extras",
  "native-tls",
- "rand 0.6.5",
+ "rand 0.7.3",
  "sha-1",
  "slab",
- "url 1.7.2",
+ "url 2.2.2",
 ]
 
 [[package]]
