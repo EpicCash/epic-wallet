@@ -27,7 +27,6 @@ use crate::blake2::blake2b::{Blake2b, Blake2bResult};
 
 use crate::keychain::{ChildNumber, ExtKeychain, Identifier, Keychain, SwitchCommitmentType};
 use crate::store::{self, option_to_not_found, to_key, to_key_u64};
-
 use crate::core::core::Transaction;
 use crate::core::ser;
 use crate::libwallet::{
@@ -40,6 +39,8 @@ use crate::util::{self, secp};
 
 use rand::rngs::mock::StepRng;
 use rand::thread_rng;
+
+use super::db::Store;
 
 pub const DB_DIR: &'static str = "db";
 pub const TX_SAVE_DIR: &'static str = "saved_txs";
@@ -103,7 +104,7 @@ where
 	C: NodeClient + 'ck,
 	K: Keychain + 'ck,
 {
-	db: store::Store,
+	db: Store,
 	data_file_dir: String,
 	/// Keychain
 	pub keychain: Option<K>,
