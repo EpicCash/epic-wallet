@@ -25,14 +25,14 @@ use uuid::Uuid;
 
 use crate::blake2::blake2b::{Blake2b, Blake2bResult};
 
-use crate::keychain::{ChildNumber, ExtKeychain, Identifier, Keychain, SwitchCommitmentType};
-use crate::store::{self, option_to_not_found, to_key, to_key_u64};
 use crate::core::core::Transaction;
 use crate::core::ser;
+use crate::keychain::{ChildNumber, ExtKeychain, Identifier, Keychain, SwitchCommitmentType};
 use crate::libwallet::{
 	AcctPathMapping, Context, Error, ErrorKind, NodeClient, OutputData, OutputStatus,
 	ScannedBlockInfo, TxLogEntry, WalletBackend, WalletInitStatus, WalletOutputBatch,
 };
+use crate::store::{self, option_to_not_found, to_key, to_key_u64};
 use crate::util::secp::constants::SECRET_KEY_SIZE;
 use crate::util::secp::key::SecretKey;
 use crate::util::{self, secp};
