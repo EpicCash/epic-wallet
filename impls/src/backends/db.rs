@@ -1,8 +1,8 @@
+use crate::core::ser;
 use epic_wallet_libwallet::TxLogEntry;
 use epic_wallet_util::epic_core::ser::ProtocolVersion;
 use sqlite::{self, Connection, Cursor, Row};
 use std::fs::{self, create_dir_all};
-use crate::core::ser;
 
 use crate::Error;
 
@@ -63,14 +63,14 @@ impl Store {
 
 	/// Gets a value from the db, provided its key
 	pub fn get(&self, key: &[u8]) -> Result<Option<Vec<u8>>, Error> {
-		let statement = self.db.prepare("SELECT * FROM data WHERE key = ? LIMIT 1")
+		let statement = self
+			.db
+			.prepare("SELECT * FROM data WHERE key = ? LIMIT 1")
 			.unwrap()
 			.bind(1, key)
 			.unwrap();
 
-		Ok(
-			Some(statement.read::<Vec<u8>>(1).unwrap())
-		)
+		Ok(Some(statement.read::<Vec<u8>>(1).unwrap()))
 	}
 
 	/// Gets a `Readable` value from the db, provided its key. Encapsulates
@@ -82,20 +82,24 @@ impl Store {
 
 	/// Whether the provided key exists
 	pub fn exists(&self, key: &[u8]) -> Result<bool, Error> {
-		let statement = self.db.prepare("SELECT * FROM data WHERE key = ? LIMIT 1")
+		let statement = self
+			.db
+			.prepare("SELECT * FROM data WHERE key = ? LIMIT 1")
 			.unwrap()
 			.bind(1, key)
 			.unwrap();
-			//TODO return bool
+		//TODO return bool
 	}
 
 	/// Produces an iterator of (key, value) pairs, where values are `Readable` types
 	/// moving forward from the provided key.
-	pub fn iter<T: ser::Readable>(&self, from: &[u8]) -> Result<dyn Iterator<Item = TxLogEntry>, Error> {
+	pub fn iter<T: ser::Readable>(
+		&self,
+		from: &[u8],
+	) -> Result<dyn Iterator<Item = TxLogEntry>, Error> {
 		let statement = self.db.prepare("SELECT * FROM data;").unwrap();
-		let iter_data = statement.map(|row| {
-			ser::deserialize(row.get::<Vec<u8>>(1), ProtocolVersion(1))
-		});
+		let iter_data =
+			statement.map(|row| ser::deserialize(row.get::<Vec<u8>>(1), ProtocolVersion(1)));
 	}
 
 	/// Builds a new batch to be used with this store.
@@ -117,7 +121,10 @@ pub struct Batch<'a> {
 impl<'a> Batch<'a> {
 	/// Writes a single key/value pair to the db
 	pub fn put(&self, key: &[u8], value: &[u8]) -> Result<(), Error> {
-		let statement = self.db.prepare("INSERT INTO data VALUES (?, ?, ?);").unwrap()
+		let statement = self
+			.db
+			.prepare("INSERT INTO data VALUES (?, ?, ?);")
+			.unwrap()
 			.bind(1, key)
 			.unwrap()
 			.bind(2, value.to_owned().to_vec())
@@ -199,5 +206,5 @@ impl<'a> Batch<'a> {
 	}
 }
 
-unsafe impl Sync for Store{}
-unsafe impl Send for Store{}
+unsafe impl Sync for Store {}
+unsafe impl Send for Store {}
