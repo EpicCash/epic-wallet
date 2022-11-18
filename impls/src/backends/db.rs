@@ -2,7 +2,7 @@ use crate::core::ser;
 use epic_wallet_libwallet::TxLogEntry;
 use epic_wallet_util::epic_core::ser::ProtocolVersion;
 use sqlite::{self, Connection, Cursor, Row};
-use std::fs::{self, create_dir_all};
+use std::{fs, result};
 
 use crate::Error;
 
@@ -76,8 +76,14 @@ impl Store {
 	/// Gets a `Readable` value from the db, provided its key. Encapsulates
 	/// serialization.
 	pub fn get_ser<T: ser::Readable>(&self, key: &[u8]) -> Result<Option<T>, Error> {
-		let value = self.get(key);
-		Ok(ser::deserialize(&mut &tx_bin[..], ser::ProtocolVersion(1)))
+		let mut value = match self.get(key).unwrap() {
+			Some(n) => n,
+			None => {
+				panic!("deu ruim")
+			}
+		};
+		let foobar = ser::deserialize(&mut value.as_slice(), ser::ProtocolVersion(1));
+		foobar
 	}
 
 	/// Whether the provided key exists
@@ -88,54 +94,53 @@ impl Store {
 			.unwrap()
 			.bind(1, key)
 			.unwrap();
-		//TODO return bool
+		return Ok(statement.next().is_ok());
 	}
 
 	/// Produces an iterator of (key, value) pairs, where values are `Readable` types
 	/// moving forward from the provided key.
-	pub fn iter<T: ser::Readable>(
-		&self,
-		from: &[u8],
-	) -> Result<dyn Iterator<Item = TxLogEntry>, Error> {
-		let statement = self.db.prepare("SELECT * FROM data;").unwrap();
-		let iter_data =
-			statement.map(|row| ser::deserialize(row.get::<Vec<u8>>(1), ProtocolVersion(1)));
+	pub fn iter<T: ser::Readable>(&self, from: &[u8]) -> result::IntoIter<TxLogEntry> {
+		let query = "SELECT * FROM data;";
+		return self
+			.db
+			.iterate(query, |pairs| {
+				for &(key, value) in pairs.iter() {
+					ser::deserialize(value.unwrap(), ProtocolVersion(1));
+				}
+			})
+			.into_iter();
 	}
 
 	/// Builds a new batch to be used with this store.
-	pub fn batch(&self) -> Result<Batch<'_>, Error> {
-		// check if the db needs resizing before returning the batch
-		if self.needs_resize()? {
-			self.do_resize()?;
-		}
-		let tx = lmdb::WriteTransaction::new(self.env.clone())?;
-		Ok(Batch { store: self, tx })
+	pub fn batch(&self) -> Result<Batch, Error> {
+		Ok(Batch { store: self.db })
 	}
 }
 
 /// Batch to write multiple Writeables to db in an atomic manner.
-pub struct Batch<'a> {
+pub struct Batch {
 	store: Connection,
 }
 
-impl<'a> Batch<'a> {
+impl<'a> Batch {
 	/// Writes a single key/value pair to the db
-	pub fn put(&self, key: &[u8], value: &[u8]) -> Result<(), Error> {
+	pub fn put(&self, key: &[u8], mut value: u8, prefix: char) -> Result<(), Error> {
 		let statement = self
-			.db
+			.store
 			.prepare("INSERT INTO data VALUES (?, ?, ?);")
 			.unwrap()
 			.bind(1, key)
 			.unwrap()
-			.bind(2, value.to_owned().to_vec())
+			.bind(2, value.to_owned() as i64)
 			.unwrap()
-			.bind(3, prefix)
+			.bind(3, prefix as i64)
 			.unwrap();
 		let result = match statement {
-			Ok(n) => (),
+			Ok(n) => n,
 			_ => panic!("Error"),
 		};
-		result
+		//result()
+		Ok(())
 	}
 
 	/// Writes a single key and its `Writeable` value to the db.
@@ -171,9 +176,12 @@ impl<'a> Batch<'a> {
 
 	/// Produces an iterator of `Readable` types moving forward from the
 	/// provided key.
-	pub fn iter<T: ser::Readable>(&self, from: &[u8]) -> Result<SerIterator<T>, Error> {
-		self.store.iter(from)
-	}
+	// pub fn iter<T: ser::Readable>(
+	// 	&self,
+	// 	from: &[u8],
+	// ) -> Result<dyn Iterator<Item = TxLogEntry>, Error> {
+	// 	self.store.iter(from)
+	// }
 
 	/// Gets a `Readable` value from the db, provided its key, taking the
 	/// content of the current batch into account.
@@ -194,15 +202,6 @@ impl<'a> Batch<'a> {
 	pub fn commit(self) -> Result<(), Error> {
 		self.tx.commit()?;
 		Ok(())
-	}
-
-	/// Creates a child of this batch. It will be merged with its parent on
-	/// commit, abandoned otherwise.
-	pub fn child(&mut self) -> Result<Batch<'_>, Error> {
-		Ok(Batch {
-			store: self.store,
-			tx: self.tx.child_tx()?,
-		})
 	}
 }
 
