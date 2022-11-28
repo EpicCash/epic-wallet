@@ -1,8 +1,7 @@
 use crate::core::ser;
-use epic_wallet_libwallet::TxLogEntry;
 use epic_wallet_util::epic_core::ser::ProtocolVersion;
-use sqlite::{self, Connection, Cursor, Row};
-use std::{fs, result};
+use sqlite::{self, Connection, Statement};
+use std::fs;
 
 use crate::Error;
 
@@ -46,16 +45,6 @@ impl Store {
 		Ok(res)
 	}
 
-	/// Construct a new store using a specific protocol version.
-	/// Permits access to the db with legacy protocol versions for db migrations.
-	pub fn with_version(&self, version: ProtocolVersion) -> Store {
-		Store {
-			db: self.db.clone(),
-			name: self.name.clone(),
-			version: version,
-		}
-	}
-
 	/// Opens the database environment
 	pub fn open(&self) -> Result<(), Error> {
 		Ok(())
@@ -83,7 +72,7 @@ impl Store {
 			}
 		};
 		let foobar = ser::deserialize(&mut value.as_slice(), ser::ProtocolVersion(1));
-		foobar
+		Ok(foobar)
 	}
 
 	/// Whether the provided key exists
@@ -99,16 +88,17 @@ impl Store {
 
 	/// Produces an iterator of (key, value) pairs, where values are `Readable` types
 	/// moving forward from the provided key.
-	pub fn iter<T: ser::Readable>(&self, from: &[u8]) -> result::IntoIter<TxLogEntry> {
+	pub fn iter<T: ser::Readable>(&self, from: &[u8]) {
 		let query = "SELECT * FROM data;";
-		return self
-			.db
+		self.db
 			.iterate(query, |pairs| {
 				for &(key, value) in pairs.iter() {
 					ser::deserialize(value.unwrap(), ProtocolVersion(1));
 				}
+				true
 			})
 			.into_iter();
+		()
 	}
 
 	/// Builds a new batch to be used with this store.
@@ -135,7 +125,7 @@ impl<'a> Batch {
 			.unwrap()
 			.bind(3, prefix as i64)
 			.unwrap();
-		let result = match statement {
+		let result: Statement = match statement {
 			Ok(n) => n,
 			_ => panic!("Error"),
 		};
@@ -146,7 +136,7 @@ impl<'a> Batch {
 	/// Writes a single key and its `Writeable` value to the db.
 	/// Encapsulates serialization using the (default) version configured on the store instance.
 	pub fn put_ser<W: ser::Writeable>(&self, key: &[u8], value: &W) -> Result<(), Error> {
-		self.put_ser_with_version(key, value, self.store.version)
+		self.put_ser_with_version(key, value, PROTOCOL_VERSION)
 	}
 
 	/// Writes a single key and its `Writeable` value to the db.
@@ -159,7 +149,7 @@ impl<'a> Batch {
 	) -> Result<(), Error> {
 		let ser_value = ser::ser_vec(value, version);
 		match ser_value {
-			Ok(data) => self.put(key, &data),
+			Ok(data) => self.put(key, &data, 'a'),
 			Err(err) => Err(Error::SerErr(format!("{}", err))),
 		}
 	}
