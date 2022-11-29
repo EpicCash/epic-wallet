@@ -146,7 +146,9 @@ impl Listener for EpicboxListener {
 		let address = EpicboxAddress::from_str(to)?;
 		self.publisher.post_slate(slate, &address)
 	}
-
+	fn is_running(&self) -> bool {
+		self.subscriber.is_running()
+	}
 	fn stop(self: Box<Self>) -> Result<(), Error> {
 		let s = *self;
 		s.subscriber.stop();
@@ -228,6 +230,7 @@ pub trait Listener: Sync + Send + 'static {
 	fn address(&self) -> String;
 	fn publish(&self, slate: &VersionedSlate, to: &String) -> Result<(), Error>;
 	fn stop(self: Box<Self>) -> Result<(), Error>;
+	fn is_running(&self) -> bool;
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Hash)]

@@ -407,16 +407,32 @@ where
 						config.clone(),
 					)
 					.unwrap();
+
 					container
 						.lock()
 						.listeners
 						.insert(ListenerInterface::Epicbox, listener);
 
+					loop {
+						if container
+							.lock()
+							.listener(ListenerInterface::Epicbox)?
+							.is_running()
+						{
+							break;
+						}
+						std::thread::sleep(std::time::Duration::from_secs(1));
+					}
+
 					let vslate = VersionedSlate::into_version(slate.clone(), SlateVersion::V2);
 					adapter.send_tx_async(&args.dest, &vslate)?;
-
+					let mut c = container.lock();
+					if let Some(listener) = c.listeners.remove(&ListenerInterface::Epicbox) {
+						listener.stop()?;
+						println!("Listener stopped");
+					}
 					//let slate: Slate = vslate.into();
-					api.tx_lock_outputs(m, &slate, 0)?;
+					//api.tx_lock_outputs(m, &slate, 0)?;
 					return Ok(());
 				}
 				method => {
