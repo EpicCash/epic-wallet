@@ -25,10 +25,8 @@ const ADDRESS_REGEX: &str = r"^((?P<address_type>keybase|epicbox|http|https)://)
 const EPICBOX_ADDRESS_REGEX: &str = r"^(epicbox://)?(?P<public_key>[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{52})(@(?P<domain>[a-zA-Z0-9\.]+)(:(?P<port>[0-9]*))?)?$";
 const KEYBASE_ADDRESS_REGEX: &str = r"^(keybase://)?(?P<username>[0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_]{1,16})(:(?P<topic>[a-zA-Z0-9_-]+))?$";
 const DEFAULT_EPICBOX_DOMAIN: &str = "epicbox.io";
-#[cfg(not(windows))]
-pub const DEFAULT_EPICBOX_PORT: u16 = 443;
-#[cfg(windows)]
-pub const DEFAULT_EPICBOX_PORT: u16 = 80;
+pub const DEFAULT_EPICBOX_PORT_80: u16 = 80;
+pub const DEFAULT_EPICBOX_PORT_443: u16 = 443;
 
 pub fn version_bytes() -> Vec<u8> {
 	if is_floonet() {
@@ -104,10 +102,10 @@ impl Display for EpicboxAddress {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		write!(f, "{}", self.public_key)?;
 		if self.domain != DEFAULT_EPICBOX_DOMAIN
-			|| (self.port.is_some() && self.port.unwrap() != DEFAULT_EPICBOX_PORT)
+			|| (self.port.is_some() && self.port.unwrap() != DEFAULT_EPICBOX_PORT_443)
 		{
 			write!(f, "@{}", self.domain)?;
-			if self.port.is_some() && self.port.unwrap() != DEFAULT_EPICBOX_PORT {
+			if self.port.is_some() && self.port.unwrap() != DEFAULT_EPICBOX_PORT_443 {
 				write!(f, ":{}", self.port.unwrap())?;
 			}
 		}

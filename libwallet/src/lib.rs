@@ -70,7 +70,8 @@ pub use api_impl::types::{
 	OutputCommitMapping, PaymentProof, SendTXArgs, VersionInfo,
 };
 pub use epicbox_address::{
-	version_bytes, Address, AddressType, EpicboxAddress, DEFAULT_EPICBOX_PORT,
+	version_bytes, Address, AddressType, EpicboxAddress, DEFAULT_EPICBOX_PORT_443,
+	DEFAULT_EPICBOX_PORT_80,
 };
 pub use internal::scan::scan;
 pub use slate_versions::ser as dalek_ser;

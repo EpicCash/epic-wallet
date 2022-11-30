@@ -22,7 +22,8 @@ use crate::libwallet::message::EncryptedMessage;
 use crate::libwallet::wallet_lock;
 use crate::libwallet::{Address, AddressType, EpicboxAddress, TxProof};
 use crate::libwallet::{
-	Error, ErrorKind, NodeClient, WalletInst, WalletLCProvider, DEFAULT_EPICBOX_PORT,
+	Error, ErrorKind, NodeClient, WalletInst, WalletLCProvider, DEFAULT_EPICBOX_PORT_443,
+	DEFAULT_EPICBOX_PORT_80,
 };
 use crate::libwallet::{Slate, VersionedSlate};
 use crate::util::secp::key::SecretKey;
@@ -80,7 +81,7 @@ impl<'a> EpicboxAdapter<'a> {
 		Box::new(Self { container })
 	}
 }
-
+///TODO: cleanup code
 impl<'a> Adapter for EpicboxAdapter<'a> {
 	fn supports_sync(&self) -> bool {
 		false
@@ -98,7 +99,7 @@ impl<'a> Adapter for EpicboxAdapter<'a> {
 			.publish(slate, &dest.to_owned())
 	}
 }
-
+///TODO: reduce to broker
 #[derive(Clone)]
 pub struct EpicboxBroker {
 	inner: Arc<Mutex<Option<Sender>>>,
@@ -134,6 +135,7 @@ pub struct EpicboxListener {
 }
 
 impl Listener for EpicboxListener {
+	/// keep :)
 	fn interface(&self) -> ListenerInterface {
 		ListenerInterface::Epicbox
 	}
@@ -141,14 +143,16 @@ impl Listener for EpicboxListener {
 	fn address(&self) -> String {
 		self.address.stripped()
 	}
-
+	/// post slate
 	fn publish(&self, slate: &VersionedSlate, to: &String) -> Result<(), Error> {
 		let address = EpicboxAddress::from_str(to)?;
 		self.publisher.post_slate(slate, &address)
 	}
+	/// is wss socket connected
 	fn is_running(&self) -> bool {
 		self.subscriber.is_running()
 	}
+	/// stops wss connection
 	fn stop(self: Box<Self>) -> Result<(), Error> {
 		let s = *self;
 		s.subscriber.stop();
@@ -213,6 +217,7 @@ impl Container {
 		let container = Self {
 			config,
 			account: String::from("default"),
+			///TODO: reduce listeners
 			listeners: HashMap::with_capacity(4),
 		};
 		Arc::new(Mutex::new(container))
@@ -450,8 +455,8 @@ impl EpicboxBroker {
 			protocol_unsecure,
 		})
 	}
-	/// Start a listener, passing received messages to the wallet api directly
 
+	/// Start a listener, passing received messages to the wallet api directly
 	pub fn subscribe<P, L, C, K>(
 		&self,
 		address: &EpicboxAddress,
@@ -471,15 +476,16 @@ impl EpicboxBroker {
 				true => format!(
 					"ws://{}:{}",
 					cloned_address.domain,
-					cloned_address.port.unwrap_or(DEFAULT_EPICBOX_PORT)
+					cloned_address.port.unwrap_or(DEFAULT_EPICBOX_PORT_80)
 				),
 				false => format!(
 					"wss://{}:{}",
 					cloned_address.domain,
-					cloned_address.port.unwrap_or(DEFAULT_EPICBOX_PORT)
+					cloned_address.port.unwrap_or(DEFAULT_EPICBOX_PORT_443)
 				),
 			}
 		};
+		//this is clone wars
 		let cloned_address = address.clone();
 		let cloned_inner = self.inner.clone();
 		let cloned_handler = handler.clone();
@@ -489,12 +495,13 @@ impl EpicboxBroker {
 			let cloned_handler = cloned_handler.clone();
 			let cloned_cloned_inner = cloned_inner.clone();
 			let cloned_connection_meta_data = connection_meta_data.clone();
+			//sender = use std::sync::mpsc::sync_channel;
 			let result = connect(url.clone(), |sender| {
 				{
 					let mut guard = cloned_cloned_inner.lock();
 					*guard = Some(sender.clone());
 				}
-
+                println!(" ###### create new client ######");
 				let client = EpicboxClient {
 					sender,
 					handler: cloned_handler.clone(),
@@ -608,7 +615,7 @@ where
 	secret_key: SecretKey,
 	connection_meta_data: Arc<Mutex<ConnectionMetadata>>,
 }
-
+/// client with handler from ws package
 impl<P, L, C, K> EpicboxClient<P, L, C, K>
 where
 	P: Publisher,
@@ -634,7 +641,7 @@ where
 		Ok(())
 	}
 }
-
+/// handler from ws package
 impl<P, L, C, K> Handler for EpicboxClient<P, L, C, K>
 where
 	P: Publisher,
