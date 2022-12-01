@@ -404,7 +404,7 @@ where
 				Err(er) => {
 					error!("Error on lmdb.rs implementation! Error {}", er);
 					panic!("Error on lmdb.rs implementation! Error {}", er)
-				},
+				}
 			}),
 			keychain: Some(self.keychain(keychain_mask)?),
 		}))
@@ -414,15 +414,13 @@ where
 		Ok(Box::new(Batch {
 			_store: self,
 			//db: RefCell::new(Some(self.db.batch()?)),
-			db: RefCell::new(
-				match self.db.batch() {
-					Ok(w_batch) => Some(w_batch),
-					Err(er) => {
-						error!("Error on lmdb.rs implementation! Error {}", er);
-						panic!("Error on lmdb.rs implementation! Error {}", er)
-					},
+			db: RefCell::new(match self.db.batch() {
+				Ok(w_batch) => Some(w_batch),
+				Err(er) => {
+					error!("Error on lmdb.rs implementation! Error {}", er);
+					panic!("Error on lmdb.rs implementation! Error {}", er)
 				}
-			),
+			}),
 			keychain: None,
 		}))
 	}
@@ -435,7 +433,7 @@ where
 				Err(er) => {
 					error!("Error on lmdb.rs implementation! Error {}", er);
 					panic!("Error on lmdb.rs implementation! Error {}", er)
-				},
+				}
 			};
 			let deriv_key = to_key(DERIV_PREFIX, &mut parent_key_id.to_bytes().to_vec());
 			let batch_ser = match batch.get_ser(&deriv_key) {
@@ -443,7 +441,7 @@ where
 				Err(er) => {
 					error!("Error on lmdb.rs implementation! Error {}", er);
 					panic!("Error on lmdb.rs implementation! Error {}", er)
-				},
+				}
 			};
 			match batch_ser {
 				Some(idx) => idx,
@@ -461,7 +459,7 @@ where
 				Err(er) => {
 					error!("Error on lmdb.rs implementation! Error {}", er);
 					panic!("Error on lmdb.rs implementation! Error {}", er)
-				},
+				}
 			};
 			let deriv_key = to_key(DERIV_PREFIX, &mut self.parent_key_id.to_bytes().to_vec());
 			let batch_ser = match batch.get_ser(&deriv_key) {
@@ -469,7 +467,7 @@ where
 				Err(er) => {
 					error!("Error on lmdb.rs implementation! Error {}", er);
 					panic!("Error on lmdb.rs implementation! Error {}", er)
-				},
+				}
 			};
 			match batch_ser {
 				Some(idx) => idx,
@@ -492,7 +490,7 @@ where
 			Err(er) => {
 				error!("Error on lmdb.rs implementation! Error {}", er);
 				panic!("Error on lmdb.rs implementation! Error {}", er)
-			},
+			}
 		};
 		let height_key = to_key(
 			CONFIRMED_HEIGHT_PREFIX,
@@ -503,7 +501,7 @@ where
 			Err(er) => {
 				error!("Error on lmdb.rs implementation! Error {}", er);
 				panic!("Error on lmdb.rs implementation! Error {}", er)
-			},
+			}
 		};
 		let last_confirmed_height = match batch_ser {
 			Some(h) => h,
@@ -518,7 +516,7 @@ where
 			Err(er) => {
 				error!("Error on lmdb.rs implementation! Error {}", er);
 				panic!("Error on lmdb.rs implementation! Error {}", er)
-			},
+			}
 		};
 		let scanned_block_key = to_key(
 			LAST_SCANNED_BLOCK,
@@ -529,7 +527,7 @@ where
 			Err(er) => {
 				error!("Error on lmdb.rs implementation! Error {}", er);
 				panic!("Error on lmdb.rs implementation! Error {}", er)
-			},
+			}
 		};
 		let last_scanned_block = match batch_ser {
 			Some(b) => b,
@@ -549,7 +547,7 @@ where
 			Err(er) => {
 				error!("Error on lmdb.rs implementation! Error {}", er);
 				panic!("Error on lmdb.rs implementation! Error {}", er)
-			},
+			}
 		};
 		let init_status_key = to_key(
 			WALLET_INIT_STATUS,
@@ -560,7 +558,7 @@ where
 			Err(er) => {
 				error!("Error on lmdb.rs implementation! Error {}", er);
 				panic!("Error on lmdb.rs implementation! Error {}", er)
-			},
+			}
 		};
 		let status = match batch_ser {
 			Some(s) => s,
