@@ -20,6 +20,7 @@ use crate::util::secp;
 use failure::{Backtrace, Context, Fail};
 use std::env;
 use std::fmt::{self, Display};
+use std::error;
 
 /// Error definition
 #[derive(Debug)]
@@ -100,6 +101,32 @@ impl Fail for Error {
 		self.inner.backtrace()
 	}
 }
+
+
+// impl From<dyn error::Error + 'static> for Error {
+// 	fn from(error: libtx::Error) -> Error {
+// 		Error {
+// 			inner: Context::new(ErrorKind::LibTX(error.kind())),
+// 		}
+// 	}
+// }
+
+// impl From <dyn error::Error + 'static> for Error {
+// 	fn source(&self) -> Option<&(dyn Error + 'static)> {
+//         Some(&self.name)
+//     }
+// }
+	// fn from(error: libwallet::Error) -> Error {
+	// 	Error {
+	// 		inner: Context::new(ErrorKind::LibWallet(error.kind(), format!("{}", error))),
+	// 	}
+	// }
+
+// impl error::Error for Error {
+// 	fn source(&self) -> Option<&(dyn error::Error + 'static)> {
+// 		Some(&self.inner)
+// 	}
+// }
 
 impl Display for Error {
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
