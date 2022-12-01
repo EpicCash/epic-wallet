@@ -130,7 +130,6 @@ where
 		let stored_tx_path = path::Path::new(data_file_dir).join(TX_SAVE_DIR);
 		fs::create_dir_all(&stored_tx_path)
 			.expect("Couldn't create wallet backend tx storage directory!");
-
 		let store = store::Store::new(db_path.to_str().unwrap(), None, Some(DB_DIR), None)?;
 
 		// Make sure default wallet derivation path always exists
@@ -399,7 +398,14 @@ where
 	) -> Result<Box<dyn WalletOutputBatch<K> + 'a>, Error> {
 		Ok(Box::new(Batch {
 			_store: self,
-			db: RefCell::new(Some(self.db.batch()?)),
+			//db: RefCell::new(Some(self.db.batch())?),
+			db: RefCell::new(match self.db.batch() {
+				Ok(w_batch) => Some(w_batch),
+				Err(er) => {
+					error!("Error on lmdb.rs implementation! Error {}", er);
+					panic!("Error on lmdb.rs implementation! Error {}", er)
+				},
+			}),
 			keychain: Some(self.keychain(keychain_mask)?),
 		}))
 	}
@@ -407,16 +413,39 @@ where
 	fn batch_no_mask<'a>(&'a mut self) -> Result<Box<dyn WalletOutputBatch<K> + 'a>, Error> {
 		Ok(Box::new(Batch {
 			_store: self,
-			db: RefCell::new(Some(self.db.batch()?)),
+			//db: RefCell::new(Some(self.db.batch()?)),
+			db: RefCell::new(
+				match self.db.batch() {
+					Ok(w_batch) => Some(w_batch),
+					Err(er) => {
+						error!("Error on lmdb.rs implementation! Error {}", er);
+						panic!("Error on lmdb.rs implementation! Error {}", er)
+					},
+				}
+			),
 			keychain: None,
 		}))
 	}
 
 	fn current_child_index<'a>(&mut self, parent_key_id: &Identifier) -> Result<u32, Error> {
 		let index = {
-			let batch = self.db.batch()?;
+			//let batch = self.db.batch()?;
+			let batch = match self.db.batch() {
+				Ok(w_batch) => w_batch,
+				Err(er) => {
+					error!("Error on lmdb.rs implementation! Error {}", er);
+					panic!("Error on lmdb.rs implementation! Error {}", er)
+				},
+			};
 			let deriv_key = to_key(DERIV_PREFIX, &mut parent_key_id.to_bytes().to_vec());
-			match batch.get_ser(&deriv_key)? {
+			let batch_ser = match batch.get_ser(&deriv_key) {
+				Ok(ser) => ser,
+				Err(er) => {
+					error!("Error on lmdb.rs implementation! Error {}", er);
+					panic!("Error on lmdb.rs implementation! Error {}", er)
+				},
+			};
+			match batch_ser {
 				Some(idx) => idx,
 				None => 0,
 			}
@@ -427,9 +456,22 @@ where
 	fn next_child<'a>(&mut self, keychain_mask: Option<&SecretKey>) -> Result<Identifier, Error> {
 		let parent_key_id = self.parent_key_id.clone();
 		let mut deriv_idx = {
-			let batch = self.db.batch()?;
+			let batch = match self.db.batch() {
+				Ok(w_batch) => w_batch,
+				Err(er) => {
+					error!("Error on lmdb.rs implementation! Error {}", er);
+					panic!("Error on lmdb.rs implementation! Error {}", er)
+				},
+			};
 			let deriv_key = to_key(DERIV_PREFIX, &mut self.parent_key_id.to_bytes().to_vec());
-			match batch.get_ser(&deriv_key)? {
+			let batch_ser = match batch.get_ser(&deriv_key) {
+				Ok(ser) => ser,
+				Err(er) => {
+					error!("Error on lmdb.rs implementation! Error {}", er);
+					panic!("Error on lmdb.rs implementation! Error {}", er)
+				},
+			};
+			match batch_ser {
 				Some(idx) => idx,
 				None => 0,
 			}
@@ -445,12 +487,25 @@ where
 	}
 
 	fn last_confirmed_height<'a>(&mut self) -> Result<u64, Error> {
-		let batch = self.db.batch()?;
+		let batch = match self.db.batch() {
+			Ok(w_batch) => w_batch,
+			Err(er) => {
+				error!("Error on lmdb.rs implementation! Error {}", er);
+				panic!("Error on lmdb.rs implementation! Error {}", er)
+			},
+		};
 		let height_key = to_key(
 			CONFIRMED_HEIGHT_PREFIX,
 			&mut self.parent_key_id.to_bytes().to_vec(),
 		);
-		let last_confirmed_height = match batch.get_ser(&height_key)? {
+		let batch_ser = match batch.get_ser(&height_key) {
+			Ok(ser) => ser,
+			Err(er) => {
+				error!("Error on lmdb.rs implementation! Error {}", er);
+				panic!("Error on lmdb.rs implementation! Error {}", er)
+			},
+		};
+		let last_confirmed_height = match batch_ser {
 			Some(h) => h,
 			None => 0,
 		};
@@ -458,12 +513,25 @@ where
 	}
 
 	fn last_scanned_block<'a>(&mut self) -> Result<ScannedBlockInfo, Error> {
-		let batch = self.db.batch()?;
+		let batch = match self.db.batch() {
+			Ok(w_batch) => w_batch,
+			Err(er) => {
+				error!("Error on lmdb.rs implementation! Error {}", er);
+				panic!("Error on lmdb.rs implementation! Error {}", er)
+			},
+		};
 		let scanned_block_key = to_key(
 			LAST_SCANNED_BLOCK,
 			&mut LAST_SCANNED_KEY.as_bytes().to_vec(),
 		);
-		let last_scanned_block = match batch.get_ser(&scanned_block_key)? {
+		let batch_ser = match batch.get_ser(&scanned_block_key) {
+			Ok(ser) => ser,
+			Err(er) => {
+				error!("Error on lmdb.rs implementation! Error {}", er);
+				panic!("Error on lmdb.rs implementation! Error {}", er)
+			},
+		};
+		let last_scanned_block = match batch_ser {
 			Some(b) => b,
 			None => ScannedBlockInfo {
 				height: 0,
@@ -476,12 +544,25 @@ where
 	}
 
 	fn init_status<'a>(&mut self) -> Result<WalletInitStatus, Error> {
-		let batch = self.db.batch()?;
+		let batch = match self.db.batch() {
+			Ok(w_batch) => w_batch,
+			Err(er) => {
+				error!("Error on lmdb.rs implementation! Error {}", er);
+				panic!("Error on lmdb.rs implementation! Error {}", er)
+			},
+		};
 		let init_status_key = to_key(
 			WALLET_INIT_STATUS,
 			&mut WALLET_INIT_STATUS_KEY.as_bytes().to_vec(),
 		);
-		let status = match batch.get_ser(&init_status_key)? {
+		let batch_ser = match batch.get_ser(&init_status_key) {
+			Ok(ser) => ser,
+			Err(er) => {
+				error!("Error on lmdb.rs implementation! Error {}", er);
+				panic!("Error on lmdb.rs implementation! Error {}", er)
+			},
+		};
+		let status = match batch_ser {
 			Some(s) => s,
 			None => WalletInitStatus::InitComplete,
 		};
