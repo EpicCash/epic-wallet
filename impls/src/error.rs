@@ -19,8 +19,8 @@ use crate::libwallet;
 use crate::util::secp;
 use failure::{Backtrace, Context, Fail};
 use std::env;
-use std::fmt::{self, Display};
 use std::error;
+use std::fmt::{self, Display};
 
 /// Error definition
 #[derive(Debug)]
@@ -102,7 +102,6 @@ impl Fail for Error {
 	}
 }
 
-
 // impl From<dyn error::Error + 'static> for Error {
 // 	fn from(error: libtx::Error) -> Error {
 // 		Error {
@@ -116,11 +115,11 @@ impl Fail for Error {
 //         Some(&self.name)
 //     }
 // }
-	// fn from(error: libwallet::Error) -> Error {
-	// 	Error {
-	// 		inner: Context::new(ErrorKind::LibWallet(error.kind(), format!("{}", error))),
-	// 	}
-	// }
+// fn from(error: libwallet::Error) -> Error {
+// 	Error {
+// 		inner: Context::new(ErrorKind::LibWallet(error.kind(), format!("{}", error))),
+// 	}
+// }
 
 // impl error::Error for Error {
 // 	fn source(&self) -> Option<&(dyn error::Error + 'static)> {
