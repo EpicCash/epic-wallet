@@ -429,7 +429,10 @@ where
 			let batch = match self.db.batch() {
 				Ok(w_batch) => w_batch,
 				Err(er) => {
-					panic!("Error getting batch itself in child_index function! Error {}", er)
+					panic!(
+						"Error getting batch itself in child_index function! Error {}",
+						er
+					)
 				}
 			};
 			let deriv_key = to_key(DERIV_PREFIX, &mut parent_key_id.to_bytes().to_vec());
@@ -453,7 +456,10 @@ where
 			let batch = match self.db.batch() {
 				Ok(w_batch) => w_batch,
 				Err(er) => {
-					panic!("Error getting batch itself in next_child function! Error {}", er)
+					panic!(
+						"Error getting batch itself in next_child function! Error {}",
+						er
+					)
 				}
 			};
 			let deriv_key = to_key(DERIV_PREFIX, &mut self.parent_key_id.to_bytes().to_vec());
@@ -482,7 +488,10 @@ where
 		let batch = match self.db.batch() {
 			Ok(w_batch) => w_batch,
 			Err(er) => {
-				panic!("Error getting batch itself in last_confirmed function! Error {}", er)
+				panic!(
+					"Error getting batch itself in last_confirmed function! Error {}",
+					er
+				)
 			}
 		};
 		let height_key = to_key(
@@ -506,7 +515,10 @@ where
 		let batch = match self.db.batch() {
 			Ok(w_batch) => w_batch,
 			Err(er) => {
-				panic!("Error getting batch itself in last_scanned function! Error {}", er)
+				panic!(
+					"Error getting batch itself in last_scanned function! Error {}",
+					er
+				)
 			}
 		};
 		let scanned_block_key = to_key(
@@ -535,7 +547,10 @@ where
 		let batch = match self.db.batch() {
 			Ok(w_batch) => w_batch,
 			Err(er) => {
-				panic!("Error getting batch itself in init_status function! Error {}", er)
+				panic!(
+					"Error getting batch itself in init_status function! Error {}",
+					er
+				)
 			}
 		};
 		let init_status_key = to_key(
