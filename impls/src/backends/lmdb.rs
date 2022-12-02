@@ -398,7 +398,6 @@ where
 	) -> Result<Box<dyn WalletOutputBatch<K> + 'a>, Error> {
 		Ok(Box::new(Batch {
 			_store: self,
-			//db: RefCell::new(Some(self.db.batch())?),
 			db: RefCell::new(match self.db.batch() {
 				Ok(w_batch) => Some(w_batch),
 				Err(er) => {
@@ -412,7 +411,6 @@ where
 	fn batch_no_mask<'a>(&'a mut self) -> Result<Box<dyn WalletOutputBatch<K> + 'a>, Error> {
 		Ok(Box::new(Batch {
 			_store: self,
-			//db: RefCell::new(Some(self.db.batch()?)),
 			db: RefCell::new(match self.db.batch() {
 				Ok(w_batch) => Some(w_batch),
 				Err(er) => {
@@ -425,7 +423,6 @@ where
 
 	fn current_child_index<'a>(&mut self, parent_key_id: &Identifier) -> Result<u32, Error> {
 		let index = {
-			//let batch = self.db.batch()?;
 			let batch = match self.db.batch() {
 				Ok(w_batch) => w_batch,
 				Err(er) => {
