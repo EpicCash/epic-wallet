@@ -402,8 +402,7 @@ where
 			db: RefCell::new(match self.db.batch() {
 				Ok(w_batch) => Some(w_batch),
 				Err(er) => {
-					error!("Error on lmdb.rs implementation! Error {}", er);
-					panic!("Error on lmdb.rs implementation! Error {}", er)
+					panic!("Error on creating batch! Error {}", er)
 				}
 			}),
 			keychain: Some(self.keychain(keychain_mask)?),
@@ -417,8 +416,7 @@ where
 			db: RefCell::new(match self.db.batch() {
 				Ok(w_batch) => Some(w_batch),
 				Err(er) => {
-					error!("Error on lmdb.rs implementation! Error {}", er);
-					panic!("Error on lmdb.rs implementation! Error {}", er)
+					panic!("Error on creating batch without mask! Error {}", er)
 				}
 			}),
 			keychain: None,
@@ -431,16 +429,14 @@ where
 			let batch = match self.db.batch() {
 				Ok(w_batch) => w_batch,
 				Err(er) => {
-					error!("Error on lmdb.rs implementation! Error {}", er);
-					panic!("Error on lmdb.rs implementation! Error {}", er)
+					panic!("Error getting batch itself in child_index function! Error {}", er)
 				}
 			};
 			let deriv_key = to_key(DERIV_PREFIX, &mut parent_key_id.to_bytes().to_vec());
 			let batch_ser = match batch.get_ser(&deriv_key) {
 				Ok(ser) => ser,
 				Err(er) => {
-					error!("Error on lmdb.rs implementation! Error {}", er);
-					panic!("Error on lmdb.rs implementation! Error {}", er)
+					panic!("Error getting the serialized batch with deriv_key in child_index function! Error {}", er)
 				}
 			};
 			match batch_ser {
@@ -457,16 +453,14 @@ where
 			let batch = match self.db.batch() {
 				Ok(w_batch) => w_batch,
 				Err(er) => {
-					error!("Error on lmdb.rs implementation! Error {}", er);
-					panic!("Error on lmdb.rs implementation! Error {}", er)
+					panic!("Error getting batch itself in next_child function! Error {}", er)
 				}
 			};
 			let deriv_key = to_key(DERIV_PREFIX, &mut self.parent_key_id.to_bytes().to_vec());
 			let batch_ser = match batch.get_ser(&deriv_key) {
 				Ok(ser) => ser,
 				Err(er) => {
-					error!("Error on lmdb.rs implementation! Error {}", er);
-					panic!("Error on lmdb.rs implementation! Error {}", er)
+					panic!("Error getting the serialized batch with deriv_key in next_child function! Error {}", er)
 				}
 			};
 			match batch_ser {
@@ -488,8 +482,7 @@ where
 		let batch = match self.db.batch() {
 			Ok(w_batch) => w_batch,
 			Err(er) => {
-				error!("Error on lmdb.rs implementation! Error {}", er);
-				panic!("Error on lmdb.rs implementation! Error {}", er)
+				panic!("Error getting batch itself in last_confirmed function! Error {}", er)
 			}
 		};
 		let height_key = to_key(
@@ -499,8 +492,7 @@ where
 		let batch_ser = match batch.get_ser(&height_key) {
 			Ok(ser) => ser,
 			Err(er) => {
-				error!("Error on lmdb.rs implementation! Error {}", er);
-				panic!("Error on lmdb.rs implementation! Error {}", er)
+				panic!("Error getting the serialized batch with height_key in last_confirmed function! Error {}", er)
 			}
 		};
 		let last_confirmed_height = match batch_ser {
@@ -514,8 +506,7 @@ where
 		let batch = match self.db.batch() {
 			Ok(w_batch) => w_batch,
 			Err(er) => {
-				error!("Error on lmdb.rs implementation! Error {}", er);
-				panic!("Error on lmdb.rs implementation! Error {}", er)
+				panic!("Error getting batch itself in last_scanned function! Error {}", er)
 			}
 		};
 		let scanned_block_key = to_key(
@@ -525,8 +516,7 @@ where
 		let batch_ser = match batch.get_ser(&scanned_block_key) {
 			Ok(ser) => ser,
 			Err(er) => {
-				error!("Error on lmdb.rs implementation! Error {}", er);
-				panic!("Error on lmdb.rs implementation! Error {}", er)
+				panic!("Error getting the serialized batch with scanned_key in last_scanned function! Error {}", er)
 			}
 		};
 		let last_scanned_block = match batch_ser {
@@ -545,8 +535,7 @@ where
 		let batch = match self.db.batch() {
 			Ok(w_batch) => w_batch,
 			Err(er) => {
-				error!("Error on lmdb.rs implementation! Error {}", er);
-				panic!("Error on lmdb.rs implementation! Error {}", er)
+				panic!("Error getting batch itself in init_status function! Error {}", er)
 			}
 		};
 		let init_status_key = to_key(
@@ -556,8 +545,7 @@ where
 		let batch_ser = match batch.get_ser(&init_status_key) {
 			Ok(ser) => ser,
 			Err(er) => {
-				error!("Error on lmdb.rs implementation! Error {}", er);
-				panic!("Error on lmdb.rs implementation! Error {}", er)
+				panic!("Error getting the serialized batch with init_key in init_status function! Error {}", er)
 			}
 		};
 		let status = match batch_ser {
