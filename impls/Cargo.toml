@@ -48,8 +48,8 @@ sysinfo = "0.9"
 parking_lot = "0.6"
 
 
-ws = { version = "0.9.2", features = ["nativetls"] }
 
+tungstenite = {version="*", features = ["native-tls"] }
 epic_wallet_util = { path = "../util", version = "3.0.0" }
 epic_wallet_config = { path = "../config", version = "3.0.0" }
 epic_wallet_libwallet = { path = "../libwallet", version = "3.0.0" }

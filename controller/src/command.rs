@@ -20,17 +20,17 @@ use crate::core::{core, global};
 use crate::error::{Error, ErrorKind};
 use crate::impls::Subscriber;
 use crate::impls::{
-	create_sender, Adapter, Container, EpicboxAdapter, EpicboxController, EpicboxListener,
-	EpicboxPublisher, EpicboxSubscriber, KeybaseAllChannels, Listener, ListenerInterface,
-	SlateGetter as _, SlateReceiver as _,
+	create_sender, Container, EpicboxController, EpicboxListener, EpicboxPublisher,
+	EpicboxSubscriber, KeybaseAllChannels, Listener, ListenerInterface, SlateGetter as _,
+	SlateReceiver as _,
 };
 use crate::impls::{PathToSlate, SlatePutter};
 use crate::keychain;
 use crate::libwallet::{
 	self, address, EpicboxAddress, InitTxArgs, IssueInvoiceTxArgs, NodeClient, PaymentProof,
-	WalletInst, WalletLCProvider,
+	WalletInst, WalletLCProvider, DEFAULT_EPICBOX_PORT_443, DEFAULT_EPICBOX_PORT_80,
 };
-use crate::libwallet::{SlateVersion, VersionedSlate};
+use crate::libwallet::{Slate, SlateVersion, VersionedSlate};
 use crate::util::secp::key::PublicKey;
 use crate::util::secp::key::SecretKey;
 use crate::util::{to_hex, Mutex, ZeroingString};
@@ -45,6 +45,9 @@ use std::thread;
 use std::thread::spawn;
 use std::time::Duration;
 use uuid::Uuid;
+
+use std::sync::mpsc::{channel, Receiver, Sender};
+use tungstenite::connect;
 
 fn show_recovery_phrase(phrase: ZeroingString) {
 	println!("Your recovery phrase is:");
@@ -180,12 +183,24 @@ where
 				);
 				(address, sec_key)
 			};
-
-			let publisher = EpicboxPublisher::new(
-				address.clone(),
-				sec_key,
-				config.epicbox_protocol_unsecure.unwrap_or(false),
-			)?;
+			let url = {
+				let cloned_address = address.clone();
+				match config.epicbox_protocol_unsecure.unwrap_or(false) {
+					true => format!(
+						"ws://{}:{}",
+						cloned_address.domain,
+						cloned_address.port.unwrap_or(DEFAULT_EPICBOX_PORT_80)
+					),
+					false => format!(
+						"wss://{}:{}",
+						cloned_address.domain,
+						cloned_address.port.unwrap_or(DEFAULT_EPICBOX_PORT_443)
+					),
+				}
+			};
+			let (tx, _rx): (Sender<bool>, Receiver<bool>) = channel();
+			let (socket, _response) = connect(url.clone()).expect("Can't connect");
+			let publisher = EpicboxPublisher::new(address.clone(), sec_key, socket, tx)?;
 
 			let mut subscriber = EpicboxSubscriber::new(&publisher)?;
 			let container = Container::new(config.clone());
@@ -399,12 +414,14 @@ where
 				}
 				"epicbox" => {
 					let container = Container::new(config.clone());
-					let adapter: Box<dyn Adapter> = EpicboxAdapter::new(&container);
+
+					let (tx, rx): (Sender<bool>, Receiver<bool>) = channel();
 					let listener = start_epicbox(
 						container.clone(),
 						wallet.clone(),
 						e_keychain_mask.clone(),
 						config.clone(),
+						tx,
 					)
 					.unwrap();
 
@@ -414,25 +431,33 @@ where
 						.insert(ListenerInterface::Epicbox, listener);
 
 					loop {
-						if container
-							.lock()
-							.listener(ListenerInterface::Epicbox)?
-							.is_running()
-						{
+						if rx.recv().unwrap() {
 							break;
 						}
 						std::thread::sleep(std::time::Duration::from_secs(1));
 					}
 
 					let vslate = VersionedSlate::into_version(slate.clone(), SlateVersion::V2);
-					adapter.send_tx_async(&args.dest, &vslate)?;
-					let mut c = container.lock();
-					if let Some(listener) = c.listeners.remove(&ListenerInterface::Epicbox) {
-						listener.stop()?;
-						println!("Listener stopped");
-					}
-					//let slate: Slate = vslate.into();
-					//api.tx_lock_outputs(m, &slate, 0)?;
+
+					let _ = spawn(move || {
+						let _ = container
+							.lock()
+							.listener(ListenerInterface::Epicbox)
+							.unwrap()
+							.publish(&vslate, &args.dest)
+							.unwrap();
+						let mut c = container.lock();
+						if let Some(listener) = c.listeners.remove(&ListenerInterface::Epicbox) {
+							listener.stop().unwrap();
+						}
+
+						()
+					});
+
+					let slate: Slate =
+						VersionedSlate::into_version(slate.clone(), SlateVersion::V2).into();
+					api.tx_lock_outputs(m, &slate, 0).unwrap();
+
 					return Ok(());
 				}
 				method => {
@@ -470,6 +495,7 @@ pub fn start_epicbox<L, C, K>(
 	wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K> + 'static>>>,
 	keychain_mask: Arc<Mutex<Option<SecretKey>>>,
 	config: WalletConfig,
+	tx: Sender<bool>,
 ) -> Result<Box<dyn Listener>, Error>
 where
 	L: WalletLCProvider<'static, C, K> + 'static,
@@ -496,13 +522,24 @@ where
 		);
 		(address, sec_key)
 	};
+	let url = {
+		let cloned_address = address.clone();
+		match config.epicbox_protocol_unsecure.unwrap_or(false) {
+			true => format!(
+				"ws://{}:{}",
+				cloned_address.domain,
+				cloned_address.port.unwrap_or(DEFAULT_EPICBOX_PORT_80)
+			),
+			false => format!(
+				"wss://{}:{}",
+				cloned_address.domain,
+				cloned_address.port.unwrap_or(DEFAULT_EPICBOX_PORT_443)
+			),
+		}
+	};
+	let (socket, _response) = connect(url.clone()).expect("Can't connect");
 
-	let publisher = EpicboxPublisher::new(
-		address.clone(),
-		sec_key,
-		config.epicbox_protocol_unsecure.unwrap_or(false),
-	)?;
-
+	let publisher = EpicboxPublisher::new(address.clone(), sec_key, socket, tx)?;
 	let subscriber = EpicboxSubscriber::new(&publisher)?;
 
 	let caddress = address.clone();
