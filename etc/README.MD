@@ -2,8 +2,8 @@
 The epic binaries can be executed from any location of your computer.
 No special installation process is required to use them.
 On the first run the epic-wallet creates some files and folder.
-The default location of this files are located in your user homedir as a hidden 
-Directory "~/.epic/main" 
+The default location of this files are located in your user homedir as a hidden
+Directory "~/.epic/main"
 
 This files are:
 wallet_data/
@@ -17,7 +17,7 @@ Please read carefully before changing this values.
 epic-wallet.log is the log file for wallet processes. If there are errors
 or other issues this will be written in the log file.
 
-### HOW TO UPGRADE ### 
+### HOW TO UPGRADE ###
 1. make a backup of your wallet_data folder (default location is ~/.epic/main)
 2. replace epic-wallet(.exe)
 3. remove epic-wallet.toml
@@ -41,7 +41,7 @@ or other issues this will be written in the log file.
    On Mac you can drag and drop the folder into the terminal, which copies the path from this folder
 2. Init the wallet with:
    Linux/Mac $./epic-wallet init -h
-   Windows: epic.exe init -h 
+   Windows: epic.exe init -h
    ... follow the instructions in terminal
 3. Recover a wallet:
    Linux/Mac $./epic-wallet init -r -h
