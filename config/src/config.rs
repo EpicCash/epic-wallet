@@ -42,7 +42,8 @@ pub const API_SECRET_FILE_NAME: &'static str = ".api_secret";
 /// Owner API secret
 pub const OWNER_API_SECRET_FILE_NAME: &'static str = ".owner_api_secret";
 
-fn get_epic_path(chain_type: &global::ChainTypes) -> Result<PathBuf, ConfigError> {
+/// Return .epic/chaintype folder as Result
+pub fn get_epic_path(chain_type: &global::ChainTypes) -> Result<PathBuf, ConfigError> {
 	// Check if epic dir exists
 	let mut epic_path = match dirs::home_dir() {
 		Some(p) => p,

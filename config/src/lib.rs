@@ -30,7 +30,9 @@ mod comments;
 pub mod config;
 pub mod types;
 
-pub use crate::config::{initial_setup_wallet, EPIC_WALLET_DIR, WALLET_CONFIG_FILE_NAME};
+pub use crate::config::{
+	get_epic_path, initial_setup_wallet, EPIC_WALLET_DIR, WALLET_CONFIG_FILE_NAME,
+};
 pub use crate::types::{
 	ConfigError, GlobalWalletConfig, GlobalWalletConfigMembers, TorConfig, WalletConfig,
 };
