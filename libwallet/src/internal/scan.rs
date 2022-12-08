@@ -362,7 +362,7 @@ where
 		wallet_lock!(wallet_inst, w);
 		updater::retrieve_outputs(&mut **w, keychain_mask, true, false, None, None)?
 	};
-	
+
 	let mut missing_outs = vec![];
 	let mut accidental_spend_outs = vec![];
 	let mut locked_outs = vec![];

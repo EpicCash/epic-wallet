@@ -54,7 +54,7 @@ where
 		.iter()
 		.filter(|out| show_spent || out.status != OutputStatus::Spent)
 		.collect::<Vec<_>>();
-		
+
 	if show_full_history {
 		outputs.append(
 			&mut wallet
