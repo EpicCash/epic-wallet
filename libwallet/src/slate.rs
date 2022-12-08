@@ -100,7 +100,7 @@ impl ParticipantData {
 }
 
 /// Public message data (for serialising and storage)
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct ParticipantMessageData {
 	/// id of the particpant in the tx
 	#[serde(with = "secp_ser::string_or_u64")]
@@ -214,7 +214,7 @@ pub struct VersionCompatInfo {
 }
 
 /// Helper just to facilitate serialization
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct ParticipantMessages {
 	/// included messages
 	pub messages: Vec<ParticipantMessageData>,

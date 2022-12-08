@@ -182,6 +182,9 @@ where
 	/// Iterate over all output data stored by the backend
 	fn iter<'a>(&'a self) -> Box<dyn Iterator<Item = OutputData> + 'a>;
 
+	/// Iterate over all output data stored by the backend
+	fn iter_bin<'a>(&'a self) -> Box<dyn Iterator<Item = Vec<u8>> + 'a>;
+
 	/// Iterate over all outputs available in the output history table
 	fn history_iter<'a>(&'a self) -> Box<dyn Iterator<Item = OutputData> + 'a>;
 
@@ -766,7 +769,7 @@ impl fmt::Display for TxLogEntryType {
 /// Optional transaction information, recorded when an event happens
 /// to add or remove funds from a wallet. One Transaction log entry
 /// maps to one or many outputs
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct TxLogEntry {
 	/// BIP32 account path used for creating this tx
 	pub parent_key_id: Identifier,
@@ -874,7 +877,7 @@ impl TxLogEntry {
 
 /// Payment proof information. Differs from what is sent via
 /// the slate
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct StoredProofInfo {
 	/// receiver address
 	#[serde(with = "dalek_ser::dalek_pubkey_serde")]
