@@ -16,7 +16,7 @@
 //use crate::{OutputData, TxLogEntry};
 // let result = api_owner.retrieve_txs(None, update_from_node, tx_id, tx_slate_id);
 use crate::epic_core::global::ChainTypes;
-use crate::epic_keychain::Keychain;
+use crate::epic_keychain::{Identifier, Keychain};
 use crate::types::{NodeClient, OutputData, TxLogEntry, WalletBackend};
 use epic_wallet_config as config;
 use std::cmp::PartialEq;
@@ -39,8 +39,8 @@ fn copy_dir_all(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> io::Result<()> 
 	Ok(())
 }
 
-// Use to compare 2 vectors of transactions
-fn compare_vectors<T: PartialEq>(vec_lmdb: Vec<T>, vec_sqlite: Vec<T>) -> bool {
+/// Use to compare 2 vectors of transactions
+fn compare_vectors<T: PartialEq>(vec_lmdb: &Vec<T>, vec_sqlite: &Vec<T>) -> bool {
 	// Getting number of transaction from LMDB in vector
 	let size_vec = vec_lmdb.len();
 
@@ -60,7 +60,7 @@ fn compare_vectors<T: PartialEq>(vec_lmdb: Vec<T>, vec_sqlite: Vec<T>) -> bool {
 	// Checking 1-1 if transactions are equal using PartialEq
 	let matching = vec_lmdb
 		.iter()
-		.zip(&vec_sqlite)
+		.zip(vec_sqlite)
 		.filter(|&(vec_lmdb, vec_sqlite)| vec_lmdb == vec_sqlite)
 		.count();
 
@@ -158,7 +158,7 @@ where
 	let mut check = true;
 
 	// If txs fails
-	check = check && compare_vectors(txs_lmdb, txs_sql);
+	check = check && compare_vectors(&txs_lmdb, &txs_sql);
 
 	// Error if the TxLogEntry are different
 	if !check {
@@ -171,7 +171,7 @@ where
 	}
 
 	// If output fails
-	check = check && compare_vectors(outputs_lmdb, outputs_sql);
+	check = check && compare_vectors(&outputs_lmdb, &outputs_sql);
 
 	// Error if the OutputData are different
 	if !check {
@@ -186,8 +186,8 @@ where
 	check
 }
 
-// This function checks if the database migration has already been done from LMDB to SQLite
-pub fn need_migration(chain_type: &ChainTypes) -> bool {
+/// This function checks if the database migration has already been done from LMDB to SQLite
+fn need_migration(chain_type: &ChainTypes) -> bool {
 	let mut home_dir = config::get_epic_path(&chain_type).unwrap();
 	home_dir.push("wallet_data"); //wallet_data by default
 	home_dir.push("db");
@@ -196,7 +196,25 @@ pub fn need_migration(chain_type: &ChainTypes) -> bool {
 	home_dir.exists() // Need to check if we are going to use a flag to check if the flock migration has already been done or not
 }
 
-// This function migrates the database from LMDB to SQLite and executes the SQLite check at the end
+/// get all keys_id from vector of OutputData
+fn get_output_keys(vec_outputs: Vec<OutputData>) -> Vec<Identifier> {
+	let mut keys: Vec<Identifier> = vec![];
+	for output in vec_outputs {
+		keys.push(output.key_id);
+	}
+	keys
+}
+
+/// get all keys_id from vector of TxLogEntry
+fn get_txlog_keys(vec_txs: Vec<TxLogEntry>) -> Vec<u32> {
+	let mut keys: Vec<u32> = vec![];
+	for tx in vec_txs {
+		keys.push(tx.id);
+	}
+	keys
+}
+
+/// This function migrates the database from LMDB to SQLite and executes the SQLite check at the end
 pub fn make_migration<'a, T: ?Sized, C, K>(wallet: &mut T, chain_type: &ChainTypes) -> bool
 where
 	T: WalletBackend<'a, C, K>,
@@ -208,7 +226,7 @@ where
 		return true;
 	}
 
-	// Blocked, we still don't have SQLite finalized to perform the migration between databases
+	// SQLite migration blocked, we still don't have SQLite finalized to perform the migration between databases
 	todo!();
 
 	// Checking if the migration was successful
