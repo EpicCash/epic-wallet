@@ -431,41 +431,24 @@ where
 						.insert(ListenerInterface::Epicbox, listener);
 
 					loop {
+						std::thread::sleep(std::time::Duration::from_secs(1));
 						if rx.recv().unwrap() {
 							break;
 						}
-						std::thread::sleep(std::time::Duration::from_secs(1));
 					}
 
 					let vslate = VersionedSlate::into_version(slate.clone(), SlateVersion::V2);
 
-					/*let _ = spawn(move || {
-
-						let mut c = container.lock();
-						if let Some(listener) = c.listeners.remove(&ListenerInterface::Epicbox) {
-							listener.stop().unwrap();
-						}
-
-						()
-					});*/
 					let _ = container
 						.lock()
 						.listener(ListenerInterface::Epicbox)
 						.unwrap()
 						.publish(&vslate, &args.dest)
 						.unwrap();
-					//let mut c = container.lock();
-					/*if let Some(listener) = container
-						.lock()
-						.listeners
-						.remove(&ListenerInterface::Epicbox)
-					{
-						listener.stop().unwrap();
-					}*/
 
 					let slate: Slate =
 						VersionedSlate::into_version(slate.clone(), SlateVersion::V2).into();
-					//api.tx_lock_outputs(m, &slate, 0).unwrap();
+					api.tx_lock_outputs(m, &slate, 0).unwrap();
 
 					return Ok(());
 				}
@@ -546,7 +529,7 @@ where
 			),
 		}
 	};
-	let (socket, _response) = connect(url.clone()).expect("Can't connect");
+	let (socket, _) = connect(url.clone()).expect("Can't connect to epicbox");
 
 	let publisher = EpicboxPublisher::new(address.clone(), sec_key, socket, tx)?;
 	let subscriber = EpicboxSubscriber::new(&publisher)?;
@@ -563,6 +546,7 @@ where
 			keychain_mask.clone(),
 		)
 		.expect("could not start epicbox controller!");
+
 		csubscriber
 			.start(controller)
 			.expect("something went wrong!");

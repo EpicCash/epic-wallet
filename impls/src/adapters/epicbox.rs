@@ -100,7 +100,7 @@ impl Listener for EpicboxListener {
 	/// post slate
 	fn publish(&self, slate: &VersionedSlate, to: &String) -> Result<(), Error> {
 		let address = EpicboxAddress::from_str(to)?;
-		self.publisher.post_slate(slate, &address)
+		self.publisher.post_slate(slate, &address, true)
 	}
 
 	/// stops wss connection
@@ -129,11 +129,18 @@ impl EpicboxPublisher {
 }
 
 impl Publisher for EpicboxPublisher {
-	fn post_slate(&self, slate: &VersionedSlate, to: &dyn Address) -> Result<(), Error> {
+	fn post_slate(
+		&self,
+		slate: &VersionedSlate,
+		to: &dyn Address,
+		close_connection: bool,
+	) -> Result<(), Error> {
 		let to = EpicboxAddress::from_str(&to.to_string())?;
 		self.broker
 			.post_slate(slate, &to, &self.address, &self.secret_key)?;
-		self.broker.stop().unwrap();
+		if close_connection {
+			self.broker.stop().unwrap();
+		}
 		Ok(())
 	}
 }
@@ -247,7 +254,7 @@ where
 			if slate.tx.inputs().len() == 0 {
 				// TODO: invoicing
 			} else {
-				println!("foreign::receive_tx");
+				debug!("foreign::receive_tx");
 				let ret_slate =
 					foreign::receive_tx(&mut **w, (mask).as_ref(), &slate, None, None, false);
 				*slate = ret_slate.unwrap();
@@ -255,7 +262,7 @@ where
 
 			Ok(false)
 		} else {
-			println!("owner::finalize_tx and post");
+			debug!("owner::finalize_tx and post");
 			let slate = owner::finalize_tx(&mut **w, (mask).as_ref(), slate)?;
 			owner::post_tx(w.w2n_client(), &slate.tx, false)?;
 			Ok(true)
@@ -313,7 +320,7 @@ where
 					let slate = VersionedSlate::into_version(slate, version);
 
 					self.publisher
-						.post_slate(&slate, from)
+						.post_slate(&slate, from, false)
 						.map_err(|e| {
 							println!("{}: {}", "ERROR", e);
 							e
@@ -378,7 +385,12 @@ impl Subscriber for EpicboxSubscriber {
 }
 
 pub trait Publisher: Send {
-	fn post_slate(&self, slate: &VersionedSlate, to: &dyn Address) -> Result<(), Error>;
+	fn post_slate(
+		&self,
+		slate: &VersionedSlate,
+		to: &dyn Address,
+		close_connection: bool,
+	) -> Result<(), Error>;
 }
 
 ///TODO: reduce to broker
@@ -429,9 +441,9 @@ impl EpicboxBroker {
 			let err = client.sender.lock().read_message();
 			let mut has_challenge = false;
 
-			let _result = match err {
+			match err {
 				Err(e) => {
-					println!("Error reading message {:?}", e);
+					error!("Error reading message {:?}", e);
 					handler.lock().on_close(CloseReason::Abnormal(
 						ErrorKind::EpicboxWebsocketAbnormalTermination.into(),
 					));
@@ -445,7 +457,7 @@ impl EpicboxBroker {
 							match serde_json::from_str::<ProtocolResponse>(&message.to_string()) {
 								Ok(x) => x,
 								Err(_) => {
-									println!("{} Could not parse response", "ERROR:");
+									error!("{} Could not parse response", "ERROR:");
 									return Ok(());
 								}
 							};
@@ -456,7 +468,7 @@ impl EpicboxBroker {
 								client
 									.subscribe(&str)
 									.map_err(|_| {
-										println!("error attempting to subscribe!");
+										error!("error attempting to subscribe!");
 									})
 									.unwrap();
 
@@ -478,7 +490,7 @@ impl EpicboxBroker {
 								) {
 									Ok(x) => x,
 									Err(e) => {
-										println!("{}", e);
+										error!("{}", e);
 										return Ok(());
 									}
 								};
@@ -495,27 +507,29 @@ impl EpicboxBroker {
 								kind: _,
 								description: _,
 							} => {
-								println!("ProtocolResponse::Error {}", response);
+								error!("ProtocolResponse::Error {}", response);
 							}
 							_ => {}
 						}
 					}
 					Message::Ping(_) => {
-						println!("message ping");
+						//println!("message ping");
 					}
 					Message::Pong(_) => {
-						println!("message pong");
 						client
 							.sender
 							.lock()
 							.write_message(Message::Ping(vec![0x00; 8]))
+							.map_err(|_| {
+								error!("error write message pong!");
+							})
 							.unwrap();
 					}
 					Message::Frame(_) => {
-						println!("message frame");
+						//println!("message frame");
 					}
 					Message::Close(_) => {
-						println!("Close {:?}", &message.to_string());
+						info!("Close {:?}", &message.to_string());
 						handler.lock().on_close(CloseReason::Normal);
 						client.sender.lock().close(None).unwrap();
 
@@ -555,7 +569,7 @@ impl EpicboxBroker {
 		let skey = secret_key.clone();
 		let message =
 			EncryptedMessage::new(serde_json::to_string(&slate).unwrap(), &to, &pkey, &skey)
-				.map_err(|_| println!("could not encrypt slate!"))
+				.map_err(|_| error!("could not encrypt slate!"))
 				.unwrap();
 
 		let message_ser = serde_json::to_string(&message).unwrap();
