@@ -439,24 +439,33 @@ where
 
 					let vslate = VersionedSlate::into_version(slate.clone(), SlateVersion::V2);
 
-					let _ = spawn(move || {
-						let _ = container
-							.lock()
-							.listener(ListenerInterface::Epicbox)
-							.unwrap()
-							.publish(&vslate, &args.dest)
-							.unwrap();
+					/*let _ = spawn(move || {
+
 						let mut c = container.lock();
 						if let Some(listener) = c.listeners.remove(&ListenerInterface::Epicbox) {
 							listener.stop().unwrap();
 						}
 
 						()
-					});
+					});*/
+					let _ = container
+						.lock()
+						.listener(ListenerInterface::Epicbox)
+						.unwrap()
+						.publish(&vslate, &args.dest)
+						.unwrap();
+					//let mut c = container.lock();
+					/*if let Some(listener) = container
+						.lock()
+						.listeners
+						.remove(&ListenerInterface::Epicbox)
+					{
+						listener.stop().unwrap();
+					}*/
 
 					let slate: Slate =
 						VersionedSlate::into_version(slate.clone(), SlateVersion::V2).into();
-					api.tx_lock_outputs(m, &slate, 0).unwrap();
+					//api.tx_lock_outputs(m, &slate, 0).unwrap();
 
 					return Ok(());
 				}

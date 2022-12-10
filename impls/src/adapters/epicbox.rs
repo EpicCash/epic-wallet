@@ -36,7 +36,7 @@ use std::thread::JoinHandle;
 
 use crate::libwallet::api_impl::foreign;
 use crate::libwallet::api_impl::owner;
-
+use tungstenite::Error as tungsteniteError;
 //use ws::util::Token;
 //use ws::{
 //	connect, CloseCode, Error as WsError, ErrorKind as WsErrorKind, Handler, Handshake, Message,
@@ -133,6 +133,7 @@ impl Publisher for EpicboxPublisher {
 		let to = EpicboxAddress::from_str(&to.to_string())?;
 		self.broker
 			.post_slate(slate, &to, &self.address, &self.secret_key)?;
+		self.broker.stop().unwrap();
 		Ok(())
 	}
 }
@@ -372,7 +373,7 @@ impl Subscriber for EpicboxSubscriber {
 	}
 
 	fn stop(&self) {
-		self.broker.stop();
+		let _ = self.broker.stop();
 	}
 }
 
@@ -582,8 +583,8 @@ impl EpicboxBroker {
 
 		Ok(())
 	}
-	fn stop(&self) {
-		self.inner.lock().close(None).unwrap();
+	fn stop(&self) -> Result<(), tungsteniteError> {
+		self.inner.lock().close(None)
 	}
 }
 
