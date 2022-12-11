@@ -439,7 +439,7 @@ impl EpicboxBroker {
 
 		loop {
 			let err = client.sender.lock().read_message();
-			let mut has_challenge = false;
+			let mut new_challenge = false;
 
 			match err {
 				Err(e) => {
@@ -466,13 +466,15 @@ impl EpicboxBroker {
 							ProtocolResponse::Challenge { str } => {
 								client.challenge = Some(str.clone());
 								client
-									.subscribe(&str)
+									.challenge_subscribe(&str)
 									.map_err(|_| {
 										error!("error attempting to subscribe!");
 									})
 									.unwrap();
-
-								has_challenge = true;
+								//wait one minute before start new subscription
+								let duration = std::time::Duration::from_secs(60);
+								std::thread::sleep(duration);
+								new_challenge = true;
 							}
 							ProtocolResponse::Slate {
 								from,
@@ -512,40 +514,26 @@ impl EpicboxBroker {
 							_ => {}
 						}
 					}
-					Message::Ping(_) => {
-						//println!("message ping");
-					}
-					Message::Pong(_) => {
-						client
-							.sender
-							.lock()
-							.write_message(Message::Ping(vec![0x00; 8]))
-							.map_err(|_| {
-								error!("error write message pong!");
-							})
-							.unwrap();
-					}
-					Message::Frame(_) => {
-						//println!("message frame");
-					}
+					Message::Ping(_) => {}
+					Message::Pong(_) => {}
+					Message::Frame(_) => {}
 					Message::Close(_) => {
 						info!("Close {:?}", &message.to_string());
 						handler.lock().on_close(CloseReason::Normal);
 						client.sender.lock().close(None).unwrap();
-
 						break;
 					}
 				},
 			};
 
-			let duration = std::time::Duration::from_secs(30);
-			std::thread::sleep(duration);
+			if new_challenge {
+				info!("refresh subscription!");
 
-			if has_challenge {
 				client
-					.sender
-					.lock()
-					.write_message(Message::Ping(vec![0x00; 8]))
+					.new_challenge()
+					.map_err(|_| {
+						error!("error attempting challenge!");
+					})
 					.unwrap();
 			}
 		} //end loop
@@ -560,11 +548,6 @@ impl EpicboxBroker {
 		from: &EpicboxAddress,
 		secret_key: &SecretKey,
 	) -> Result<(), Error> {
-		println!(
-			"####################### post slate ###################### {}",
-			serde_json::to_string(&slate).unwrap()
-		);
-
 		let pkey = to.public_key()?;
 		let skey = secret_key.clone();
 		let message =
@@ -573,12 +556,6 @@ impl EpicboxBroker {
 				.unwrap();
 
 		let message_ser = serde_json::to_string(&message).unwrap();
-
-		println!(
-			"####################### post message_ser ###################### {}",
-			serde_json::to_string(&message_ser).unwrap()
-		);
-
 		let mut challenge = String::new();
 		challenge.push_str(&message_ser);
 
@@ -625,7 +602,7 @@ where
 	C: NodeClient + 'static,
 	K: Keychain + 'static,
 {
-	fn subscribe(&self, challenge: &str) -> Result<(), Error> {
+	fn challenge_subscribe(&self, challenge: &str) -> Result<(), Error> {
 		let signature = sign_challenge(&challenge, &self.secret_key)?.to_hex();
 		let request = ProtocolRequest::Subscribe {
 			address: self.address.public_key.to_string(),
@@ -635,6 +612,21 @@ where
 		self.send(&request)
 			.expect("could not send subscribe request!");
 		self.tx.send(true).unwrap();
+		Ok(())
+	}
+
+	fn new_challenge(&self) -> Result<(), Error> {
+		let unsubscribe = ProtocolRequest::Unsubscribe {
+			address: self.address.public_key.to_string(),
+		};
+		self.send(&unsubscribe)
+			.expect("could not send unsubscribe request!");
+
+		let request = ProtocolRequest::Challenge;
+
+		self.send(&request)
+			.expect("could not send subscribe request!");
+
 		Ok(())
 	}
 
