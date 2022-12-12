@@ -493,6 +493,32 @@ where
 		Ok(res)
 	}
 
+	/// code to prepare the wallet to make the migration from LMDB to SQLite
+	pub fn migration_txs_outputs(
+		&self,
+		keychain_mask: Option<&SecretKey>,
+		refresh_from_node: bool,
+		chain_type: &global::ChainTypes,
+	) -> Result<bool, Error> {
+		let tx = {
+			let t = self.status_tx.lock();
+			t.clone()
+		};
+		let refresh_from_node = match self.updater_running.load(Ordering::Relaxed) {
+			true => false,
+			false => refresh_from_node,
+		};
+
+		let mig = owner::migration_txs_outputs(
+			self.wallet_inst.clone(),
+			keychain_mask,
+			&tx,
+			refresh_from_node,
+			chain_type,
+		)?;
+		Ok(mig)
+	}
+
 	/// Returns summary information from the active account in the wallet.
 	///
 	/// # Arguments

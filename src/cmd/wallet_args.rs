@@ -28,9 +28,10 @@ use epic_wallet_libwallet::Slate;
 use epic_wallet_libwallet::{
 	address, IssueInvoiceTxArgs, NodeClient, WalletInst, WalletLCProvider,
 };
+use epic_wallet_libwallet::{make_migration, need_migration};
 use epic_wallet_util::epic_core as core;
 use epic_wallet_util::epic_core::core::amount_to_hr_string;
-use epic_wallet_util::epic_core::global;
+use epic_wallet_util::epic_core::global::{self, CHAIN_TYPE};
 use epic_wallet_util::epic_keychain as keychain;
 use failure::Fail;
 use linefeed::terminal::Signal;
@@ -958,6 +959,18 @@ where
 	};
 
 	let km = (&keychain_mask).as_ref();
+
+	{
+		let chain_type = &*CHAIN_TYPE.read();
+
+		// Checks if the migration has already been done previously
+		if need_migration(&chain_type) {
+			//check
+			//make_migration(wallet, &chain_type);
+			command::migration(wallet.clone(), km, chain_type);
+			todo!()
+		};
+	}
 
 	let res = match wallet_args.subcommand() {
 		("init", Some(args)) => {

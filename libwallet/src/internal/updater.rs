@@ -24,7 +24,6 @@ use crate::epic_core::global;
 use crate::epic_core::libtx::proof::{LegacyProofBuilder, ProofBuilder};
 use crate::epic_core::libtx::reward;
 use crate::epic_keychain::{Identifier, Keychain, SwitchCommitmentType};
-use crate::epic_util as util;
 use crate::epic_util::secp::key::SecretKey;
 use crate::epic_util::secp::pedersen;
 use crate::epic_util::static_secp_instance;
@@ -33,6 +32,7 @@ use crate::internal::keys;
 use crate::types::{
 	NodeClient, OutputData, OutputStatus, TxLogEntry, TxLogEntryType, WalletBackend, WalletInfo,
 };
+use crate::{epic_util as util, make_migration};
 use crate::{BlockFees, CbData, OutputCommitMapping};
 
 /// Retrieve all of the outputs (doesn't attempt to update from node)
@@ -140,6 +140,20 @@ where
 		.collect();
 	txs.sort_by_key(|tx| tx.creation_ts);
 	Ok(txs)
+}
+
+/// code to prepare the wallet to make the migration from LMDB to SQLite
+pub fn migration_txs_outputs<'a, T: ?Sized, C, K>(
+	wallet: &mut T,
+	chain_type: &global::ChainTypes,
+) -> bool
+where
+	T: WalletBackend<'a, C, K>,
+	C: NodeClient + 'a,
+	K: Keychain + 'a,
+{
+	let migration_work = make_migration(wallet, chain_type);
+	migration_work
 }
 
 /// Refreshes the outputs in a wallet with the latest information

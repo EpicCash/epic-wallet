@@ -28,6 +28,7 @@ use crate::libwallet::{
 use crate::util::secp::key::SecretKey;
 use crate::util::{to_hex, Mutex, ZeroingString};
 use crate::{controller, display};
+use epic_wallet_util::epic_core::global::ChainTypes;
 use serde_json as json;
 use std::fs::File;
 use std::io::{Read, Write};
@@ -711,6 +712,26 @@ where
 pub struct TxsArgs {
 	pub id: Option<u32>,
 	pub tx_slate_id: Option<Uuid>,
+}
+
+/// Initial preparation of the wallet for migration
+pub fn migration<L, C, K>(
+	wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K>>>>,
+	keychain_mask: Option<&SecretKey>,
+	chain_type: &ChainTypes,
+) -> Result<(), Error>
+where
+	L: WalletLCProvider<'static, C, K> + 'static,
+	C: NodeClient + 'static,
+	K: keychain::Keychain + 'static,
+{
+	controller::owner_single_use(wallet.clone(), keychain_mask, |api, m| {
+		//let res = api.node_height(m)?;
+		let mig = api.migration_txs_outputs(m, true, chain_type)?;
+
+		Ok(())
+	})?;
+	Ok(())
 }
 
 pub fn txs<L, C, K>(
