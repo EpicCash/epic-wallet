@@ -27,7 +27,6 @@ use epic_wallet_util::epic_core;
 use epic_wallet_util::epic_keychain;
 use epic_wallet_util::epic_store;
 use epic_wallet_util::epic_util;
-//use epic_wallet_controller::controller as controller;
 
 use blake2_rfc as blake2;
 
@@ -66,7 +65,7 @@ pub use api_impl::types::{
 	OutputCommitMapping, PaymentProof, SendTXArgs, VersionInfo,
 };
 pub use internal::scan::scan;
-pub use migration::make_migration;
+pub use migration::{make_migration, need_migration};
 pub use slate_versions::ser as dalek_ser;
 pub use types::{
 	AcctPathMapping, BlockIdentifier, CbData, Context, NodeClient, NodeVersionInfo, OutputData,

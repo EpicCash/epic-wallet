@@ -17,10 +17,13 @@
 // let result = api_owner.retrieve_txs(None, update_from_node, tx_id, tx_slate_id);
 use crate::epic_core::global::ChainTypes;
 use crate::epic_keychain::{Identifier, Keychain};
-use crate::types::{NodeClient, OutputData, TxLogEntry, WalletBackend};
+use crate::types::{OutputData, TxLogEntry, WalletBackend};
+use crate::{address, IssueInvoiceTxArgs, NodeClient, WalletInst, WalletLCProvider};
 use epic_wallet_config as config;
+use epic_wallet_util::epic_util::{secp::key::SecretKey, to_hex, Mutex, ZeroingString};
 use std::cmp::PartialEq;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::{fs, io, num};
 
 /// Copy all files and subfoldes into a dst folder
@@ -187,13 +190,13 @@ where
 }
 
 /// This function checks if the database migration has already been done from LMDB to SQLite
-fn need_migration(chain_type: &ChainTypes) -> bool {
+pub fn need_migration(chain_type: &ChainTypes) -> bool {
 	let mut home_dir = config::get_epic_path(&chain_type).unwrap();
 	home_dir.push("wallet_data"); //wallet_data by default
 	home_dir.push("db");
 	home_dir.push("sqlite"); // Need to check if we are going to use this path for the new wallet
 
-	home_dir.exists() // Need to check if we are going to use a flag to check if the flock migration has already been done or not
+	!home_dir.exists() // Need to check if we are going to use a flag to check if the flock migration has already been done or not
 }
 
 /// get all keys_id from vector of OutputData
@@ -221,18 +224,14 @@ where
 	C: NodeClient + 'a,
 	K: Keychain + 'a,
 {
-	// Checks if the migration has already been done previously
-	if need_migration(chain_type) {
-		return true;
-	}
-
 	// SQLite migration blocked, we still don't have SQLite finalized to perform the migration between databases
 	todo!();
 
 	// Checking if the migration was successful
 	if check_migration(wallet) {
 		info!("Success in the migration between banks!. Migration verification between banks completed successfully!")
-	}
+	};
+
 	true
 }
 

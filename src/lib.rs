@@ -12,6 +12,7 @@
 // limitations under the License.
 
 use epic_wallet_config as config;
+use epic_wallet_libwallet::{make_migration, need_migration};
 use epic_wallet_util::epic_api as api;
 use epic_wallet_util::epic_util as util;
 

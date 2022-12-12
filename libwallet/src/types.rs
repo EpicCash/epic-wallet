@@ -182,9 +182,6 @@ where
 	/// Iterate over all output data stored by the backend
 	fn iter<'a>(&'a self) -> Box<dyn Iterator<Item = OutputData> + 'a>;
 
-	/// Iterate over all output data stored by the backend
-	fn iter_bin<'a>(&'a self) -> Box<dyn Iterator<Item = Vec<u8>> + 'a>;
-
 	/// Iterate over all outputs available in the output history table
 	fn history_iter<'a>(&'a self) -> Box<dyn Iterator<Item = OutputData> + 'a>;
 
