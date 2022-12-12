@@ -21,7 +21,6 @@ use serde::Serialize;
 use serde_json::{json, Value};
 use std::net::SocketAddr;
 use std::path::MAIN_SEPARATOR;
-use std::time;
 
 use crate::tor::config as tor_config;
 use crate::tor::process as tor_process;
@@ -140,10 +139,7 @@ impl HttpSlateSender {
 			client.socks_proxy_addr = self.socks_proxy_addr.clone();
 		}
 		let req = client.create_post_request(url, api_secret, &input)?;
-		let nnow = time::Instant::now();
-		println!("-Inside post - Before res!");
 		let res = client.send_request(req)?;
-		println!("-Inside post - After res | Elapsed {:?}", nnow.elapsed());
 		Ok(res)
 	}
 }
