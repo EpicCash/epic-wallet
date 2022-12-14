@@ -14,7 +14,7 @@
 
 //! Generic implementation of owner API functions
 
-use epic_wallet_util::epic_core::global::{ChainTypes, CHAIN_TYPE};
+use epic_wallet_util::epic_core::global::ChainTypes;
 use uuid::Uuid;
 
 use crate::epic_core::core::hash::Hashed;
@@ -168,22 +168,23 @@ where
 	Ok((validated, txs))
 }
 
-/// Migration txs and outputs
+/// This function checks if I need to refresh the wallet with the node and also blocks
+/// changes in addition to calling the function that will do all the migration between the databases
 pub fn migration_txs_outputs<'a, L, C, K>(
 	wallet_inst: Arc<Mutex<Box<dyn WalletInst<'a, L, C, K>>>>,
 	keychain_mask: Option<&SecretKey>,
 	status_send_channel: &Option<Sender<StatusMessage>>,
 	refresh_from_node: bool,
 	chain_type: &ChainTypes,
+	wallet_dir: &str,
 ) -> Result<bool, Error>
 where
 	L: WalletLCProvider<'a, C, K>,
 	C: NodeClient + 'a,
 	K: Keychain + 'a,
 {
-	let mut validated = false;
 	if refresh_from_node {
-		validated = update_wallet_state(
+		update_wallet_state(
 			wallet_inst.clone(),
 			keychain_mask,
 			status_send_channel,
@@ -192,9 +193,7 @@ where
 	}
 
 	wallet_lock!(wallet_inst, w);
-	//let parent_key_id = w.parent_key_id();
-	//let txs = updater::retrieve_txs(&mut **w, tx_id, tx_slate_id, Some(&parent_key_id), false)?;
-	let mig = updater::migration_txs_outputs(&mut **w, chain_type);
+	let mig = updater::migration_txs_outputs(&mut **w, chain_type, wallet_dir);
 	Ok(mig)
 }
 

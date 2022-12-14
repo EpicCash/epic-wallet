@@ -715,10 +715,11 @@ pub struct TxsArgs {
 }
 
 /// Initial preparation of the wallet for migration
-pub fn migration<L, C, K>(
+pub fn lmdb_sqlite_migration<L, C, K>(
 	wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K>>>>,
 	keychain_mask: Option<&SecretKey>,
 	chain_type: &ChainTypes,
+	wallet_dir: &str,
 ) -> Result<(), Error>
 where
 	L: WalletLCProvider<'static, C, K> + 'static,
@@ -726,8 +727,7 @@ where
 	K: keychain::Keychain + 'static,
 {
 	controller::owner_single_use(wallet.clone(), keychain_mask, |api, m| {
-		//let res = api.node_height(m)?;
-		let mig = api.migration_txs_outputs(m, true, chain_type)?;
+		let _ = api.migration_txs_outputs(m, true, chain_type, wallet_dir)?;
 
 		Ok(())
 	})?;

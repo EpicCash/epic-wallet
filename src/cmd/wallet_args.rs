@@ -24,11 +24,11 @@ use epic_wallet_controller::{Error, ErrorKind};
 use epic_wallet_impls::tor::config::is_tor_address;
 use epic_wallet_impls::{DefaultLCProvider, DefaultWalletImpl};
 use epic_wallet_impls::{PathToSlate, SlateGetter as _};
+use epic_wallet_libwallet::need_migration;
 use epic_wallet_libwallet::Slate;
 use epic_wallet_libwallet::{
 	address, IssueInvoiceTxArgs, NodeClient, WalletInst, WalletLCProvider,
 };
-use epic_wallet_libwallet::{make_migration, need_migration};
 use epic_wallet_util::epic_core as core;
 use epic_wallet_util::epic_core::core::amount_to_hr_string;
 use epic_wallet_util::epic_core::global::{self, CHAIN_TYPE};
@@ -967,8 +967,13 @@ where
 		if need_migration(&chain_type) {
 			//check
 			//make_migration(wallet, &chain_type);
-			command::migration(wallet.clone(), km, chain_type);
-			todo!()
+			command::lmdb_sqlite_migration(
+				wallet.clone(),
+				km,
+				chain_type,
+				wallet_config.data_file_dir.as_str(),
+			);
+			println!("TODO") //todo!()
 		};
 	}
 

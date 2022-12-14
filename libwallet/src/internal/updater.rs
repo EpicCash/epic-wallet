@@ -18,10 +18,10 @@
 use std::collections::HashMap;
 use uuid::Uuid;
 
-use crate::epic_core::consensus::{cumulative_reward_foundation, header_version, reward};
+use crate::epic_core::consensus::{cumulative_reward_foundation, reward};
 use crate::epic_core::core::{Output, TxKernel};
 use crate::epic_core::global;
-use crate::epic_core::libtx::proof::{LegacyProofBuilder, ProofBuilder};
+use crate::epic_core::libtx::proof::ProofBuilder;
 use crate::epic_core::libtx::reward;
 use crate::epic_keychain::{Identifier, Keychain, SwitchCommitmentType};
 use crate::epic_util::secp::key::SecretKey;
@@ -146,13 +146,14 @@ where
 pub fn migration_txs_outputs<'a, T: ?Sized, C, K>(
 	wallet: &mut T,
 	chain_type: &global::ChainTypes,
+	wallet_dir: &str,
 ) -> bool
 where
 	T: WalletBackend<'a, C, K>,
 	C: NodeClient + 'a,
 	K: Keychain + 'a,
 {
-	let migration_work = make_migration(wallet, chain_type);
+	let migration_work = make_migration(wallet, chain_type, wallet_dir);
 	migration_work
 }
 

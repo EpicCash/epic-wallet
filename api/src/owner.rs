@@ -499,6 +499,7 @@ where
 		keychain_mask: Option<&SecretKey>,
 		refresh_from_node: bool,
 		chain_type: &global::ChainTypes,
+		wallet_dir: &str,
 	) -> Result<bool, Error> {
 		let tx = {
 			let t = self.status_tx.lock();
@@ -515,6 +516,7 @@ where
 			&tx,
 			refresh_from_node,
 			chain_type,
+			wallet_dir,
 		)?;
 		Ok(mig)
 	}
