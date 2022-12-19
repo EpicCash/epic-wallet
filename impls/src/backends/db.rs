@@ -1,57 +1,36 @@
-use crate::core::ser;
 use epic_wallet_util::epic_core::ser::ProtocolVersion;
-use sqlite::{self, Connection, Statement};
+use serde::Serialize;
+use sqlite::{self, Connection};
 use std::fs;
 
+use crate::serialization as ser;
 use crate::Error;
 
-static DB_DEFAULT_PATH: &str = "~/.epic/user/wallet_data/da/lmdb";
+static DB_DEFAULT_PATH: &str = "~/.epic/user/wallet_data/db/sqlite/";
 static DB_FILENAME: &str = "epic.db";
 const PROTOCOL_VERSION: ProtocolVersion = ProtocolVersion(1);
 
 pub struct Store {
 	db: Connection,
-	name: String,
-	version: ProtocolVersion,
 }
 
-//TODO update (almost) all comments
-
 impl Store {
-	/// Create a new LMDB env under the provided directory.
-	/// By default creates an environment named "lmdb".
-	/// Be aware of transactional semantics in lmdb
-	/// (transactions are per environment, not per database).
-	pub fn new(
-		root_path: &str,
-		db_name: Option<&str>,
-		max_readers: Option<u32>,
-	) -> Result<Store, Error> {
-		let db_name = match db_name {
-			Some(n) => n.to_owned(),
-			None => "lmdb".to_owned(),
-		};
-		let name = String::from("foo/bar");
-		let full_path = [root_path.to_owned(), name].join("/");
-		fs::create_dir_all(&full_path)
-			.expect("Unable to create directory 'db_root' to store chain_data");
-
-		let res = Store {
-			db: sqlite::open(full_path).unwrap(),
-			name: db_name,
-			version: PROTOCOL_VERSION,
-		};
-
-		Ok(res)
+	pub fn new() -> Store {
+		let full_path: String = DB_DEFAULT_PATH.to_owned() + DB_FILENAME;
+		fs::create_dir_all(DB_DEFAULT_PATH);
+		let db: Connection = sqlite::open(full_path).unwrap();
+		Store::check_or_create(db, &full_path);
+		return Store { db };
 	}
 
-	/// Opens the database environment
-	pub fn open(&self) -> Result<(), Error> {
-		Ok(())
+	pub fn check_or_create(db: Connection, path: &str) -> Result<(), sqlite::Error> {
+		// SELECT * FROM data LIMIT 1; to check if table exists
+		let creation = "CREATE TABLE IF NOT EXISTS data (id INTEGER PRIMARY KEY, key TEXT NOT NULL, data TEXT NOT NULL, prefix TEXT);"; //create database if file not found
+		return db.execute(creation);
 	}
 
 	/// Gets a value from the db, provided its key
-	pub fn get(&self, key: &[u8]) -> Result<Option<Vec<u8>>, Error> {
+	pub fn get(&self, key: &[u8]) -> Result<Option<impl Serialize>, Error> {
 		let statement = self
 			.db
 			.prepare("SELECT * FROM data WHERE key = ? LIMIT 1")
@@ -59,20 +38,15 @@ impl Store {
 			.bind(1, key)
 			.unwrap();
 
-		Ok(Some(statement.read::<Vec<u8>>(1).unwrap()))
+		let data = statement.read::<String>(1).unwrap();
+		let deser = ser::deserialize(&data).unwrap();
+		Ok(Some(deser))
 	}
 
 	/// Gets a `Readable` value from the db, provided its key. Encapsulates
 	/// serialization.
-	pub fn get_ser<T: ser::Readable>(&self, key: &[u8]) -> Result<Option<T>, Error> {
-		let mut value = match self.get(key).unwrap() {
-			Some(n) => n,
-			None => {
-				panic!("deu ruim")
-			}
-		};
-		let foobar = ser::deserialize(&mut value.as_slice(), ser::ProtocolVersion(1));
-		Ok(foobar)
+	pub fn get_ser(&self, key: &[u8]) -> Result<Option<impl Serialize>, Error> {
+		self.get(key)
 	}
 
 	/// Whether the provided key exists
@@ -88,110 +62,71 @@ impl Store {
 
 	/// Produces an iterator of (key, value) pairs, where values are `Readable` types
 	/// moving forward from the provided key.
-	pub fn iter<T: ser::Readable>(&self, from: &[u8]) {
+	pub fn iter(&self, from: &[u8]) -> Vec<impl Serialize> {
 		let query = "SELECT * FROM data;";
 		self.db
-			.iterate(query, |pairs| {
-				for &(key, value) in pairs.iter() {
-					ser::deserialize(value.unwrap(), ProtocolVersion(1));
-				}
-				true
+			.prepare(query)
+			.into_iter()
+			.map(|row| {
+				let row_data = row.read::<String>(1).unwrap();
+				ser::deserialize(&row_data).unwrap()
 			})
-			.into_iter();
-		()
+			.collect()
 	}
 
 	/// Builds a new batch to be used with this store.
 	pub fn batch(&self) -> Result<Batch, Error> {
-		Ok(Batch { store: self.db })
+		Ok(Batch { store: self })
+	}
+
+	pub fn execute(&self, statement: String) -> Result<(), sqlite::Error> {
+		self.db.execute(statement)
 	}
 }
 
 /// Batch to write multiple Writeables to db in an atomic manner.
-pub struct Batch {
-	store: Connection,
+pub struct Batch<'a> {
+	store: &'a Store,
 }
 
-impl<'a> Batch {
+impl<'a> Batch<'_> {
 	/// Writes a single key/value pair to the db
 	pub fn put(&self, key: &[u8], mut value: u8, prefix: char) -> Result<(), Error> {
-		let statement = self
-			.store
-			.prepare("INSERT INTO data VALUES (?, ?, ?);")
-			.unwrap()
-			.bind(1, key)
-			.unwrap()
-			.bind(2, value.to_owned() as i64)
-			.unwrap()
-			.bind(3, prefix as i64)
-			.unwrap();
-		let result: Statement = match statement {
-			Ok(n) => n,
-			_ => panic!("Error"),
-		};
-		//result()
-		Ok(())
-	}
-
-	/// Writes a single key and its `Writeable` value to the db.
-	/// Encapsulates serialization using the (default) version configured on the store instance.
-	pub fn put_ser<W: ser::Writeable>(&self, key: &[u8], value: &W) -> Result<(), Error> {
-		self.put_ser_with_version(key, value, PROTOCOL_VERSION)
-	}
-
-	/// Writes a single key and its `Writeable` value to the db.
-	/// Encapsulates serialization using the specified protocol version.
-	pub fn put_ser_with_version<W: ser::Writeable>(
-		&self,
-		key: &[u8],
-		value: &W,
-		version: ProtocolVersion,
-	) -> Result<(), Error> {
-		let ser_value = ser::ser_vec(value, version);
-		match ser_value {
-			Ok(data) => self.put(key, &data, 'a'),
-			Err(err) => Err(Error::SerErr(format!("{}", err))),
-		}
+		// serialize value to json
+		let statement = format!(
+			"INSERT INTO data VALUES ({}, {}, {});",
+			String::from_utf8(key.to_vec()).unwrap(),
+			value,
+			prefix
+		);
+		return Ok(self.store.execute(statement).unwrap());
 	}
 
 	/// gets a value from the db, provided its key
-	pub fn get(&self, key: &[u8]) -> Result<Option<Vec<u8>>, Error> {
+	pub fn get(&self, key: &[u8]) -> Result<Option<impl Serialize>, Error> {
 		self.store.get(key)
 	}
 
 	/// Whether the provided key exists
 	pub fn exists(&self, key: &[u8]) -> Result<bool, Error> {
-		self.store.exists(key)
+		self.exists(key)
 	}
 
-	/// Produces an iterator of `Readable` types moving forward from the
-	/// provided key.
-	// pub fn iter<T: ser::Readable>(
-	// 	&self,
-	// 	from: &[u8],
-	// ) -> Result<dyn Iterator<Item = TxLogEntry>, Error> {
-	// 	self.store.iter(from)
-	// }
-
-	/// Gets a `Readable` value from the db, provided its key, taking the
-	/// content of the current batch into account.
-	pub fn get_ser<T: ser::Readable>(&self, key: &[u8]) -> Result<Option<T>, Error> {
-		let access = self.tx.access();
-		let db = self.store.db.read();
-		// self.store.get_ser_access(key, &access, db)
+	// Produces an iterator of `Readable` types moving forward from the
+	// provided key.
+	pub fn iter<T: Serialize>(&self, from: &[u8]) -> Vec<impl Serialize> {
+		self.store.iter(from)
 	}
 
 	/// Deletes a key/value pair from the db
 	pub fn delete(&self, key: &[u8]) -> Result<(), Error> {
-		let db = self.store.db.read();
-		self.tx.access().del_key(&db.as_ref().unwrap(), key)?;
+		self.store
+			.execute(String::from("DELETE FROM data WHERE key = ?"));
 		Ok(())
 	}
 
-	/// Writes the batch to db
-	pub fn commit(self) -> Result<(), Error> {
-		self.tx.commit()?;
-		Ok(())
+	pub fn get_ser(&self, key: &[u8]) -> Result<Option<impl Serialize>, Error> {
+		return self.store.get_ser(key);
 	}
 }
 
