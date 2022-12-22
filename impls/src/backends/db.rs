@@ -7,8 +7,13 @@ use crate::serialization as ser;
 use crate::serialization::Serializable;
 use crate::Error;
 
+use crate::keychain::Identifier;
+use crate::store::{self, option_to_not_found, to_key, to_key_u64};
+use uuid::Uuid;
+
 static DB_DEFAULT_PATH: &str = "~/.epic/user/wallet_data/db/sqlite/";
 static DB_FILENAME: &str = "epic.db";
+static SQLITE_FILTER: &str = "AND key = ";
 const PROTOCOL_VERSION: ProtocolVersion = ProtocolVersion(1);
 
 pub struct Store {
@@ -82,6 +87,39 @@ impl Store {
 
 	pub fn execute(&self, statement: String) -> Result<(), sqlite::Error> {
 		self.db.execute(statement)
+	}
+
+	// function to get an TxLogEntry
+	pub fn get_txs(
+		&self,
+		key_tx_id: Option<Vec<u8>>,
+		key_tx_slate_id: Option<Vec<u8>>,
+		key_parent_key_id: Option<Vec<u8>>,
+		prefix: u8,
+	) -> Vec<Serializable> {
+		let mut query = String::from("SELECT * FROM data WHERE prefix = \"i\" ");
+
+		if key_tx_id.is_some() {
+			query.push_str(SQLITE_FILTER);
+			query.push_str(&String::from_utf8(key_tx_id.unwrap()).unwrap());
+		};
+		if key_tx_slate_id.is_some() {
+			query.push_str(SQLITE_FILTER);
+			query.push_str(&String::from_utf8(key_tx_slate_id.unwrap()).unwrap());
+		};
+		if key_parent_key_id.is_some() {
+			query.push_str(SQLITE_FILTER);
+			query.push_str(&String::from_utf8(key_parent_key_id.unwrap()).unwrap());
+		};
+
+		self.db
+			.prepare(query)
+			.into_iter()
+			.map(|row| {
+				let row_data = row.read::<String>(2).unwrap(); // data is the 2 column
+				ser::deserialize(&row_data).unwrap()
+			})
+			.collect()
 	}
 }
 
