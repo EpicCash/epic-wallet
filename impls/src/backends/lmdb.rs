@@ -33,6 +33,7 @@ use crate::libwallet::{
 	AcctPathMapping, Context, Error, ErrorKind, NodeClient, OutputData, OutputStatus,
 	ScannedBlockInfo, TxLogEntry, WalletBackend, WalletInitStatus, WalletOutputBatch,
 };
+use crate::serialization::Serializable;
 use crate::store::{self, option_to_not_found, to_key, to_key_u64};
 use crate::util::secp::constants::SECRET_KEY_SIZE;
 use crate::util::secp::key::SecretKey;
@@ -152,7 +153,6 @@ where
 				&default_account,
 				ACCOUNT_PATH_MAPPING_PREFIX as char,
 			)?;
-			batch.commit();
 		}
 
 		let res = LMDBBackend {
@@ -457,7 +457,10 @@ where
 				}
 			};
 			match batch_ser {
-				Some(idx) => idx,
+				Some(s) => match s {
+					Serializable::TxLogEntry(txLogEntry) => txLogEntry.id,
+					_ => 0,
+				},
 				None => 0,
 			}
 		};
@@ -484,7 +487,10 @@ where
 				}
 			};
 			match batch_ser {
-				Some(idx) => idx,
+				Some(s) => match s {
+					Serializable::TxLogEntry(txLogEntry) => txLogEntry.id,
+					_ => 0,
+				},
 				None => 0,
 			}
 		};
@@ -519,7 +525,10 @@ where
 			}
 		};
 		let last_confirmed_height = match batch_ser {
-			Some(h) => h,
+			Some(ser) => match ser {
+				Serializable::OutputData(outputData) => outputData.height,
+				_ => 0,
+			},
 			None => 0,
 		};
 		Ok(last_confirmed_height)
@@ -546,7 +555,15 @@ where
 			}
 		};
 		let last_scanned_block = match batch_ser {
-			Some(b) => b,
+			Some(b) => match b {
+				Serializable::ScannedBlockInfo(scannedBlockInfo) => scannedBlockInfo,
+				_ => ScannedBlockInfo {
+					height: 0,
+					hash: "".to_owned(),
+					start_pmmr_index: 0,
+					last_pmmr_index: 0,
+				},
+			},
 			None => ScannedBlockInfo {
 				height: 0,
 				hash: "".to_owned(),
@@ -578,7 +595,10 @@ where
 			}
 		};
 		let status = match batch_ser {
-			Some(s) => s,
+			Some(s) => match s {
+				Serializable::WalletInitStatus(walletInitStatus) => walletInitStatus,
+				_ => WalletInitStatus::InitComplete,
+			},
 			None => WalletInitStatus::InitComplete,
 		};
 		Ok(status)
@@ -593,7 +613,7 @@ where
 	K: Keychain,
 {
 	_store: &'a LMDBBackend<'a, C, K>,
-	db: RefCell<Option<store::Batch<'a>>>,
+	db: RefCell<Option<db::Batch<'a>>>,
 	/// Keychain
 	keychain: Option<K>,
 }
@@ -730,7 +750,10 @@ where
 			.unwrap()
 			.get_ser(&output_history_key_id)?
 		{
-			Some(t) => t,
+			Some(s) => match s {
+				Serializable::TxLogEntry(txLogEntry) => txLogEntry.id,
+				_ => 0,
+			},
 			None => 0,
 		};
 		self.db
@@ -744,7 +767,10 @@ where
 	fn next_tx_log_id(&mut self, parent_key_id: &Identifier) -> Result<u32, Error> {
 		let tx_id_key = to_key(TX_LOG_ID_PREFIX, &mut parent_key_id.to_bytes().to_vec());
 		let last_tx_log_id = match self.db.borrow().as_ref().unwrap().get_ser(&tx_id_key)? {
-			Some(t) => t,
+			Some(s) => match s {
+				Serializable::TxLogEntry(txLogEntry) => txLogEntry.id,
+				_ => 0,
+			},
 			None => 0,
 		};
 		self.db
@@ -752,6 +778,7 @@ where
 			.as_ref()
 			.unwrap()
 			.put_ser(&tx_id_key, &(last_tx_log_id + 1))?;
+
 		Ok(last_tx_log_id)
 	}
 
@@ -915,7 +942,7 @@ where
 
 	fn commit(&self) -> Result<(), Error> {
 		let db = self.db.replace(None);
-		db.unwrap().commit()?;
+		db.unwrap();
 		Ok(())
 	}
 }

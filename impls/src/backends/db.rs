@@ -31,7 +31,7 @@ impl Store {
 	}
 
 	/// Gets a value from the db, provided its key
-	pub fn get(&self, key: &[u8]) -> Result<Option<Serializable>, Error> {
+	pub fn get(&self, key: &[u8]) -> Result<Option<Serializable>, serde_json::error::Error> {
 		let statement = self
 			.db
 			.prepare("SELECT * FROM data WHERE key = ? LIMIT 1")
@@ -46,7 +46,7 @@ impl Store {
 
 	/// Gets a `Readable` value from the db, provided its key. Encapsulates
 	/// serialization.
-	pub fn get_ser(&self, key: &[u8]) -> Result<Option<Serializable>, Error> {
+	pub fn get_ser(&self, key: &[u8]) -> Result<Option<Serializable>, serde_json::error::Error> {
 		self.get(key)
 	}
 
@@ -92,7 +92,12 @@ pub struct Batch<'a> {
 
 impl<'a> Batch<'_> {
 	/// Writes a single key/value pair to the db
-	pub fn put(&self, key: &[u8], mut value: u8, prefix: char) -> Result<(), Error> {
+	pub fn put<T>(
+		&self,
+		key: &[u8],
+		mut value: &T,
+		prefix: char,
+	) -> Result<(), serde_json::error::Error> {
 		// serialize value to json
 		let statement = format!(
 			"INSERT INTO data VALUES ({}, {}, {});",
@@ -103,8 +108,14 @@ impl<'a> Batch<'_> {
 		return Ok(self.store.execute(statement).unwrap());
 	}
 
+	/// Writes a single key and its `Writeable` value to the db.
+	/// Encapsulates serialization using the (default) version configured on the store instance.
+	pub fn put_ser<T>(&self, key: &[u8], value: &T) -> Result<(), serde_json::error::Error> {
+		self.put(key, value, 'a')
+	}
+
 	/// gets a value from the db, provided its key
-	pub fn get(&self, key: &[u8]) -> Result<Option<Serializable>, Error> {
+	pub fn get(&self, key: &[u8]) -> Result<Option<Serializable>, serde_json::error::Error> {
 		self.store.get(key)
 	}
 
@@ -129,7 +140,7 @@ impl<'a> Batch<'_> {
 		Ok(())
 	}
 
-	pub fn get_ser(&self, key: &[u8]) -> Result<Option<Serializable>, Error> {
+	pub fn get_ser(&self, key: &[u8]) -> Result<Option<Serializable>, serde_json::error::Error> {
 		return self.store.get_ser(key);
 	}
 }
