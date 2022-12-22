@@ -373,17 +373,3 @@ impl From<epic_store::Error> for Error {
 		Error::from(ErrorKind::Backend(format!("{}", error)))
 	}
 }
-
-impl From<serde_json::error::Error> for Error {
-	fn from(error: serde_json::error::Error) -> Error {
-		Error::from(ErrorKind::Backend(format!("{}", error)))
-	}
-}
-
-// impl std::error::Error for Error {
-// 	fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-// 		match self {
-// 			ErrorKind::IO(e) => Some(e),
-// 		}
-// 	}
-// }

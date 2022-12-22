@@ -16,10 +16,10 @@
 use crate::core::libtx;
 use crate::keychain;
 use crate::libwallet;
+use crate::libwallet::ErrorKind as libwalletErrorKind;
 use crate::util::secp;
 use failure::{Backtrace, Context, Fail};
 use std::env;
-use std::error;
 use std::fmt::{self, Display};
 
 /// Error definition
@@ -186,5 +186,11 @@ impl From<libtx::Error> for Error {
 		Error {
 			inner: Context::new(ErrorKind::LibTX(error.kind())),
 		}
+	}
+}
+
+impl From<Error> for libwallet::Error {
+	fn from(error: Error) -> libwallet::Error {
+		libwallet::Error::from(libwalletErrorKind::GenericError(format!("{}", error)))
 	}
 }
