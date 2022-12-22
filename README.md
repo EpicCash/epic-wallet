@@ -40,7 +40,6 @@ Here are the basic topics:
 
 - [Running the server](https://github.com/EpicCash/documentation/wiki/Running-the-server)
 - [Running the wallet](https://github.com/EpicCash/documentation/wiki/Running-the-wallet)
-- [Making the basic wallet operations](https://github.com/EpicCash/documentation/wiki/Basic-wallet-operations)
 - [Mining](https://github.com/EpicCash/documentation/wiki/Mining)
 
 ## Quick User guides :books: 
