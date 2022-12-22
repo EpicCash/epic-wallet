@@ -4,6 +4,7 @@ use sqlite::{self, Connection};
 use std::fs;
 
 use crate::serialization as ser;
+use crate::serialization::Serializable;
 use crate::Error;
 
 static DB_DEFAULT_PATH: &str = "~/.epic/user/wallet_data/db/sqlite/";
@@ -30,7 +31,7 @@ impl Store {
 	}
 
 	/// Gets a value from the db, provided its key
-	pub fn get(&self, key: &[u8]) -> Result<Option<impl Serialize>, Error> {
+	pub fn get(&self, key: &[u8]) -> Result<Option<Serializable>, Error> {
 		let statement = self
 			.db
 			.prepare("SELECT * FROM data WHERE key = ? LIMIT 1")
@@ -45,7 +46,7 @@ impl Store {
 
 	/// Gets a `Readable` value from the db, provided its key. Encapsulates
 	/// serialization.
-	pub fn get_ser(&self, key: &[u8]) -> Result<Option<impl Serialize>, Error> {
+	pub fn get_ser(&self, key: &[u8]) -> Result<Option<Serializable>, Error> {
 		self.get(key)
 	}
 
@@ -62,7 +63,7 @@ impl Store {
 
 	/// Produces an iterator of (key, value) pairs, where values are `Readable` types
 	/// moving forward from the provided key.
-	pub fn iter(&self, from: &[u8]) -> Vec<impl Serialize> {
+	pub fn iter(&self, from: &[u8]) -> Vec<Serializable> {
 		let query = "SELECT * FROM data;";
 		self.db
 			.prepare(query)
@@ -103,7 +104,7 @@ impl<'a> Batch<'_> {
 	}
 
 	/// gets a value from the db, provided its key
-	pub fn get(&self, key: &[u8]) -> Result<Option<impl Serialize>, Error> {
+	pub fn get(&self, key: &[u8]) -> Result<Option<Serializable>, Error> {
 		self.store.get(key)
 	}
 
@@ -120,12 +121,15 @@ impl<'a> Batch<'_> {
 
 	/// Deletes a key/value pair from the db
 	pub fn delete(&self, key: &[u8]) -> Result<(), Error> {
-		self.store
-			.execute(String::from("DELETE FROM data WHERE key = ?"));
+		let statement = format!(
+			"DELETE FROM data WHERE key = {}",
+			String::from_utf8(key.to_owned()).unwrap()
+		);
+		self.store.execute(statement);
 		Ok(())
 	}
 
-	pub fn get_ser(&self, key: &[u8]) -> Result<Option<impl Serialize>, Error> {
+	pub fn get_ser(&self, key: &[u8]) -> Result<Option<Serializable>, Error> {
 		return self.store.get_ser(key);
 	}
 }

@@ -21,6 +21,7 @@ use std::io::{Read, Write};
 use std::marker::PhantomData;
 use std::path::Path;
 
+use epic_wallet_libwallet::TxLogEntryType;
 use uuid::Uuid;
 
 use crate::blake2::blake2b::{Blake2b, Blake2bResult};
@@ -40,7 +41,7 @@ use crate::util::{self, secp};
 use rand::rngs::mock::StepRng;
 use rand::thread_rng;
 
-use super::db::Store;
+use super::db::{self, Store};
 
 pub const DB_DIR: &'static str = "db";
 pub const TX_SAVE_DIR: &'static str = "saved_txs";
@@ -130,7 +131,7 @@ where
 		let stored_tx_path = path::Path::new(data_file_dir).join(TX_SAVE_DIR);
 		fs::create_dir_all(&stored_tx_path)
 			.expect("Couldn't create wallet backend tx storage directory!");
-		let store = store::Store::new(db_path.to_str().unwrap(), None, Some(DB_DIR), None)?;
+		let store = db::Store::new();
 
 		// Make sure default wallet derivation path always exists
 		// as well as path (so it can be retrieved by batches to know where to store
@@ -145,9 +146,13 @@ where
 		);
 
 		{
-			let batch = store.batch()?;
-			batch.put_ser(&acct_key, &default_account)?;
-			batch.commit()?;
+			let batch = store.batch();
+			batch.put(
+				&acct_key,
+				&default_account,
+				ACCOUNT_PATH_MAPPING_PREFIX as char,
+			)?;
+			batch.commit();
 		}
 
 		let res = LMDBBackend {
@@ -314,11 +319,20 @@ where
 
 	fn get_tx_log_entry(&self, u: &Uuid) -> Result<Option<TxLogEntry>, Error> {
 		let key = to_key(TX_LOG_ENTRY_PREFIX, &mut u.as_bytes().to_vec());
-		self.db.get_ser(&key).map_err(|e| e.into())
+		self.db.get(&key).unwrap()
 	}
 
 	fn tx_log_iter<'a>(&'a self) -> Box<dyn Iterator<Item = TxLogEntry> + 'a> {
-		Box::new(self.db.iter(&[TX_LOG_ENTRY_PREFIX]).unwrap().map(|o| o.1))
+		let logs = self
+			.db
+			.iter(&[TX_LOG_ENTRY_PREFIX])
+			.iter()
+			.filter(move |entry| match entry {
+				TxLogEntry => true,
+				_ => false,
+			}) as dyn Iterator<TxLogEntry>;
+		//TODO fix this "cast as unsized type"
+		Box::new(logs)
 	}
 
 	fn get_private_context(
@@ -335,7 +349,7 @@ where
 		let (blind_xor_key, nonce_xor_key) =
 			private_ctx_xor_keys(&self.keychain(keychain_mask)?, slate_id)?;
 
-		let mut ctx: Context = option_to_not_found(self.db.get_ser(&ctx_key), || {
+		let mut ctx: Context = option_to_not_found(self.db.get(&ctx_key), || {
 			format!("Slate id: {:x?}", slate_id.to_vec())
 		})?;
 
@@ -348,6 +362,9 @@ where
 	}
 
 	fn acct_path_iter<'a>(&'a self) -> Box<dyn Iterator<Item = AcctPathMapping> + 'a> {
+		//iter
+		//pattern-match
+		// vec of APM
 		Box::new(
 			self.db
 				.iter(&[ACCOUNT_PATH_MAPPING_PREFIX])
