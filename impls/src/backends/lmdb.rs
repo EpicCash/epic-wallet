@@ -46,19 +46,19 @@ use super::db::{self, Store};
 pub const DB_DIR: &'static str = "db";
 pub const TX_SAVE_DIR: &'static str = "saved_txs";
 
-const OUTPUT_HISTORY_PREFIX: u8 = 'h' as u8;
-const OUTPUT_HISTORY_ID_PREFIX: u8 = 'j' as u8;
-const OUTPUT_PREFIX: u8 = 'o' as u8;
-const DERIV_PREFIX: u8 = 'd' as u8;
-const CONFIRMED_HEIGHT_PREFIX: u8 = 'c' as u8;
-const PRIVATE_TX_CONTEXT_PREFIX: u8 = 'p' as u8;
-const TX_LOG_ENTRY_PREFIX: u8 = 't' as u8;
-const TX_LOG_ID_PREFIX: u8 = 'i' as u8;
-const ACCOUNT_PATH_MAPPING_PREFIX: u8 = 'a' as u8;
-const LAST_SCANNED_BLOCK: u8 = 'l' as u8;
-const LAST_SCANNED_KEY: &str = "LAST_SCANNED_KEY";
-const WALLET_INIT_STATUS: u8 = 'w' as u8;
-const WALLET_INIT_STATUS_KEY: &str = "WALLET_INIT_STATUS";
+pub const OUTPUT_HISTORY_PREFIX: u8 = 'h' as u8;
+pub const OUTPUT_HISTORY_ID_PREFIX: u8 = 'j' as u8;
+pub const OUTPUT_PREFIX: u8 = 'o' as u8;
+pub const DERIV_PREFIX: u8 = 'd' as u8;
+pub const CONFIRMED_HEIGHT_PREFIX: u8 = 'c' as u8;
+pub const PRIVATE_TX_CONTEXT_PREFIX: u8 = 'p' as u8;
+pub const TX_LOG_ENTRY_PREFIX: u8 = 't' as u8;
+pub const TX_LOG_ID_PREFIX: u8 = 'i' as u8;
+pub const ACCOUNT_PATH_MAPPING_PREFIX: u8 = 'a' as u8;
+pub const LAST_SCANNED_BLOCK: u8 = 'l' as u8;
+pub const LAST_SCANNED_KEY: &str = "LAST_SCANNED_KEY";
+pub const WALLET_INIT_STATUS: u8 = 'w' as u8;
+pub const WALLET_INIT_STATUS_KEY: &str = "WALLET_INIT_STATUS";
 
 /// test to see if database files exist in the current directory. If so,
 /// use a DB backend for all operations

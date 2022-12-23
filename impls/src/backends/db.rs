@@ -11,9 +11,16 @@ use crate::keychain::Identifier;
 use crate::store::{self, option_to_not_found, to_key, to_key_u64};
 use uuid::Uuid;
 
+use super::lmdb::{
+	ACCOUNT_PATH_MAPPING_PREFIX, CONFIRMED_HEIGHT_PREFIX, DERIV_PREFIX, LAST_SCANNED_BLOCK,
+	LAST_SCANNED_KEY, OUTPUT_HISTORY_ID_PREFIX, OUTPUT_HISTORY_PREFIX, OUTPUT_PREFIX,
+	PRIVATE_TX_CONTEXT_PREFIX, TX_LOG_ENTRY_PREFIX, TX_LOG_ID_PREFIX, WALLET_INIT_STATUS,
+	WALLET_INIT_STATUS_KEY,
+};
+
 static DB_DEFAULT_PATH: &str = "~/.epic/user/wallet_data/db/sqlite/";
 static DB_FILENAME: &str = "epic.db";
-static SQLITE_FILTER: &str = "AND key = ";
+static SQLITE_FILTER: &str = "AND key =";
 const PROTOCOL_VERSION: ProtocolVersion = ProtocolVersion(1);
 
 pub struct Store {
@@ -95,22 +102,36 @@ impl Store {
 		key_tx_id: Option<Vec<u8>>,
 		key_tx_slate_id: Option<Vec<u8>>,
 		key_parent_key_id: Option<Vec<u8>>,
-		prefix: u8,
 	) -> Vec<Serializable> {
 		// TX_LOG_ENTRY_PREFIX: u8 = 't';
-		let mut query = String::from("SELECT * FROM data WHERE prefix = 't' ");
+		let mut query = format!(
+			"SELECT * FROM data WHERE prefix = '{}' ",
+			TX_LOG_ENTRY_PREFIX
+		);
 
 		if key_tx_id.is_some() {
-			query.push_str(SQLITE_FILTER);
-			query.push_str(&String::from_utf8(key_tx_id.unwrap()).unwrap());
+			query = format!(
+				"{} {} {}",
+				query,
+				SQLITE_FILTER,
+				String::from_utf8(key_tx_id.unwrap()).unwrap()
+			);
 		};
 		if key_tx_slate_id.is_some() {
-			query.push_str(SQLITE_FILTER);
-			query.push_str(&String::from_utf8(key_tx_slate_id.unwrap()).unwrap());
+			query = format!(
+				"{} {} {}",
+				query,
+				SQLITE_FILTER,
+				String::from_utf8(key_tx_slate_id.unwrap()).unwrap()
+			);
 		};
 		if key_parent_key_id.is_some() {
-			query.push_str(SQLITE_FILTER);
-			query.push_str(&String::from_utf8(key_parent_key_id.unwrap()).unwrap());
+			query = format!(
+				"{} {} {}",
+				query,
+				SQLITE_FILTER,
+				String::from_utf8(key_parent_key_id.unwrap()).unwrap()
+			);
 		};
 
 		self.db
@@ -129,23 +150,33 @@ impl Store {
 		key_tx_id: Option<Vec<u8>>,
 		key_parent_key_id: Option<Vec<u8>>,
 		show_full_history: bool,
-		prefix: u8,
 	) -> Vec<Serializable> {
 		let mut query = if show_full_history {
 			// OUTPUT_HISTORY_PREFIX: u8 = 'h'
-			String::from("SELECT * FROM data WHERE prefix IN ('h', 'o') ")
+			format!(
+				"SELECT * FROM data WHERE prefix IN ('{}', '{}') ",
+				OUTPUT_PREFIX, OUTPUT_HISTORY_PREFIX,
+			)
 		} else {
 			// OUTPUT_PREFIX: u8 = 'o'
-			String::from("SELECT * FROM data WHERE prefix = 'o' ")
+			format!("SELECT * FROM data WHERE prefix = '{}' ", OUTPUT_PREFIX)
 		};
 
 		if key_tx_id.is_some() {
-			query.push_str(SQLITE_FILTER);
-			query.push_str(&String::from_utf8(key_tx_id.unwrap()).unwrap());
+			query = format!(
+				"{} {} {}",
+				query,
+				SQLITE_FILTER,
+				String::from_utf8(key_tx_id.unwrap()).unwrap()
+			);
 		};
 		if key_parent_key_id.is_some() {
-			query.push_str(SQLITE_FILTER);
-			query.push_str(&String::from_utf8(key_parent_key_id.unwrap()).unwrap());
+			query = format!(
+				"{} {} {}",
+				query,
+				SQLITE_FILTER,
+				String::from_utf8(key_parent_key_id.unwrap()).unwrap()
+			);
 		};
 
 		self.db
