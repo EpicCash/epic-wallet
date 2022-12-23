@@ -89,7 +89,7 @@ impl Store {
 		self.db.execute(statement)
 	}
 
-	// function to get an TxLogEntry
+	/// get an TxLogEntry by tx_id, tx_slate_id or parent_key_id
 	pub fn get_txs(
 		&self,
 		key_tx_id: Option<Vec<u8>>,
@@ -97,7 +97,8 @@ impl Store {
 		key_parent_key_id: Option<Vec<u8>>,
 		prefix: u8,
 	) -> Vec<Serializable> {
-		let mut query = String::from("SELECT * FROM data WHERE prefix = \"i\" ");
+		// TX_LOG_ENTRY_PREFIX: u8 = 't';
+		let mut query = String::from("SELECT * FROM data WHERE prefix = 't' ");
 
 		if key_tx_id.is_some() {
 			query.push_str(SQLITE_FILTER);
@@ -106,6 +107,41 @@ impl Store {
 		if key_tx_slate_id.is_some() {
 			query.push_str(SQLITE_FILTER);
 			query.push_str(&String::from_utf8(key_tx_slate_id.unwrap()).unwrap());
+		};
+		if key_parent_key_id.is_some() {
+			query.push_str(SQLITE_FILTER);
+			query.push_str(&String::from_utf8(key_parent_key_id.unwrap()).unwrap());
+		};
+
+		self.db
+			.prepare(query)
+			.into_iter()
+			.map(|row| {
+				let row_data = row.read::<String>(2).unwrap(); // data is the 2 column
+				ser::deserialize(&row_data).unwrap()
+			})
+			.collect()
+	}
+
+	/// get an TxLogEntry by tx_id, tx_slate_id or parent_key_id
+	pub fn get_outputs(
+		&self,
+		key_tx_id: Option<Vec<u8>>,
+		key_parent_key_id: Option<Vec<u8>>,
+		show_full_history: bool,
+		prefix: u8,
+	) -> Vec<Serializable> {
+		let mut query = if show_full_history {
+			// OUTPUT_HISTORY_PREFIX: u8 = 'h'
+			String::from("SELECT * FROM data WHERE prefix IN ('h', 'o') ")
+		} else {
+			// OUTPUT_PREFIX: u8 = 'o'
+			String::from("SELECT * FROM data WHERE prefix = 'o' ")
+		};
+
+		if key_tx_id.is_some() {
+			query.push_str(SQLITE_FILTER);
+			query.push_str(&String::from_utf8(key_tx_id.unwrap()).unwrap());
 		};
 		if key_parent_key_id.is_some() {
 			query.push_str(SQLITE_FILTER);
