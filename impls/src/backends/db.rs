@@ -92,8 +92,10 @@ pub struct Batch<'a> {
 
 impl<'a> Batch<'_> {
 	/// Writes a single key/value pair to the db
-	pub fn put(&self, key: &[u8], mut value: u8, prefix: char) -> Result<(), Error> {
+	pub fn put(&self, key: &[u8], mut value: Serializable) -> Result<(), Error> {
 		// serialize value to json
+		let value = ser::serialize(value).unwrap();
+		let prefix = key[0];
 		let statement = format!(
 			"INSERT INTO data VALUES ({}, {}, {});",
 			String::from_utf8(key.to_vec()).unwrap(),
@@ -101,6 +103,10 @@ impl<'a> Batch<'_> {
 			prefix
 		);
 		return Ok(self.store.execute(statement).unwrap());
+	}
+
+	pub fn put_ser(&self, key: &[u8], mut value: Serializable) -> Result<(), Error> {
+		self.put(key, value)
 	}
 
 	/// gets a value from the db, provided its key

@@ -1,6 +1,6 @@
 use epic_wallet_libwallet::{AcctPathMapping, OutputData, TxLogEntry};
 use serde::Serialize;
-use serde_json::{json, Result, Value};
+use serde_json::Result;
 
 #[derive(Serialize, Deserialize)]
 pub enum Serializable {
@@ -9,8 +9,8 @@ pub enum Serializable {
 	OutputData(OutputData),
 }
 // T: Enum?
-pub fn serialize(data: impl Serialize) -> Result<Value> {
-	let serialized_data: Value = json!(data);
+pub fn serialize(data: impl Serialize) -> Result<String> {
+	let serialized_data: String = serde_json::to_string(&data)?;
 	return Ok(serialized_data);
 }
 
