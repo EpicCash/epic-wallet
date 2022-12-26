@@ -76,8 +76,8 @@ impl Store {
 	}
 
 	/// Builds a new batch to be used with this store.
-	pub fn batch(&self) -> Result<Batch, Error> {
-		Ok(Batch { store: self })
+	pub fn batch(&self) -> Batch {
+		Batch { store: self }
 	}
 
 	pub fn execute(&self, statement: String) -> Result<(), sqlite::Error> {
