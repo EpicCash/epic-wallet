@@ -1,5 +1,4 @@
 use epic_wallet_util::epic_core::ser::ProtocolVersion;
-use serde::Serialize;
 use sqlite::{self, Connection};
 use std::fs;
 
@@ -9,7 +8,6 @@ use crate::Error;
 
 static DB_DEFAULT_PATH: &str = "~/.epic/user/wallet_data/db/sqlite/";
 static DB_FILENAME: &str = "epic.db";
-const PROTOCOL_VERSION: ProtocolVersion = ProtocolVersion(1);
 
 pub struct Store {
 	db: Connection,
@@ -19,19 +17,19 @@ impl Store {
 	pub fn new() -> Store {
 		let full_path: String = DB_DEFAULT_PATH.to_owned() + DB_FILENAME;
 		fs::create_dir_all(DB_DEFAULT_PATH);
-		let db: Connection = sqlite::open(full_path).unwrap();
-		Store::check_or_create(db, &full_path);
+		let db: Connection = sqlite::open(&full_path).unwrap();
+		Store::check_or_create(&db, &full_path);
 		return Store { db };
 	}
 
-	pub fn check_or_create(db: Connection, path: &str) -> Result<(), sqlite::Error> {
+	pub fn check_or_create(db: &Connection, path: &str) -> Result<(), sqlite::Error> {
 		// SELECT * FROM data LIMIT 1; to check if table exists
 		let creation = "CREATE TABLE IF NOT EXISTS data (id INTEGER PRIMARY KEY, key TEXT NOT NULL, data TEXT NOT NULL, prefix TEXT);"; //create database if file not found
 		return db.execute(creation);
 	}
 
 	/// Gets a value from the db, provided its key
-	pub fn get(&self, key: &[u8]) -> Result<Option<Serializable>, Error> {
+	pub fn get(&self, key: &[u8]) -> Option<Serializable> {
 		let statement = self
 			.db
 			.prepare("SELECT * FROM data WHERE key = ? LIMIT 1")
@@ -41,18 +39,18 @@ impl Store {
 
 		let data = statement.read::<String>(1).unwrap();
 		let deser = ser::deserialize(&data).unwrap();
-		Ok(Some(deser))
+		Some(deser)
 	}
 
 	/// Gets a `Readable` value from the db, provided its key. Encapsulates
 	/// serialization.
-	pub fn get_ser(&self, key: &[u8]) -> Result<Option<Serializable>, Error> {
+	pub fn get_ser(&self, key: &[u8]) -> Option<Serializable> {
 		self.get(key)
 	}
 
 	/// Whether the provided key exists
 	pub fn exists(&self, key: &[u8]) -> Result<bool, Error> {
-		let statement = self
+		let mut statement = self
 			.db
 			.prepare("SELECT * FROM data WHERE key = ? LIMIT 1")
 			.unwrap()
@@ -64,12 +62,12 @@ impl Store {
 	/// Produces an iterator of (key, value) pairs, where values are `Readable` types
 	/// moving forward from the provided key.
 	pub fn iter(&self, from: &[u8]) -> Vec<Serializable> {
-		let query = "SELECT * FROM data;";
+		let query = "SELECT data FROM data;";
 		self.db
 			.prepare(query)
 			.into_iter()
 			.map(|row| {
-				let row_data = row.read::<String>(1).unwrap();
+				let row_data = row.read::<String>(0).unwrap();
 				ser::deserialize(&row_data).unwrap()
 			})
 			.collect()
@@ -97,11 +95,12 @@ impl<'a> Batch<'_> {
 		let value = ser::serialize(value).unwrap();
 		let prefix = key[0];
 		let statement = format!(
-			"INSERT INTO data VALUES ({}, {}, {});",
+			r#"INSERT INTO data (key, data, prefix) VALUES ("{}", '{}', "{}");"#,
 			String::from_utf8(key.to_vec()).unwrap(),
 			value,
 			prefix
 		);
+		println!("{}", statement);
 		return Ok(self.store.execute(statement).unwrap());
 	}
 
@@ -110,7 +109,7 @@ impl<'a> Batch<'_> {
 	}
 
 	/// gets a value from the db, provided its key
-	pub fn get(&self, key: &[u8]) -> Result<Option<Serializable>, Error> {
+	pub fn get(&self, key: &[u8]) -> Option<Serializable> {
 		self.store.get(key)
 	}
 
@@ -121,7 +120,7 @@ impl<'a> Batch<'_> {
 
 	// Produces an iterator of `Readable` types moving forward from the
 	// provided key.
-	pub fn iter<T: Serialize>(&self, from: &[u8]) -> Vec<impl Serialize> {
+	pub fn iter(&self, from: &[u8]) -> Vec<Serializable> {
 		self.store.iter(from)
 	}
 
@@ -135,7 +134,7 @@ impl<'a> Batch<'_> {
 		Ok(())
 	}
 
-	pub fn get_ser(&self, key: &[u8]) -> Result<Option<Serializable>, Error> {
+	pub fn get_ser(&self, key: &[u8]) -> Option<Serializable> {
 		return self.store.get_ser(key);
 	}
 }

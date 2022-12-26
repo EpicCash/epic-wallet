@@ -188,3 +188,9 @@ impl From<libtx::Error> for Error {
 		}
 	}
 }
+
+impl From<Error> for libwallet::Error {
+	fn from(error: Error) -> libwallet::Error {
+		libwallet::Error::from(libwallet::ErrorKind::GenericError(format!("{}", error)))
+	}
+}

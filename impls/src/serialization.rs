@@ -1,5 +1,5 @@
 use epic_wallet_libwallet::{
-	AcctPathMapping, OutputData, ScannedBlockInfo, TxLogEntry, WalletInitStatus,
+	AcctPathMapping, Context, OutputData, ScannedBlockInfo, TxLogEntry, WalletInitStatus,
 };
 use serde::Serialize;
 use serde_json::Result;
@@ -12,6 +12,8 @@ pub enum Serializable {
 	OutputData(OutputData),
 	ScannedBlockInfo(ScannedBlockInfo),
 	WalletInitStatus(WalletInitStatus),
+	Context(Context),
+	Numeric(u64),
 }
 
 pub fn serialize(data: impl Serialize) -> Result<String> {
@@ -56,6 +58,20 @@ impl Serializable {
 	pub fn as_wallet_init_status(self) -> Option<WalletInitStatus> {
 		match self {
 			Serializable::WalletInitStatus(status) => Some(status),
+			_ => None,
+		}
+	}
+
+	pub fn as_context(self) -> Option<Context> {
+		match self {
+			Serializable::Context(context) => Some(context),
+			_ => None,
+		}
+	}
+
+	pub fn as_numeric(self) -> Option<u64> {
+		match self {
+			Serializable::Numeric(num) => Some(num),
 			_ => None,
 		}
 	}
