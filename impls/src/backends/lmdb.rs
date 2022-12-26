@@ -21,7 +21,6 @@ use std::io::{Read, Write};
 use std::marker::PhantomData;
 use std::path::Path;
 
-use epic_wallet_libwallet::TxLogEntryType;
 use uuid::Uuid;
 
 use crate::blake2::blake2b::{Blake2b, Blake2bResult};
@@ -33,6 +32,7 @@ use crate::libwallet::{
 	AcctPathMapping, Context, Error, ErrorKind, NodeClient, OutputData, OutputStatus,
 	ScannedBlockInfo, TxLogEntry, WalletBackend, WalletInitStatus, WalletOutputBatch,
 };
+use crate::serialization::Serializable;
 use crate::store::{self, option_to_not_found, to_key, to_key_u64};
 use crate::util::secp::constants::SECRET_KEY_SIZE;
 use crate::util::secp::key::SecretKey;
@@ -147,12 +147,7 @@ where
 
 		{
 			let batch = store.batch();
-			batch.put(
-				&acct_key,
-				&default_account,
-				ACCOUNT_PATH_MAPPING_PREFIX as char,
-			)?;
-			batch.commit();
+			batch.put(&acct_key, Serializable::AcctPathMapping(default_account));
 		}
 
 		let res = LMDBBackend {
@@ -310,29 +305,40 @@ where
 	}
 
 	fn iter<'a>(&'a self) -> Box<dyn Iterator<Item = OutputData> + 'a> {
-		Box::new(self.db.iter(&[OUTPUT_PREFIX]).unwrap().map(|o| o.1))
+		// new vec/enum implementation
+		let serializables: Vec<_> = self
+			.db
+			.iter(&[OUTPUT_PREFIX])
+			.into_iter()
+			.filter_map(Serializable::as_output_data)
+			.collect();
+		Box::new(serializables.iter().map(|x| *x))
 	}
 
 	fn history_iter<'a>(&'a self) -> Box<dyn Iterator<Item = OutputData> + 'a> {
-		Box::new(self.db.iter(&[OUTPUT_HISTORY_PREFIX]).unwrap().map(|o| o.1))
+		// new vec/enum implementation
+		let serializables: Vec<_> = self
+			.db
+			.iter(&[OUTPUT_HISTORY_PREFIX])
+			.into_iter()
+			.filter_map(Serializable::as_output_data)
+			.collect();
+		Box::new(serializables.iter().map(|x| *x))
 	}
 
 	fn get_tx_log_entry(&self, u: &Uuid) -> Result<Option<TxLogEntry>, Error> {
 		let key = to_key(TX_LOG_ENTRY_PREFIX, &mut u.as_bytes().to_vec());
-		self.db.get(&key).unwrap()
+		self.db.get(&key)
 	}
 
 	fn tx_log_iter<'a>(&'a self) -> Box<dyn Iterator<Item = TxLogEntry> + 'a> {
-		let logs = self
+		let serializables: Vec<_> = self
 			.db
 			.iter(&[TX_LOG_ENTRY_PREFIX])
-			.iter()
-			.filter(move |entry| match entry {
-				TxLogEntry => true,
-				_ => false,
-			}) as dyn Iterator<TxLogEntry>;
-		//TODO fix this "cast as unsized type"
-		Box::new(logs)
+			.into_iter()
+			.filter_map(Serializable::as_txlogentry)
+			.collect();
+		Box::new(serializables.iter().map(|x| *x))
 	}
 
 	fn get_private_context(
