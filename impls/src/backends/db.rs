@@ -7,8 +7,6 @@ use crate::serialization as ser;
 use crate::serialization::Serializable;
 use crate::Error;
 
-use crate::keychain::Identifier;
-use crate::store::{self, option_to_not_found, to_key, to_key_u64};
 use uuid::Uuid;
 
 use super::lmdb::{
@@ -21,6 +19,8 @@ use super::lmdb::{
 static DB_DEFAULT_PATH: &str = "~/.epic/user/wallet_data/db/sqlite/";
 static DB_FILENAME: &str = "epic.db";
 static SQLITE_FILTER: &str = "AND key =";
+static ID_FILTER: &str = "AND tx_id =";
+static SLATE_ID_FILTER: &str = "AND slate_id =";
 const PROTOCOL_VERSION: ProtocolVersion = ProtocolVersion(1);
 
 pub struct Store {
@@ -46,7 +46,7 @@ impl Store {
 	pub fn get(&self, key: &[u8]) -> Result<Option<Serializable>, Error> {
 		let statement = self
 			.db
-			.prepare("SELECT * FROM data WHERE key = ? LIMIT 1")
+			.prepare("SELECT data WHERE key = ? LIMIT 1")
 			.unwrap()
 			.bind(1, key)
 			.unwrap();
@@ -66,7 +66,7 @@ impl Store {
 	pub fn exists(&self, key: &[u8]) -> Result<bool, Error> {
 		let statement = self
 			.db
-			.prepare("SELECT * FROM data WHERE key = ? LIMIT 1")
+			.prepare("SELECT data WHERE key = ? LIMIT 1")
 			.unwrap()
 			.bind(1, key)
 			.unwrap();
@@ -76,7 +76,7 @@ impl Store {
 	/// Produces an iterator of (key, value) pairs, where values are `Readable` types
 	/// moving forward from the provided key.
 	pub fn iter(&self, from: &[u8]) -> Vec<Serializable> {
-		let query = "SELECT * FROM data;";
+		let query = "SELECT data;";
 		self.db
 			.prepare(query)
 			.into_iter()
@@ -96,42 +96,48 @@ impl Store {
 		self.db.execute(statement)
 	}
 
-	/// get an TxLogEntry by tx_id, tx_slate_id or parent_key_id
+	/// get an TxLogEntry by parent_key_id (key column) and tx_id, tx_slate_id
+	/// If no input is passed, returns all TxLogEntry transactions.
+	/// If outstanding_only = true then return Received/Sent not confirmed transactions.
 	pub fn get_txs(
 		&self,
-		key_tx_id: Option<Vec<u8>>,
-		key_tx_slate_id: Option<Vec<u8>>,
-		key_parent_key_id: Option<Vec<u8>>,
+		tx_id: Option<u32>,
+		tx_slate_id: Option<Uuid>,
+		parent_key_id: Option<Vec<u8>>,
+		outstanding_only: bool,
 	) -> Vec<Serializable> {
-		// TX_LOG_ENTRY_PREFIX: u8 = 't';
-		let mut query = format!(
-			"SELECT * FROM data WHERE prefix = '{}' ",
-			TX_LOG_ENTRY_PREFIX
-		);
+		// initial query (get all TxLogEntry)
+		let mut query = format!("SELECT data WHERE prefix = '{}' ", TX_LOG_ENTRY_PREFIX);
 
-		if key_tx_id.is_some() {
-			query = format!(
-				"{} {} {}",
+		// filter by parent_key_id (key)
+		query = match parent_key_id {
+			Some(key) => format!(
+				"{} {} '{}'",
 				query,
 				SQLITE_FILTER,
-				String::from_utf8(key_tx_id.unwrap()).unwrap()
-			);
+				String::from_utf8(key).unwrap()
+			),
+			None => query,
 		};
-		if key_tx_slate_id.is_some() {
-			query = format!(
-				"{} {} {}",
-				query,
-				SQLITE_FILTER,
-				String::from_utf8(key_tx_slate_id.unwrap()).unwrap()
-			);
+
+		// filter by tx_id
+		query = match tx_id {
+			Some(id) => format!("{} {} '{}'", query, ID_FILTER, id),
+			None => query,
 		};
-		if key_parent_key_id.is_some() {
+
+		// filter by tx_slate_id
+		query = match tx_slate_id {
+			Some(slate_id) => format!("{} {} '{}'", query, SLATE_ID_FILTER, slate_id),
+			None => query,
+		};
+
+		// get not confirmed AND Received,Sent transactions
+		if outstanding_only {
 			query = format!(
 				"{} {} {}",
-				query,
-				SQLITE_FILTER,
-				String::from_utf8(key_parent_key_id.unwrap()).unwrap()
-			);
+				query, "AND confirmed is null", "AND status IN ('TxReceived','TxSent')"
+			)
 		};
 
 		self.db
@@ -144,40 +150,85 @@ impl Store {
 			.collect()
 	}
 
-	/// get an TxLogEntry by tx_id, tx_slate_id or parent_key_id
+	/// get all OutputData by parent_key_id and tx_id, tx_slate_id
+	/// If no input is passed, returns all OutputData transactions.
+	/// If show_full_history = true then it will return all usable transactions and those already used by other transactions.
+	/// If show_spent = true then it will return all transactions that have already spent.
 	pub fn get_outputs(
 		&self,
-		key_tx_id: Option<Vec<u8>>,
-		key_parent_key_id: Option<Vec<u8>>,
+		tx_id: Option<u32>,
+		parent_key_id: Option<Vec<u8>>,
 		show_full_history: bool,
+		show_spent: bool,
 	) -> Vec<Serializable> {
+		// initial query, get all OutputData
 		let mut query = if show_full_history {
-			// OUTPUT_HISTORY_PREFIX: u8 = 'h'
 			format!(
-				"SELECT * FROM data WHERE prefix IN ('{}', '{}') ",
+				"SELECT data WHERE prefix IN ('{}', '{}') ",
 				OUTPUT_PREFIX, OUTPUT_HISTORY_PREFIX,
 			)
 		} else {
-			// OUTPUT_PREFIX: u8 = 'o'
-			format!("SELECT * FROM data WHERE prefix = '{}' ", OUTPUT_PREFIX)
+			format!("SELECT data WHERE prefix = '{}' ", OUTPUT_PREFIX)
 		};
 
-		if key_tx_id.is_some() {
-			query = format!(
-				"{} {} {}",
+		// get transaction key column
+		query = match parent_key_id {
+			Some(key) => format!(
+				"{} {} '{}'",
 				query,
 				SQLITE_FILTER,
-				String::from_utf8(key_tx_id.unwrap()).unwrap()
-			);
+				String::from_utf8(key).unwrap()
+			),
+			None => query,
 		};
-		if key_parent_key_id.is_some() {
-			query = format!(
-				"{} {} {}",
-				query,
-				SQLITE_FILTER,
-				String::from_utf8(key_parent_key_id.unwrap()).unwrap()
-			);
+
+		// get transaction with tx_id
+		query = match tx_id {
+			Some(id) => format!("{} {} '{}'", query, ID_FILTER, id),
+			None => query,
 		};
+
+		// get not spent transactions
+		if !show_spent {
+			query = format!("{} {}", query, "AND status != 'Spent'")
+		};
+
+		self.db
+			.prepare(query)
+			.into_iter()
+			.map(|row| {
+				let row_data = row.read::<String>(2).unwrap(); // data is the 2 column
+				ser::deserialize(&row_data).unwrap()
+			})
+			.collect()
+	}
+
+	/// Return a larger set of which the set of eligible transactions is in here.
+	/// This function makes it easy to get the eligible transactions to create a new transaction.
+	/// Some filters are missing, like (!OutputData.is_coinbase) and (OutputData.num_confirmations(current_height) >= minimum_confirmations)
+	/// that is, what it returns is not necessarily eligible. But to be eligible it needs to be in the return of that function.
+	pub fn get_outputs_eligible(&self) -> Vec<Serializable> {
+		let mut query = format!(
+			"SELECT data WHERE prefix = '{}' status IN ('Unspent', 'Unconfirmed')",
+			OUTPUT_PREFIX
+		);
+
+		self.db
+			.prepare(query)
+			.into_iter()
+			.map(|row| {
+				let row_data = row.read::<String>(2).unwrap(); // data is the 2 column
+				ser::deserialize(&row_data).unwrap()
+			})
+			.collect()
+	}
+
+	/// get a Context
+	pub fn get_context(&self, ctx_key: Vec<u8>) -> Vec<Serializable> {
+		let mut query = format!(
+			"SELECT data WHERE prefix = '{}' ",
+			PRIVATE_TX_CONTEXT_PREFIX
+		);
 
 		self.db
 			.prepare(query)
