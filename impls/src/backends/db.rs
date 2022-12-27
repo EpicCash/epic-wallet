@@ -1,4 +1,3 @@
-use epic_wallet_util::epic_core::ser::ProtocolVersion;
 use sqlite::{self, Connection};
 use std::fs;
 
@@ -32,14 +31,15 @@ impl Store {
 	pub fn get(&self, key: &[u8]) -> Option<Serializable> {
 		let statement = self
 			.db
-			.prepare("SELECT * FROM data WHERE key = ? LIMIT 1")
+			.prepare("SELECT data FROM data WHERE key = ? LIMIT 1")
 			.unwrap()
-			.bind(1, key)
+			.into_iter()
+			.next()
+			.unwrap()
 			.unwrap();
 
-		let data = statement.read::<String>(1).unwrap();
-		let deser = ser::deserialize(&data).unwrap();
-		Some(deser)
+		let data = statement.read::<&str, _>("data");
+		Some(ser::deserialize(&data).unwrap())
 	}
 
 	/// Gets a `Readable` value from the db, provided its key. Encapsulates
@@ -54,21 +54,24 @@ impl Store {
 			.db
 			.prepare("SELECT * FROM data WHERE key = ? LIMIT 1")
 			.unwrap()
-			.bind(1, key)
-			.unwrap();
-		return Ok(statement.next().is_ok());
+			.into_iter();
+		return Ok(statement.next().is_some());
 	}
 
 	/// Produces an iterator of (key, value) pairs, where values are `Readable` types
 	/// moving forward from the provided key.
 	pub fn iter(&self, from: &[u8]) -> Vec<Serializable> {
-		let query = "SELECT data FROM data;";
+		let query = format!(
+			r#"SELECT data FROM data WHERE prefix = "{}";"#,
+			String::from_utf8(from.to_vec()).unwrap()
+		);
 		self.db
 			.prepare(query)
+			.unwrap()
 			.into_iter()
 			.map(|row| {
-				let row_data = row.read::<String>(0).unwrap();
-				ser::deserialize(&row_data).unwrap()
+				let row = row.unwrap();
+				ser::deserialize(row.read::<&str, _>("data")).unwrap()
 			})
 			.collect()
 	}
@@ -93,14 +96,13 @@ impl<'a> Batch<'_> {
 	pub fn put(&self, key: &[u8], mut value: Serializable) -> Result<(), Error> {
 		// serialize value to json
 		let value = ser::serialize(value).unwrap();
-		let prefix = key[0];
+		let prefix = key[0] as char;
 		let statement = format!(
 			r#"INSERT INTO data (key, data, prefix) VALUES ("{}", '{}', "{}");"#,
 			String::from_utf8(key.to_vec()).unwrap(),
 			value,
 			prefix
 		);
-		println!("{}", statement);
 		return Ok(self.store.execute(statement).unwrap());
 	}
 

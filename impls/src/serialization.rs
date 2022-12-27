@@ -4,7 +4,7 @@ use epic_wallet_libwallet::{
 use serde::Serialize;
 use serde_json::Result;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 #[serde(untagged)]
 pub enum Serializable {
 	TxLogEntry(TxLogEntry),

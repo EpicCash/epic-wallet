@@ -5,7 +5,7 @@ authors = ["Epic Developers <mimblewimble@lists.launchpad.net>"]
 description = "Concrete types derived from libwallet traits"
 license = "Apache-2.0"
 repository = "https://github.com/mimblewimble/epic-wallet"
-keywords = [ "crypto", "epic", "mimblewimble" ]
+keywords = ["crypto", "epic", "mimblewimble"]
 exclude = ["**/*.epic", "**/*.epic2"]
 edition = "2018"
 
@@ -29,7 +29,7 @@ uuid = { version = "0.7", features = ["serde", "v4"] }
 chrono = { version = "0.4.4", features = ["serde"] }
 bitvec = "1"
 emoji = "0.2.1"
-sqlite = "0.27.0"
+sqlite = "0.30.3"
 
 #http client (copied from epic)
 http = "0.1.5"

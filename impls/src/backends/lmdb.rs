@@ -278,6 +278,7 @@ where
 	fn set_parent_key_id_by_name(&mut self, label: &str) -> Result<(), Error> {
 		let label = label.to_owned();
 		let res = self.acct_path_iter().find(|l| l.label == label);
+
 		if let Some(a) = res {
 			self.set_parent_key_id(a.path);
 			Ok(())
@@ -376,7 +377,7 @@ where
 
 		let serializables: Vec<_> = self
 			.db
-			.iter(&[TX_LOG_ENTRY_PREFIX])
+			.iter(&[ACCOUNT_PATH_MAPPING_PREFIX])
 			.into_iter()
 			.filter_map(Serializable::as_acct_path_mapping)
 			.collect();
