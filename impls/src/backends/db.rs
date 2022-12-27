@@ -50,11 +50,11 @@ impl Store {
 
 	/// Whether the provided key exists
 	pub fn exists(&self, key: &[u8]) -> Result<bool, Error> {
-		let mut statement = self
-			.db
-			.prepare("SELECT * FROM data WHERE key = ? LIMIT 1")
-			.unwrap()
-			.into_iter();
+		let query = format!(
+			r#"SELECT * FROM data WHERE key = "{}" LIMIT 1;"#,
+			remove_non_display_as_string(key)
+		);
+		let mut statement = self.db.prepare(query).unwrap().into_iter();
 		return Ok(statement.next().is_some());
 	}
 
@@ -98,13 +98,21 @@ impl<'a> Batch<'_> {
 		let value = ser::serialize(value).unwrap();
 		let prefix = key[0] as char;
 
-		let query = format!(
+		let mut query = format!(
 			r#"INSERT INTO data (key, data, prefix) VALUES ("{}", '{}', "{}");"#,
 			remove_non_display_as_string(key),
 			value,
 			prefix
 		);
-		return Ok(self.store.execute(query).unwrap());
+
+		if self.exists(&key).unwrap() {
+			query = format!(
+				r#"UPDATE data SET data = '{}' WHERE key = "{}";"#,
+				value,
+				remove_non_display_as_string(key)
+			);
+		}
+		Ok(self.store.execute(query).unwrap())
 	}
 
 	pub fn put_ser(&self, key: &[u8], value: Serializable) -> Result<(), Error> {
@@ -118,7 +126,7 @@ impl<'a> Batch<'_> {
 
 	/// Whether the provided key exists
 	pub fn exists(&self, key: &[u8]) -> Result<bool, Error> {
-		self.exists(key)
+		self.store.exists(key)
 	}
 
 	// Produces an iterator of `Readable` types moving forward from the
