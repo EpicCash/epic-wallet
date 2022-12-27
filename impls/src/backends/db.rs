@@ -1,27 +1,26 @@
 use sqlite::{self, Connection};
 use std::fs;
+use std::path::PathBuf;
 
 use crate::serialization as ser;
 use crate::serialization::Serializable;
 use crate::Error;
 
-static DB_DEFAULT_PATH: &str = "~/.epic/user/wallet_data/db/sqlite/";
-static DB_FILENAME: &str = "epic.db";
+static SQLITE_FILENAME: &str = "epic.db";
 
 pub struct Store {
 	db: Connection,
 }
 
 impl Store {
-	pub fn new() -> Store {
-		let full_path: String = DB_DEFAULT_PATH.to_owned() + DB_FILENAME;
-		fs::create_dir_all(DB_DEFAULT_PATH);
-		let db: Connection = sqlite::open(&full_path).unwrap();
-		Store::check_or_create(&db, &full_path);
+	pub fn new(db_path: PathBuf) -> Store {
+		let db_path = db_path.join(SQLITE_FILENAME);
+		let db: Connection = sqlite::open(db_path).unwrap();
+		Store::check_or_create(&db);
 		return Store { db };
 	}
 
-	pub fn check_or_create(db: &Connection, path: &str) -> Result<(), sqlite::Error> {
+	pub fn check_or_create(db: &Connection) -> Result<(), sqlite::Error> {
 		// SELECT * FROM data LIMIT 1; to check if table exists
 		let creation = "CREATE TABLE IF NOT EXISTS data (id INTEGER PRIMARY KEY, key TEXT NOT NULL, data TEXT NOT NULL, prefix TEXT);"; //create database if file not found
 		return db.execute(creation);
@@ -29,17 +28,18 @@ impl Store {
 
 	/// Gets a value from the db, provided its key
 	pub fn get(&self, key: &[u8]) -> Option<Serializable> {
-		let statement = self
-			.db
-			.prepare("SELECT data FROM data WHERE key = ? LIMIT 1")
-			.unwrap()
-			.into_iter()
-			.next()
-			.unwrap()
-			.unwrap();
+		let query = format!(
+			r#"SELECT data FROM data WHERE key = "{}" LIMIT 1;"#,
+			remove_non_display_as_string(key)
+		);
 
-		let data = statement.read::<&str, _>("data");
-		Some(ser::deserialize(&data).unwrap())
+		match self.db.prepare(query).unwrap().into_iter().next() {
+			Some(s) => {
+				let data = s.unwrap().read::<&str, _>("data").to_string();
+				Some(ser::deserialize(&data).unwrap())
+			}
+			None => None,
+		}
 	}
 
 	/// Gets a `Readable` value from the db, provided its key. Encapsulates
@@ -93,20 +93,21 @@ pub struct Batch<'a> {
 
 impl<'a> Batch<'_> {
 	/// Writes a single key/value pair to the db
-	pub fn put(&self, key: &[u8], mut value: Serializable) -> Result<(), Error> {
+	pub fn put(&self, key: &[u8], value: Serializable) -> Result<(), Error> {
 		// serialize value to json
 		let value = ser::serialize(value).unwrap();
 		let prefix = key[0] as char;
-		let statement = format!(
+
+		let query = format!(
 			r#"INSERT INTO data (key, data, prefix) VALUES ("{}", '{}', "{}");"#,
-			String::from_utf8(key.to_vec()).unwrap(),
+			remove_non_display_as_string(key),
 			value,
 			prefix
 		);
-		return Ok(self.store.execute(statement).unwrap());
+		return Ok(self.store.execute(query).unwrap());
 	}
 
-	pub fn put_ser(&self, key: &[u8], mut value: Serializable) -> Result<(), Error> {
+	pub fn put_ser(&self, key: &[u8], value: Serializable) -> Result<(), Error> {
 		self.put(key, value)
 	}
 
@@ -139,6 +140,14 @@ impl<'a> Batch<'_> {
 	pub fn get_ser(&self, key: &[u8]) -> Option<Serializable> {
 		return self.store.get_ser(key);
 	}
+}
+
+fn remove_non_display_as_string(s: &[u8]) -> String {
+	String::from_utf8(s.to_vec())
+		.unwrap()
+		.chars()
+		.filter(|x| x.is_ascii_graphic())
+		.collect()
 }
 
 unsafe impl Sync for Store {}

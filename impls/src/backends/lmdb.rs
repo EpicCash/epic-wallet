@@ -44,6 +44,7 @@ use rand::thread_rng;
 use super::db::{self, Store};
 
 pub const DB_DIR: &'static str = "db";
+const SQLITE_DIR: &'static str = "sqlite";
 pub const TX_SAVE_DIR: &'static str = "saved_txs";
 
 const OUTPUT_HISTORY_PREFIX: u8 = 'h' as u8;
@@ -125,13 +126,14 @@ where
 	K: Keychain + 'ck,
 {
 	pub fn new(data_file_dir: &str, n_client: C) -> Result<Self, Error> {
-		let db_path = path::Path::new(data_file_dir).join(DB_DIR);
+		let db_path = path::Path::new(data_file_dir).join(DB_DIR).join(SQLITE_DIR);
 		fs::create_dir_all(&db_path).expect("Couldn't create wallet backend directory!");
 
 		let stored_tx_path = path::Path::new(data_file_dir).join(TX_SAVE_DIR);
 		fs::create_dir_all(&stored_tx_path)
 			.expect("Couldn't create wallet backend tx storage directory!");
-		let store = db::Store::new();
+
+		let store = db::Store::new(db_path);
 
 		// Make sure default wallet derivation path always exists
 		// as well as path (so it can be retrieved by batches to know where to store
