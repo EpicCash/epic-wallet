@@ -1,5 +1,4 @@
 use sqlite::{self, Connection};
-use std::fs;
 use std::path::PathBuf;
 
 use crate::serialization as ser;
@@ -206,9 +205,9 @@ impl<'a> Batch<'_> {
 	}
 
 	/// gets a value from the db, provided its key
-	pub fn get(&self, key: &[u8]) -> Option<Serializable> {
-		self.store.get(key)
-	}
+	// pub fn get(&self, key: &[u8]) -> Option<Serializable> {
+	// 	self.store.get(key)
+	// }
 
 	/// Whether the provided key exists
 	pub fn exists(&self, key: &[u8]) -> Result<bool, Error> {
@@ -227,7 +226,7 @@ impl<'a> Batch<'_> {
 			"DELETE FROM data WHERE key = {}",
 			String::from_utf8(key.to_owned()).unwrap()
 		);
-		self.store.execute(statement);
+		self.store.execute(statement)?;
 		Ok(())
 	}
 

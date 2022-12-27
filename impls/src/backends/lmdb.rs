@@ -149,7 +149,7 @@ where
 
 		{
 			let batch = store.batch();
-			batch.put(&acct_key, Serializable::AcctPathMapping(default_account));
+			batch.put(&acct_key, Serializable::AcctPathMapping(default_account))?;
 		}
 
 		let res = LMDBBackend {
@@ -569,7 +569,7 @@ where
 		// Save the previous output data to the db.
 		if let Ok(previous_output) = self.get(&out.key_id, &out.mmr_index) {
 			if previous_output != out {
-				self.save_output_history(previous_output);
+				self.save_output_history(previous_output)?;
 			}
 		}
 		// Save the updated output data to the db.
@@ -582,7 +582,7 @@ where
 				.borrow()
 				.as_ref()
 				.unwrap()
-				.put_ser(&key, Serializable::OutputData(out));
+				.put_ser(&key, Serializable::OutputData(out))?;
 		}
 
 		Ok(())
@@ -612,7 +612,7 @@ where
 					.borrow()
 					.as_ref()
 					.unwrap()
-					.put_ser(&output_history_key, Serializable::OutputData(out));
+					.put_ser(&output_history_key, Serializable::OutputData(out))?;
 			}
 		}
 
@@ -672,11 +672,11 @@ where
 	) -> Result<(), Error> {
 		// Save the previous output data to the db.
 		if let Ok(mut previous_output) = self.get(&id, &mmr_index) {
-			self.save_output_history(previous_output.clone());
+			self.save_output_history(previous_output.clone())?;
 			// Save the output with a deleted status in the output history table.
 			previous_output.status = OutputStatus::Deleted;
 			previous_output.tx_log_entry = *tx_id;
-			self.save_output_history(previous_output);
+			self.save_output_history(previous_output)?;
 		}
 
 		// Delete the output data.
@@ -710,7 +710,7 @@ where
 		self.db.borrow().as_ref().unwrap().put_ser(
 			&output_history_key_id,
 			Serializable::Numeric((last_output_history_id + 1).into()),
-		);
+		)?;
 		Ok(last_output_history_id)
 	}
 
@@ -726,7 +726,7 @@ where
 		self.db.borrow().as_ref().unwrap().put_ser(
 			&tx_id_key,
 			Serializable::Numeric((last_tx_log_id + 1).into()),
-		);
+		)?;
 		Ok(last_tx_log_id)
 	}
 
@@ -757,7 +757,7 @@ where
 			.borrow()
 			.as_ref()
 			.unwrap()
-			.put_ser(&height_key, Serializable::Numeric(height));
+			.put_ser(&height_key, Serializable::Numeric(height))?;
 		Ok(())
 	}
 
@@ -770,7 +770,7 @@ where
 			.borrow()
 			.as_ref()
 			.unwrap()
-			.put_ser(&pmmr_index_key, Serializable::ScannedBlockInfo(block_info));
+			.put_ser(&pmmr_index_key, Serializable::ScannedBlockInfo(block_info))?;
 		Ok(())
 	}
 
@@ -783,7 +783,7 @@ where
 			.borrow()
 			.as_ref()
 			.unwrap()
-			.put_ser(&init_status_key, Serializable::WalletInitStatus(value));
+			.put_ser(&init_status_key, Serializable::WalletInitStatus(value))?;
 		Ok(())
 	}
 
@@ -793,7 +793,7 @@ where
 			.borrow()
 			.as_ref()
 			.unwrap()
-			.put_ser(&deriv_key, Serializable::Numeric(child_n.into()));
+			.put_ser(&deriv_key, Serializable::Numeric(child_n.into()))?;
 		Ok(())
 	}
 
@@ -811,7 +811,7 @@ where
 			.borrow()
 			.as_ref()
 			.unwrap()
-			.put_ser(&tx_log_key, Serializable::TxLogEntry(tx_in));
+			.put_ser(&tx_log_key, Serializable::TxLogEntry(tx_in))?;
 		Ok(())
 	}
 
@@ -824,7 +824,7 @@ where
 			.borrow()
 			.as_ref()
 			.unwrap()
-			.put_ser(&acct_key, Serializable::AcctPathMapping(mapping));
+			.put_ser(&acct_key, Serializable::AcctPathMapping(mapping))?;
 		Ok(())
 	}
 
@@ -870,7 +870,7 @@ where
 			.borrow()
 			.as_ref()
 			.unwrap()
-			.put_ser(&ctx_key, Serializable::Context(s_ctx));
+			.put_ser(&ctx_key, Serializable::Context(s_ctx))?;
 		Ok(())
 	}
 
