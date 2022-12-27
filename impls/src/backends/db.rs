@@ -17,13 +17,21 @@ impl Store {
 		let db_path = db_path.join(SQLITE_FILENAME);
 		let db: Connection = sqlite::open(db_path).unwrap();
 		Store::check_or_create(&db);
-		return Store { db };
+		Store { db }
 	}
 
 	pub fn check_or_create(db: &Connection) -> Result<(), sqlite::Error> {
 		// SELECT * FROM data LIMIT 1; to check if table exists
-		let creation = "CREATE TABLE IF NOT EXISTS data (id INTEGER PRIMARY KEY, key TEXT NOT NULL, data TEXT NOT NULL, prefix TEXT);"; //create database if file not found
-		return db.execute(creation);
+		let creation = r#"CREATE TABLE IF NOT EXISTS data (
+			id INTEGER PRIMARY KEY,
+			key TEXT NOT NULL,
+			prefix TEXT, 
+			data TEXT NOT NULL,
+			q_tx_id INTEGER,
+			q_confirmed INTEGER,
+			q_tx_status TEXT);
+		"#; //create database if file not found
+		db.execute(creation)
 	}
 
 	/// Gets a value from the db, provided its key
@@ -55,7 +63,7 @@ impl Store {
 			remove_non_display_as_string(key)
 		);
 		let mut statement = self.db.prepare(query).unwrap().into_iter();
-		return Ok(statement.next().is_some());
+		Ok(statement.next().is_some())
 	}
 
 	/// Produces an iterator of (key, value) pairs, where values are `Readable` types
@@ -95,22 +103,100 @@ impl<'a> Batch<'_> {
 	/// Writes a single key/value pair to the db
 	pub fn put(&self, key: &[u8], value: Serializable) -> Result<(), Error> {
 		// serialize value to json
-		let value = ser::serialize(value).unwrap();
+		let value_s = ser::serialize(&value).unwrap();
 		let prefix = key[0] as char;
 
-		let mut query = format!(
-			r#"INSERT INTO data (key, data, prefix) VALUES ("{}", '{}', "{}");"#,
-			remove_non_display_as_string(key),
-			value,
-			prefix
-		);
+		// Insert on the database
+		// TxLogEntry and OutputData make use of queriable columns
+		let mut query = match &value {
+			Serializable::TxLogEntry(t) => format!(
+				r#"INSERT INTO data 
+						(key, data, prefix, q_tx_id, q_confirmed, q_tx_status) 
+					VALUES 
+						("{}", '{}', "{}", {}, {}, "{}");
+				"#,
+				remove_non_display_as_string(key),
+				value_s,
+				prefix,
+				t.id,
+				t.confirmed,
+				t.tx_type
+			),
+			Serializable::OutputData(o) => format!(
+				r#"INSERT INTO data 
+						(key, data, prefix, q_tx_id, q_tx_status) 
+					VALUES 
+						("{}", '{}', "{}", "{}", "{}")
+				"#,
+				remove_non_display_as_string(key),
+				value_s,
+				prefix,
+				match o.tx_log_entry {
+					Some(entry) => entry.to_string(),
+					None => "".to_string(),
+				},
+				o.status
+			),
+			_ => format!(
+				r#"INSERT INTO data 
+						(key, data, prefix) 
+					VALUES 
+						("{}", '{}', "{}");
+				"#,
+				remove_non_display_as_string(key),
+				value_s,
+				prefix
+			),
+		};
 
+		// Update if the current key exists on the database
+		// TxLogEntry and OutputData make use of queriable columns
 		if self.exists(&key).unwrap() {
-			query = format!(
-				r#"UPDATE data SET data = '{}' WHERE key = "{}";"#,
-				value,
-				remove_non_display_as_string(key)
-			);
+			query = match &value {
+				Serializable::TxLogEntry(t) => format!(
+					r#"UPDATE data
+						SET 
+							data = '{}', 
+							q_tx_id = {}, 
+							q_confirmed = {}, 
+							q_tx_status = "{}"
+						WHERE 
+							key = "{}";
+					"#,
+					value_s,
+					t.id,
+					t.confirmed,
+					t.tx_type,
+					remove_non_display_as_string(key)
+				),
+				Serializable::OutputData(o) => format!(
+					r#"UPDATE data 
+						SET 
+							data = '{}',
+							q_tx_id = {},
+							q_tx_status = "{}"
+						WHERE 
+							key = "{}";
+					"#,
+					value_s,
+					match o.tx_log_entry {
+						Some(entry) => entry.to_string(),
+						None => "".to_string(),
+					},
+					o.status,
+					remove_non_display_as_string(key)
+				),
+				_ => format!(
+					r#"UPDATE data 
+						SET 
+							data = '{}' 
+						WHERE 
+							key = "{}";
+					"#,
+					value_s,
+					remove_non_display_as_string(key)
+				),
+			};
 		}
 		Ok(self.store.execute(query).unwrap())
 	}
@@ -146,7 +232,7 @@ impl<'a> Batch<'_> {
 	}
 
 	pub fn get_ser(&self, key: &[u8]) -> Option<Serializable> {
-		return self.store.get_ser(key);
+		self.store.get_ser(key)
 	}
 }
 
