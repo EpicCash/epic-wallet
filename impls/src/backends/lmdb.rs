@@ -624,16 +624,10 @@ where
 			Some(i) => to_key_u64(OUTPUT_PREFIX, &mut id.to_bytes().to_vec(), *i),
 			None => to_key(OUTPUT_PREFIX, &mut id.to_bytes().to_vec()),
 		};
-
-		Ok(self
-			.db
-			.borrow()
-			.as_ref()
-			.unwrap()
-			.get_ser(&key)
-			.unwrap()
-			.as_output_data()
-			.unwrap())
+		match self.db.borrow().as_ref().unwrap().get_ser(&key) {
+			Some(s) => Ok(s.as_output_data().unwrap()),
+			None => Err(ErrorKind::InvalidKeychainMask.into()),
+		}
 	}
 
 	fn iter(&self) -> Box<dyn Iterator<Item = OutputData>> {
