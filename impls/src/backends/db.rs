@@ -15,6 +15,7 @@ impl Store {
 	pub fn new(db_path: PathBuf) -> Store {
 		let db_path = db_path.join(SQLITE_FILENAME);
 		let db: Connection = sqlite::open(db_path).unwrap();
+		db.execute("PRAGMA journal_mode=WAL");
 		Store::check_or_create(&db);
 		Store { db }
 	}
@@ -23,7 +24,7 @@ impl Store {
 		// SELECT * FROM data LIMIT 1; to check if table exists
 		let creation = r#"CREATE TABLE IF NOT EXISTS data (
 			id INTEGER PRIMARY KEY,
-			key TEXT NOT NULL,
+			key BLOB NOT NULL UNIQUE,
 			prefix TEXT, 
 			data TEXT NOT NULL,
 			q_tx_id INTEGER,
@@ -35,11 +36,7 @@ impl Store {
 
 	/// Gets a value from the db, provided its key
 	pub fn get(&self, key: &[u8]) -> Option<Serializable> {
-		let query = format!(
-			r#"SELECT data FROM data WHERE key = "{}" LIMIT 1;"#,
-			remove_non_display_as_string(key)
-		);
-
+		let query = format!(r#"SELECT data FROM data WHERE key = "{:?}" LIMIT 1;"#, key);
 		match self.db.prepare(query).unwrap().into_iter().next() {
 			Some(s) => {
 				let data = s.unwrap().read::<&str, _>("data").to_string();
@@ -58,8 +55,15 @@ impl Store {
 	/// Whether the provided key exists
 	pub fn exists(&self, key: &[u8]) -> Result<bool, Error> {
 		let query = format!(
-			r#"SELECT * FROM data WHERE key = "{}" LIMIT 1;"#,
-			remove_non_display_as_string(key)
+			r#"
+			SELECT 
+				* 
+			FROM 
+				data 
+			WHERE 
+				key = "{:?}" 
+			LIMIT 1;"#,
+			key
 		);
 		let mut statement = self.db.prepare(query).unwrap().into_iter();
 		Ok(statement.next().is_some())
@@ -112,22 +116,17 @@ impl<'a> Batch<'_> {
 				r#"INSERT INTO data 
 						(key, data, prefix, q_tx_id, q_confirmed, q_tx_status) 
 					VALUES 
-						("{}", '{}', "{}", {}, {}, "{}");
+						("{:?}", '{}', "{}", {}, {}, "{}");
 				"#,
-				remove_non_display_as_string(key),
-				value_s,
-				prefix,
-				t.id,
-				t.confirmed,
-				t.tx_type
+				key, value_s, prefix, t.id, t.confirmed, t.tx_type
 			),
 			Serializable::OutputData(o) => format!(
 				r#"INSERT INTO data 
 						(key, data, prefix, q_tx_id, q_tx_status) 
 					VALUES 
-						("{}", '{}', "{}", "{}", "{}")
+						("{:?}", '{}', "{}", "{}", "{}")
 				"#,
-				remove_non_display_as_string(key),
+				key,
 				value_s,
 				prefix,
 				match o.tx_log_entry {
@@ -140,11 +139,9 @@ impl<'a> Batch<'_> {
 				r#"INSERT INTO data 
 						(key, data, prefix) 
 					VALUES 
-						("{}", '{}', "{}");
+						("{:?}", '{}', "{}");
 				"#,
-				remove_non_display_as_string(key),
-				value_s,
-				prefix
+				key, value_s, prefix
 			),
 		};
 
@@ -160,22 +157,18 @@ impl<'a> Batch<'_> {
 							q_confirmed = {}, 
 							q_tx_status = "{}"
 						WHERE 
-							key = "{}";
+							key = "{:?}";
 					"#,
-					value_s,
-					t.id,
-					t.confirmed,
-					t.tx_type,
-					remove_non_display_as_string(key)
+					value_s, t.id, t.confirmed, t.tx_type, key
 				),
 				Serializable::OutputData(o) => format!(
 					r#"UPDATE data 
 						SET 
 							data = '{}',
-							q_tx_id = {},
+							q_tx_id = "{}",
 							q_tx_status = "{}"
 						WHERE 
-							key = "{}";
+							key = "{:?}";
 					"#,
 					value_s,
 					match o.tx_log_entry {
@@ -183,17 +176,16 @@ impl<'a> Batch<'_> {
 						None => "".to_string(),
 					},
 					o.status,
-					remove_non_display_as_string(key)
+					key
 				),
 				_ => format!(
 					r#"UPDATE data 
 						SET 
 							data = '{}' 
 						WHERE 
-							key = "{}";
+							key = "{:?}";
 					"#,
-					value_s,
-					remove_non_display_as_string(key)
+					value_s, key
 				),
 			};
 		}
@@ -222,10 +214,7 @@ impl<'a> Batch<'_> {
 
 	/// Deletes a key/value pair from the db
 	pub fn delete(&self, key: &[u8]) -> Result<(), Error> {
-		let statement = format!(
-			"DELETE FROM data WHERE key = {}",
-			String::from_utf8(key.to_owned()).unwrap()
-		);
+		let statement = format!(r#"DELETE FROM data WHERE key = "{:?}""#, key);
 		self.store.execute(statement)?;
 		Ok(())
 	}
@@ -233,14 +222,6 @@ impl<'a> Batch<'_> {
 	pub fn get_ser(&self, key: &[u8]) -> Option<Serializable> {
 		self.store.get_ser(key)
 	}
-}
-
-fn remove_non_display_as_string(s: &[u8]) -> String {
-	String::from_utf8(s.to_vec())
-		.unwrap()
-		.chars()
-		.filter(|x| x.is_ascii_graphic())
-		.collect()
 }
 
 unsafe impl Sync for Store {}
