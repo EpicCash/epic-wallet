@@ -133,7 +133,7 @@ where
 		fs::create_dir_all(&stored_tx_path)
 			.expect("Couldn't create wallet backend tx storage directory!");
 
-		let store = db::Store::new(db_path);
+		let store = db::Store::new(db_path)?;
 
 		// Make sure default wallet derivation path always exists
 		// as well as path (so it can be retrieved by batches to know where to store
@@ -626,7 +626,7 @@ where
 		};
 		match self.db.borrow().as_ref().unwrap().get_ser(&key) {
 			Some(s) => Ok(s.as_output_data().unwrap()),
-			None => Err(ErrorKind::InvalidKeychainMask.into()),
+			None => Err(ErrorKind::GenericError("OutputData not found".to_string()).into()),
 		}
 	}
 

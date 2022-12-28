@@ -5,7 +5,7 @@ authors = ["Epic Developers <mimblewimble@lists.launchpad.net>"]
 description = "Simple, private and scalable cryptocurrency implementation based on the MimbleWimble chain format."
 license = "Apache-2.0"
 repository = "https://github.com/mimblewimble/epic-wallet"
-keywords = [ "crypto", "epic", "mimblewimble" ]
+keywords = ["crypto", "epic", "mimblewimble"]
 exclude = ["**/*.epic", "**/*.epic2"]
 #build = "src/build/build.rs"
 edition = "2018"
@@ -28,6 +28,7 @@ ed25519-dalek = "=1.0.0-pre.1"
 sha3 = "0.8"
 byteorder = "1"
 data-encoding = "2"
+sqlite = "0.30.3"
 
 epic_wallet_util = { path = "../util", version = "3.2.2-1" }
 epic_wallet_config = { path = "../config", version = "3.0.0" }

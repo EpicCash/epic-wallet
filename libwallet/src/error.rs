@@ -245,6 +245,10 @@ pub enum ErrorKind {
 	#[fail(display = "Transaction Expired")]
 	TransactionExpired,
 
+	/// SQLite Errors
+	#[fail(display = "SQLite Error")]
+	SQLiteError(String),
+
 	/// Other
 	#[fail(display = "Generic error: {}", _0)]
 	GenericError(String),
@@ -371,5 +375,13 @@ impl From<committed::Error> for Error {
 impl From<epic_store::Error> for Error {
 	fn from(error: epic_store::Error) -> Error {
 		Error::from(ErrorKind::Backend(format!("{}", error)))
+	}
+}
+
+impl From<sqlite::Error> for Error {
+	fn from(error: sqlite::Error) -> Error {
+		Error {
+			inner: Context::new(ErrorKind::SQLiteError(format!("{}", error))),
+		}
 	}
 }
