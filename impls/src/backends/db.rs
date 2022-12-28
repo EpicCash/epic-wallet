@@ -12,12 +12,12 @@ pub struct Store {
 }
 
 impl Store {
-	pub fn new(db_path: PathBuf) -> Store {
+	pub fn new(db_path: PathBuf) -> Result<Store, sqlite::Error> {
 		let db_path = db_path.join(SQLITE_FILENAME);
-		let db: Connection = sqlite::open(db_path).unwrap();
-		db.execute("PRAGMA journal_mode=WAL");
-		Store::check_or_create(&db);
-		Store { db }
+		let db: Connection = sqlite::open(db_path)?;
+		db.execute("PRAGMA journal_mode=WAL")?;
+		Store::check_or_create(&db)?;
+		Ok(Store { db })
 	}
 
 	pub fn check_or_create(db: &Connection) -> Result<(), sqlite::Error> {
@@ -30,7 +30,11 @@ impl Store {
 			q_tx_id INTEGER,
 			q_confirmed INTEGER,
 			q_tx_status TEXT);
-		"#; //create database if file not found
+			CREATE INDEX IF NOT EXISTS prefix_index ON data (prefix);
+			CREATE INDEX IF NOT EXISTS q_tx_id_index ON data (q_tx_id);
+			CREATE INDEX IF NOT EXISTS q_confirmed_index ON data (q_confirmed);
+			CREATE INDEX IF NOT EXISTS q_tx_status_index ON data (q_tx_status);
+		"#;
 		db.execute(creation)
 	}
 
