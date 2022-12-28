@@ -107,7 +107,10 @@ impl Store {
 		outstanding_only: bool,
 	) -> Vec<Serializable> {
 		// initial query (get all TxLogEntry)
-		let mut query = format!("SELECT data WHERE prefix = '{}' ", TX_LOG_ENTRY_PREFIX);
+		let mut query = format!(
+			"SELECT * FROM data WHERE prefix = '{}' ",
+			TX_LOG_ENTRY_PREFIX
+		);
 
 		// filter by parent_key_id (key)
 		query = match parent_key_id {
@@ -136,16 +139,17 @@ impl Store {
 		if outstanding_only {
 			query = format!(
 				"{} {} {}",
-				query, "AND confirmed is null", "AND status IN ('TxReceived','TxSent')"
+				query, "AND confirmed = '0'", "AND status IN ('TxReceived','TxSent')"
 			)
 		};
 
 		self.db
 			.prepare(query)
+			.unwrap()
 			.into_iter()
 			.map(|row| {
-				let row_data = row.read::<String>(2).unwrap(); // data is the 2 column
-				ser::deserialize(&row_data).unwrap()
+				let row = row.unwrap();
+				ser::deserialize(row.read::<&str, _>("data")).unwrap()
 			})
 			.collect()
 	}
@@ -190,15 +194,16 @@ impl Store {
 
 		// get not spent transactions
 		if !show_spent {
-			query = format!("{} {}", query, "AND status != 'Spent'")
+			query = format!("{} {}", query, "AND q_tx_status != 'Spent'")
 		};
 
 		self.db
 			.prepare(query)
+			.unwrap()
 			.into_iter()
 			.map(|row| {
-				let row_data = row.read::<String>(2).unwrap(); // data is the 2 column
-				ser::deserialize(&row_data).unwrap()
+				let row = row.unwrap();
+				ser::deserialize(row.read::<&str, _>("data")).unwrap()
 			})
 			.collect()
 	}
@@ -208,34 +213,47 @@ impl Store {
 	/// Some filters are missing, like (!OutputData.is_coinbase) and (OutputData.num_confirmations(current_height) >= minimum_confirmations)
 	/// that is, what it returns is not necessarily eligible. But to be eligible it needs to be in the return of that function.
 	pub fn get_outputs_eligible(&self) -> Vec<Serializable> {
-		let mut query = format!(
+		let query = format!(
 			"SELECT data WHERE prefix = '{}' status IN ('Unspent', 'Unconfirmed')",
 			OUTPUT_PREFIX
 		);
 
 		self.db
 			.prepare(query)
+			.unwrap()
 			.into_iter()
 			.map(|row| {
-				let row_data = row.read::<String>(2).unwrap(); // data is the 2 column
-				ser::deserialize(&row_data).unwrap()
+				let row = row.unwrap();
+				ser::deserialize(row.read::<&str, _>("data")).unwrap()
 			})
 			.collect()
 	}
 
 	/// get a Context
-	pub fn get_context(&self, ctx_key: Vec<u8>) -> Vec<Serializable> {
+	pub fn get_context(&self, ctx_key: Option<&[u8]>) -> Vec<Serializable> {
 		let mut query = format!(
 			"SELECT data WHERE prefix = '{}' ",
 			PRIVATE_TX_CONTEXT_PREFIX
 		);
 
+		// get transaction key column
+		query = match ctx_key {
+			Some(key) => format!(
+				"{} {} '{}'",
+				query,
+				SQLITE_FILTER,
+				String::from_utf8(key.to_vec()).unwrap()
+			),
+			None => query,
+		};
+
 		self.db
 			.prepare(query)
+			.unwrap()
 			.into_iter()
 			.map(|row| {
-				let row_data = row.read::<String>(2).unwrap(); // data is the 2 column
-				ser::deserialize(&row_data).unwrap()
+				let row = row.unwrap();
+				ser::deserialize(row.read::<&str, _>("data")).unwrap()
 			})
 			.collect()
 	}
