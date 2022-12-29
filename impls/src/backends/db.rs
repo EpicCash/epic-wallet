@@ -25,7 +25,16 @@ use std::thread;
 use std::time::Duration;
 
 const SQLITE_MAX_RETRIES: u8 = 3;
+use super::lmdb::{
+	OUTPUT_HISTORY_PREFIX, OUTPUT_PREFIX, PRIVATE_TX_CONTEXT_PREFIX, TX_LOG_ENTRY_PREFIX,
+};
+
 static SQLITE_FILENAME: &str = "epic.db";
+static DB_DEFAULT_PATH: &str = "~/.epic/user/wallet_data/db/sqlite/";
+static DB_FILENAME: &str = "epic.db";
+static SQLITE_FILTER: &str = "AND key =";
+static ID_FILTER: &str = "AND tx_id =";
+static SLATE_ID_FILTER: &str = "AND slate_id =";
 
 /// Basic struct holding the SQLite database connection
 pub struct Store {
@@ -144,6 +153,168 @@ impl Store {
 	/// Builds a new batch to be used with this store
 	pub fn batch(&self) -> Batch {
 		Batch { store: self }
+	}
+
+	/// get an TxLogEntry by parent_key_id (key column) and tx_id, tx_slate_id
+	/// If no input is passed, returns all TxLogEntry transactions.
+	/// If outstanding_only = true then return Received/Sent not confirmed transactions.
+	pub fn get_txs(
+		&self,
+		tx_id: Option<u32>,
+		tx_slate_id: Option<Uuid>,
+		parent_key_id: Option<Vec<u8>>,
+		outstanding_only: bool,
+	) -> Vec<Serializable> {
+		// initial query (get all TxLogEntry)
+		let mut query = format!(
+			"SELECT * FROM data WHERE prefix = '{}' ",
+			TX_LOG_ENTRY_PREFIX
+		);
+
+		// filter by parent_key_id (key)
+		query = match parent_key_id {
+			Some(key) => format!(
+				"{} {} '{}'",
+				query,
+				SQLITE_FILTER,
+				String::from_utf8(key).unwrap()
+			),
+			None => query,
+		};
+
+		// filter by tx_id
+		query = match tx_id {
+			Some(id) => format!("{} {} '{}'", query, ID_FILTER, id),
+			None => query,
+		};
+
+		// filter by tx_slate_id
+		query = match tx_slate_id {
+			Some(slate_id) => format!("{} {} '{}'", query, SLATE_ID_FILTER, slate_id),
+			None => query,
+		};
+
+		// get not confirmed AND Received,Sent transactions
+		if outstanding_only {
+			query = format!(
+				"{} {} {}",
+				query, "AND confirmed = '0'", "AND status IN ('TxReceived','TxSent')"
+			)
+		};
+
+		self.db
+			.prepare(query)
+			.unwrap()
+			.into_iter()
+			.map(|row| {
+				let row = row.unwrap();
+				ser::deserialize(row.read::<&str, _>("data")).unwrap()
+			})
+			.collect()
+	}
+
+	/// get all OutputData by parent_key_id and tx_id, tx_slate_id
+	/// If no input is passed, returns all OutputData transactions.
+	/// If show_full_history = true then it will return all usable transactions and those already used by other transactions.
+	/// If show_spent = true then it will return all transactions that have already spent.
+	pub fn get_outputs(
+		&self,
+		tx_id: Option<u32>,
+		parent_key_id: Option<Vec<u8>>,
+		show_full_history: bool,
+		show_spent: bool,
+	) -> Vec<Serializable> {
+		// initial query, get all OutputData
+		let mut query = if show_full_history {
+			format!(
+				"SELECT data WHERE prefix IN ('{}', '{}') ",
+				OUTPUT_PREFIX, OUTPUT_HISTORY_PREFIX,
+			)
+		} else {
+			format!("SELECT data WHERE prefix = '{}' ", OUTPUT_PREFIX)
+		};
+
+		// get transaction key column
+		query = match parent_key_id {
+			Some(key) => format!(
+				"{} {} '{}'",
+				query,
+				SQLITE_FILTER,
+				String::from_utf8(key).unwrap()
+			),
+			None => query,
+		};
+
+		// get transaction with tx_id
+		query = match tx_id {
+			Some(id) => format!("{} {} '{}'", query, ID_FILTER, id),
+			None => query,
+		};
+
+		// get not spent transactions
+		if !show_spent {
+			query = format!("{} {}", query, "AND q_tx_status != 'Spent'")
+		};
+
+		self.db
+			.prepare(query)
+			.unwrap()
+			.into_iter()
+			.map(|row| {
+				let row = row.unwrap();
+				ser::deserialize(row.read::<&str, _>("data")).unwrap()
+			})
+			.collect()
+	}
+
+	/// Return a larger set of which the set of eligible transactions is in here.
+	/// This function makes it easy to get the eligible transactions to create a new transaction.
+	/// Some filters are missing, like (!OutputData.is_coinbase) and (OutputData.num_confirmations(current_height) >= minimum_confirmations)
+	/// that is, what it returns is not necessarily eligible. But to be eligible it needs to be in the return of that function.
+	pub fn get_outputs_eligible(&self) -> Vec<Serializable> {
+		let query = format!(
+			"SELECT data WHERE prefix = '{}' AND status IN ('Unspent', 'Unconfirmed')",
+			OUTPUT_PREFIX
+		);
+
+		self.db
+			.prepare(query)
+			.unwrap()
+			.into_iter()
+			.map(|row| {
+				let row = row.unwrap();
+				ser::deserialize(row.read::<&str, _>("data")).unwrap()
+			})
+			.collect()
+	}
+
+	/// get a Context
+	pub fn get_context(&self, ctx_key: Option<&[u8]>) -> Vec<Serializable> {
+		let mut query = format!(
+			"SELECT data WHERE prefix = '{}' ",
+			PRIVATE_TX_CONTEXT_PREFIX
+		);
+
+		// get transaction key column
+		query = match ctx_key {
+			Some(key) => format!(
+				"{} {} '{}'",
+				query,
+				SQLITE_FILTER,
+				String::from_utf8(key.to_vec()).unwrap()
+			),
+			None => query,
+		};
+
+		self.db
+			.prepare(query)
+			.unwrap()
+			.into_iter()
+			.map(|row| {
+				let row = row.unwrap();
+				ser::deserialize(row.read::<&str, _>("data")).unwrap()
+			})
+			.collect()
 	}
 
 	/// Executes an SQLite statement
