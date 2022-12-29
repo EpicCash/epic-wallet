@@ -730,7 +730,7 @@ where
 			.borrow()
 			.as_ref()
 			.unwrap()
-			.iter(&[OUTPUT_PREFIX])
+			.iter(&[TX_LOG_ENTRY_PREFIX])
 			.into_iter()
 			.filter_map(Serializable::as_txlogentry)
 			.collect();
@@ -828,7 +828,7 @@ where
 			.borrow()
 			.as_ref()
 			.unwrap()
-			.iter(&[OUTPUT_PREFIX])
+			.iter(&[ACCOUNT_PATH_MAPPING_PREFIX])
 			.into_iter()
 			.filter_map(Serializable::as_acct_path_mapping)
 			.collect();
