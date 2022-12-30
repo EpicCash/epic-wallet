@@ -4,7 +4,10 @@ use std::path::PathBuf;
 use crate::serialization as ser;
 use crate::serialization::Serializable;
 use crate::Error;
+use std::thread;
+use std::time::Duration;
 
+const SQLITE_MAX_RETRIES: u8 = 3;
 static SQLITE_FILENAME: &str = "epic.db";
 
 pub struct Store {
@@ -15,7 +18,6 @@ impl Store {
 	pub fn new(db_path: PathBuf) -> Result<Store, sqlite::Error> {
 		let db_path = db_path.join(SQLITE_FILENAME);
 		let db: Connection = sqlite::open(db_path)?;
-		db.execute("PRAGMA journal_mode=WAL")?;
 		Store::check_or_create(&db)?;
 		Ok(Store { db })
 	}
@@ -34,6 +36,10 @@ impl Store {
 			CREATE INDEX IF NOT EXISTS q_tx_id_index ON data (q_tx_id);
 			CREATE INDEX IF NOT EXISTS q_confirmed_index ON data (q_confirmed);
 			CREATE INDEX IF NOT EXISTS q_tx_status_index ON data (q_tx_status);
+
+			PRAGMA journal_mode=WAL; -- better write-concurrency
+			PRAGMA synchronous=NORMAL; -- fsync only in critical moments
+			PRAGMA wal_checkpoint(TRUNCATE); -- free some space by truncating possibly massive WAL files from the last run.
 		"#;
 		db.execute(creation)
 	}
@@ -97,7 +103,29 @@ impl Store {
 	}
 
 	pub fn execute(&self, statement: String) -> Result<(), sqlite::Error> {
-		self.db.execute(statement)
+		let mut retries = 0;
+
+		loop {
+			match self.db.execute(statement.to_string()) {
+				Ok(()) => break,
+				Err(e) => {
+					// Code follows SQLite errors
+					// Full documentation for error types can be found on https://www.sqlite.org/rescode.html
+					// The error 5 is SQLITE_BUSY
+					if e.code.unwrap() != 5 {
+						return Err(e);
+					}
+					retries = retries + 1;
+
+					if retries > SQLITE_MAX_RETRIES {
+						return Err(e);
+					}
+					thread::sleep(Duration::from_millis(100));
+				}
+			}
+		}
+
+		Ok(())
 	}
 }
 
