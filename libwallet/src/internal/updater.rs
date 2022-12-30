@@ -49,36 +49,9 @@ where
 	C: NodeClient + 'a,
 	K: Keychain + 'a,
 {
-	// just read the wallet here, no need for a write lock
-	let mut outputs = wallet
-		.iter()
-		.filter(|out| show_spent || out.status != OutputStatus::Spent)
-		.collect::<Vec<_>>();
-		
-	if show_full_history {
-		outputs.append(
-			&mut wallet
-				.history_iter()
-				.filter(|out| show_spent || out.status != OutputStatus::Spent)
-				.collect::<Vec<_>>(),
-		);
-	}
-
-	// only include outputs with a given tx_id if provided
-	if let Some(id) = tx_id {
-		outputs = outputs
-			.into_iter()
-			.filter(|out| out.tx_log_entry == Some(id))
-			.collect::<Vec<_>>();
-	}
-
-	if let Some(k) = parent_key_id {
-		outputs = outputs
-			.iter()
-			.filter(|o| o.root_key_id == *k)
-			.map(|o| o.clone())
-			.collect();
-	}
+	let mut outputs: Vec<OutputData> = wallet
+		.output_data_iter(tx_id, parent_key_id, show_full_history, show_spent)
+		.collect();
 
 	outputs.sort_by_key(|out| (out.n_child, out.tx_log_entry));
 	let keychain = wallet.keychain(keychain_mask)?;
@@ -113,30 +86,7 @@ where
 	K: Keychain + 'a,
 {
 	let mut txs: Vec<TxLogEntry> = wallet
-		.tx_log_iter()
-		.filter(|tx_entry| {
-			let f_pk = match parent_key_id {
-				Some(k) => tx_entry.parent_key_id == *k,
-				None => true,
-			};
-			let f_tx_id = match tx_id {
-				Some(i) => tx_entry.id == i,
-				None => true,
-			};
-			let f_txs = match tx_slate_id {
-				Some(t) => tx_entry.tx_slate_id == Some(t),
-				None => true,
-			};
-			let f_outstanding = match outstanding_only {
-				true => {
-					!tx_entry.confirmed
-						&& (tx_entry.tx_type == TxLogEntryType::TxReceived
-							|| tx_entry.tx_type == TxLogEntryType::TxSent)
-				}
-				false => true,
-			};
-			f_pk && f_tx_id && f_txs && f_outstanding
-		})
+		.tx_log_iter_filtered(tx_id, tx_slate_id, parent_key_id, outstanding_only)
 		.collect();
 	txs.sort_by_key(|tx| tx.creation_ts);
 	Ok(txs)

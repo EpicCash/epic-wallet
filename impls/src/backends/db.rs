@@ -30,8 +30,6 @@ use super::lmdb::{
 };
 
 static SQLITE_FILENAME: &str = "epic.db";
-static DB_DEFAULT_PATH: &str = "~/.epic/user/wallet_data/db/sqlite/";
-static DB_FILENAME: &str = "epic.db";
 static SQLITE_FILTER: &str = "AND key =";
 static ID_FILTER: &str = "AND tx_id =";
 static SLATE_ID_FILTER: &str = "AND slate_id =";
@@ -480,6 +478,36 @@ impl<'a> Batch<'_> {
 	/// Encapsulation for the store get_ser function
 	pub fn get_ser(&self, key: &[u8]) -> Option<Serializable> {
 		self.store.get_ser(key)
+	}
+	pub fn get_txs(
+		&self,
+		tx_id: Option<u32>,
+		tx_slate_id: Option<Uuid>,
+		parent_key_id: Option<Vec<u8>>,
+		outstanding_only: bool,
+	) -> Vec<Serializable> {
+		self.store
+			.get_txs(tx_id, tx_slate_id, parent_key_id, outstanding_only)
+	}
+
+	pub fn get_outputs(
+		&self,
+		tx_id: Option<u32>,
+		parent_key_id: Option<Vec<u8>>,
+		show_full_history: bool,
+		show_spent: bool,
+	) -> Vec<Serializable> {
+		self.store
+			.get_outputs(tx_id, parent_key_id, show_full_history, show_spent)
+	}
+
+	pub fn get_outputs_eligible(&self) -> Vec<Serializable> {
+		self.store.get_outputs_eligible()
+	}
+
+	/// get a Context
+	pub fn get_context(&self, ctx_key: Option<&[u8]>) -> Vec<Serializable> {
+		self.store.get_context(ctx_key)
 	}
 }
 

@@ -202,6 +202,30 @@ where
 	/// Iterate over all output data stored by the backend
 	fn tx_log_iter<'a>(&'a self) -> Box<dyn Iterator<Item = TxLogEntry> + 'a>;
 
+	/// Iterate over TxLogIter using filtered queries
+	fn tx_log_iter_filtered<'a>(
+		&'a self,
+		tx_id: Option<u32>,
+		tx_slate_id: Option<Uuid>,
+		parent_key_id: Option<&Identifier>,
+		outstanding_only: bool,
+	) -> Box<dyn Iterator<Item = TxLogEntry> + 'a>;
+
+	/// Iterate over OutputDate using filtered queries
+	fn output_data_iter<'a>(
+		&self,
+		tx_id: Option<u32>,
+		parent_key_id: Option<&Identifier>,
+		show_full_history: bool,
+		show_spent: bool,
+	) -> Box<dyn Iterator<Item = OutputData> + 'a>;
+
+	/// Get context data
+	fn get_context(&self, ctx_key: Option<&[u8]>) -> Box<dyn Iterator<Item = Context>>;
+
+	/// Get all eligible OutputData from database
+	fn get_outputs_eligible(&self) -> Box<dyn Iterator<Item = OutputData>>;
+
 	/// Iterate over all stored account paths
 	fn acct_path_iter<'a>(&'a self) -> Box<dyn Iterator<Item = AcctPathMapping> + 'a>;
 
@@ -265,6 +289,30 @@ where
 
 	/// Iterate over all outputs available in the output history table
 	fn history_iter(&self) -> Box<dyn Iterator<Item = OutputData>>;
+
+	/// Iterate over TxLogIter using filtered queries
+	fn tx_log_iter_filtered(
+		&self,
+		tx_id: Option<u32>,
+		tx_slate_id: Option<Uuid>,
+		parent_key_id: Option<&Identifier>,
+		outstanding_only: bool,
+	) -> Box<dyn Iterator<Item = TxLogEntry>>;
+
+	/// Iterate over OutputData using filtered queries
+	fn output_data_iter(
+		&self,
+		tx_id: Option<u32>,
+		parent_key_id: Option<&Identifier>,
+		show_full_history: bool,
+		show_spent: bool,
+	) -> Box<dyn Iterator<Item = OutputData>>;
+
+	/// Get all eligible OutputData from database
+	fn get_outputs_eligible(&self) -> Box<dyn Iterator<Item = OutputData>>;
+
+	/// Get context data
+	fn get_context(&self, ctx_key: Option<&[u8]>) -> Box<dyn Iterator<Item = Context>>;
 
 	/// Delete data about an output from the backend
 	fn delete(

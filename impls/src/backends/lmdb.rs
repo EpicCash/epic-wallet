@@ -341,6 +341,62 @@ where
 		Box::new(serializables.into_iter().map(|x| x))
 	}
 
+	fn tx_log_iter_filtered<'a>(
+		&'a self,
+		tx_id: Option<u32>,
+		tx_slate_id: Option<Uuid>,
+		parent_key_id: Option<&Identifier>,
+		outstanding_only: bool,
+	) -> Box<dyn Iterator<Item = TxLogEntry> + 'a> {
+		let key = match parent_key_id {
+			Some(i) => Some(i.to_bytes().to_vec()),
+			None => None,
+		};
+		let entries = self
+			.db
+			.get_txs(tx_id, tx_slate_id, key, outstanding_only)
+			.into_iter()
+			.filter_map(Serializable::as_txlogentry);
+		Box::new(entries)
+	}
+
+	fn output_data_iter<'a>(
+		&self,
+		tx_id: Option<u32>,
+		parent_key_id: Option<&Identifier>,
+		show_full_history: bool,
+		show_spent: bool,
+	) -> Box<dyn Iterator<Item = OutputData> + 'a> {
+		let key = match parent_key_id {
+			Some(i) => Some(i.to_bytes().to_vec()),
+			None => None,
+		};
+		let data = self
+			.db
+			.get_outputs(tx_id, key, show_full_history, show_spent)
+			.into_iter()
+			.filter_map(Serializable::as_output_data);
+		Box::new(data)
+	}
+
+	fn get_outputs_eligible(&self) -> Box<dyn Iterator<Item = OutputData>> {
+		let eligible = self
+			.db
+			.get_outputs_eligible()
+			.into_iter()
+			.filter_map(Serializable::as_output_data);
+		Box::new(eligible)
+	}
+
+	fn get_context(&self, ctx_key: Option<&[u8]>) -> Box<dyn Iterator<Item = Context>> {
+		let ctx = self
+			.db
+			.get_context(ctx_key)
+			.into_iter()
+			.filter_map(Serializable::as_context);
+		Box::new(ctx)
+	}
+
 	fn get_private_context(
 		&mut self,
 		keychain_mask: Option<&SecretKey>,
@@ -729,6 +785,74 @@ where
 			.collect();
 
 		Box::new(serializables.into_iter().map(|x| x))
+	}
+
+	fn tx_log_iter_filtered(
+		&self,
+		tx_id: Option<u32>,
+		tx_slate_id: Option<Uuid>,
+		parent_key_id: Option<&Identifier>,
+		outstanding_only: bool,
+	) -> Box<dyn Iterator<Item = TxLogEntry>> {
+		let key = match parent_key_id {
+			Some(i) => Some(i.to_bytes().to_vec()),
+			None => None,
+		};
+		let entries = self
+			.db
+			.borrow()
+			.as_ref()
+			.unwrap()
+			.get_txs(tx_id, tx_slate_id, key, outstanding_only)
+			.into_iter()
+			.filter_map(Serializable::as_txlogentry);
+		Box::new(entries)
+	}
+
+	fn output_data_iter(
+		&self,
+		tx_id: Option<u32>,
+		parent_key_id: Option<&Identifier>,
+		show_full_history: bool,
+		show_spent: bool,
+	) -> Box<dyn Iterator<Item = OutputData>> {
+		let key = match parent_key_id {
+			Some(i) => Some(i.to_bytes().to_vec()),
+			None => None,
+		};
+		let data = self
+			.db
+			.borrow()
+			.as_ref()
+			.unwrap()
+			.get_outputs(tx_id, key, show_full_history, show_spent)
+			.into_iter()
+			.filter_map(Serializable::as_output_data);
+		Box::new(data)
+	}
+
+	fn get_outputs_eligible(&self) -> Box<dyn Iterator<Item = OutputData>> {
+		let eligible = self
+			.db
+			.borrow()
+			.as_ref()
+			.unwrap()
+			.get_outputs_eligible()
+			.into_iter()
+			.filter_map(Serializable::as_output_data);
+		Box::new(eligible)
+	}
+
+	fn get_context(&self, ctx_key: Option<&[u8]>) -> Box<dyn Iterator<Item = Context>> {
+		let ctx = self
+			.db
+			.borrow()
+			.as_ref()
+			.unwrap()
+			.get_context(ctx_key)
+			.into_iter()
+			.filter_map(Serializable::as_context);
+		Box::new(ctx)
 	}
 
 	fn save_last_confirmed_height(
