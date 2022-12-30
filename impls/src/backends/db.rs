@@ -3,7 +3,9 @@ use std::path::PathBuf;
 
 use crate::serialization as ser;
 use crate::serialization::Serializable;
-use crate::Error;
+use crate::{Error, ErrorKind};
+use std::thread;
+use std::time::Duration;
 
 static SQLITE_FILENAME: &str = "epic.db";
 
@@ -193,7 +195,19 @@ impl<'a> Batch<'_> {
 				),
 			};
 		}
-		Ok(self.store.execute(query).unwrap())
+
+		loop {
+			match self.store.execute(query.to_string()) {
+				Ok(()) => break,
+				Err(e) => {
+					if e.to_string() != "database is locked" {
+						return Err(ErrorKind::SQLiteError(e.to_string()).into());
+					}
+					thread::sleep(Duration::from_millis(10));
+				}
+			}
+		}
+		Ok(())
 	}
 
 	pub fn put_ser(&self, key: &[u8], value: Serializable) -> Result<(), Error> {

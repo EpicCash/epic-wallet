@@ -1115,6 +1115,7 @@ dependencies = [
  "serde_derive",
  "serde_json",
  "sha3",
+ "sqlite",
  "strum",
  "strum_macros",
  "uuid 0.7.4",
@@ -3245,9 +3246,9 @@ dependencies = [
 
 [[package]]
 name = "sqlite"
-version = "0.27.0"
+version = "0.30.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e2df8edd55685048550daaaf2be9024182f3523086cc86f7d50c136e55173e8c"
+checksum = "12e072cb5fb89b3fe5e9c9584676348feb503f9fb3ae829d9868171bc5372d48"
 dependencies = [
  "libc",
  "sqlite3-sys",
