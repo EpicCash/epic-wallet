@@ -12,19 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::cell::RefCell;
-use std::{fs, path};
-
-// for writing stored transaction files
-use std::fs::File;
-use std::io::{Read, Write};
-use std::marker::PhantomData;
-use std::path::Path;
-
-use uuid::Uuid;
-
+use super::db::{self, Store};
 use crate::blake2::blake2b::{Blake2b, Blake2bResult};
-
 use crate::core::core::Transaction;
 use crate::core::ser;
 use crate::keychain::{ChildNumber, ExtKeychain, Identifier, Keychain, SwitchCommitmentType};
@@ -37,11 +26,15 @@ use crate::store::{to_key, to_key_u64};
 use crate::util::secp::constants::SECRET_KEY_SIZE;
 use crate::util::secp::key::SecretKey;
 use crate::util::{self, secp};
-
 use rand::rngs::mock::StepRng;
 use rand::thread_rng;
-
-use super::db::{self, Store};
+use std::cell::RefCell;
+use std::fs::File;
+use std::io::{Read, Write};
+use std::marker::PhantomData;
+use std::path::Path;
+use std::{fs, path};
+use uuid::Uuid;
 
 pub const DB_DIR: &'static str = "db";
 const SQLITE_DIR: &'static str = "sqlite";
