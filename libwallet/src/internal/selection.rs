@@ -536,7 +536,7 @@ where
 {
 	// first find all eligible outputs based on number of confirmations
 	let mut eligible: Vec<OutputData> = wallet
-		.get_outputs_eligible()
+		.eligible_outputs_preset()
 		.filter(|out| {
 			out.root_key_id == *parent_key_id
 				&& out.eligible_to_spend(current_height, minimum_confirmations)
