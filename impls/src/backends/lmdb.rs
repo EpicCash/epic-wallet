@@ -371,10 +371,13 @@ where
 		Box::new(data)
 	}
 
-	fn eligible_outputs_preset(&self) -> Box<dyn Iterator<Item = OutputData>> {
+	fn eligible_outputs_preset(
+		&self,
+		key: Option<&Identifier>,
+	) -> Box<dyn Iterator<Item = OutputData>> {
 		let eligible = self
 			.db
-			.eligible_outputs_preset()
+			.eligible_outputs_preset(key)
 			.into_iter()
 			.filter_map(Serializable::as_output_data);
 		Box::new(eligible)
@@ -815,13 +818,16 @@ where
 		Box::new(data)
 	}
 
-	fn eligible_outputs_preset(&self) -> Box<dyn Iterator<Item = OutputData>> {
+	fn eligible_outputs_preset(
+		&self,
+		key: Option<&Identifier>,
+	) -> Box<dyn Iterator<Item = OutputData>> {
 		let eligible = self
 			.db
 			.borrow()
 			.as_ref()
 			.unwrap()
-			.eligible_outputs_preset()
+			.eligible_outputs_preset(key)
 			.into_iter()
 			.filter_map(Serializable::as_output_data);
 		Box::new(eligible)

@@ -279,12 +279,13 @@ impl Store {
 	/// This function makes it easy to get the eligible transactions to create a new transaction.
 	/// Some filters are missing, like (!OutputData.is_coinbase) and (OutputData.num_confirmations(current_height) >= minimum_confirmations)
 	/// that is, what it returns is not necessarily eligible. But to be eligible it needs to be in the return of that function.
-	pub fn eligible_outputs_preset(&self) -> Vec<Serializable> {
+	pub fn eligible_outputs_preset(&self, key: Option<&Identifier>) -> Vec<Serializable> {
 		let query = format!(
-			"SELECT data WHERE prefix = '{}' AND status IN ('{}', '{}')",
+			"SELECT data WHERE prefix = '{}' AND status IN ('{}', '{}') AND json_extract(data, '$.root_key_id') = '{}'",
 			OUTPUT_PREFIX,
 			OutputStatus::Unspent,
-			OutputStatus::Unconfirmed
+			OutputStatus::Unconfirmed,
+			serde_json::to_string(&key).unwrap()
 		);
 
 		self.db
@@ -513,8 +514,8 @@ impl<'a> Batch<'_> {
 			.get_outputs(tx_id, parent_key_id, show_full_history, show_spent)
 	}
 
-	pub fn eligible_outputs_preset(&self) -> Vec<Serializable> {
-		self.store.eligible_outputs_preset()
+	pub fn eligible_outputs_preset(&self, key: Option<&Identifier>) -> Vec<Serializable> {
+		self.store.eligible_outputs_preset(key)
 	}
 
 	/// get a Context

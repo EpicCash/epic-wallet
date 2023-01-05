@@ -224,7 +224,10 @@ where
 	fn get_context(&self, ctx_key: Option<&[u8]>) -> Box<dyn Iterator<Item = Context>>;
 
 	/// Get all eligible OutputData from database
-	fn eligible_outputs_preset(&self) -> Box<dyn Iterator<Item = OutputData>>;
+	fn eligible_outputs_preset(
+		&self,
+		key: Option<&Identifier>,
+	) -> Box<dyn Iterator<Item = OutputData>>;
 
 	/// Iterate over all stored account paths
 	fn acct_path_iter<'a>(&'a self) -> Box<dyn Iterator<Item = AcctPathMapping> + 'a>;
@@ -309,7 +312,10 @@ where
 	) -> Box<dyn Iterator<Item = OutputData>>;
 
 	/// Get all eligible OutputData from database
-	fn eligible_outputs_preset(&self) -> Box<dyn Iterator<Item = OutputData>>;
+	fn eligible_outputs_preset(
+		&self,
+		key: Option<&Identifier>,
+	) -> Box<dyn Iterator<Item = OutputData>>;
 
 	/// Get context data
 	fn get_context(&self, ctx_key: Option<&[u8]>) -> Box<dyn Iterator<Item = Context>>;
