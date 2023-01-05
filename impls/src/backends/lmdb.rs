@@ -348,13 +348,9 @@ where
 		parent_key_id: Option<&Identifier>,
 		outstanding_only: bool,
 	) -> Box<dyn Iterator<Item = TxLogEntry> + 'a> {
-		let key = match parent_key_id {
-			Some(i) => Some(i.to_bytes().to_vec()),
-			None => None,
-		};
 		let entries = self
 			.db
-			.get_txs(tx_id, tx_slate_id, key, outstanding_only)
+			.get_txs(tx_id, tx_slate_id, parent_key_id, outstanding_only)
 			.into_iter()
 			.filter_map(Serializable::as_txlogentry);
 		Box::new(entries)
@@ -367,13 +363,9 @@ where
 		show_full_history: bool,
 		show_spent: bool,
 	) -> Box<dyn Iterator<Item = OutputData> + 'a> {
-		let key = match parent_key_id {
-			Some(i) => Some(i.to_bytes().to_vec()),
-			None => None,
-		};
 		let data = self
 			.db
-			.get_outputs(tx_id, key, show_full_history, show_spent)
+			.get_outputs(tx_id, parent_key_id, show_full_history, show_spent)
 			.into_iter()
 			.filter_map(Serializable::as_output_data);
 		Box::new(data)
@@ -794,16 +786,12 @@ where
 		parent_key_id: Option<&Identifier>,
 		outstanding_only: bool,
 	) -> Box<dyn Iterator<Item = TxLogEntry>> {
-		let key = match parent_key_id {
-			Some(i) => Some(i.to_bytes().to_vec()),
-			None => None,
-		};
 		let entries = self
 			.db
 			.borrow()
 			.as_ref()
 			.unwrap()
-			.get_txs(tx_id, tx_slate_id, key, outstanding_only)
+			.get_txs(tx_id, tx_slate_id, parent_key_id, outstanding_only)
 			.into_iter()
 			.filter_map(Serializable::as_txlogentry);
 		Box::new(entries)
@@ -816,16 +804,12 @@ where
 		show_full_history: bool,
 		show_spent: bool,
 	) -> Box<dyn Iterator<Item = OutputData>> {
-		let key = match parent_key_id {
-			Some(i) => Some(i.to_bytes().to_vec()),
-			None => None,
-		};
 		let data = self
 			.db
 			.borrow()
 			.as_ref()
 			.unwrap()
-			.get_outputs(tx_id, key, show_full_history, show_spent)
+			.get_outputs(tx_id, parent_key_id, show_full_history, show_spent)
 			.into_iter()
 			.filter_map(Serializable::as_output_data);
 		Box::new(data)

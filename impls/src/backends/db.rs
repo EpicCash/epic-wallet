@@ -19,6 +19,8 @@
 use crate::serialization as ser;
 use crate::serialization::Serializable;
 use crate::Error;
+use epic_wallet_libwallet::{OutputStatus, TxLogEntryType};
+use epic_wallet_util::epic_keychain::Identifier;
 use sqlite::{self, Connection};
 use std::path::PathBuf;
 use std::thread;
@@ -32,8 +34,7 @@ use super::lmdb::{
 
 static SQLITE_FILENAME: &str = "epic.db";
 static SQLITE_FILTER: &str = "AND key =";
-static ID_FILTER: &str = "AND tx_id =";
-static SLATE_ID_FILTER: &str = "AND slate_id =";
+static ID_FILTER: &str = "AND q_tx_id =";
 
 /// Basic struct holding the SQLite database connection
 pub struct Store {
@@ -161,7 +162,7 @@ impl Store {
 		&self,
 		tx_id: Option<u32>,
 		tx_slate_id: Option<Uuid>,
-		parent_key_id: Option<Vec<u8>>,
+		parent_key_id: Option<&Identifier>,
 		outstanding_only: bool,
 	) -> Vec<Serializable> {
 		// initial query (get all TxLogEntry)
@@ -173,10 +174,9 @@ impl Store {
 		// filter by parent_key_id (key)
 		query = match parent_key_id {
 			Some(key) => format!(
-				"{} {} '{}'",
+				"{} AND json_extract(data, '$.root_key_id') = '{}'",
 				query,
-				SQLITE_FILTER,
-				String::from_utf8(key).unwrap()
+				serde_json::to_string(key).unwrap()
 			),
 			None => query,
 		};
@@ -189,15 +189,24 @@ impl Store {
 
 		// filter by tx_slate_id
 		query = match tx_slate_id {
-			Some(slate_id) => format!("{} {} '{}'", query, SLATE_ID_FILTER, slate_id),
+			Some(slate_id) => format!(
+				"{} {} {}",
+				query, "AND json_extract(data, $.slate_id) = ", slate_id
+			),
 			None => query,
 		};
 
 		// get not confirmed AND Received,Sent transactions
 		if outstanding_only {
 			query = format!(
-				"{} {} {}",
-				query, "AND confirmed = '0'", "AND status IN ('TxReceived','TxSent')"
+				"{} {} {} {} {} {} {}",
+				query,
+				"AND confirmed = '0'",
+				"AND status IN ('",
+				TxLogEntryType::TxReceived,
+				"','",
+				TxLogEntryType::TxSent,
+				"')"
 			)
 		};
 
@@ -219,7 +228,7 @@ impl Store {
 	pub fn get_outputs(
 		&self,
 		tx_id: Option<u32>,
-		parent_key_id: Option<Vec<u8>>,
+		parent_key_id: Option<&Identifier>,
 		show_full_history: bool,
 		show_spent: bool,
 	) -> Vec<Serializable> {
@@ -239,7 +248,7 @@ impl Store {
 				"{} {} '{}'",
 				query,
 				SQLITE_FILTER,
-				String::from_utf8(key).unwrap()
+				serde_json::to_string(key).unwrap()
 			),
 			None => query,
 		};
@@ -252,7 +261,7 @@ impl Store {
 
 		// get not spent transactions
 		if !show_spent {
-			query = format!("{} {}", query, "AND q_tx_status != 'Spent'")
+			query = format!("{} AND q_tx_status = != '{}'", query, OutputStatus::Spent)
 		};
 
 		self.db
@@ -272,8 +281,10 @@ impl Store {
 	/// that is, what it returns is not necessarily eligible. But to be eligible it needs to be in the return of that function.
 	pub fn eligible_outputs_preset(&self) -> Vec<Serializable> {
 		let query = format!(
-			"SELECT data WHERE prefix = '{}' AND status IN ('Unspent', 'Unconfirmed')",
-			OUTPUT_PREFIX
+			"SELECT data WHERE prefix = '{}' AND status IN ('{}', '{}')",
+			OUTPUT_PREFIX,
+			OutputStatus::Unspent,
+			OutputStatus::Unconfirmed
 		);
 
 		self.db
@@ -484,7 +495,7 @@ impl<'a> Batch<'_> {
 		&self,
 		tx_id: Option<u32>,
 		tx_slate_id: Option<Uuid>,
-		parent_key_id: Option<Vec<u8>>,
+		parent_key_id: Option<&Identifier>,
 		outstanding_only: bool,
 	) -> Vec<Serializable> {
 		self.store
@@ -494,7 +505,7 @@ impl<'a> Batch<'_> {
 	pub fn get_outputs(
 		&self,
 		tx_id: Option<u32>,
-		parent_key_id: Option<Vec<u8>>,
+		parent_key_id: Option<&Identifier>,
 		show_full_history: bool,
 		show_spent: bool,
 	) -> Vec<Serializable> {
