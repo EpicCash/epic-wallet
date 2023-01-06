@@ -25,7 +25,6 @@ pub use self::keybase::{KeybaseAllChannels, KeybaseChannel};
 use crate::config::{TorConfig, WalletConfig};
 use crate::libwallet::{Error, ErrorKind, NodeClient, Slate, WalletInst, WalletLCProvider};
 use crate::tor::config::complete_tor_address;
-use crate::util::ZeroingString;
 
 use crate::keychain::Keychain;
 use crate::util::secp::key::SecretKey;

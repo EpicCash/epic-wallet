@@ -13,9 +13,7 @@
 // limitations under the License.
 
 use bitvec::prelude::*;
-use chrono::format::format;
 use emoji::{self, Emoji};
-use std::cmp::Reverse;
 
 use crate::libwallet::{Error, ErrorKind, Slate, SlateVersion, VersionedSlate};
 
@@ -1077,18 +1075,18 @@ impl EmojiSlate {
 		return byte as u8;
 	}
 
-	fn setExtraBits(&self, data_len: usize) -> BitVec {
+	fn set_extra_bits(&self, data_len: usize) -> BitVec {
 		let mut bit_vec = BitVec::new();
 		let extra_bits = (10 - ((data_len * 8) % 10)) as u8;
-		let mut extra_bits_vec = self.byte2bitvec(extra_bits);
+		let extra_bits_vec = self.byte2bitvec(extra_bits);
 
-		for i in 0..6 {
+		for _ in 0..6 {
 			bit_vec.push(false);
 		}
 		for i in 4..extra_bits_vec.len() {
 			bit_vec.push(extra_bits_vec[i]);
 		}
-		for i in 0..extra_bits {
+		for _ in 0..extra_bits {
 			bit_vec.push(false);
 		}
 
@@ -1164,13 +1162,13 @@ impl EmojiSlate {
 
 		let slate_str = match serde_json::to_string(&out_slate).map_err(|_| ErrorKind::SlateSer) {
 			Ok(s) => s,
-			Err(e) => "ERROR - Slate JSON generation".to_string(),
+			Err(_) => "ERROR - Slate JSON generation".to_string(),
 		}
 		.into_bytes();
 
 		let mut bitstream: BitVec = BitVec::new();
 
-		for bit in self.setExtraBits(slate_str.len()) {
+		for bit in self.set_extra_bits(slate_str.len()) {
 			bitstream.push(bit);
 		}
 
@@ -1185,7 +1183,7 @@ impl EmojiSlate {
 		while bitstream.len() > 0 {
 			let slice = bitstream.drain(0..10);
 			let mut bv: BitVec = BitVec::new();
-			for i in 0..6 {
+			for _ in 0..6 {
 				bv.push(false);
 			}
 			for bit in slice {
