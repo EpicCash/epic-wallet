@@ -115,6 +115,8 @@ pub trait ForeignRpc {
 	*/
 
 	fn build_coinbase(&self, block_fees: &BlockFees) -> Result<VersionedCoinbase, ErrorKind>;
+
+	/// Build a coinbase transaction
 	fn build_foundation(&self, block_fees: &BlockFees) -> Result<VersionedCoinbase, ErrorKind>;
 
 	/**

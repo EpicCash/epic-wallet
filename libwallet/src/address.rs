@@ -105,7 +105,7 @@ pub fn pubkey_from_onion_v3(onion_address: &str) -> Result<DalekPublicKey, Error
 		))?
 		.to_vec();
 
-	address.split_off(32);
+	let _ = address.split_off(32);
 	let key = match DalekPublicKey::from_bytes(&address) {
 		Ok(k) => k,
 		Err(_) => {

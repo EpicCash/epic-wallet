@@ -34,7 +34,7 @@ use crate::util;
 use crate::util::secp::key::SecretKey;
 use crate::util::secp::pedersen;
 use crate::util::secp::pedersen::Commitment;
-use crate::util::{Mutex, RwLock};
+use crate::util::Mutex;
 use failure::ResultExt;
 use serde_json;
 use std::collections::HashMap;

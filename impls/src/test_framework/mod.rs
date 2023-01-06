@@ -17,9 +17,7 @@ use crate::chain;
 use crate::chain::Chain;
 use crate::core;
 use crate::core::core::foundation::load_foundation_output;
-use crate::core::core::{
-	HeaderVersion, Output, OutputFeatures, OutputIdentifier, Transaction, TxKernel,
-};
+use crate::core::core::{Output, OutputFeatures, OutputIdentifier, Transaction, TxKernel};
 use crate::core::{consensus, global, pow};
 use crate::keychain;
 use crate::libwallet;

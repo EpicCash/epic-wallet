@@ -28,7 +28,7 @@ use crate::epic_keychain::{BlindSum, BlindingFactor, Keychain};
 use crate::epic_util::secp::key::{PublicKey, SecretKey};
 use crate::epic_util::secp::pedersen::Commitment;
 use crate::epic_util::secp::Signature;
-use crate::epic_util::{self, secp, RwLock};
+use crate::epic_util::{self, secp};
 use crate::error::{Error, ErrorKind};
 use crate::slate_versions::ser as dalek_ser;
 use ed25519_dalek::PublicKey as DalekPublicKey;
@@ -39,7 +39,6 @@ use rand::thread_rng;
 use serde::ser::{Serialize, Serializer};
 use serde_json;
 use std::fmt;
-use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::slate_versions::v2::SlateV2;
@@ -50,12 +49,16 @@ use crate::slate_versions::v3::{
 use crate::slate_versions::{CURRENT_SLATE_VERSION, EPIC_BLOCK_HEADER_VERSION};
 use crate::types::CbData;
 
+/// Addresses and signatures to confirm payment
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PaymentInfo {
+	/// sender address
 	#[serde(with = "dalek_ser::dalek_pubkey_serde")]
 	pub sender_address: DalekPublicKey,
+	/// receiver address
 	#[serde(with = "dalek_ser::dalek_pubkey_serde")]
 	pub receiver_address: DalekPublicKey,
+	/// receiver signature
 	#[serde(with = "dalek_ser::option_dalek_sig_serde")]
 	pub receiver_signature: Option<DalekSignature>,
 }
@@ -735,6 +738,7 @@ impl Serialize for Slate {
 	}
 }
 
+/// Save the version of Slate
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SlateVersionProbe {
 	#[serde(default)]
@@ -744,6 +748,7 @@ pub struct SlateVersionProbe {
 }
 
 impl SlateVersionProbe {
+	/// Show the version of SlateVersionProbe
 	pub fn version(&self) -> u16 {
 		match &self.version_info {
 			Some(v) => v.version,
@@ -1159,9 +1164,13 @@ impl From<&TxKernelV3> for TxKernel {
 	}
 }
 
+/// Save the type of kernel
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum CompatKernelFeatures {
+	/// Transaction
 	Plain,
+	/// Mined block
 	Coinbase,
+	/// Lock height
 	HeightLocked,
 }
