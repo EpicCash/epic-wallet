@@ -756,7 +756,7 @@ where
 		Box::new(parse_body(req).and_then(move |val: serde_json::Value| {
 			let foreign_api = &api as &dyn ForeignRpc;
 			match foreign_api.handle_request(val) {
-				MaybeReply::Reply(r) => ok({ r }),
+				MaybeReply::Reply(r) => ok(r),
 				MaybeReply::DontReply => {
 					// Since it's http, we need to return something. We return [] because jsonrpc
 					// clients will parse it as an empty batch response.

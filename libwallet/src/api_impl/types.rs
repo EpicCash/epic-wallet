@@ -15,7 +15,6 @@
 //! Types specific to the wallet api, mostly argument serialization
 
 use crate::epic_core::libtx::secp_ser;
-use crate::epic_keychain::Identifier;
 use crate::epic_util::secp::pedersen;
 use crate::slate_versions::ser as dalek_ser;
 use crate::slate_versions::SlateVersion;

@@ -138,8 +138,11 @@ impl EncryptedBody {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(untagged)]
 pub enum RpcId {
+	/// None
 	Null,
+	/// String
 	Str(String),
+	/// Int
 	Integer(u64),
 }
 
