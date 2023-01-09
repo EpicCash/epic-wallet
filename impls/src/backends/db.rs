@@ -245,7 +245,7 @@ impl Store {
 		// get transaction key column
 		query = match parent_key_id {
 			Some(key) => format!(
-				"{} {} '{}'",
+				"{} {} AND json_extract(data, '$.root_key_id')= '{}'",
 				query,
 				SQLITE_FILTER,
 				serde_json::to_string(key).unwrap()
