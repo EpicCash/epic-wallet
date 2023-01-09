@@ -961,7 +961,7 @@ dependencies = [
 
 [[package]]
 name = "epic_wallet"
-version = "3.2.2-1"
+version = "3.3.2-1"
 dependencies = [
  "built",
  "clap",
@@ -988,7 +988,7 @@ dependencies = [
 
 [[package]]
 name = "epic_wallet_api"
-version = "3.2.2-1"
+version = "3.3.2-1"
 dependencies = [
  "base64 0.9.3",
  "chrono",
@@ -1012,7 +1012,7 @@ dependencies = [
 
 [[package]]
 name = "epic_wallet_config"
-version = "3.0.0"
+version = "3.3.2-1"
 dependencies = [
  "dirs",
  "epic_wallet_util",
@@ -1025,7 +1025,7 @@ dependencies = [
 
 [[package]]
 name = "epic_wallet_controller"
-version = "3.2.2-1"
+version = "3.3.2-1"
 dependencies = [
  "chrono",
  "easy-jsonrpc-mw",
@@ -1056,7 +1056,7 @@ dependencies = [
 
 [[package]]
 name = "epic_wallet_impls"
-version = "3.2.2-1"
+version = "3.3.2-1"
 dependencies = [
  "bitvec",
  "blake2-rfc",
@@ -1081,7 +1081,6 @@ dependencies = [
  "ring",
  "semver 0.9.0",
  "serde",
- "serde-pickle",
  "serde_derive",
  "serde_json",
  "sqlite",
@@ -1097,7 +1096,7 @@ dependencies = [
 
 [[package]]
 name = "epic_wallet_libwallet"
-version = "3.2.2-1"
+version = "3.3.2-1"
 dependencies = [
  "blake2-rfc",
  "byteorder 1.4.3",
@@ -1115,6 +1114,7 @@ dependencies = [
  "serde_derive",
  "serde_json",
  "sha3",
+ "sqlite",
  "strum",
  "strum_macros",
  "uuid 0.7.4",
@@ -1122,7 +1122,7 @@ dependencies = [
 
 [[package]]
 name = "epic_wallet_util"
-version = "3.2.2-1"
+version = "3.3.2-1"
 dependencies = [
  "dirs",
  "epic_api",
@@ -1553,12 +1553,6 @@ checksum = "b2b3ea6ff95e175473f8ffe6a7eb7c00d054240321b84c57051175fe3c1e075e"
 dependencies = [
  "libc",
 ]
-
-[[package]]
-name = "iter-read"
-version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c397ca3ea05ad509c4ec451fea28b4771236a376ca1c69fd5143aae0cf8f93c4"
 
 [[package]]
 name = "itertools"
@@ -2038,17 +2032,6 @@ name = "num-bigint"
 version = "0.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "090c7f9998ee0ff65aa5b723e4009f7b217707f1fb5ea551329cc4d6231fb304"
-dependencies = [
- "autocfg 1.0.1",
- "num-integer",
- "num-traits 0.2.14",
-]
-
-[[package]]
-name = "num-bigint"
-version = "0.4.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f93ab6289c7b344a8a9f60f88d80aa20032336fe78da341afc91c8a2341fc75f"
 dependencies = [
  "autocfg 1.0.1",
  "num-integer",
@@ -3113,19 +3096,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "serde-pickle"
-version = "1.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c762ad136a26407c6a80825813600ceeab5e613660d93d79a41f0ec877171e71"
-dependencies = [
- "byteorder 1.4.3",
- "iter-read",
- "num-bigint 0.4.3",
- "num-traits 0.2.14",
- "serde",
-]
-
-[[package]]
 name = "serde-value"
 version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3245,9 +3215,9 @@ dependencies = [
 
 [[package]]
 name = "sqlite"
-version = "0.27.0"
+version = "0.30.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e2df8edd55685048550daaaf2be9024182f3523086cc86f7d50c136e55173e8c"
+checksum = "12e072cb5fb89b3fe5e9c9584676348feb503f9fb3ae829d9868171bc5372d48"
 dependencies = [
  "libc",
  "sqlite3-sys",
