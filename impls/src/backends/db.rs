@@ -33,8 +33,6 @@ use super::lmdb::{
 };
 
 static SQLITE_FILENAME: &str = "epic.db";
-static SQLITE_FILTER: &str = "AND key =";
-static ID_FILTER: &str = "AND q_tx_id =";
 
 /// Basic struct holding the SQLite database connection
 pub struct Store {
@@ -57,12 +55,12 @@ impl Store {
 		CREATE TABLE IF NOT EXISTS data (
 			id INTEGER PRIMARY KEY,
 			key BLOB NOT NULL UNIQUE,
-			prefix TEXT, 
+			prefix TEXT,
 			data TEXT NOT NULL,
 			q_tx_id INTEGER,
 			q_confirmed INTEGER,
 			q_tx_status TEXT);
-			
+
 		-- Create indexes for queriable columns
 		CREATE INDEX IF NOT EXISTS prefix_index ON data (prefix);
 		CREATE INDEX IF NOT EXISTS q_tx_id_index ON data (q_tx_id);
@@ -83,12 +81,12 @@ impl Store {
 	pub fn get(&self, key: &[u8]) -> Option<Serializable> {
 		let query = format!(
 			r#"
-			SELECT 
-				data 
-			FROM 
-				data 
-			WHERE 
-				key = "{:?}" 
+			SELECT
+				data
+			FROM
+				data
+			WHERE
+				key = "{:?}"
 			LIMIT 1;
 			"#,
 			key
@@ -112,12 +110,12 @@ impl Store {
 	pub fn exists(&self, key: &[u8]) -> Result<bool, Error> {
 		let query = format!(
 			r#"
-			SELECT 
-				* 
-			FROM 
-				data 
-			WHERE 
-				key = "{:?}" 
+			SELECT
+				*
+			FROM
+				data
+			WHERE
+				key = "{:?}"
 			LIMIT 1;
 			"#,
 			key
@@ -130,11 +128,11 @@ impl Store {
 	pub fn iter(&self, from: &[u8]) -> Vec<Serializable> {
 		let query = format!(
 			r#"
-			SELECT 
-				data 
-			FROM 
-				data 
-			WHERE 
+			SELECT
+				data
+			FROM
+				data
+			WHERE
 				prefix = "{}";
 			"#,
 			String::from_utf8(from.to_vec()).unwrap()
@@ -168,7 +166,7 @@ impl Store {
 		// initial query (get all TxLogEntry)
 		let mut query = format!(
 			"SELECT * FROM data WHERE prefix = '{}' ",
-			TX_LOG_ENTRY_PREFIX
+			TX_LOG_ENTRY_PREFIX as char
 		);
 
 		// filter by parent_key_id (key)
@@ -183,7 +181,7 @@ impl Store {
 
 		// filter by tx_id
 		query = match tx_id {
-			Some(id) => format!("{} {} '{}'", query, ID_FILTER, id),
+			Some(id) => format!("{} AND q_tx_id = '{}'", query, id),
 			None => query,
 		};
 
@@ -236,18 +234,20 @@ impl Store {
 		let mut query = if show_full_history {
 			format!(
 				"SELECT data WHERE prefix IN ('{}', '{}') ",
-				OUTPUT_PREFIX, OUTPUT_HISTORY_PREFIX,
+				OUTPUT_PREFIX as char, OUTPUT_HISTORY_PREFIX as char,
 			)
 		} else {
-			format!("SELECT data WHERE prefix = '{}' ", OUTPUT_PREFIX)
+			format!(
+				"SELECT data FROM data WHERE prefix = '{}' ",
+				OUTPUT_PREFIX as char
+			)
 		};
 
 		// get transaction key column
 		query = match parent_key_id {
 			Some(key) => format!(
-				"{} {} AND json_extract(data, '$.root_key_id')= '{}'",
+				"{} AND json_extract(data, '$.root_key_id')= '{}'",
 				query,
-				SQLITE_FILTER,
 				serde_json::to_string(key).unwrap()
 			),
 			None => query,
@@ -255,7 +255,7 @@ impl Store {
 
 		// get transaction with tx_id
 		query = match tx_id {
-			Some(id) => format!("{} {} '{}'", query, ID_FILTER, id),
+			Some(id) => format!("{} AND q_tx_id = '{}'", query, id),
 			None => query,
 		};
 
@@ -282,7 +282,7 @@ impl Store {
 	pub fn eligible_outputs_preset(&self, key: Option<&Identifier>) -> Vec<Serializable> {
 		let query = format!(
 			"SELECT data WHERE prefix = '{}' AND status IN ('{}', '{}') AND json_extract(data, '$.root_key_id') = '{}'",
-			OUTPUT_PREFIX,
+			OUTPUT_PREFIX as char,
 			OutputStatus::Unspent,
 			OutputStatus::Unconfirmed,
 			serde_json::to_string(&key).unwrap()
@@ -303,15 +303,14 @@ impl Store {
 	pub fn get_context(&self, ctx_key: Option<&[u8]>) -> Vec<Serializable> {
 		let mut query = format!(
 			"SELECT data WHERE prefix = '{}' ",
-			PRIVATE_TX_CONTEXT_PREFIX
+			PRIVATE_TX_CONTEXT_PREFIX as char
 		);
 
 		// get transaction key column
 		query = match ctx_key {
 			Some(key) => format!(
-				"{} {} '{}'",
+				"{} AND key = '{}'",
 				query,
-				SQLITE_FILTER,
 				String::from_utf8(key.to_vec()).unwrap()
 			),
 			None => query,
@@ -374,17 +373,17 @@ impl<'a> Batch<'_> {
 		// TxLogEntry and OutputData make use of queriable columns
 		let mut query = match &value {
 			Serializable::TxLogEntry(t) => format!(
-				r#"INSERT INTO data 
-						(key, data, prefix, q_tx_id, q_confirmed, q_tx_status) 
-					VALUES 
+				r#"INSERT INTO data
+						(key, data, prefix, q_tx_id, q_confirmed, q_tx_status)
+					VALUES
 						("{:?}", '{}', "{}", {}, {}, "{}");
 				"#,
 				key, value_s, prefix, t.id, t.confirmed, t.tx_type
 			),
 			Serializable::OutputData(o) => format!(
-				r#"INSERT INTO data 
-						(key, data, prefix, q_tx_id, q_tx_status) 
-					VALUES 
+				r#"INSERT INTO data
+						(key, data, prefix, q_tx_id, q_tx_status)
+					VALUES
 						("{:?}", '{}', "{}", "{}", "{}")
 				"#,
 				key,
@@ -397,9 +396,9 @@ impl<'a> Batch<'_> {
 				o.status
 			),
 			_ => format!(
-				r#"INSERT INTO data 
-						(key, data, prefix) 
-					VALUES 
+				r#"INSERT INTO data
+						(key, data, prefix)
+					VALUES
 						("{:?}", '{}', "{}");
 				"#,
 				key, value_s, prefix
@@ -412,23 +411,23 @@ impl<'a> Batch<'_> {
 			query = match &value {
 				Serializable::TxLogEntry(t) => format!(
 					r#"UPDATE data
-						SET 
-							data = '{}', 
-							q_tx_id = {}, 
-							q_confirmed = {}, 
+						SET
+							data = '{}',
+							q_tx_id = {},
+							q_confirmed = {},
 							q_tx_status = "{}"
-						WHERE 
+						WHERE
 							key = "{:?}";
 					"#,
 					value_s, t.id, t.confirmed, t.tx_type, key
 				),
 				Serializable::OutputData(o) => format!(
-					r#"UPDATE data 
-						SET 
+					r#"UPDATE data
+						SET
 							data = '{}',
 							q_tx_id = "{}",
 							q_tx_status = "{}"
-						WHERE 
+						WHERE
 							key = "{:?}";
 					"#,
 					value_s,
@@ -440,10 +439,10 @@ impl<'a> Batch<'_> {
 					key
 				),
 				_ => format!(
-					r#"UPDATE data 
-						SET 
-							data = '{}' 
-						WHERE 
+					r#"UPDATE data
+						SET
+							data = '{}'
+						WHERE
 							key = "{:?}";
 					"#,
 					value_s, key
@@ -475,10 +474,10 @@ impl<'a> Batch<'_> {
 	pub fn delete(&self, key: &[u8]) -> Result<(), Error> {
 		let statement = format!(
 			r#"
-		DELETE 
-		FROM 
-			data 
-		WHERE 
+		DELETE
+		FROM
+			data
+		WHERE
 			key = "{:?}"
 		"#,
 			key
