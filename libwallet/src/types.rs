@@ -220,9 +220,6 @@ where
 		show_spent: bool,
 	) -> Box<dyn Iterator<Item = OutputData> + 'a>;
 
-	/// Get context data
-	fn get_context(&self, ctx_key: Option<&[u8]>) -> Box<dyn Iterator<Item = Context>>;
-
 	/// Get all eligible OutputData from database
 	fn eligible_outputs_preset(
 		&self,
@@ -316,9 +313,6 @@ where
 		&self,
 		key: Option<&Identifier>,
 	) -> Box<dyn Iterator<Item = OutputData>>;
-
-	/// Get context data
-	fn get_context(&self, ctx_key: Option<&[u8]>) -> Box<dyn Iterator<Item = Context>>;
 
 	/// Delete data about an output from the backend
 	fn delete(

@@ -199,8 +199,8 @@ impl Store {
 			query = format!(
 				"{} {} {} {} {} {} {}",
 				query,
-				"AND confirmed = '0'",
-				"AND status IN ('",
+				"AND q_confirmed = '0'",
+				"AND q_tx_status IN ('",
 				TxLogEntryType::TxReceived,
 				"','",
 				TxLogEntryType::TxSent,
@@ -233,7 +233,7 @@ impl Store {
 		// initial query, get all OutputData
 		let mut query = if show_full_history {
 			format!(
-				"SELECT data WHERE prefix IN ('{}', '{}') ",
+				"SELECT data FROM data WHERE prefix IN ('{}', '{}') ",
 				OUTPUT_PREFIX as char, OUTPUT_HISTORY_PREFIX as char,
 			)
 		} else {
@@ -281,40 +281,12 @@ impl Store {
 	/// that is, what it returns is not necessarily eligible. But to be eligible it needs to be in the return of that function.
 	pub fn eligible_outputs_preset(&self, key: Option<&Identifier>) -> Vec<Serializable> {
 		let query = format!(
-			"SELECT data WHERE prefix = '{}' AND status IN ('{}', '{}') AND json_extract(data, '$.root_key_id') = '{}'",
+			"SELECT data FROM data WHERE prefix = '{}' AND q_tx_status IN ('{}', '{}') AND json_extract(data, '$.root_key_id') = '{}'",
 			OUTPUT_PREFIX as char,
 			OutputStatus::Unspent,
 			OutputStatus::Unconfirmed,
 			serde_json::to_string(&key).unwrap()
 		);
-
-		self.db
-			.prepare(query)
-			.unwrap()
-			.into_iter()
-			.map(|row| {
-				let row = row.unwrap();
-				ser::deserialize(row.read::<&str, _>("data")).unwrap()
-			})
-			.collect()
-	}
-
-	/// get a Context
-	pub fn get_context(&self, ctx_key: Option<&[u8]>) -> Vec<Serializable> {
-		let mut query = format!(
-			"SELECT data WHERE prefix = '{}' ",
-			PRIVATE_TX_CONTEXT_PREFIX as char
-		);
-
-		// get transaction key column
-		query = match ctx_key {
-			Some(key) => format!(
-				"{} AND key = '{}'",
-				query,
-				String::from_utf8(key.to_vec()).unwrap()
-			),
-			None => query,
-		};
 
 		self.db
 			.prepare(query)
@@ -515,11 +487,6 @@ impl<'a> Batch<'_> {
 
 	pub fn eligible_outputs_preset(&self, key: Option<&Identifier>) -> Vec<Serializable> {
 		self.store.eligible_outputs_preset(key)
-	}
-
-	/// get a Context
-	pub fn get_context(&self, ctx_key: Option<&[u8]>) -> Vec<Serializable> {
-		self.store.get_context(ctx_key)
 	}
 }
 

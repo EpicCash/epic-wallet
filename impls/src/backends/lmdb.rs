@@ -383,15 +383,6 @@ where
 		Box::new(eligible)
 	}
 
-	fn get_context(&self, ctx_key: Option<&[u8]>) -> Box<dyn Iterator<Item = Context>> {
-		let ctx = self
-			.db
-			.get_context(ctx_key)
-			.into_iter()
-			.filter_map(Serializable::as_context);
-		Box::new(ctx)
-	}
-
 	fn get_private_context(
 		&mut self,
 		keychain_mask: Option<&SecretKey>,
@@ -831,18 +822,6 @@ where
 			.into_iter()
 			.filter_map(Serializable::as_output_data);
 		Box::new(eligible)
-	}
-
-	fn get_context(&self, ctx_key: Option<&[u8]>) -> Box<dyn Iterator<Item = Context>> {
-		let ctx = self
-			.db
-			.borrow()
-			.as_ref()
-			.unwrap()
-			.get_context(ctx_key)
-			.into_iter()
-			.filter_map(Serializable::as_context);
-		Box::new(ctx)
 	}
 
 	fn save_last_confirmed_height(
