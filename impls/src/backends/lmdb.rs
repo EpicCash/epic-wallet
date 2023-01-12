@@ -22,6 +22,7 @@ use crate::libwallet::{
 	ScannedBlockInfo, TxLogEntry, WalletBackend, WalletInitStatus, WalletOutputBatch,
 };
 use crate::serialization::Serializable;
+use crate::store::Error as StoreError;
 use crate::store::{to_key, to_key_u64};
 use crate::util::secp::constants::SECRET_KEY_SIZE;
 use crate::util::secp::key::SecretKey;
@@ -297,7 +298,12 @@ where
 			None => to_key(OUTPUT_PREFIX, &mut id.to_bytes().to_vec()),
 		};
 
-		Ok(self.db.get_ser(&key).unwrap().as_output_data().unwrap())
+		Ok(self
+			.db
+			.get_ser(&key)
+			.ok_or(StoreError::NotFoundErr(format!("Key Id: {}", id)))?
+			.as_output_data()
+			.unwrap())
 	}
 
 	fn iter<'a>(&'a self) -> Box<dyn Iterator<Item = OutputData> + 'a> {
@@ -355,7 +361,15 @@ where
 		let (blind_xor_key, nonce_xor_key) =
 			private_ctx_xor_keys(&self.keychain(keychain_mask)?, slate_id)?;
 
-		let mut ctx = self.db.get(&ctx_key).unwrap().as_context().unwrap();
+		let mut ctx = self
+			.db
+			.get(&ctx_key)
+			.ok_or(StoreError::NotFoundErr(format!(
+				"Slate id: {:x?}",
+				slate_id.to_vec()
+			)))?
+			.as_context()
+			.unwrap();
 
 		for i in 0..SECRET_KEY_SIZE {
 			ctx.sec_key.0[i] = ctx.sec_key.0[i] ^ blind_xor_key[i];
@@ -617,10 +631,15 @@ where
 			Some(i) => to_key_u64(OUTPUT_PREFIX, &mut id.to_bytes().to_vec(), *i),
 			None => to_key(OUTPUT_PREFIX, &mut id.to_bytes().to_vec()),
 		};
-		match self.db.borrow().as_ref().unwrap().get_ser(&key) {
-			Some(s) => Ok(s.as_output_data().unwrap()),
-			None => Err(ErrorKind::GenericError("OutputData not found".to_string()).into()),
-		}
+		Ok(self
+			.db
+			.borrow()
+			.as_ref()
+			.unwrap()
+			.get_ser(&key)
+			.ok_or(StoreError::NotFoundErr(format!("Key Id: {}", id)))?
+			.as_output_data()
+			.unwrap())
 	}
 
 	fn iter(&self) -> Box<dyn Iterator<Item = OutputData>> {
