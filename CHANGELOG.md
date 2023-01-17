@@ -1,3 +1,14 @@
+# epic-wallet 3.3.2
+
+- Fix on tests
+  - Changed requests port
+- Fix for issue #26 (Wallet Tx Details lost Output/s)
+- Fix to issue #20 (Wallet CLI shows wrong balance after recovery)
+- Emoji transaction
+- Fix for Rust warnings
+- New readme
+- LMDB to SQLite interface
+
 # epic-wallet 3.2.2-alpha-1
 
   - [#20](https://github.com/EpicCash/epic-wallet/issues/20) Fix: wrong balance after the recovery process

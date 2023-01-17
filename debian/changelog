@@ -1,3 +1,14 @@
+epic-wallet (3.3.2) bionic; urgency=medium
+
+  [ Epic Team ]
+  * Fix on tests
+  * Fix for issue #26 (Wallet Tx Details lost Output/s)
+  * Fix to issue #20 (Wallet CLI shows wrong balance after recovery)
+  * Emoji transaction
+  * Fix for Rust warnings
+  * New readme
+  * LMDB to SQLite interface
+
 epic-wallet (3.2.2~alpha-1) UNRELEASED; urgency=medium
 
   [ João Victor da Silva ]
@@ -6,9 +17,9 @@ epic-wallet (3.2.2~alpha-1) UNRELEASED; urgency=medium
 
   [ Raul Silva ]
   * Add the emoji transaction method.
-  
+
   [ Marcio Macedo ]
-  * Fix the history show method (fix issue #26): 
+  * Fix the history show method (fix issue #26):
   * Add new method and flag on epic-wallet outputs called show_full_history.
   * This method shows the lost outputs that have been deleted by the chain in the past.
 
