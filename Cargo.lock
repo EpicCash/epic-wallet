@@ -961,7 +961,7 @@ dependencies = [
 
 [[package]]
 name = "epic_wallet"
-version = "3.3.2-1"
+version = "3.3.2"
 dependencies = [
  "built",
  "clap",
@@ -988,7 +988,7 @@ dependencies = [
 
 [[package]]
 name = "epic_wallet_api"
-version = "3.3.2-1"
+version = "3.3.2"
 dependencies = [
  "base64 0.9.3",
  "chrono",
@@ -1012,7 +1012,7 @@ dependencies = [
 
 [[package]]
 name = "epic_wallet_config"
-version = "3.3.2-1"
+version = "3.3.2"
 dependencies = [
  "dirs",
  "epic_wallet_util",
@@ -1025,7 +1025,7 @@ dependencies = [
 
 [[package]]
 name = "epic_wallet_controller"
-version = "3.3.2-1"
+version = "3.3.2"
 dependencies = [
  "chrono",
  "easy-jsonrpc-mw",
@@ -1056,7 +1056,7 @@ dependencies = [
 
 [[package]]
 name = "epic_wallet_impls"
-version = "3.3.2-1"
+version = "3.3.2"
 dependencies = [
  "bitvec",
  "blake2-rfc",
@@ -1096,7 +1096,7 @@ dependencies = [
 
 [[package]]
 name = "epic_wallet_libwallet"
-version = "3.3.2-1"
+version = "3.3.2"
 dependencies = [
  "blake2-rfc",
  "byteorder 1.4.3",
@@ -1122,7 +1122,7 @@ dependencies = [
 
 [[package]]
 name = "epic_wallet_util"
-version = "3.3.2-1"
+version = "3.3.2"
 dependencies = [
  "dirs",
  "epic_api",
