@@ -74,7 +74,13 @@ fn owner_v3_init_secure() -> Result<(), epic_wallet_controller::Error> {
 
 	// 1) Attempt to send an encrypted request before calling `init_secure_api`
 	let req = include_str!("data/v3_reqs/retrieve_info.req.json");
-	let res = send_request_enc::<String>(RpcId::Integer(1), 1, "http://127.0.0.1:33420/v3/owner", &req, &sec_key)?;
+	let res = send_request_enc::<String>(
+		RpcId::Integer(1),
+		1,
+		"http://127.0.0.1:33420/v3/owner",
+		&req,
+		&sec_key,
+	)?;
 	println!("RES 1: {:?}", res);
 	assert!(res.is_err());
 	assert_eq!(res.unwrap_err().code, -32001);
@@ -207,16 +213,26 @@ fn owner_v3_init_secure() -> Result<(), epic_wallet_controller::Error> {
 		}
 	})
 	.to_string();
-	let res =
-		send_request_enc::<String>(RpcId::Integer(12), 1, "http://127.0.0.1:33420/v3/owner", &req, &shared_key)?;
+	let res = send_request_enc::<String>(
+		RpcId::Integer(12),
+		1,
+		"http://127.0.0.1:33420/v3/owner",
+		&req,
+		&shared_key,
+	)?;
 	println!("RES 12: {:?}", res);
 	assert!(res.is_err());
 	assert_eq!(res.unwrap_err().code, -32601);
 
 	// 13) A request which triggers an internal API error (not enough funds)
 	let req = include_str!("data/v3_reqs/init_send_tx.req.json");
-	let res =
-		send_request_enc::<String>(RpcId::Integer(13), 1, "http://127.0.0.1:33420/v3/owner", &req, &shared_key)?;
+	let res = send_request_enc::<String>(
+		RpcId::Integer(13),
+		1,
+		"http://127.0.0.1:33420/v3/owner",
+		&req,
+		&shared_key,
+	)?;
 	println!("RES 13: {:?}", res);
 	assert!(res.is_err());
 	assert_eq!(res.unwrap_err().code, -32099);

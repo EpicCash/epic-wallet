@@ -134,15 +134,16 @@ impl EncryptedBody {
 	}
 }
 
-
 /// JSON-RPC 2.0 Request Id
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(untagged)]
 pub enum RpcId {
-    Null,
-    Str(String),
-    Integer(u64),
-
+	/// None
+	Null,
+	/// String
+	Str(String),
+	/// Int
+	Integer(u64),
 }
 
 /// Wrapper for secure JSON requests
@@ -315,12 +316,14 @@ fn encrypted_request() -> Result<(), Error> {
 			"token": "d202964900000000d302964900000000d402964900000000d502964900000000"
 		}
 	});
-	let enc_req = EncryptedRequest::from_json(1, &req, &shared_key)?;
+	let id = RpcId::Integer(1);
+	let enc_req = EncryptedRequest::from_json(id, &req, &shared_key)?;
 	println!("{:?}", enc_req);
 	let dec_req = enc_req.decrypt(&shared_key)?;
 	println!("{:?}", dec_req);
 	assert_eq!(req, dec_req);
-	let enc_res = EncryptedResponse::from_json(1, &req, &shared_key)?;
+	let id = RpcId::Integer(1);
+	let enc_res = EncryptedResponse::from_json(id, &req, &shared_key)?;
 	println!("{:?}", enc_res);
 	println!("{:?}", enc_res.as_json_str()?);
 	let dec_res = enc_res.decrypt(&shared_key)?;

@@ -1,11 +1,11 @@
 [package]
 name = "epic_wallet_impls"
-version = "3.0.0"
-authors = ["Epic Developers <mimblewimble@lists.launchpad.net>"]
+version = "3.3.2"
+authors = ["Epic Developers <epiccash@brickabode.com>"]
 description = "Concrete types derived from libwallet traits"
 license = "Apache-2.0"
-repository = "https://github.com/mimblewimble/epic-wallet"
-keywords = [ "crypto", "epic", "mimblewimble" ]
+repository = "https://github.com/EpicCash/epic-wallet"
+keywords = ["crypto", "epic", "mimblewimble"]
 exclude = ["**/*.epic", "**/*.epic2"]
 edition = "2018"
 
@@ -26,6 +26,9 @@ tokio-core = "0.1"
 tokio-retry = "0.1"
 uuid = { version = "0.7", features = ["serde", "v4"] }
 chrono = { version = "0.4.4", features = ["serde"] }
+bitvec = "1"
+emoji = "0.2.1"
+sqlite = "0.30.3"
 
 #http client (copied from epic)
 http = "0.1.5"
@@ -35,17 +38,14 @@ hyper-timeout = "0.2"
 #Socks/Tor
 byteorder = "1"
 hyper = "0.12"
-#hyper-tls = "0.1"
 tokio-tcp = "0.1"
 tokio-io = "0.1"
-#native-tls = "0.1"
-#tokio-tls = "0.1"
 ed25519-dalek = "=1.0.0-pre.1"
 data-encoding = "2"
 regex = "1.3"
 timer = "0.2"
 sysinfo = "0.9"
 
-epic_wallet_util = { path = "../util", version = "3.0.0" }
-epic_wallet_config = { path = "../config", version = "3.0.0" }
-epic_wallet_libwallet = { path = "../libwallet", version = "3.0.0" }
+epic_wallet_util = { path = "../util", version = "3.3.2" }
+epic_wallet_config = { path = "../config", version = "3.3.2" }
+epic_wallet_libwallet = { path = "../libwallet", version = "3.3.2" }

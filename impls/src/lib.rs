@@ -38,12 +38,13 @@ mod client_utils;
 mod error;
 mod lifecycle;
 mod node_clients;
+mod serialization;
 pub mod test_framework;
 pub mod tor;
 
 pub use crate::adapters::{
-	create_sender, HttpSlateSender, KeybaseAllChannels, KeybaseChannel, PathToSlate, SlateGetter,
-	SlatePutter, SlateReceiver, SlateSender,
+	create_sender, EmojiSlate, HttpSlateSender, KeybaseAllChannels, KeybaseChannel, PathToSlate,
+	SlateGetter, SlatePutter, SlateReceiver, SlateSender,
 };
 pub use crate::backends::{wallet_db_exists, LMDBBackend};
 pub use crate::error::{Error, ErrorKind};

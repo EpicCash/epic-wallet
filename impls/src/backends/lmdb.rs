@@ -12,38 +12,37 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use super::db::{self, Store};
+use crate::blake2::blake2b::{Blake2b, Blake2bResult};
+use crate::core::core::Transaction;
+use crate::core::ser;
+use crate::keychain::{ChildNumber, ExtKeychain, Identifier, Keychain, SwitchCommitmentType};
+use crate::libwallet::{
+	AcctPathMapping, Context, Error, ErrorKind, NodeClient, OutputData, OutputStatus,
+	ScannedBlockInfo, TxLogEntry, WalletBackend, WalletInitStatus, WalletOutputBatch,
+};
+use crate::serialization::Serializable;
+use crate::store::Error as StoreError;
+use crate::store::{to_key, to_key_u64};
+use crate::util::secp::constants::SECRET_KEY_SIZE;
+use crate::util::secp::key::SecretKey;
+use crate::util::{self, secp};
+use rand::rngs::mock::StepRng;
+use rand::thread_rng;
 use std::cell::RefCell;
-use std::{fs, path};
-
-// for writing stored transaction files
 use std::fs::File;
 use std::io::{Read, Write};
 use std::marker::PhantomData;
 use std::path::Path;
-
+use std::{fs, path};
 use uuid::Uuid;
 
-use crate::blake2::blake2b::{Blake2b, Blake2bResult};
-
-use crate::keychain::{ChildNumber, ExtKeychain, Identifier, Keychain, SwitchCommitmentType};
-use crate::store::{self, option_to_not_found, to_key, to_key_u64};
-
-use crate::core::core::Transaction;
-use crate::core::ser;
-use crate::libwallet::{
-	AcctPathMapping, Context, Error, ErrorKind, NodeClient, OutputData, ScannedBlockInfo,
-	TxLogEntry, WalletBackend, WalletInitStatus, WalletOutputBatch,
-};
-use crate::util::secp::constants::SECRET_KEY_SIZE;
-use crate::util::secp::key::SecretKey;
-use crate::util::{self, secp};
-
-use rand::rngs::mock::StepRng;
-use rand::thread_rng;
-
 pub const DB_DIR: &'static str = "db";
+const SQLITE_DIR: &'static str = "sqlite";
 pub const TX_SAVE_DIR: &'static str = "saved_txs";
 
+const OUTPUT_HISTORY_PREFIX: u8 = 'h' as u8;
+const OUTPUT_HISTORY_ID_PREFIX: u8 = 'j' as u8;
 const OUTPUT_PREFIX: u8 = 'o' as u8;
 const DERIV_PREFIX: u8 = 'd' as u8;
 const CONFIRMED_HEIGHT_PREFIX: u8 = 'c' as u8;
@@ -101,7 +100,7 @@ where
 	C: NodeClient + 'ck,
 	K: Keychain + 'ck,
 {
-	db: store::Store,
+	db: Store,
 	data_file_dir: String,
 	/// Keychain
 	pub keychain: Option<K>,
@@ -121,14 +120,14 @@ where
 	K: Keychain + 'ck,
 {
 	pub fn new(data_file_dir: &str, n_client: C) -> Result<Self, Error> {
-		let db_path = path::Path::new(data_file_dir).join(DB_DIR);
+		let db_path = path::Path::new(data_file_dir).join(DB_DIR).join(SQLITE_DIR);
 		fs::create_dir_all(&db_path).expect("Couldn't create wallet backend directory!");
 
 		let stored_tx_path = path::Path::new(data_file_dir).join(TX_SAVE_DIR);
 		fs::create_dir_all(&stored_tx_path)
 			.expect("Couldn't create wallet backend tx storage directory!");
 
-		let store = store::Store::new(db_path.to_str().unwrap(), None, Some(DB_DIR), None)?;
+		let store = db::Store::new(db_path)?;
 
 		// Make sure default wallet derivation path always exists
 		// as well as path (so it can be retrieved by batches to know where to store
@@ -143,9 +142,8 @@ where
 		);
 
 		{
-			let batch = store.batch()?;
-			batch.put_ser(&acct_key, &default_account)?;
-			batch.commit()?;
+			let batch = store.batch();
+			batch.put(&acct_key, Serializable::AcctPathMapping(default_account))?;
 		}
 
 		let res = LMDBBackend {
@@ -276,6 +274,7 @@ where
 	fn set_parent_key_id_by_name(&mut self, label: &str) -> Result<(), Error> {
 		let label = label.to_owned();
 		let res = self.acct_path_iter().find(|l| l.label == label);
+
 		if let Some(a) = res {
 			self.set_parent_key_id(a.path);
 			Ok(())
@@ -298,21 +297,54 @@ where
 			Some(i) => to_key_u64(OUTPUT_PREFIX, &mut id.to_bytes().to_vec(), *i),
 			None => to_key(OUTPUT_PREFIX, &mut id.to_bytes().to_vec()),
 		};
-		option_to_not_found(self.db.get_ser(&key), || format!("Key Id: {}", id))
-			.map_err(|e| e.into())
+
+		Ok(self
+			.db
+			.get_ser(&key)
+			.ok_or(StoreError::NotFoundErr(format!("Key Id: {}", id)))?
+			.as_output_data()
+			.unwrap())
 	}
 
 	fn iter<'a>(&'a self) -> Box<dyn Iterator<Item = OutputData> + 'a> {
-		Box::new(self.db.iter(&[OUTPUT_PREFIX]).unwrap().map(|o| o.1))
+		// new vec/enum implementation
+		let serializables: Vec<_> = self
+			.db
+			.iter(&[OUTPUT_PREFIX])
+			.into_iter()
+			.filter_map(Serializable::as_output_data)
+			.collect();
+		Box::new(serializables.into_iter().map(|x| x))
+	}
+
+	fn history_iter<'a>(&'a self) -> Box<dyn Iterator<Item = OutputData> + 'a> {
+		// new vec/enum implementation
+		let serializables: Vec<_> = self
+			.db
+			.iter(&[OUTPUT_HISTORY_PREFIX])
+			.into_iter()
+			.filter_map(Serializable::as_output_data)
+			.collect();
+		Box::new(serializables.into_iter().map(|x| x))
 	}
 
 	fn get_tx_log_entry(&self, u: &Uuid) -> Result<Option<TxLogEntry>, Error> {
 		let key = to_key(TX_LOG_ENTRY_PREFIX, &mut u.as_bytes().to_vec());
-		self.db.get_ser(&key).map_err(|e| e.into())
+
+		Ok(match self.db.get(&key) {
+			Some(s) => Serializable::as_txlogentry(s),
+			None => None,
+		})
 	}
 
 	fn tx_log_iter<'a>(&'a self) -> Box<dyn Iterator<Item = TxLogEntry> + 'a> {
-		Box::new(self.db.iter(&[TX_LOG_ENTRY_PREFIX]).unwrap().map(|o| o.1))
+		let serializables: Vec<_> = self
+			.db
+			.iter(&[TX_LOG_ENTRY_PREFIX])
+			.into_iter()
+			.filter_map(Serializable::as_txlogentry)
+			.collect();
+		Box::new(serializables.into_iter().map(|x| x))
 	}
 
 	fn get_private_context(
@@ -329,9 +361,15 @@ where
 		let (blind_xor_key, nonce_xor_key) =
 			private_ctx_xor_keys(&self.keychain(keychain_mask)?, slate_id)?;
 
-		let mut ctx: Context = option_to_not_found(self.db.get_ser(&ctx_key), || {
-			format!("Slate id: {:x?}", slate_id.to_vec())
-		})?;
+		let mut ctx = self
+			.db
+			.get(&ctx_key)
+			.ok_or(StoreError::NotFoundErr(format!(
+				"Slate id: {:x?}",
+				slate_id.to_vec()
+			)))?
+			.as_context()
+			.unwrap();
 
 		for i in 0..SECRET_KEY_SIZE {
 			ctx.sec_key.0[i] = ctx.sec_key.0[i] ^ blind_xor_key[i];
@@ -342,17 +380,26 @@ where
 	}
 
 	fn acct_path_iter<'a>(&'a self) -> Box<dyn Iterator<Item = AcctPathMapping> + 'a> {
-		Box::new(
-			self.db
-				.iter(&[ACCOUNT_PATH_MAPPING_PREFIX])
-				.unwrap()
-				.map(|o| o.1),
-		)
+		//iter
+		//pattern-match
+		// vec of APM
+
+		let serializables: Vec<_> = self
+			.db
+			.iter(&[ACCOUNT_PATH_MAPPING_PREFIX])
+			.into_iter()
+			.filter_map(Serializable::as_acct_path_mapping)
+			.collect();
+		Box::new(serializables.into_iter().map(|x| x))
 	}
 
 	fn get_acct_path(&self, label: String) -> Result<Option<AcctPathMapping>, Error> {
 		let acct_key = to_key(ACCOUNT_PATH_MAPPING_PREFIX, &mut label.as_bytes().to_vec());
-		self.db.get_ser(&acct_key).map_err(|e| e.into())
+
+		Ok(match self.db.get_ser(&acct_key) {
+			Some(s) => Serializable::as_acct_path_mapping(s),
+			None => None,
+		})
 	}
 
 	fn store_tx(&self, uuid: &str, tx: &Transaction) -> Result<(), Error> {
@@ -392,7 +439,7 @@ where
 	) -> Result<Box<dyn WalletOutputBatch<K> + 'a>, Error> {
 		Ok(Box::new(Batch {
 			_store: self,
-			db: RefCell::new(Some(self.db.batch()?)),
+			db: RefCell::new(Some(self.db.batch())),
 			keychain: Some(self.keychain(keychain_mask)?),
 		}))
 	}
@@ -400,17 +447,20 @@ where
 	fn batch_no_mask<'a>(&'a mut self) -> Result<Box<dyn WalletOutputBatch<K> + 'a>, Error> {
 		Ok(Box::new(Batch {
 			_store: self,
-			db: RefCell::new(Some(self.db.batch()?)),
+			db: RefCell::new(Some(self.db.batch())),
 			keychain: None,
 		}))
 	}
 
 	fn current_child_index<'a>(&mut self, parent_key_id: &Identifier) -> Result<u32, Error> {
 		let index = {
-			let batch = self.db.batch()?;
+			let batch = self.db.batch();
 			let deriv_key = to_key(DERIV_PREFIX, &mut parent_key_id.to_bytes().to_vec());
-			match batch.get_ser(&deriv_key)? {
-				Some(idx) => idx,
+			match batch.get_ser(&deriv_key) {
+				Some(s) => match s {
+					Serializable::Numeric(n) => n as u32,
+					_ => 0,
+				},
 				None => 0,
 			}
 		};
@@ -420,10 +470,13 @@ where
 	fn next_child<'a>(&mut self, keychain_mask: Option<&SecretKey>) -> Result<Identifier, Error> {
 		let parent_key_id = self.parent_key_id.clone();
 		let mut deriv_idx = {
-			let batch = self.db.batch()?;
+			let batch = self.db.batch();
 			let deriv_key = to_key(DERIV_PREFIX, &mut self.parent_key_id.to_bytes().to_vec());
-			match batch.get_ser(&deriv_key)? {
-				Some(idx) => idx,
+			match batch.get_ser(&deriv_key) {
+				Some(s) => match s {
+					Serializable::Numeric(n) => n as u32,
+					_ => 0,
+				},
 				None => 0,
 			}
 		};
@@ -438,26 +491,37 @@ where
 	}
 
 	fn last_confirmed_height<'a>(&mut self) -> Result<u64, Error> {
-		let batch = self.db.batch()?;
+		let batch = self.db.batch();
 		let height_key = to_key(
 			CONFIRMED_HEIGHT_PREFIX,
 			&mut self.parent_key_id.to_bytes().to_vec(),
 		);
-		let last_confirmed_height = match batch.get_ser(&height_key)? {
-			Some(h) => h,
+		let last_confirmed_height = match batch.get_ser(&height_key) {
+			Some(s) => match s {
+				Serializable::Numeric(n) => n,
+				_ => 0,
+			},
 			None => 0,
 		};
 		Ok(last_confirmed_height)
 	}
 
 	fn last_scanned_block<'a>(&mut self) -> Result<ScannedBlockInfo, Error> {
-		let batch = self.db.batch()?;
+		let batch = self.db.batch();
 		let scanned_block_key = to_key(
 			LAST_SCANNED_BLOCK,
 			&mut LAST_SCANNED_KEY.as_bytes().to_vec(),
 		);
-		let last_scanned_block = match batch.get_ser(&scanned_block_key)? {
-			Some(b) => b,
+		let last_scanned_block = match batch.get_ser(&scanned_block_key) {
+			Some(s) => match s {
+				Serializable::ScannedBlockInfo(s) => s,
+				_ => ScannedBlockInfo {
+					height: 0,
+					hash: "".to_owned(),
+					start_pmmr_index: 0,
+					last_pmmr_index: 0,
+				},
+			},
 			None => ScannedBlockInfo {
 				height: 0,
 				hash: "".to_owned(),
@@ -469,13 +533,16 @@ where
 	}
 
 	fn init_status<'a>(&mut self) -> Result<WalletInitStatus, Error> {
-		let batch = self.db.batch()?;
+		let batch = self.db.batch();
 		let init_status_key = to_key(
 			WALLET_INIT_STATUS,
 			&mut WALLET_INIT_STATUS_KEY.as_bytes().to_vec(),
 		);
-		let status = match batch.get_ser(&init_status_key)? {
-			Some(s) => s,
+		let status = match batch.get_ser(&init_status_key) {
+			Some(s) => match s {
+				Serializable::WalletInitStatus(w) => w,
+				_ => WalletInitStatus::InitComplete,
+			},
 			None => WalletInitStatus::InitComplete,
 		};
 		Ok(status)
@@ -490,7 +557,7 @@ where
 	K: Keychain,
 {
 	_store: &'a LMDBBackend<'a, C, K>,
-	db: RefCell<Option<store::Batch<'a>>>,
+	db: RefCell<Option<db::Batch<'a>>>,
 	/// Keychain
 	keychain: Option<K>,
 }
@@ -506,13 +573,54 @@ where
 	}
 
 	fn save(&mut self, out: OutputData) -> Result<(), Error> {
-		// Save the output data to the db.
+		// Save the previous output data to the db.
+		if let Ok(previous_output) = self.get(&out.key_id, &out.mmr_index) {
+			if previous_output != out {
+				self.save_output_history(previous_output)?;
+			}
+		}
+		// Save the updated output data to the db.
 		{
 			let key = match out.mmr_index {
 				Some(i) => to_key_u64(OUTPUT_PREFIX, &mut out.key_id.to_bytes().to_vec(), i),
 				None => to_key(OUTPUT_PREFIX, &mut out.key_id.to_bytes().to_vec()),
 			};
-			self.db.borrow().as_ref().unwrap().put_ser(&key, &out)?;
+			self.db
+				.borrow()
+				.as_ref()
+				.unwrap()
+				.put_ser(&key, Serializable::OutputData(out))?;
+		}
+
+		Ok(())
+	}
+
+	fn save_output_history(&mut self, out: OutputData) -> Result<(), Error> {
+		// Ensure that the previous_output has not been registered in the output history table yet.
+		let outputs_in_history_table = self.history_iter().collect::<Vec<_>>();
+		let mut output_already_registered = false;
+
+		for mut o in outputs_in_history_table {
+			o.key_id = out.key_id.clone();
+			if o == out {
+				output_already_registered = true;
+				break;
+			}
+		}
+
+		// Save the previous output data to the db.
+		if !output_already_registered {
+			if let Ok(output_history_id) = self.next_output_history_id() {
+				let output_history_key = to_key(
+					OUTPUT_HISTORY_PREFIX,
+					&mut output_history_id.to_le_bytes().to_vec(),
+				);
+				self.db
+					.borrow()
+					.as_ref()
+					.unwrap()
+					.put_ser(&output_history_key, Serializable::OutputData(out))?;
+			}
 		}
 
 		Ok(())
@@ -523,25 +631,60 @@ where
 			Some(i) => to_key_u64(OUTPUT_PREFIX, &mut id.to_bytes().to_vec(), *i),
 			None => to_key(OUTPUT_PREFIX, &mut id.to_bytes().to_vec()),
 		};
-		option_to_not_found(self.db.borrow().as_ref().unwrap().get_ser(&key), || {
-			format!("Key ID: {}", id)
-		})
-		.map_err(|e| e.into())
+		Ok(self
+			.db
+			.borrow()
+			.as_ref()
+			.unwrap()
+			.get_ser(&key)
+			.ok_or(StoreError::NotFoundErr(format!("Key Id: {}", id)))?
+			.as_output_data()
+			.unwrap())
 	}
 
 	fn iter(&self) -> Box<dyn Iterator<Item = OutputData>> {
-		Box::new(
-			self.db
-				.borrow()
-				.as_ref()
-				.unwrap()
-				.iter(&[OUTPUT_PREFIX])
-				.unwrap()
-				.map(|o| o.1),
-		)
+		let serializables: Vec<_> = self
+			.db
+			.borrow()
+			.as_ref()
+			.unwrap()
+			.iter(&[OUTPUT_PREFIX])
+			.into_iter()
+			.filter_map(Serializable::as_output_data)
+			.collect();
+
+		Box::new(serializables.into_iter().map(|x| x))
 	}
 
-	fn delete(&mut self, id: &Identifier, mmr_index: &Option<u64>) -> Result<(), Error> {
+	fn history_iter(&self) -> Box<dyn Iterator<Item = OutputData>> {
+		let serializables: Vec<_> = self
+			.db
+			.borrow()
+			.as_ref()
+			.unwrap()
+			.iter(&[OUTPUT_HISTORY_PREFIX])
+			.into_iter()
+			.filter_map(Serializable::as_output_data)
+			.collect();
+
+		Box::new(serializables.into_iter().map(|x| x))
+	}
+
+	fn delete(
+		&mut self,
+		id: &Identifier,
+		mmr_index: &Option<u64>,
+		tx_id: &Option<u32>,
+	) -> Result<(), Error> {
+		// Save the previous output data to the db.
+		if let Ok(mut previous_output) = self.get(&id, &mmr_index) {
+			self.save_output_history(previous_output.clone())?;
+			// Save the output with a deleted status in the output history table.
+			previous_output.status = OutputStatus::Deleted;
+			previous_output.tx_log_entry = *tx_id;
+			self.save_output_history(previous_output)?;
+		}
+
 		// Delete the output data.
 		{
 			let key = match mmr_index {
@@ -554,30 +697,57 @@ where
 		Ok(())
 	}
 
-	fn next_tx_log_id(&mut self, parent_key_id: &Identifier) -> Result<u32, Error> {
-		let tx_id_key = to_key(TX_LOG_ID_PREFIX, &mut parent_key_id.to_bytes().to_vec());
-		let last_tx_log_id = match self.db.borrow().as_ref().unwrap().get_ser(&tx_id_key)? {
-			Some(t) => t,
-			None => 0,
-		};
-		self.db
+	fn next_output_history_id(&mut self) -> Result<u32, Error> {
+		let mut first_output_history_id = vec![0];
+		let output_history_key_id = to_key(OUTPUT_HISTORY_ID_PREFIX, &mut first_output_history_id);
+		let last_output_history_id = match self
+			.db
 			.borrow()
 			.as_ref()
 			.unwrap()
-			.put_ser(&tx_id_key, &(last_tx_log_id + 1))?;
+			.get_ser(&output_history_key_id)
+		{
+			Some(s) => match s {
+				Serializable::Numeric(n) => n as u32,
+				_ => 0,
+			},
+			None => 0,
+		};
+		self.db.borrow().as_ref().unwrap().put_ser(
+			&output_history_key_id,
+			Serializable::Numeric((last_output_history_id + 1).into()),
+		)?;
+		Ok(last_output_history_id)
+	}
+
+	fn next_tx_log_id(&mut self, parent_key_id: &Identifier) -> Result<u32, Error> {
+		let tx_id_key = to_key(TX_LOG_ID_PREFIX, &mut parent_key_id.to_bytes().to_vec());
+		let last_tx_log_id = match self.db.borrow().as_ref().unwrap().get_ser(&tx_id_key) {
+			Some(s) => match s {
+				Serializable::Numeric(n) => n as u32,
+				_ => 0,
+			},
+			None => 0,
+		};
+		self.db.borrow().as_ref().unwrap().put_ser(
+			&tx_id_key,
+			Serializable::Numeric((last_tx_log_id + 1).into()),
+		)?;
 		Ok(last_tx_log_id)
 	}
 
 	fn tx_log_iter(&self) -> Box<dyn Iterator<Item = TxLogEntry>> {
-		Box::new(
-			self.db
-				.borrow()
-				.as_ref()
-				.unwrap()
-				.iter(&[TX_LOG_ENTRY_PREFIX])
-				.unwrap()
-				.map(|o| o.1),
-		)
+		let serializables: Vec<_> = self
+			.db
+			.borrow()
+			.as_ref()
+			.unwrap()
+			.iter(&[TX_LOG_ENTRY_PREFIX])
+			.into_iter()
+			.filter_map(Serializable::as_txlogentry)
+			.collect();
+
+		Box::new(serializables.into_iter().map(|x| x))
 	}
 
 	fn save_last_confirmed_height(
@@ -593,7 +763,7 @@ where
 			.borrow()
 			.as_ref()
 			.unwrap()
-			.put_ser(&height_key, &height)?;
+			.put_ser(&height_key, Serializable::Numeric(height))?;
 		Ok(())
 	}
 
@@ -606,7 +776,7 @@ where
 			.borrow()
 			.as_ref()
 			.unwrap()
-			.put_ser(&pmmr_index_key, &block_info)?;
+			.put_ser(&pmmr_index_key, Serializable::ScannedBlockInfo(block_info))?;
 		Ok(())
 	}
 
@@ -619,7 +789,7 @@ where
 			.borrow()
 			.as_ref()
 			.unwrap()
-			.put_ser(&init_status_key, &value)?;
+			.put_ser(&init_status_key, Serializable::WalletInitStatus(value))?;
 		Ok(())
 	}
 
@@ -629,7 +799,7 @@ where
 			.borrow()
 			.as_ref()
 			.unwrap()
-			.put_ser(&deriv_key, &child_n)?;
+			.put_ser(&deriv_key, Serializable::Numeric(child_n.into()))?;
 		Ok(())
 	}
 
@@ -647,7 +817,7 @@ where
 			.borrow()
 			.as_ref()
 			.unwrap()
-			.put_ser(&tx_log_key, &tx_in)?;
+			.put_ser(&tx_log_key, Serializable::TxLogEntry(tx_in))?;
 		Ok(())
 	}
 
@@ -660,20 +830,22 @@ where
 			.borrow()
 			.as_ref()
 			.unwrap()
-			.put_ser(&acct_key, &mapping)?;
+			.put_ser(&acct_key, Serializable::AcctPathMapping(mapping))?;
 		Ok(())
 	}
 
 	fn acct_path_iter(&self) -> Box<dyn Iterator<Item = AcctPathMapping>> {
-		Box::new(
-			self.db
-				.borrow()
-				.as_ref()
-				.unwrap()
-				.iter(&[ACCOUNT_PATH_MAPPING_PREFIX])
-				.unwrap()
-				.map(|o| o.1),
-		)
+		let serializables: Vec<_> = self
+			.db
+			.borrow()
+			.as_ref()
+			.unwrap()
+			.iter(&[ACCOUNT_PATH_MAPPING_PREFIX])
+			.into_iter()
+			.filter_map(Serializable::as_acct_path_mapping)
+			.collect();
+
+		Box::new(serializables.into_iter().map(|x| x))
 	}
 
 	fn lock_output(&mut self, out: &mut OutputData) -> Result<(), Error> {
@@ -704,7 +876,7 @@ where
 			.borrow()
 			.as_ref()
 			.unwrap()
-			.put_ser(&ctx_key, &s_ctx)?;
+			.put_ser(&ctx_key, Serializable::Context(s_ctx))?;
 		Ok(())
 	}
 
@@ -727,8 +899,7 @@ where
 	}
 
 	fn commit(&self) -> Result<(), Error> {
-		let db = self.db.replace(None);
-		db.unwrap().commit()?;
+		self.db.replace(None);
 		Ok(())
 	}
 }

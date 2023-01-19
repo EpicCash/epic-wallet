@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+mod db;
 mod lmdb;
 
 pub use self::lmdb::{wallet_db_exists, LMDBBackend};
