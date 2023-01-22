@@ -56,14 +56,6 @@ pub struct WalletConfig {
 	pub dark_background_color_scheme: Option<bool>,
 	/// The exploding lifetime (minutes) for keybase notification on coins received
 	pub keybase_notify_ttl: Option<u16>,
-	/// Default epicbox Domain/Server
-	pub epicbox_domain: String,
-	/// Connect to epicbox port 443 or 80
-	pub epicbox_port: Option<u16>,
-	/// Use to epicbox port 443 or 80
-	pub epicbox_protocol_unsecure: Option<bool>,
-	/// Epicbox address id
-	pub epicbox_address_index: Option<u32>,
 }
 
 impl Default for WalletConfig {
@@ -83,10 +75,6 @@ impl Default for WalletConfig {
 			tls_certificate_key: None,
 			dark_background_color_scheme: Some(true),
 			keybase_notify_ttl: Some(1440),
-			epicbox_domain: "epicbox.io".to_string(),
-			epicbox_port: Some(443),
-			epicbox_protocol_unsecure: Some(true),
-			epicbox_address_index: Some(0),
 		}
 	}
 }
@@ -170,6 +158,31 @@ impl Default for TorConfig {
 		}
 	}
 }
+
+/// Epicbox configuration
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct EpicboxConfig {
+	/// Default epicbox Domain/Server
+	pub epicbox_domain: String,
+	/// Connect to epicbox port 443 or 80
+	pub epicbox_port: Option<u16>,
+	/// Use to epicbox port 443 or 80
+	pub epicbox_protocol_unsecure: Option<bool>,
+	/// Epicbox address id
+	pub epicbox_address_index: Option<u32>,
+}
+
+impl Default for EpicboxConfig {
+	fn default() -> EpicboxConfig {
+		EpicboxConfig {
+			epicbox_domain: "epicbox.io".to_owned(),
+			epicbox_port: Some(443),
+			epicbox_protocol_unsecure: Some(false),
+			epicbox_address_index: Some(0),
+		}
+	}
+}
+
 impl From<io::Error> for ConfigError {
 	fn from(error: io::Error) -> ConfigError {
 		ConfigError::FileIOError(
@@ -196,6 +209,8 @@ pub struct GlobalWalletConfigMembers {
 	pub wallet: WalletConfig,
 	/// Tor config
 	pub tor: Option<TorConfig>,
+	/// Tor config
+	pub epicbox: Option<EpicboxConfig>,
 	/// Logging config
 	pub logging: Option<LoggingConfig>,
 }

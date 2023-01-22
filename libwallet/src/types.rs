@@ -15,7 +15,7 @@
 //! Types and traits that should be provided by a wallet
 //! implementation
 
-use crate::config::{TorConfig, WalletConfig};
+use crate::config::{EpicboxConfig, TorConfig, WalletConfig};
 use crate::epic_core::core::hash::Hash;
 use crate::epic_core::core::{Output, Transaction, TxKernel};
 use crate::epic_core::libtx::{aggsig, secp_ser};
@@ -72,6 +72,7 @@ where
 		wallet_config: Option<WalletConfig>,
 		logging_config: Option<LoggingConfig>,
 		tor_config: Option<TorConfig>,
+		epicbox_config: Option<EpicboxConfig>,
 	) -> Result<(), Error>;
 
 	///
@@ -570,12 +571,12 @@ impl Context {
 		};
 		Context {
 			parent_key_id: parent_key_id.clone(),
-			sec_key: sec_key,
+			sec_key,
 			sec_nonce,
 			input_ids: vec![],
 			output_ids: vec![],
 			fee: 0,
-			participant_id: participant_id,
+			participant_id,
 			payment_proof_derivation_index: None,
 		}
 	}
@@ -818,9 +819,9 @@ impl TxLogEntry {
 	/// Return a new blank with TS initialised with next entry
 	pub fn new(parent_key_id: Identifier, t: TxLogEntryType, id: u32) -> Self {
 		TxLogEntry {
-			parent_key_id: parent_key_id,
+			parent_key_id,
 			tx_type: t,
-			id: id,
+			id,
 			tx_slate_id: None,
 			creation_ts: Utc::now(),
 			confirmation_ts: None,

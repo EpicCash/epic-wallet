@@ -18,10 +18,11 @@ use chrono::prelude::*;
 use ed25519_dalek::PublicKey as DalekPublicKey;
 use uuid::Uuid;
 
-use crate::config::{TorConfig, WalletConfig};
+use crate::config::{EpicboxConfig, TorConfig, WalletConfig};
 use crate::core::core::Transaction;
 use crate::core::global;
 use crate::impls::create_sender;
+use crate::impls::EpicboxChannel;
 use crate::keychain::{Identifier, Keychain};
 use crate::libwallet::api_impl::owner_updater::{start_updater_log_thread, StatusMessage};
 use crate::libwallet::api_impl::{owner, owner_updater};
@@ -78,6 +79,8 @@ where
 	/// Optional TOR configuration, holding address of sender and
 	/// data directory
 	tor_config: Mutex<Option<TorConfig>>,
+	/// epicbox configuration, holding epicbox relay server settings
+	epicbox_config: Mutex<Option<EpicboxConfig>>,
 }
 
 impl<L, C, K> Owner<L, C, K>
@@ -182,6 +185,7 @@ where
 			status_tx: Mutex::new(Some(tx)),
 			updater_messages,
 			tor_config: Mutex::new(None),
+			epicbox_config: Mutex::new(None),
 		}
 	}
 
@@ -196,6 +200,19 @@ where
 	pub fn set_tor_config(&self, tor_config: Option<TorConfig>) {
 		let mut lock = self.tor_config.lock();
 		*lock = tor_config;
+	}
+
+	/// Set the Epicbox configuration for this instance of the OwnerAPI, used during
+	/// `init_send_tx` when send args are present and a Epicbox address is specified
+	///
+	/// # Arguments
+	/// * `epicbox_config` - The optional [EpicboxConfig](#) to use
+	/// # Returns
+	/// * Nothing
+
+	pub fn set_epicbox_config(&self, epicbox_config: Option<EpicboxConfig>) {
+		let mut lock = self.epicbox_config.lock();
+		*lock = epicbox_config;
 	}
 
 	/// Returns a list of accounts stored in the wallet (i.e. mappings between
@@ -641,12 +658,13 @@ where
 			let w = w_lock.lc_provider()?.wallet_inst()?;
 			owner::init_send_tx(&mut **w, keychain_mask, args, self.doctest_mode)?
 		};
+
 		// Helper functionality. If send arguments exist, attempt to send
 		match send_args {
 			Some(sa) => {
 				//TODO: in case of keybase, the response might take 60s and leave the service hanging
 				match sa.method.as_ref() {
-					"http" | "keybase" => {}
+					"http" | "keybase" | "epicbox" => {}
 					_ => {
 						error!("unsupported payment method: {}", sa.method);
 						return Err(ErrorKind::ClientCallback(
@@ -655,10 +673,28 @@ where
 						.into());
 					}
 				};
+
 				let tor_config_lock = self.tor_config.lock();
-				let comm_adapter = create_sender(&sa.method, &sa.dest, tor_config_lock.clone())
-					.map_err(|e| ErrorKind::GenericError(format!("{}", e)))?;
-				slate = comm_adapter.send_tx(&slate)?;
+				let epicbox_config_lock = self.epicbox_config.lock();
+
+				if sa.method == "epicbox" {
+					let epicbox_channel =
+						Box::new(EpicboxChannel::new(&sa.dest, epicbox_config_lock.clone()))
+							.map_err(|e| ErrorKind::GenericError(format!("{}", e)))?;
+					let wallet = self.wallet_inst.clone();
+					let km = match keychain_mask.as_ref() {
+						None => None,
+						Some(&m) => Some(m.to_owned()),
+					};
+					slate = epicbox_channel.send(wallet, km, &slate)?;
+					self.tx_lock_outputs(keychain_mask, &slate, 0)?;
+					return Ok(slate);
+				} else {
+					let comm_adapter = create_sender(&sa.method, &sa.dest, tor_config_lock.clone())
+						.map_err(|e| ErrorKind::GenericError(format!("{}", e)))?;
+					slate = comm_adapter.send_tx(&slate)?;
+				}
+
 				self.tx_lock_outputs(keychain_mask, &slate, 0)?;
 				let slate = match sa.finalize {
 					true => self.finalize_tx(keychain_mask, &slate)?,
@@ -1424,7 +1460,7 @@ where
 	/// let api_owner = Owner::new(wallet.clone());
 	/// let _ = api_owner.set_top_level_directory(dir);
 	///
-	/// let result = api_owner.create_config(&ChainTypes::Mainnet, None, None, None);
+	/// let result = api_owner.create_config(&ChainTypes::Mainnet, None, None, None, None);
 	///
 	/// if let Ok(_) = result {
 	///		//...
@@ -1437,6 +1473,7 @@ where
 		wallet_config: Option<WalletConfig>,
 		logging_config: Option<LoggingConfig>,
 		tor_config: Option<TorConfig>,
+		epicbox_config: Option<EpicboxConfig>,
 	) -> Result<(), Error> {
 		let mut w_lock = self.wallet_inst.lock();
 		let lc = w_lock.lc_provider()?;
@@ -1446,6 +1483,7 @@ where
 			wallet_config,
 			logging_config,
 			tor_config,
+			epicbox_config,
 		)
 	}
 
@@ -1494,7 +1532,7 @@ where
 	/// let _ = api_owner.set_top_level_directory(dir);
 	///
 	/// // Create configuration
-	/// let result = api_owner.create_config(&ChainTypes::Mainnet, None, None, None);
+	/// let result = api_owner.create_config(&ChainTypes::Mainnet, None, None, None, None);
 	///
 	///	// create new wallet wirh random seed
 	///	let pw = ZeroingString::from("my_password");
@@ -1561,7 +1599,7 @@ where
 	/// let _ = api_owner.set_top_level_directory(dir);
 	///
 	/// // Create configuration
-	/// let result = api_owner.create_config(&ChainTypes::Mainnet, None, None, None);
+	/// let result = api_owner.create_config(&ChainTypes::Mainnet, None, None, None, None);
 	///
 	///	// create new wallet wirh random seed
 	///	let pw = ZeroingString::from("my_password");

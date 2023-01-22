@@ -33,7 +33,9 @@ where
 	// just get defaults from the global config
 	let wallet_config = config.members.clone().unwrap().wallet;
 
-	let tor_config = config.members.unwrap().tor;
+	let tor_config = config.members.clone().unwrap().tor;
+
+	let epicbox_config = config.members.unwrap().epicbox;
 
 	// Check the node version info, and exit with report if we're not compatible
 	//let mut node_client = HTTPNodeClient::new(&wallet_config.check_node_api_http_addr, None);
@@ -63,6 +65,7 @@ where
 		wallet_args,
 		wallet_config,
 		tor_config,
+		epicbox_config,
 		node_client,
 		false,
 		|_| {},

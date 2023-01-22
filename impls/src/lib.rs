@@ -44,10 +44,10 @@ pub mod tor;
 pub mod test_framework;
 
 pub use crate::adapters::{
-	create_sender, Container, EpicboxBroker, EpicboxController, EpicboxListener, EpicboxPublisher,
-	EpicboxSubscriber, HttpSlateSender, KeybaseAllChannels, KeybaseChannel, Listener,
-	ListenerInterface, PathToSlate, SlateGetter, SlatePutter, SlateReceiver, SlateSender,
-	Subscriber,
+	create_sender, Container, EpicboxBroker, EpicboxChannel, EpicboxController,
+	EpicboxListenChannel, EpicboxListener, EpicboxPublisher, EpicboxSubscriber, HttpSlateSender,
+	KeybaseAllChannels, KeybaseChannel, Listener, ListenerInterface, PathToSlate, SlateGetter,
+	SlatePutter, SlateReceiver, SlateSender, Subscriber,
 };
 pub use crate::backends::{wallet_db_exists, LMDBBackend};
 pub use crate::error::{Error, ErrorKind};

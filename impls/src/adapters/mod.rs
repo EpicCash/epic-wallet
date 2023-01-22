@@ -21,6 +21,7 @@ pub use self::epicbox::{
 	Container, EpicboxBroker, EpicboxController, EpicboxListener, EpicboxPublisher,
 	EpicboxSubscriber, Listener, ListenerInterface, Subscriber,
 };
+pub use self::epicbox::{EpicboxChannel, EpicboxListenChannel};
 pub use self::file::PathToSlate;
 pub use self::http::{HttpSlateSender, SchemeNotHttp};
 pub use self::keybase::{KeybaseAllChannels, KeybaseChannel};
@@ -95,6 +96,7 @@ pub fn create_sender(
 
 	Ok(match method {
 		"http" => Box::new(HttpSlateSender::new(&dest).map_err(|_| invalid())?),
+
 		"tor" => match tor_config {
 			None => {
 				return Err(
@@ -120,6 +122,7 @@ pub fn create_sender(
 			)
 			.into());
 		}
+
 		_ => {
 			return Err(ErrorKind::WalletComms(format!(
 				"Wallet comm method \"{}\" does not exist.",

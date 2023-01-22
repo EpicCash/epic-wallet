@@ -21,9 +21,8 @@ use regex::Regex;
 use std::fmt::{self, Debug, Display};
 const EPICBOX_ADDRESS_VERSION_MAINNET: [u8; 2] = [1, 0];
 const EPICBOX_ADDRESS_VERSION_TESTNET: [u8; 2] = [1, 136];
-const ADDRESS_REGEX: &str = r"^((?P<address_type>keybase|epicbox|http|https)://).+$";
+
 const EPICBOX_ADDRESS_REGEX: &str = r"^(epicbox://)?(?P<public_key>[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{52})(@(?P<domain>[a-zA-Z0-9\.]+)(:(?P<port>[0-9]*))?)?$";
-const KEYBASE_ADDRESS_REGEX: &str = r"^(keybase://)?(?P<username>[0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_]{1,16})(:(?P<topic>[a-zA-Z0-9_-]+))?$";
 const DEFAULT_EPICBOX_DOMAIN: &str = "epicbox.io";
 pub const DEFAULT_EPICBOX_PORT_80: u16 = 80;
 pub const DEFAULT_EPICBOX_PORT_443: u16 = 443;

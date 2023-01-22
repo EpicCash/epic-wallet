@@ -28,7 +28,7 @@ use crate::epic_keychain::{BlindSum, BlindingFactor, Keychain};
 use crate::epic_util::secp::key::{PublicKey, SecretKey};
 use crate::epic_util::secp::pedersen::Commitment;
 use crate::epic_util::secp::Signature;
-use crate::epic_util::{self, secp, RwLock};
+use crate::epic_util::{self, secp};
 use crate::error::{Error, ErrorKind};
 use crate::slate_versions::ser as dalek_ser;
 use ed25519_dalek::PublicKey as DalekPublicKey;
@@ -39,7 +39,7 @@ use rand::thread_rng;
 use serde::ser::{Serialize, Serializer};
 use serde_json;
 use std::fmt;
-use std::sync::Arc;
+
 use uuid::Uuid;
 
 use crate::slate_versions::v2::SlateV2;
@@ -246,7 +246,7 @@ impl Slate {
 	/// Create a new slate
 	pub fn blank(num_participants: usize) -> Slate {
 		Slate {
-			num_participants: num_participants,
+			num_participants,
 			id: Uuid::new_v4(),
 			tx: Transaction::empty(),
 			amount: 0,
@@ -474,9 +474,9 @@ impl Slate {
 			id: id as u64,
 			public_blind_excess: pub_key,
 			public_nonce: pub_nonce,
-			part_sig: part_sig,
-			message: message,
-			message_sig: message_sig,
+			part_sig,
+			message,
+			message_sig,
 		});
 		Ok(())
 	}

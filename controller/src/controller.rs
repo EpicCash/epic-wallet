@@ -15,7 +15,7 @@
 //! Controller for wallet.. instantiates and handles listeners (or single-run
 //! invocations) as needed.
 use crate::api::{self, ApiServer, BasicAuthMiddleware, ResponseFuture, Router, TLSConfig};
-use crate::config::TorConfig;
+use crate::config::{EpicboxConfig, TorConfig};
 use crate::keychain::Keychain;
 use crate::libwallet::{
 	address, Error, ErrorKind, NodeClient, NodeVersionInfo, Slate, WalletInst, WalletLCProvider,
@@ -167,6 +167,7 @@ pub fn owner_listener<L, C, K>(
 	tls_config: Option<TLSConfig>,
 	owner_api_include_foreign: Option<bool>,
 	tor_config: Option<TorConfig>,
+	epicbox_config: Option<EpicboxConfig>,
 ) -> Result<(), Error>
 where
 	L: WalletLCProvider<'static, C, K> + 'static,
@@ -194,6 +195,7 @@ where
 		wallet.clone(),
 		keychain_mask.clone(),
 		tor_config,
+		epicbox_config,
 		running_foreign,
 	);
 
@@ -605,10 +607,12 @@ where
 		wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K> + 'static>>>,
 		keychain_mask: Arc<Mutex<Option<SecretKey>>>,
 		tor_config: Option<TorConfig>,
+		epicbox_config: Option<EpicboxConfig>,
 		running_foreign: bool,
 	) -> OwnerAPIHandlerV3<L, C, K> {
 		let owner_api = Owner::new(wallet.clone());
 		owner_api.set_tor_config(tor_config);
+		owner_api.set_epicbox_config(epicbox_config);
 		let owner_api = Arc::new(owner_api);
 		OwnerAPIHandlerV3 {
 			wallet,

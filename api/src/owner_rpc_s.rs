@@ -15,15 +15,15 @@
 //! JSON-RPC Stub generation for the Owner API
 use uuid::Uuid;
 
-use crate::config::{TorConfig, WalletConfig};
+use crate::config::{EpicboxConfig, TorConfig, WalletConfig};
 use crate::core::core::Transaction;
 use crate::core::global;
 use crate::keychain::{Identifier, Keychain};
 use crate::libwallet::slate_versions::v3::TransactionV3;
 use crate::libwallet::{
-	AcctPathMapping, ErrorKind, InitTxArgs, IssueInvoiceTxArgs, NodeClient, NodeHeightResult,
-	OutputCommitMapping, PaymentProof, Slate, SlateVersion, StatusMessage, TxLogEntry,
-	VersionedSlate, WalletInfo, WalletLCProvider,
+	AcctPathMapping, EpicboxAddress, ErrorKind, InitTxArgs, IssueInvoiceTxArgs, NodeClient,
+	NodeHeightResult, OutputCommitMapping, PaymentProof, Slate, SlateVersion, StatusMessage,
+	TxLogEntry, VersionedSlate, WalletInfo, WalletLCProvider,
 };
 use crate::util::logger::LoggingConfig;
 use crate::util::secp::key::{PublicKey, SecretKey};
@@ -1483,6 +1483,8 @@ pub trait OwnerRpcS {
 		"params": {
 			"chain_type": "Mainnet",
 			"wallet_config": {
+				"epicbox_domain": "epicbox.io",
+				"epicbox_address_index": 0,
 				"chain_type": null,
 				"api_listen_interface": "127.0.0.1",
 				"api_listen_port": 3415,
@@ -1513,6 +1515,12 @@ pub trait OwnerRpcS {
 				"use_tor_listener": true,
 				"socks_proxy_addr": "127.0.0.1:9050",
 				"send_config_dir": "."
+			},
+			"epicbox_config" : {
+				"epicbox_domain": "epicbox.io",
+				"epicbox_port": 443,
+				"epicbox_protocol_unsecure": false,
+				"epicbox_address_index": 0
 			}
 		},
 		"id": 1
@@ -1537,6 +1545,7 @@ pub trait OwnerRpcS {
 		wallet_config: Option<WalletConfig>,
 		logging_config: Option<LoggingConfig>,
 		tor_config: Option<TorConfig>,
+		epicbox_config: Option<EpicboxConfig>,
 	) -> Result<(), ErrorKind>;
 
 	/**
@@ -1851,6 +1860,48 @@ pub trait OwnerRpcS {
 	fn get_updater_messages(&self, count: u32) -> Result<Vec<StatusMessage>, ErrorKind>;
 
 	/**
+	Networked version of [Owner::get_public_address](struct.Owner.html#method.get_public_address).
+
+	# Json rpc example
+
+	```
+	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
+	# r#"
+	{
+		"jsonrpc": "2.0",
+		"method": "get_public_address",
+		"params": {
+			"token": "d202964900000000d302964900000000d402964900000000d502964900000000",
+			"derivation_index": 0
+		},
+		"id": 1
+	}
+	# "#
+	# ,
+	# r#"
+	{
+		"id": 1,
+		"jsonrpc": "2.0",
+		"result": {
+			"Ok":  {
+				"domain": "",
+				"port": 0,
+				"public_key": "esWVpwMwUyYoxta4EpGPQQEBYdm3wBqCcggVswNyquoLHaLjFdwq"
+			}
+		}
+	}
+	# "#
+	# , true, 0, false, false, false, false);
+	```
+	*/
+
+	fn get_public_address(
+		&self,
+		token: Token,
+		derivation_index: u32,
+	) -> Result<EpicboxAddress, ErrorKind>;
+
+	/**
 	Networked version of [Owner::get_public_proof_address](struct.Owner.html#method.get_public_proof_address).
 
 	# Json rpc example
@@ -2047,6 +2098,43 @@ pub trait OwnerRpcS {
 	```
 	*/
 	fn set_tor_config(&self, tor_config: Option<TorConfig>) -> Result<(), ErrorKind>;
+
+	/**
+	Networked version of [Owner::set_epicbox_config](struct.Owner.html#method.set_epicbox_config).
+
+	# Json rpc example
+
+	```
+	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
+	# r#"
+	{
+		"jsonrpc": "2.0",
+		"method": "set_epicbox_config",
+		"params": {
+			"epicbox_config": {
+				"epicbox_domain": "epicbox.io",
+				"epicbox_port": 443,
+				"epicbox_protocol_unsecure": false,
+				"epicbox_address_index": 0
+			}
+		},
+		"id": 1
+	}
+	# "#
+	# ,
+	# r#"
+	{
+		"id": 1,
+		"jsonrpc": "2.0",
+		"result": {
+			"Ok": null
+		}
+	}
+	# "#
+	# , true, 0, false, false, false, false);
+	```
+	*/
+	fn set_epicbox_config(&self, epicbox_config: Option<EpicboxConfig>) -> Result<(), ErrorKind>;
 }
 
 impl<L, C, K> OwnerRpcS for Owner<L, C, K>
@@ -2277,9 +2365,17 @@ where
 		wallet_config: Option<WalletConfig>,
 		logging_config: Option<LoggingConfig>,
 		tor_config: Option<TorConfig>,
+		epicbox_config: Option<EpicboxConfig>,
 	) -> Result<(), ErrorKind> {
-		Owner::create_config(self, &chain_type, wallet_config, logging_config, tor_config)
-			.map_err(|e| e.kind())
+		Owner::create_config(
+			self,
+			&chain_type,
+			wallet_config,
+			logging_config,
+			tor_config,
+			epicbox_config,
+		)
+		.map_err(|e| e.kind())
 	}
 
 	fn create_wallet(
@@ -2365,6 +2461,16 @@ where
 		.map_err(|e| e.kind())?;
 		Ok(PubAddress { address })
 	}
+	fn get_public_address(
+		&self,
+		token: Token,
+		derivation_index: u32,
+	) -> Result<EpicboxAddress, ErrorKind> {
+		let address =
+			Owner::get_public_address(self, (&token.keychain_mask).as_ref(), derivation_index)
+				.map_err(|e| e.kind())?;
+		Ok(address)
+	}
 	fn retrieve_payment_proof(
 		&self,
 		token: Token,
@@ -2398,6 +2504,10 @@ where
 
 	fn set_tor_config(&self, tor_config: Option<TorConfig>) -> Result<(), ErrorKind> {
 		Owner::set_tor_config(self, tor_config);
+		Ok(())
+	}
+	fn set_epicbox_config(&self, epicbox_config: Option<EpicboxConfig>) -> Result<(), ErrorKind> {
+		Owner::set_epicbox_config(self, epicbox_config);
 		Ok(())
 	}
 }
