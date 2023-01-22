@@ -245,9 +245,9 @@ pub enum ErrorKind {
 	#[fail(display = "Transaction Expired")]
 	TransactionExpired,
 
-    #[fail(display = "SQLite Error")]
+	#[fail(display = "SQLite Error")]
 	SQLiteError(String),
-    
+
 	#[fail(display = "Invalid base58 character!")]
 	InvalidBase58Character(char, usize),
 	#[fail(display = "Invalid base58 length")]
