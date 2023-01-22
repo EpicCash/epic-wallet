@@ -249,7 +249,7 @@ impl Slate {
 	/// Create a new slate
 	pub fn blank(num_participants: usize) -> Slate {
 		Slate {
-			num_participants: num_participants,
+			num_participants,
 			id: Uuid::new_v4(),
 			tx: Transaction::empty(),
 			amount: 0,
@@ -477,9 +477,9 @@ impl Slate {
 			id: id as u64,
 			public_blind_excess: pub_key,
 			public_nonce: pub_nonce,
-			part_sig: part_sig,
-			message: message,
-			message_sig: message_sig,
+			part_sig,
+			message,
+			message_sig,
 		});
 		Ok(())
 	}

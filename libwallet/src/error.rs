@@ -245,9 +245,33 @@ pub enum ErrorKind {
 	#[fail(display = "Transaction Expired")]
 	TransactionExpired,
 
-	/// SQLite Errors
-	#[fail(display = "SQLite Error")]
+    #[fail(display = "SQLite Error")]
 	SQLiteError(String),
+    
+	#[fail(display = "Invalid base58 character!")]
+	InvalidBase58Character(char, usize),
+	#[fail(display = "Invalid base58 length")]
+	InvalidBase58Length,
+	#[fail(display = "Invalid base58 checksum")]
+	InvalidBase58Checksum,
+	#[fail(display = "Invalid base58 version bytes")]
+	InvalidBase58Version,
+	#[fail(display = "Invalid key")]
+	InvalidBase58Key,
+	#[fail(display = "Epicbox websocket terminated unexpectedly")]
+	EpicboxWebsocketAbnormalTermination,
+	#[fail(display = "Could not parse number from string")]
+	NumberParsingError,
+	#[fail(display = "Listener for {} closed", 0)]
+	ClosedListener(String),
+	#[fail(display = "Unable to encrypt message")]
+	Encryption,
+	#[fail(display = "Unable to decrypt message")]
+	Decryption,
+	#[fail(display = "Could not parse '{}' to a epicbox address", 0)]
+	EpicboxAddressParsingError(String),
+	#[fail(display = "No listener on {}", 0)]
+	NoListener(String),
 
 	/// Other
 	#[fail(display = "Generic error: {}", _0)]
@@ -312,7 +336,7 @@ impl From<ErrorKind> for Error {
 
 impl From<Context<ErrorKind>> for Error {
 	fn from(inner: Context<ErrorKind>) -> Error {
-		Error { inner: inner }
+		Error { inner }
 	}
 }
 

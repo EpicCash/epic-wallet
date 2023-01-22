@@ -20,7 +20,7 @@
 #![deny(non_camel_case_types)]
 #![deny(non_snake_case)]
 #![deny(unused_mut)]
-#![warn(missing_docs)]
+//#![warn(missing_docs)]
 
 use epic_wallet_config as config;
 use epic_wallet_util::epic_core;
@@ -46,10 +46,15 @@ extern crate strum_macros;
 
 pub mod address;
 pub mod api_impl;
+mod base58;
+pub mod crypto;
+mod epicbox_address;
 mod error;
 mod internal;
+pub mod message;
 pub mod slate;
 pub mod slate_versions;
+mod tx_proof;
 mod types;
 
 pub use crate::error::{Error, ErrorKind};
@@ -58,10 +63,15 @@ pub use crate::slate_versions::{
 	SlateVersion, VersionedCoinbase, VersionedSlate, CURRENT_SLATE_VERSION,
 	EPIC_BLOCK_HEADER_VERSION,
 };
+pub use crate::tx_proof::TxProof;
 pub use api_impl::owner_updater::StatusMessage;
 pub use api_impl::types::{
 	BlockFees, InitTxArgs, InitTxSendArgs, IssueInvoiceTxArgs, NodeHeightResult,
 	OutputCommitMapping, PaymentProof, SendTXArgs, VersionInfo,
+};
+pub use epicbox_address::{
+	version_bytes, Address, AddressType, EpicboxAddress, DEFAULT_EPICBOX_PORT_443,
+	DEFAULT_EPICBOX_PORT_80,
 };
 pub use internal::scan::scan;
 pub use slate_versions::ser as dalek_ser;

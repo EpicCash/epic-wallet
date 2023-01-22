@@ -71,6 +71,7 @@ subcommands:
             possible_values:
               - http
               - keybase
+              - epicbox
             default_value: http
             takes_value: true
         - no_tor:
@@ -130,6 +131,7 @@ subcommands:
               - file
               - self
               - keybase
+              - epicbox
               - emoji
             default_value: http
             takes_value: true

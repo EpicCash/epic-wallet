@@ -22,6 +22,8 @@ use blake2_rfc as blake2;
 extern crate serde_derive;
 #[macro_use]
 extern crate log;
+
+use epic_wallet_config as config;
 use epic_wallet_libwallet as libwallet;
 use epic_wallet_util::epic_api as api;
 use epic_wallet_util::epic_chain as chain;
@@ -30,11 +32,10 @@ use epic_wallet_util::epic_keychain as keychain;
 use epic_wallet_util::epic_store as store;
 use epic_wallet_util::epic_util as util;
 
-use epic_wallet_config as config;
-
 mod adapters;
 mod backends;
 mod client_utils;
+pub mod epicbox;
 mod error;
 mod lifecycle;
 mod node_clients;
@@ -43,8 +44,10 @@ pub mod test_framework;
 pub mod tor;
 
 pub use crate::adapters::{
-	create_sender, EmojiSlate, HttpSlateSender, KeybaseAllChannels, KeybaseChannel, PathToSlate,
-	SlateGetter, SlatePutter, SlateReceiver, SlateSender,
+	create_sender, Container, EmojiSlate, EpicboxBroker, EpicboxChannel, EpicboxController,
+	EpicboxListenChannel, EpicboxListener, EpicboxPublisher, EpicboxSubscriber, HttpSlateSender,
+	KeybaseAllChannels, KeybaseChannel, Listener, ListenerInterface, PathToSlate, SlateGetter,
+	SlatePutter, SlateReceiver, SlateSender, Subscriber,
 };
 pub use crate::backends::{wallet_db_exists, LMDBBackend};
 pub use crate::error::{Error, ErrorKind};
@@ -69,9 +72,7 @@ where
 {
 	pub fn new(node_client: C) -> Result<Self, Error> {
 		let lc_provider = DefaultLCProvider::new(node_client);
-		Ok(DefaultWalletImpl {
-			lc_provider: lc_provider,
-		})
+		Ok(DefaultWalletImpl { lc_provider })
 	}
 }
 
