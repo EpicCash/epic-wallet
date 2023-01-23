@@ -15,7 +15,8 @@
 //! Default wallet lifecycle provider
 
 use crate::config::{
-	config, GlobalWalletConfig, GlobalWalletConfigMembers, TorConfig, WalletConfig, EPIC_WALLET_DIR,
+	config, EpicboxConfig, GlobalWalletConfig, GlobalWalletConfigMembers, TorConfig, WalletConfig,
+	EPIC_WALLET_DIR,
 };
 use crate::core::global;
 use crate::keychain::Keychain;
@@ -77,6 +78,7 @@ where
 		wallet_config: Option<WalletConfig>,
 		logging_config: Option<LoggingConfig>,
 		tor_config: Option<TorConfig>,
+		epicbox_config: Option<EpicboxConfig>,
 	) -> Result<(), Error> {
 		let mut default_config = GlobalWalletConfig::for_chain(chain_type);
 		let logging = match logging_config {
@@ -100,10 +102,18 @@ where
 				None => Some(TorConfig::default()),
 			},
 		};
+		let epicbox = match epicbox_config {
+			Some(t) => Some(t),
+			None => match default_config.members.as_ref() {
+				Some(m) => m.clone().epicbox.clone(),
+				None => Some(EpicboxConfig::default()),
+			},
+		};
 		default_config = GlobalWalletConfig {
 			members: Some(GlobalWalletConfigMembers {
 				wallet,
 				tor,
+				epicbox,
 				logging,
 			}),
 			..default_config

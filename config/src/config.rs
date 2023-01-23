@@ -28,7 +28,7 @@ use toml;
 use crate::comments::insert_comments;
 use crate::core::global;
 use crate::types::{ConfigError, GlobalWalletConfig, GlobalWalletConfigMembers};
-use crate::types::{TorConfig, WalletConfig};
+use crate::types::{EpicboxConfig, TorConfig, WalletConfig};
 use crate::util::logger::LoggingConfig;
 
 /// Wallet configuration file name
@@ -59,6 +59,7 @@ fn get_epic_path(chain_type: &global::ChainTypes) -> Result<PathBuf, ConfigError
 
 fn check_config_current_dir(path: &str) -> Option<PathBuf> {
 	let p = env::current_dir();
+
 	let mut c = match p {
 		Ok(c) => c,
 		Err(_) => {
@@ -154,6 +155,7 @@ impl Default for GlobalWalletConfigMembers {
 		GlobalWalletConfigMembers {
 			logging: Some(LoggingConfig::default()),
 			tor: Some(TorConfig::default()),
+			epicbox: Some(EpicboxConfig::default()),
 			wallet: WalletConfig::default(),
 		}
 	}

@@ -18,7 +18,7 @@ use crate::util::file::get_first_line;
 use crate::util::{to_hex, Mutex, ZeroingString};
 /// Argument parsing and error handling for wallet commands
 use clap::ArgMatches;
-use epic_wallet_config::{TorConfig, WalletConfig};
+use epic_wallet_config::{EpicboxConfig, TorConfig, WalletConfig};
 use epic_wallet_controller::command;
 use epic_wallet_controller::{Error, ErrorKind};
 use epic_wallet_impls::tor::config::is_tor_address;
@@ -38,6 +38,9 @@ use linefeed::{Interface, ReadResult};
 use rpassword;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+
+use rustyline::error::ReadlineError;
+use rustyline::Editor;
 
 // define what to do on argument error
 macro_rules! arg_parse {
@@ -98,39 +101,36 @@ where
 	C: NodeClient + 'static,
 	K: keychain::Keychain + 'static,
 {
-	let interface = Arc::new(Interface::new("recover")?);
-	let mut phrase = ZeroingString::from("");
-	interface.set_report_signal(Signal::Interrupt, true);
-	interface.set_prompt("phrase> ")?;
+	let mut rl = Editor::<()>::new();
+	println!("Please enter your recovery phrase:");
 	loop {
-		println!("Please enter your recovery phrase:");
-		let res = interface.read_line()?;
-		match res {
-			ReadResult::Eof => break,
-			ReadResult::Signal(sig) => {
-				if sig == Signal::Interrupt {
-					interface.cancel_read_line()?;
-					return Err(ParseError::CancelledError);
-				}
-			}
-			ReadResult::Input(line) => {
+		let readline = rl.readline("phrase> ");
+		match readline {
+			Ok(line) => {
 				let mut w_lock = wallet.lock();
 				let p = w_lock.lc_provider().unwrap();
 				if p.validate_mnemonic(ZeroingString::from(line.clone()))
 					.is_ok()
 				{
-					phrase = ZeroingString::from(line);
-					break;
+					return Ok(ZeroingString::from(line));
 				} else {
 					println!();
-					println!("Recovery word phrase is invalid.");
+					eprintln!("Recovery word phrase is invalid.");
 					println!();
-					interface.set_buffer(&line)?;
 				}
+			}
+			Err(ReadlineError::Interrupted) => {
+				return Err(ParseError::CancelledError);
+			}
+			Err(ReadlineError::Eof) => {
+				return Err(ParseError::CancelledError);
+			}
+			Err(err) => {
+				eprintln!("Error: {:?}", err);
+				return Err(ParseError::CancelledError);
 			}
 		}
 	}
-	Ok(phrase)
 }
 
 fn prompt_pay_invoice(slate: &Slate, method: &str, dest: &str) -> Result<bool, ParseError> {
@@ -284,12 +284,12 @@ pub fn parse_global_args(
 
 	Ok(command::GlobalArgs {
 		account: account.to_owned(),
-		show_spent: show_spent,
-		chain_type: chain_type,
-		api_secret: api_secret,
-		node_api_secret: node_api_secret,
-		password: password,
-		tls_conf: tls_conf,
+		show_spent,
+		chain_type,
+		api_secret,
+		node_api_secret,
+		password,
+		tls_conf,
 	})
 }
 
@@ -326,10 +326,10 @@ where
 	};
 
 	Ok(command::InitArgs {
-		list_length: list_length,
-		password: password,
+		list_length,
+		password,
 		config: config.clone(),
-		recovery_phrase: recovery_phrase,
+		recovery_phrase,
 		restore: false,
 	})
 }
@@ -340,9 +340,7 @@ pub fn parse_recover_args(
 where
 {
 	let passphrase = prompt_password(&g_args.password);
-	Ok(command::RecoverArgs {
-		passphrase: passphrase,
-	})
+	Ok(command::RecoverArgs { passphrase })
 }
 
 pub fn parse_listen_args(
@@ -380,7 +378,7 @@ pub fn parse_account_args(account_args: &ArgMatches) -> Result<command::AccountA
 		None => None,
 		Some(s) => Some(s.to_owned()),
 	};
-	Ok(command::AccountArgs { create: create })
+	Ok(command::AccountArgs { create })
 }
 
 pub fn parse_send_args(args: &ArgMatches) -> Result<command::SendArgs, ParseError> {
@@ -487,19 +485,19 @@ pub fn parse_send_args(args: &ArgMatches) -> Result<command::SendArgs, ParseErro
 	};
 
 	Ok(command::SendArgs {
-		amount: amount,
-		message: message,
+		amount,
+		message,
 		minimum_confirmations: min_c,
 		selection_strategy: selection_strategy.to_owned(),
 		estimate_selection_strategies,
 		method: method.to_owned(),
 		dest: dest.to_owned(),
-		change_outputs: change_outputs,
-		fluff: fluff,
-		max_outputs: max_outputs,
+		change_outputs,
+		fluff,
+		max_outputs,
 		payment_proof_address,
 		ttl_blocks,
-		target_slate_version: target_slate_version,
+		target_slate_version,
 	})
 }
 
@@ -679,13 +677,13 @@ pub fn parse_process_invoice_args(
 	}
 
 	Ok(command::ProcessInvoiceArgs {
-		message: message,
+		message,
 		minimum_confirmations: min_c,
 		selection_strategy: selection_strategy.to_owned(),
 		estimate_selection_strategies,
 		method: method.to_owned(),
 		dest: dest.to_owned(),
-		max_outputs: max_outputs,
+		max_outputs,
 		input: tx_file.to_owned(),
 		ttl_blocks,
 	})
@@ -711,8 +709,8 @@ pub fn parse_check_args(args: &ArgMatches) -> Result<command::CheckArgs, ParseEr
 	let delete_unconfirmed = args.is_present("delete_unconfirmed");
 	let start_height = parse_u64_or_none(args.value_of("start_height"));
 	Ok(command::CheckArgs {
-		start_height: start_height,
-		delete_unconfirmed: delete_unconfirmed,
+		start_height,
+		delete_unconfirmed,
 	})
 }
 
@@ -737,7 +735,7 @@ pub fn parse_txs_args(args: &ArgMatches) -> Result<command::TxsArgs, ParseError>
 	}
 	Ok(command::TxsArgs {
 		id: tx_id,
-		tx_slate_id: tx_slate_id,
+		tx_slate_id,
 	})
 }
 
@@ -747,7 +745,7 @@ pub fn parse_post_args(args: &ArgMatches) -> Result<command::PostArgs, ParseErro
 
 	Ok(command::PostArgs {
 		input: tx_file.to_owned(),
-		fluff: fluff,
+		fluff,
 	})
 }
 
@@ -765,8 +763,8 @@ pub fn parse_repost_args(args: &ArgMatches) -> Result<command::RepostArgs, Parse
 
 	Ok(command::RepostArgs {
 		id: tx_id.unwrap(),
-		dump_file: dump_file,
-		fluff: fluff,
+		dump_file,
+		fluff,
 	})
 }
 
@@ -794,8 +792,8 @@ pub fn parse_cancel_args(args: &ArgMatches) -> Result<command::CancelArgs, Parse
 		return Err(ParseError::ArgumentError(msg));
 	}
 	Ok(command::CancelArgs {
-		tx_id: tx_id,
-		tx_slate_id: tx_slate_id,
+		tx_id,
+		tx_slate_id,
 		tx_id_string: tx_id_string.to_owned(),
 	})
 }
@@ -826,7 +824,7 @@ pub fn parse_export_proof_args(args: &ArgMatches) -> Result<command::ProofExport
 	Ok(command::ProofExportArgs {
 		output_file: output_file.to_owned(),
 		id: tx_id,
-		tx_slate_id: tx_slate_id,
+		tx_slate_id,
 	})
 }
 
@@ -841,6 +839,7 @@ pub fn wallet_command<C, F>(
 	wallet_args: &ArgMatches,
 	mut wallet_config: WalletConfig,
 	tor_config: Option<TorConfig>,
+	epicbox_config: Option<EpicboxConfig>,
 	mut node_client: C,
 	test_mode: bool,
 	wallet_inst_cb: F,
@@ -903,6 +902,12 @@ where
 		}
 	};
 
+	// for backwards compatibility: If epicbox config doesn't exist in the file
+	let epicbox_config = match epicbox_config {
+		Some(epicbox_config) => epicbox_config,
+		None => EpicboxConfig::default(),
+	};
+
 	// Instantiate wallet (doesn't open the wallet)
 	let wallet =
 		inst_wallet::<DefaultLCProvider<C, keychain::ExtKeychain>, C, keychain::ExtKeychain>(
@@ -910,7 +915,7 @@ where
 			node_client,
 		)
 		.unwrap_or_else(|e| {
-			println!("{}", e);
+			eprintln!("{}", e);
 			std::process::exit(1);
 		});
 
@@ -976,12 +981,14 @@ where
 		("listen", Some(args)) => {
 			let mut c = wallet_config.clone();
 			let mut t = tor_config.clone();
+			let e = epicbox_config.clone();
 			let a = arg_parse!(parse_listen_args(&mut c, &mut t, &args));
 			command::listen(
 				wallet,
 				Arc::new(Mutex::new(keychain_mask)),
 				&c,
 				&t,
+				&e,
 				&a,
 				&global_wallet_args.clone(),
 			)
@@ -991,13 +998,14 @@ where
 			let mut g = global_wallet_args.clone();
 			g.tls_conf = None;
 			arg_parse!(parse_owner_api_args(&mut c, &args));
-			command::owner_api(wallet, keychain_mask, &c, &tor_config, &g)
+			command::owner_api(wallet, keychain_mask, &c, &tor_config, &epicbox_config, &g)
 		}
 		("web", Some(_)) => command::owner_api(
 			wallet,
 			keychain_mask,
 			&wallet_config,
 			&tor_config,
+			&epicbox_config,
 			&global_wallet_args,
 		),
 		("account", Some(args)) => {
@@ -1010,6 +1018,7 @@ where
 				wallet,
 				km,
 				Some(tor_config),
+				Some(epicbox_config),
 				a,
 				wallet_config.dark_background_color_scheme.unwrap_or(true),
 			)
@@ -1099,6 +1108,7 @@ where
 	if let Err(e) = res {
 		Err(e)
 	} else {
+		//info!("subcommand");
 		Ok(wallet_args.subcommand().0.to_owned())
 	}
 }

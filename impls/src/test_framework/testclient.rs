@@ -110,8 +110,8 @@ where
 		let retval = WalletProxy {
 			chain_dir: chain_dir.to_owned(),
 			chain: Arc::new(c),
-			tx: tx,
-			rx: rx,
+			tx,
+			rx,
 			wallets: HashMap::new(),
 			running: Arc::new(AtomicBool::new(false)),
 		};

@@ -17,6 +17,7 @@
 use crate::adapters::{SlateReceiver, SlateSender};
 use crate::config::WalletConfig;
 use crate::libwallet::api_impl::foreign;
+
 use crate::libwallet::{Error, ErrorKind, NodeClient, Slate, WalletInst, WalletLCProvider};
 use crate::util::Mutex;
 use serde::Serialize;
