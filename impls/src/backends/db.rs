@@ -172,7 +172,7 @@ impl Store {
 		// filter by parent_key_id (key)
 		query = match parent_key_id {
 			Some(key) => format!(
-				"{} AND json_extract(data, '$.root_key_id') = '{}'",
+				"{} AND json_extract(data, '$.parent_key_id') = {}",
 				query,
 				serde_json::to_string(key).unwrap()
 			),
