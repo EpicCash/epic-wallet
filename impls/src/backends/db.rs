@@ -257,7 +257,7 @@ impl Store {
 
 		// get not spent transactions
 		if !show_spent {
-			query = format!("{} AND q_tx_status = != '{}'", query, OutputStatus::Spent)
+			query = format!("{} AND q_tx_status != '{}'", query, OutputStatus::Spent)
 		};
 
 		self.db
