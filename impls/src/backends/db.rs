@@ -277,7 +277,7 @@ impl Store {
 	/// that is, what it returns is not necessarily eligible. But to be eligible it needs to be in the return of that function.
 	pub fn eligible_outputs_preset(&self, key: Option<&Identifier>) -> Vec<Serializable> {
 		let query = format!(
-			"SELECT data FROM data WHERE prefix = '{}' AND q_tx_status IN ('{}', '{}') AND json_extract(data, '$.root_key_id') = '{}'",
+			"SELECT data FROM data WHERE prefix = '{}' AND q_tx_status IN ('{}', '{}') AND json_extract(data, '$.root_key_id') = {}",
 			OUTPUT_PREFIX as char,
 			OutputStatus::Unspent,
 			OutputStatus::Unconfirmed,
