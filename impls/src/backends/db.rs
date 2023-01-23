@@ -165,7 +165,7 @@ impl Store {
 	) -> Vec<Serializable> {
 		// initial query (get all TxLogEntry)
 		let mut query = format!(
-			"SELECT * FROM data WHERE prefix = '{}' ",
+			"SELECT * FROM data WHERE prefix = '{}'",
 			TX_LOG_ENTRY_PREFIX as char
 		);
 
