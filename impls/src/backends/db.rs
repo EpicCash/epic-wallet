@@ -197,14 +197,10 @@ impl Store {
 		// get not confirmed AND Received,Sent transactions
 		if outstanding_only {
 			query = format!(
-				"{} {} {} {} {} {} {}",
+				"{} AND q_confirmed = '0' AND q_tx_status IN ('{}','{}')",
 				query,
-				"AND q_confirmed = '0'",
-				"AND q_tx_status IN ('",
 				TxLogEntryType::TxReceived,
-				"','",
 				TxLogEntryType::TxSent,
-				"')"
 			)
 		};
 
