@@ -188,8 +188,8 @@ impl Store {
 		// filter by tx_slate_id
 		query = match tx_slate_id {
 			Some(slate_id) => format!(
-				"{} {} {}",
-				query, "AND json_extract(data, $.slate_id) = ", slate_id
+				"{} AND json_extract(data, '$.tx_slate_id') = '{}'",
+				query, slate_id
 			),
 			None => query,
 		};
