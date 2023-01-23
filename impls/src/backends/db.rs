@@ -242,7 +242,7 @@ impl Store {
 		// get transaction key column
 		query = match parent_key_id {
 			Some(key) => format!(
-				"{} AND json_extract(data, '$.root_key_id')= '{}'",
+				"{} AND json_extract(data, '$.root_key_id')= {}",
 				query,
 				serde_json::to_string(key).unwrap()
 			),
