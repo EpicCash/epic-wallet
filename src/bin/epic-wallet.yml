@@ -363,7 +363,7 @@ subcommands:
       args:
         - here:
             help: Create wallet files in the current directory instead of the default ~/.epic directory
-            short: h
+            short: H
             long: here
             takes_value: false
         - short_wordlist:
