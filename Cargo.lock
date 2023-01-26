@@ -1070,6 +1070,7 @@ dependencies = [
  "epic_wallet_util",
  "failure",
  "failure_derive",
+ "flate2",
  "futures",
  "http",
  "hyper",

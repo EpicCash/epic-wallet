@@ -13,6 +13,7 @@
 // limitations under the License.
 
 mod emoji;
+mod emoji_map;
 mod file;
 pub mod http;
 mod keybase;
