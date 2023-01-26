@@ -41,19 +41,19 @@ pub const DB_DIR: &'static str = "db";
 const SQLITE_DIR: &'static str = "sqlite";
 pub const TX_SAVE_DIR: &'static str = "saved_txs";
 
-const OUTPUT_HISTORY_PREFIX: u8 = 'h' as u8;
-const OUTPUT_HISTORY_ID_PREFIX: u8 = 'j' as u8;
-const OUTPUT_PREFIX: u8 = 'o' as u8;
-const DERIV_PREFIX: u8 = 'd' as u8;
-const CONFIRMED_HEIGHT_PREFIX: u8 = 'c' as u8;
-const PRIVATE_TX_CONTEXT_PREFIX: u8 = 'p' as u8;
-const TX_LOG_ENTRY_PREFIX: u8 = 't' as u8;
-const TX_LOG_ID_PREFIX: u8 = 'i' as u8;
-const ACCOUNT_PATH_MAPPING_PREFIX: u8 = 'a' as u8;
-const LAST_SCANNED_BLOCK: u8 = 'l' as u8;
-const LAST_SCANNED_KEY: &str = "LAST_SCANNED_KEY";
-const WALLET_INIT_STATUS: u8 = 'w' as u8;
-const WALLET_INIT_STATUS_KEY: &str = "WALLET_INIT_STATUS";
+pub const OUTPUT_HISTORY_PREFIX: u8 = 'h' as u8;
+pub const OUTPUT_HISTORY_ID_PREFIX: u8 = 'j' as u8;
+pub const OUTPUT_PREFIX: u8 = 'o' as u8;
+pub const DERIV_PREFIX: u8 = 'd' as u8;
+pub const CONFIRMED_HEIGHT_PREFIX: u8 = 'c' as u8;
+pub const PRIVATE_TX_CONTEXT_PREFIX: u8 = 'p' as u8;
+pub const TX_LOG_ENTRY_PREFIX: u8 = 't' as u8;
+pub const TX_LOG_ID_PREFIX: u8 = 'i' as u8;
+pub const ACCOUNT_PATH_MAPPING_PREFIX: u8 = 'a' as u8;
+pub const LAST_SCANNED_BLOCK: u8 = 'l' as u8;
+pub const LAST_SCANNED_KEY: &str = "LAST_SCANNED_KEY";
+pub const WALLET_INIT_STATUS: u8 = 'w' as u8;
+pub const WALLET_INIT_STATUS_KEY: &str = "WALLET_INIT_STATUS";
 
 /// test to see if database files exist in the current directory. If so,
 /// use a DB backend for all operations
@@ -345,6 +345,48 @@ where
 			.filter_map(Serializable::as_txlogentry)
 			.collect();
 		Box::new(serializables.into_iter().map(|x| x))
+	}
+
+	fn tx_log_iter_filtered<'a>(
+		&'a self,
+		tx_id: Option<u32>,
+		tx_slate_id: Option<Uuid>,
+		parent_key_id: Option<&Identifier>,
+		outstanding_only: bool,
+	) -> Box<dyn Iterator<Item = TxLogEntry> + 'a> {
+		let entries = self
+			.db
+			.get_txs(tx_id, tx_slate_id, parent_key_id, outstanding_only)
+			.into_iter()
+			.filter_map(Serializable::as_txlogentry);
+		Box::new(entries)
+	}
+
+	fn output_data_iter<'a>(
+		&self,
+		tx_id: Option<u32>,
+		parent_key_id: Option<&Identifier>,
+		show_full_history: bool,
+		show_spent: bool,
+	) -> Box<dyn Iterator<Item = OutputData> + 'a> {
+		let data = self
+			.db
+			.get_outputs(tx_id, parent_key_id, show_full_history, show_spent)
+			.into_iter()
+			.filter_map(Serializable::as_output_data);
+		Box::new(data)
+	}
+
+	fn eligible_outputs_preset(
+		&self,
+		key: Option<&Identifier>,
+	) -> Box<dyn Iterator<Item = OutputData>> {
+		let eligible = self
+			.db
+			.eligible_outputs_preset(key)
+			.into_iter()
+			.filter_map(Serializable::as_output_data);
+		Box::new(eligible)
 	}
 
 	fn get_private_context(
@@ -748,6 +790,57 @@ where
 			.collect();
 
 		Box::new(serializables.into_iter().map(|x| x))
+	}
+
+	fn tx_log_iter_filtered(
+		&self,
+		tx_id: Option<u32>,
+		tx_slate_id: Option<Uuid>,
+		parent_key_id: Option<&Identifier>,
+		outstanding_only: bool,
+	) -> Box<dyn Iterator<Item = TxLogEntry>> {
+		let entries = self
+			.db
+			.borrow()
+			.as_ref()
+			.unwrap()
+			.get_txs(tx_id, tx_slate_id, parent_key_id, outstanding_only)
+			.into_iter()
+			.filter_map(Serializable::as_txlogentry);
+		Box::new(entries)
+	}
+
+	fn output_data_iter(
+		&self,
+		tx_id: Option<u32>,
+		parent_key_id: Option<&Identifier>,
+		show_full_history: bool,
+		show_spent: bool,
+	) -> Box<dyn Iterator<Item = OutputData>> {
+		let data = self
+			.db
+			.borrow()
+			.as_ref()
+			.unwrap()
+			.get_outputs(tx_id, parent_key_id, show_full_history, show_spent)
+			.into_iter()
+			.filter_map(Serializable::as_output_data);
+		Box::new(data)
+	}
+
+	fn eligible_outputs_preset(
+		&self,
+		key: Option<&Identifier>,
+	) -> Box<dyn Iterator<Item = OutputData>> {
+		let eligible = self
+			.db
+			.borrow()
+			.as_ref()
+			.unwrap()
+			.eligible_outputs_preset(key)
+			.into_iter()
+			.filter_map(Serializable::as_output_data);
+		Box::new(eligible)
 	}
 
 	fn save_last_confirmed_height(
