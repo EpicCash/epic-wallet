@@ -45,6 +45,7 @@ data-encoding = "2"
 regex = "1.3"
 timer = "0.2"
 sysinfo = "0.9"
+flate2 = "1.0"
 
 epic_wallet_util = { path = "../util", version = "3.3.2" }
 epic_wallet_config = { path = "../config", version = "3.3.2" }
