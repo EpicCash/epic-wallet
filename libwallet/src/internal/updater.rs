@@ -126,30 +126,19 @@ where
 	let mut wallet_outputs: HashMap<pedersen::Commitment, (Identifier, Option<u64>)> =
 		HashMap::new();
 	let keychain = wallet.keychain(keychain_mask)?;
-	let unspents: Vec<OutputData> = wallet
-		.iter()
-		.filter(|x| x.root_key_id == *parent_key_id && x.status != OutputStatus::Spent)
+
+	let mut tx_entries_ids: Option<Vec<u32>> = None;
+	if !update_all {
+		tx_entries_ids = Some(
+			retrieve_txs(wallet, None, None, Some(&parent_key_id), true)?
+				.iter()
+				.map(|f| f.id)
+				.collect(),
+		);
+	}
+	let unspents: Vec<_> = wallet
+		.unspent_ouputs(parent_key_id, tx_entries_ids)
 		.collect();
-
-	let tx_entries = retrieve_txs(wallet, None, None, Some(&parent_key_id), true)?;
-
-	// Only select outputs that are actually involved in an outstanding transaction
-	let unspents: Vec<OutputData> = match update_all {
-		false => unspents
-			.into_iter()
-			.filter(|x| match x.tx_log_entry.as_ref() {
-				Some(t) => {
-					if let Some(_) = tx_entries.iter().find(|&te| te.id == *t) {
-						true
-					} else {
-						false
-					}
-				}
-				None => true,
-			})
-			.collect(),
-		true => unspents,
-	};
 
 	for out in unspents {
 		let commit = match out.commit.clone() {
@@ -328,6 +317,7 @@ where
 	Ok(())
 }
 
+/// Clean old uncofirmed data to keep the database clean from old unconfirmed coinbase blocks
 fn clean_old_unconfirmed<'a, T: ?Sized, C, K>(
 	wallet: &mut T,
 	keychain_mask: Option<&SecretKey>,
@@ -341,16 +331,10 @@ where
 	if height < 50 {
 		return Ok(());
 	}
-	let mut ids_to_del = vec![];
-	for out in wallet.iter() {
-		if out.status == OutputStatus::Unconfirmed
-			&& out.height > 0
-			&& out.height < height - 50
-			&& out.is_coinbase
-		{
-			ids_to_del.push(out.key_id.clone())
-		}
-	}
+	let ids_to_del: Vec<Identifier> = wallet
+		.old_unconfirmed_outputs(height)
+		.map(|o| o.key_id.clone())
+		.collect();
 	let mut batch = wallet.batch(keychain_mask)?;
 	for id in ids_to_del {
 		batch.delete(&id, &None, &None)?;

@@ -28,9 +28,7 @@ use std::time::Duration;
 use uuid::Uuid;
 
 const SQLITE_MAX_RETRIES: u8 = 3;
-use super::lmdb::{
-	OUTPUT_HISTORY_PREFIX, OUTPUT_PREFIX, PRIVATE_TX_CONTEXT_PREFIX, TX_LOG_ENTRY_PREFIX,
-};
+use super::lmdb::{OUTPUT_HISTORY_PREFIX, OUTPUT_PREFIX, TX_LOG_ENTRY_PREFIX};
 
 static SQLITE_FILENAME: &str = "epic.db";
 
@@ -283,6 +281,85 @@ impl Store {
 			OutputStatus::Unconfirmed,
 			serde_json::to_string(&key).unwrap()
 		);
+
+		self.db
+			.prepare(query)
+			.unwrap()
+			.into_iter()
+			.map(|row| {
+				let row = row.unwrap();
+				ser::deserialize(row.read::<&str, _>("data")).unwrap()
+			})
+			.collect()
+	}
+
+	/// Return old unconfirmed txos
+	/// A output is considered unconfirmed if the tx_status is unconfirmed and
+	/// the height of the txos is bigger than 0 and smaller than the height minus 50
+	/// It also needs to be a coinbase
+	pub fn old_unconfirmed_outputs(&self, height: u64) -> Vec<Serializable> {
+		let query = format!(
+			r#"
+			SELECT
+				*
+			FROM
+				data
+			WHERE
+				prefix = '{}' AND q_tx_status = '{}' AND
+				CAST(json_extract(data, '$.height') AS INTEGER) > 0 AND CAST(json_extract(data, '$.height') AS INTEGER) < ({} - 50) AND
+				json_extract(data, '$.is_coinbase') = true
+			"#,
+			OUTPUT_PREFIX as char,
+			OutputStatus::Unconfirmed,
+			height
+		);
+		self.db
+			.prepare(query)
+			.unwrap()
+			.into_iter()
+			.map(|row| {
+				let row = row.unwrap();
+				ser::deserialize(row.read::<&str, _>("data")).unwrap()
+			})
+			.collect()
+	}
+
+	/// Returns unspent outputs
+	/// tx_entries_ids can be passed to select outputs
+	/// that are actually involved in an outstanding transaction
+	pub fn unspent_ouputs(
+		&self,
+		parent_key_id: &Identifier,
+		tx_entries_ids: Option<Vec<u32>>,
+	) -> Vec<Serializable> {
+		let mut query = format!(
+			r#"
+			SELECT
+				*
+			FROM
+				data
+			WHERE
+				prefix = '{}' AND
+				json_extract(data, '$.root_key_id') = {} AND
+				q_tx_status != '{}'"#,
+			OUTPUT_PREFIX as char,
+			serde_json::to_string(&parent_key_id).unwrap(),
+			OutputStatus::Spent
+		);
+
+		if let Some(f) = tx_entries_ids {
+			query = format!(
+				r#"
+				{}
+					AND (q_tx_id IS NULL OR q_tx_id IN ({}))
+				"#,
+				query,
+				f.iter()
+					.map(|x| x.to_string())
+					.collect::<Vec<_>>()
+					.join(", "),
+			)
+		}
 
 		self.db
 			.prepare(query)

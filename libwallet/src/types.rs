@@ -226,6 +226,21 @@ where
 		key: Option<&Identifier>,
 	) -> Box<dyn Iterator<Item = OutputData>>;
 
+	/// Get old and unconfirmed outputs
+	/// A output is considered unconfirmed if the tx_status is unconfirmed and
+	/// the height of the txos is bigger than 0 and smaller than the height minus 50
+	/// It also needs to be a coinbase
+	fn old_unconfirmed_outputs(&self, height: u64) -> Box<dyn Iterator<Item = OutputData>>;
+
+	/// Returns unspent outputs
+	/// tx_entries_ids can be passed to select outputs
+	/// that are actually involved in an outstanding transaction
+	fn unspent_ouputs(
+		&self,
+		parent_key_id: &Identifier,
+		tx_entries_ids: Option<Vec<u32>>,
+	) -> Box<dyn Iterator<Item = OutputData>>;
+
 	/// Iterate over all stored account paths
 	fn acct_path_iter<'a>(&'a self) -> Box<dyn Iterator<Item = AcctPathMapping> + 'a>;
 
