@@ -19,8 +19,9 @@ use crate::libwallet::{Error, ErrorKind, Slate, SlateVersion, VersionedSlate};
 
 extern crate flate2;
 use super::emoji_map::EMOJI_MAP;
-use flate2::read::ZlibDecoder;
-use flate2::write::ZlibEncoder;
+use flate2::read::GzDecoder;
+use flate2::write::GzEncoder;
+
 use flate2::Compression;
 
 static TYPE_TRANSACTION: &str = "compress";
@@ -33,10 +34,10 @@ pub struct EmojiSlate();
 /// Here we use the `compressor` which defines how much we want to compress and also the `encoder` which is the compression algorithm.
 pub fn compress(slate_json: &str) -> Vec<u8> {
 	// level of compression, default is 6 and best is 9;
-	let compressor = Compression::default();
+	let compressor = Compression::new(9);
 
 	// Compression algorithm
-	let mut encoder = ZlibEncoder::new(Vec::new(), compressor);
+	let mut encoder = GzEncoder::new(Vec::new(), compressor);
 
 	// Transforming slate_json into compressed Vec<u8>
 	encoder
@@ -53,7 +54,7 @@ pub fn compress(slate_json: &str) -> Vec<u8> {
 /// Function responsible for decompressing the message of a `Vec<u8>` into a `String`
 /// Here we use the `decoder` which defines the decompression algorithm.
 pub fn decompress(compressed_slate: Vec<u8>) -> String {
-	let mut decoder = ZlibDecoder::new(&compressed_slate[..]);
+	let mut decoder = GzDecoder::new(&compressed_slate[..]);
 
 	// String that will store the uncompressed message
 	let mut decompressed = String::new();
@@ -193,53 +194,6 @@ impl EmojiSlate {
 			"compress" => TranslateType::Compressed(content_vec),
 			_ => TranslateType::Normal(content_string),
 		}
-	}
-
-	/// Transform a String of emojis into a Vec<u8>
-	fn translate2vec(&self, emoji_string: &str) -> Vec<u8> {
-		let mut content = Vec::new();
-		let mut bit_vec: BitVec = BitVec::new();
-
-		for i in 0..emoji_string.len() {
-			if emoji_string.chars().nth(i) == None {
-				break;
-			}
-
-			let emoji = emoji_string.chars().nth(i).unwrap();
-			let idx = EMOJI_MAP
-				.iter()
-				.position(|r| r.glyph == emoji.to_string())
-				.unwrap() as u16;
-
-			for i in (1..11).rev() {
-				let mut bit = idx << (16 - i);
-				bit = bit >> 15;
-
-				if bit == 1 {
-					bit_vec.push(true);
-				} else {
-					bit_vec.push(false);
-				}
-			}
-		}
-
-		let emoji = emoji_string.chars().nth(0).unwrap();
-		let num_extra_bits = EMOJI_MAP
-			.iter()
-			.position(|r| r.glyph == emoji.to_string())
-			.unwrap();
-
-		for i in ((10 + num_extra_bits)..bit_vec.len()).step_by(8) {
-			let mut bit_vec_8b_slice: BitVec = BitVec::new();
-			for j in i..(i + 8) {
-				bit_vec_8b_slice.push(bit_vec[j]);
-			}
-			content.push(self.bitvec2byte(bit_vec_8b_slice) as char);
-		}
-
-		let content_vec = content.iter().map(|c| c.to_owned() as u8).collect();
-
-		return content_vec;
 	}
 
 	/// Encode the Slate struct into a Emoji String
