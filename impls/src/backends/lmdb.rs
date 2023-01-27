@@ -389,6 +389,28 @@ where
 		Box::new(eligible)
 	}
 
+	fn old_unconfirmed_outputs(&self, height: u64) -> Box<dyn Iterator<Item = OutputData>> {
+		Box::new(
+			self.db
+				.old_unconfirmed_outputs(height)
+				.into_iter()
+				.filter_map(Serializable::as_output_data),
+		)
+	}
+
+	fn unspent_ouputs(
+		&self,
+		parent_key_id: &Identifier,
+		tx_entries_ids: Option<Vec<u32>>,
+	) -> Box<dyn Iterator<Item = OutputData>> {
+		Box::new(
+			self.db
+				.unspent_ouputs(parent_key_id, tx_entries_ids)
+				.into_iter()
+				.filter_map(Serializable::as_output_data),
+		)
+	}
+
 	fn get_private_context(
 		&mut self,
 		keychain_mask: Option<&SecretKey>,
