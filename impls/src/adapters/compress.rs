@@ -32,6 +32,7 @@ pub enum CompressionFormat {
 	Deflate,
 }
 
+/// Transform CompressionFormat into a Vec with all options
 impl Into<Vec<CompressionFormat>> for CompressionFormat {
 	fn into(self) -> Vec<CompressionFormat> {
 		vec![
@@ -42,6 +43,7 @@ impl Into<Vec<CompressionFormat>> for CompressionFormat {
 	}
 }
 
+/// Transform into a string version of CompressionFormat
 impl ToString for CompressionFormat {
 	fn to_string(&self) -> String {
 		match *self {
@@ -52,93 +54,12 @@ impl ToString for CompressionFormat {
 	}
 }
 
-/// The generic function that handles both Zlib and Gzip compression/decompression
+/// The function that handles the compression code, for now we have Zlib, Gzip and Deflate
 ///  # Example
 /// ```
 /// let data = "data to compress".as_bytes();
-/// let compressed = compress_or_decompress(data, CompressionFormat::Gzip, "compress");
-/// let decompressed = compress_or_decompress(&compressed[..], CompressionFormat::Gzip, "decompress");
+/// let compressed = compress(data, CompressionFormat::Gzip);
 /// ```
-pub fn compress_or_decompress(data: &[u8], mode: CompressionFormat, operation: &str) -> Vec<u8> {
-	// A vector to store the output
-	let mut output = Vec::new();
-
-	// Check if the operation is compression or decompression
-	match operation {
-		// Compression operation
-		"compress" => {
-			// Check the desired compression format
-			match mode {
-				// Zlib compression
-				CompressionFormat::Zlib => {
-					// level of compression, default is 6 and best is 9;
-					let compressor = Compression::new(9);
-					// Create a ZlibEncoder instance
-					let mut encoder = ZlibEncoder::new(Vec::new(), compressor);
-					// Write the data to be compressed
-					encoder.write_all(data).unwrap();
-					// Finish the compression and store the result in the output vector
-					output = encoder.finish().unwrap();
-				}
-				// Gzip compression
-				CompressionFormat::Gzip => {
-					// level of compression, default is 6 and best is 9;
-					let compressor = Compression::new(9);
-					// Create a GzEncoder instance
-					let mut encoder = GzEncoder::new(Vec::new(), compressor);
-					// Write the data to be compressed
-					encoder.write_all(data).unwrap();
-					// Finish the compression and store the result in the output vector
-					output = encoder.finish().unwrap();
-				}
-				// Deflate compression
-				CompressionFormat::Deflate => {
-					// level of compression, default is 6 and best is 9;
-					let compressor = Compression::new(9);
-					// Create a DeflateEncoder instance
-					let mut encoder = DeflateEncoder::new(Vec::new(), compressor);
-					// Write the data to be compressed
-					encoder.write_all(data).unwrap();
-					// Finish the compression and store the result in the output vector
-					output = encoder.finish().unwrap();
-				}
-			}
-		}
-		// Decompression operation
-		"decompress" => {
-			// Check the desired compression format
-			match mode {
-				// Zlib decompression
-				CompressionFormat::Zlib => {
-					// Create a ZlibDecoder instance
-					let mut decoder = ZlibDecoder::new(data);
-					// Decompress the data and store the result in the output vector
-					decoder.read_to_end(&mut output).unwrap();
-				}
-				// Gzip decompression
-				CompressionFormat::Gzip => {
-					// Create a GzDecoder instance
-					let mut decoder = GzDecoder::new(data);
-					// Decompress the data and store the result in the output vector
-					decoder.read_to_end(&mut output).unwrap();
-				}
-				// Deflate decompression
-				CompressionFormat::Deflate => {
-					// Create a GzDecoder instance
-					let mut decoder = DeflateDecoder::new(data);
-					// Decompress the data and store the result in the output vector
-					decoder.read_to_end(&mut output).unwrap();
-				}
-			}
-		}
-		// Invalid operation
-		_ => println!("Invalid Operation"),
-	}
-
-	// Return the result
-	output
-}
-
 pub fn compress(data: &[u8], mode: CompressionFormat) -> Vec<u8> {
 	// A vector to store the output
 	let mut output = Vec::new();
@@ -183,6 +104,13 @@ pub fn compress(data: &[u8], mode: CompressionFormat) -> Vec<u8> {
 	output
 }
 
+/// The generic function that handles the decompression, for now we have Zlib, Gzip and Deflate
+///  # Example
+/// ```
+/// let data = "data to compress".as_bytes();
+/// let compressed = compress(data, CompressionFormat::Gzip);
+/// let decompressed = decompress(&compressed[..], CompressionFormat::Gzip);
+/// ```
 pub fn decompress(data: &[u8], mode: CompressionFormat) -> String {
 	// String that will store the uncompressed message
 	let mut decompressed = String::new();

@@ -13,39 +13,44 @@
 // limitations under the License.
 
 use bitvec::prelude::*;
-use std::io::{Read, Write};
 
 use crate::libwallet::{Error, ErrorKind, Slate, SlateVersion, VersionedSlate};
 
 extern crate flate2;
-use super::emoji_map::EMOJI_MAP;
-
-use emoji::Emoji;
+use super::emoji_map::{
+	DEFLATE_METHOD, EMOJI_DIVIDER, EMOJI_MAP, GZIP_METHOD, VERSION_0, VERSION_1, ZLIB_METHOD,
+};
 
 use super::compress::{compress, decompress, CompressionFormat};
 use std::collections::HashMap;
 
+/// Globally controls which type of transaction we will consider, compressed or normal
 static TYPE_TRANSACTION: &str = "compress";
-pub const GZIP_METHOD: Emoji = emoji::activities::arts_and_crafts::THREAD;
-pub const ZLIB_METHOD: Emoji = emoji::activities::arts_and_crafts::THREAD;
-pub const DEFLATE_METHOD: Emoji = emoji::activities::arts_and_crafts::THREAD;
-pub const VERSION_0: Emoji = emoji::activities::arts_and_crafts::THREAD;
-pub const VERSION_1: Emoji = emoji::activities::arts_and_crafts::THREAD;
 
-/// The default method to compress and decompress in Epic
+/// The default method to compress and decompress in this version of Epic
 const COMPRESS_METHOD: CompressionFormat = CompressionFormat::Gzip;
 
+/// The default version of the emoji in this version of Epic
+const EMOJI_VERSION: u16 = 1;
+
+/// Saves all information and the type of compressor and which version of the epic for the emoji we are using
 #[derive(Debug)]
 struct Header {
+	/// Method to compress/decompress
 	algo: CompressionFormat,
+	/// Version of emoji in Epic
 	version: u16,
 }
 
+/// Get a Vec of String -> Header
 impl From<Vec<String>> for Header {
 	fn from(input: Vec<String>) -> Self {
+		// First information, algo
 		let algo_str = &input[0];
+		// Second position, version
 		let version_str = &input[1];
 
+		// Get the Enum from str
 		let algo = match algo_str.as_ref() {
 			"gzip" => CompressionFormat::Gzip,
 			"zlib" => CompressionFormat::Zlib,
@@ -53,16 +58,22 @@ impl From<Vec<String>> for Header {
 			_ => panic!("Invalid compression format!"),
 		};
 
+		// Get the version from str
 		let version = match version_str.parse() {
 			Ok(version) => version,
 			Err(_) => panic!("Invalid version number!"),
 		};
 
+		// return the Header
 		Header { algo, version }
 	}
 }
 
+/// This function returns a Dictionary that contains keys such as compression method and version of emoji
+/// And the values are the corresponding emojis, as there are few algorithms that we want to keep, we don't need something generic
+/// Something like an Encode for the Header without having to create a custom EMOJI_MAP for the Header
 fn get_header_dict() -> HashMap<String, String> {
+	// dict
 	let mut map: HashMap<String, String> = HashMap::new();
 
 	// Add all methods to Dict
@@ -86,6 +97,8 @@ fn get_header_dict() -> HashMap<String, String> {
 	map
 }
 
+/// Inverts the dictionary resulting in a Dictionary where the Keys are emojis and the values are the compression methods and version of the emoji
+/// Something like an Dencoder for the Header without having to create a custom EMOJI_MAP for the Header
 fn invert_hashmap(map: &HashMap<String, String>) -> HashMap<String, String> {
 	let mut inverted = HashMap::new();
 	for (key, value) in map {
@@ -94,36 +107,68 @@ fn invert_hashmap(map: &HashMap<String, String>) -> HashMap<String, String> {
 	inverted
 }
 
+/// Implementations that help handle Header in code
 impl Header {
-	fn new() -> Header {
+	/// Returns a new Header with the inserted methods and versions
+	fn new(method: CompressionFormat, ver: u16) -> Header {
+		Header {
+			algo: method,
+			version: ver,
+		}
+	}
+
+	/// Returns a default value to modify without having to manually create a Header
+	fn default() -> Header {
 		Header {
 			algo: COMPRESS_METHOD,
-			version: 1,
+			version: EMOJI_VERSION,
 		}
 	}
 
+	/// Transforms the Header into a string of emojis, transforming only the values of each Header entry, in this case we only have Method and Version
 	fn to_emoji_string(&self) -> String {
+		// Get the "Encoder"
 		let method2emoji = get_header_dict();
+
+		// Get the method
 		let method = self.algo.to_string();
+		// Transform this method into a correspondent emoji
 		let emoji_method = method2emoji.get(&method).unwrap();
 
-		emoji_method.to_owned()
+		// Get the version
+		let version = self.version.to_string();
+		// Transform this Version into a correspondent emoji
+		let emoji_version = method2emoji.get(&version).unwrap();
+
+		// Merge the emojis to return a unique String
+		let string = emoji_method.to_string() + emoji_version;
+		string
 	}
 
+	/// Turns an emoji string into a Header, consider the input as just 2 emojis, one emoji is the compression method the other is the version
 	fn to_header(emoji_string: String) -> Header {
+		// Get the "Encoder" Header -> String_Emoji
 		let method2emoji = get_header_dict();
+		// Get the "Decoder" reversing the "Encoder" so we have String_Emoji -> Header
 		let emoji2method = invert_hashmap(&method2emoji);
 
+		// For each emoji
 		let emojis = emoji_string.chars();
 
+		// Save all emojis converted into a vector -> Vec -> Header
 		let mut header_vec = Vec::new();
 
+		// For all emoji in message
 		for emoji_header in emojis {
-			let a = emoji_header.to_string();
-			let b = emoji2method.get(&a).unwrap().to_owned();
-			header_vec.push(b);
+			// Get the String of this emoji
+			let unique_string = emoji_header.to_string();
+			// Transform this Emoji into a Method or Version
+			let unique_method = emoji2method.get(&unique_string).unwrap().to_owned();
+			// Push this information into the Vec
+			header_vec.push(unique_method);
 		}
 
+		// Transform this vec into a Header
 		let header = Header::from(header_vec);
 		header
 	}
@@ -133,8 +178,11 @@ impl Header {
 #[derive(Clone)]
 pub struct EmojiSlate();
 
+/// Save the type of transaction in the functions
 enum TranslateType {
+	/// Not compressed
 	Normal(String),
+	/// Compressed
 	Compressed(Vec<u8>),
 }
 
@@ -324,26 +372,80 @@ impl EmojiSlate {
 			emoji_map_idx.push(bv.load::<u16>());
 		}
 
+		// get the emoji string from slate_json
 		let emoji_string = self.translate2emoji(emoji_map_idx);
 
-		return emoji_string;
+		let final_emoji_string = match TYPE_TRANSACTION {
+			// if compressed
+			"compress" => {
+				// Get a default header (Gzip method and Version 1)
+				let header = Header::default();
+				// Turns the header into emoji_string
+				let h_emoji = header.to_emoji_string();
+				// Merge all strings of Emojis: Header + Divider + Transaction
+				let emoji_string_header = h_emoji + EMOJI_DIVIDER.glyph + &emoji_string;
+
+				emoji_string_header
+			}
+			// If normal method
+			_ => emoji_string,
+		};
+
+		return final_emoji_string;
 	}
 
 	/// Transform a emoji string into a Slate
 	pub fn decode(&self, emoji_string: &str) -> Result<Slate, Error> {
-		// get the Vec<u8> from emoji_string
-		//let compressed_vec = self.translate2vec(emoji_string);
+		// get the Emoji Divider
+		let div = EMOJI_DIVIDER.glyph.to_string().chars().next().unwrap();
+		// If countain divider -> Compressed with header
+		let slate_string = if emoji_string.contains(div) {
+			// Split the emoji_string into divider emoji
+			let mut splited_slate = emoji_string.split(div);
 
-		let compressed_msg = self.translate(emoji_string, TYPE_TRANSACTION);
+			// get the header emojis (before divider)
+			let header_emoji = splited_slate.next().unwrap();
+			// get the transaction emojis (after divider)
+			let slate_emoji = splited_slate.next().unwrap();
 
-		let slate_string = match compressed_msg {
-			TranslateType::Compressed(compressed_vec) => {
-				// decompress
-				//let slate_string = decompress(compressed_vec);
-				let slate_string = decompress(&compressed_vec[..], COMPRESS_METHOD);
-				slate_string
-			}
-			TranslateType::Normal(slate_string) => slate_string,
+			// get the compressed message from emoji string
+			let compressed_msg = self.translate(slate_emoji, TYPE_TRANSACTION);
+
+			// get the header from emoji string
+			let mut header = Header::to_header(header_emoji.to_string());
+
+			// get the method of compression from emoji message
+			let compress_method = header.algo.clone();
+			// get the number of version from emoji message (don't used yet)
+			let emoji_version = header.version.clone();
+
+			// If the message is compressed
+			let slate_string = match compressed_msg {
+				TranslateType::Compressed(compressed_vec) => {
+					// decompress
+					let slate_string = decompress(&compressed_vec[..], compress_method);
+					slate_string
+				}
+				TranslateType::Normal(slate_string) => slate_string,
+			};
+
+			slate_string
+		}
+		// If the message doesn't have Divider, it is compressed without a header
+		else {
+			// Get the compressed message from emoji string
+			let compressed_msg = self.translate(emoji_string, TYPE_TRANSACTION);
+
+			let slate_string = match compressed_msg {
+				TranslateType::Compressed(compressed_vec) => {
+					// decompress
+					let slate_string = decompress(&compressed_vec[..], COMPRESS_METHOD);
+					slate_string
+				}
+				TranslateType::Normal(slate_string) => slate_string,
+			};
+
+			slate_string
 		};
 		Ok(Slate::deserialize_upgrade(&slate_string)?)
 	}
