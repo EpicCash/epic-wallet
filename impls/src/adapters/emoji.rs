@@ -1,4 +1,4 @@
-// Copyright 2019 The Epic Developers
+// Copyright 2022 The Epic Developers
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,54 +19,119 @@ use crate::libwallet::{Error, ErrorKind, Slate, SlateVersion, VersionedSlate};
 
 extern crate flate2;
 use super::emoji_map::EMOJI_MAP;
-use flate2::read::GzDecoder;
-use flate2::write::GzEncoder;
 
-use flate2::Compression;
+use emoji::Emoji;
+
+use super::compress::{compress, decompress, CompressionFormat};
+use std::collections::HashMap;
 
 static TYPE_TRANSACTION: &str = "compress";
+pub const GZIP_METHOD: Emoji = emoji::activities::arts_and_crafts::THREAD;
+pub const ZLIB_METHOD: Emoji = emoji::activities::arts_and_crafts::THREAD;
+pub const DEFLATE_METHOD: Emoji = emoji::activities::arts_and_crafts::THREAD;
+pub const VERSION_0: Emoji = emoji::activities::arts_and_crafts::THREAD;
+pub const VERSION_1: Emoji = emoji::activities::arts_and_crafts::THREAD;
+
+/// The default method to compress and decompress in Epic
+const COMPRESS_METHOD: CompressionFormat = CompressionFormat::Gzip;
+
+#[derive(Debug)]
+struct Header {
+	algo: CompressionFormat,
+	version: u16,
+}
+
+impl From<Vec<String>> for Header {
+	fn from(input: Vec<String>) -> Self {
+		let algo_str = &input[0];
+		let version_str = &input[1];
+
+		let algo = match algo_str.as_ref() {
+			"gzip" => CompressionFormat::Gzip,
+			"zlib" => CompressionFormat::Zlib,
+			"deflate" => CompressionFormat::Deflate,
+			_ => panic!("Invalid compression format!"),
+		};
+
+		let version = match version_str.parse() {
+			Ok(version) => version,
+			Err(_) => panic!("Invalid version number!"),
+		};
+
+		Header { algo, version }
+	}
+}
+
+fn get_header_dict() -> HashMap<String, String> {
+	let mut map: HashMap<String, String> = HashMap::new();
+
+	// Add all methods to Dict
+	map.insert(
+		CompressionFormat::Gzip.to_string(),
+		GZIP_METHOD.glyph.to_string().clone(),
+	);
+	map.insert(
+		CompressionFormat::Zlib.to_string(),
+		ZLIB_METHOD.glyph.to_string().clone(),
+	);
+	map.insert(
+		CompressionFormat::Deflate.to_string(),
+		DEFLATE_METHOD.glyph.to_string().clone(),
+	);
+
+	// Add all versions to Dict
+	map.insert(0.to_string(), VERSION_0.glyph.to_string().clone());
+	map.insert(1.to_string(), VERSION_1.glyph.to_string().clone());
+
+	map
+}
+
+fn invert_hashmap(map: &HashMap<String, String>) -> HashMap<String, String> {
+	let mut inverted = HashMap::new();
+	for (key, value) in map {
+		inverted.insert(value.clone(), key.clone());
+	}
+	inverted
+}
+
+impl Header {
+	fn new() -> Header {
+		Header {
+			algo: COMPRESS_METHOD,
+			version: 1,
+		}
+	}
+
+	fn to_emoji_string(&self) -> String {
+		let method2emoji = get_header_dict();
+		let method = self.algo.to_string();
+		let emoji_method = method2emoji.get(&method).unwrap();
+
+		emoji_method.to_owned()
+	}
+
+	fn to_header(emoji_string: String) -> Header {
+		let method2emoji = get_header_dict();
+		let emoji2method = invert_hashmap(&method2emoji);
+
+		let emojis = emoji_string.chars();
+
+		let mut header_vec = Vec::new();
+
+		for emoji_header in emojis {
+			let a = emoji_header.to_string();
+			let b = emoji2method.get(&a).unwrap().to_owned();
+			header_vec.push(b);
+		}
+
+		let header = Header::from(header_vec);
+		header
+	}
+}
 
 /// EmojiSlate is the struct that stores Slate in emoji format to transact
 #[derive(Clone)]
 pub struct EmojiSlate();
-
-/// Function responsible for compressing the `slate_json` into a `Vec<u8>`
-/// Here we use the `compressor` which defines how much we want to compress and also the `encoder` which is the compression algorithm.
-pub fn compress(slate_json: &str) -> Vec<u8> {
-	// level of compression, default is 6 and best is 9;
-	let compressor = Compression::new(9);
-
-	// Compression algorithm
-	let mut encoder = GzEncoder::new(Vec::new(), compressor);
-
-	// Transforming slate_json into compressed Vec<u8>
-	encoder
-		.write_all(slate_json.as_bytes())
-		.expect("Error on compress the slate_json");
-	let compressed = encoder
-		.finish()
-		.expect("Error on finish the emoji compressor");
-
-	// Message compressed
-	compressed
-}
-
-/// Function responsible for decompressing the message of a `Vec<u8>` into a `String`
-/// Here we use the `decoder` which defines the decompression algorithm.
-pub fn decompress(compressed_slate: Vec<u8>) -> String {
-	let mut decoder = GzDecoder::new(&compressed_slate[..]);
-
-	// String that will store the uncompressed message
-	let mut decompressed = String::new();
-
-	// Transforming Vec<u8> into decompressed slate_json
-	decoder
-		.read_to_string(&mut decompressed)
-		.expect("Error on decompress");
-
-	// Message decompressed
-	decompressed
-}
 
 enum TranslateType {
 	Normal(String),
@@ -221,7 +286,8 @@ impl EmojiSlate {
 		let slate_str = match TYPE_TRANSACTION {
 			"compress" => {
 				// Compressed slate_json
-				let slate_str = compress(&slate_json);
+				//let slate_str = compress(&slate_json);
+				let slate_str = compress(&slate_json.as_bytes(), COMPRESS_METHOD);
 				slate_str
 			}
 			_ => slate_json.into_bytes(),
@@ -273,7 +339,8 @@ impl EmojiSlate {
 		let slate_string = match compressed_msg {
 			TranslateType::Compressed(compressed_vec) => {
 				// decompress
-				let slate_string = decompress(compressed_vec);
+				//let slate_string = decompress(compressed_vec);
+				let slate_string = decompress(&compressed_vec[..], COMPRESS_METHOD);
 				slate_string
 			}
 			TranslateType::Normal(slate_string) => slate_string,
