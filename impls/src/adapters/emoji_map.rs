@@ -17,7 +17,15 @@ use emoji::{self, Emoji};
 /// The divider emoji is the brick
 /// NEED BE UNIQUE
 /// DON'T REUSE THIS EMOJI
-pub const EMOJI_DIVIDER: Emoji = emoji::travel_and_places::place_building::BRICK;
+pub const EMOJI_DIVIDER: Emoji = emoji::travel_and_places::transport_water::ANCHOR;
+
+/// Saves which emoji corresponds to all the compression methods we have in the Header
+/// Need be unique between header
+pub const GZIP_METHOD: Emoji = emoji::symbols::zodiac::AQUARIUS;
+pub const ZLIB_METHOD: Emoji = emoji::symbols::zodiac::ARIES;
+pub const DEFLATE_METHOD: Emoji = emoji::symbols::zodiac::CANCER;
+pub const VERSION_0: Emoji = emoji::symbols::zodiac::CAPRICORN;
+pub const VERSION_1: Emoji = emoji::symbols::zodiac::GEMINI;
 
 /// All the emojis we use to encode and decode the Slate into a String of emojis
 pub static EMOJI_MAP: [Emoji; 1024] = [
