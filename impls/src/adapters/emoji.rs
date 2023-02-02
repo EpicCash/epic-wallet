@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//! The main implementarion for Emoji
+//! Has the main operations to handle the Emoji transaction
+//! This was built to expand the Epic Cash ways to send coins
+
 use bitvec::prelude::*;
 
 use crate::libwallet::{Error, ErrorKind, Slate, SlateVersion, VersionedSlate};
