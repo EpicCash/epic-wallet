@@ -61,11 +61,8 @@ impl ToString for CompressionFormat {
 /// let compressed = compress(data, CompressionFormat::Gzip);
 /// ```
 pub fn compress(data: &[u8], mode: CompressionFormat) -> Vec<u8> {
-	// A vector to store the output
-	let mut output = Vec::new();
-
 	// Check the desired compression format
-	match mode {
+	let output: Vec<u8> = match mode {
 		// Zlib compression
 		CompressionFormat::Zlib => {
 			// level of compression, default is 6 and best is 9;
@@ -75,7 +72,9 @@ pub fn compress(data: &[u8], mode: CompressionFormat) -> Vec<u8> {
 			// Write the data to be compressed
 			encoder.write_all(data).unwrap();
 			// Finish the compression and store the result in the output vector
-			output = encoder.finish().unwrap();
+			let output = encoder.finish().unwrap();
+
+			output
 		}
 		// Gzip compression
 		CompressionFormat::Gzip => {
@@ -86,7 +85,9 @@ pub fn compress(data: &[u8], mode: CompressionFormat) -> Vec<u8> {
 			// Write the data to be compressed
 			encoder.write_all(data).unwrap();
 			// Finish the compression and store the result in the output vector
-			output = encoder.finish().unwrap();
+			let output = encoder.finish().unwrap();
+
+			output
 		}
 		// Deflate compression
 		CompressionFormat::Deflate => {
@@ -97,9 +98,11 @@ pub fn compress(data: &[u8], mode: CompressionFormat) -> Vec<u8> {
 			// Write the data to be compressed
 			encoder.write_all(data).unwrap();
 			// Finish the compression and store the result in the output vector
-			output = encoder.finish().unwrap();
+			let output = encoder.finish().unwrap();
+
+			output
 		}
-	}
+	};
 
 	output
 }
