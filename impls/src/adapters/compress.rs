@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//! The main implementarion for Compression and Decopression to transactions
+//! Has the main operations to handle the Emoji transaction, for now.
+//! This was built to make the transaction more efficient using less memory
+
 use std::io::{Read, Write};
 
 extern crate flate2;

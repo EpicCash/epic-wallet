@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//! The main implementarion for save Emoji map and the Unique emojis in the code.
+//! This was built to make the transaction more efficient using less memory.
+
 use emoji::{self, Emoji};
 
 /// The divider emoji is the brick
