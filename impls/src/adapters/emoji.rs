@@ -107,16 +107,16 @@ fn invert_hashmap(map: &HashMap<String, String>) -> HashMap<String, String> {
 	inverted
 }
 
+/// Helper function for compressed transactions
+pub fn string2compressedvec(content_string: String) -> Vec<u8> {
+	// Separates the string into chars and then into bits so the compressor can handle the message
+	let content_vec: Vec<u8> = content_string.chars().map(|c| c.to_owned() as u8).collect();
+
+	content_vec
+}
+
 /// Implementations that help handle Header in code
 impl Header {
-	/// Returns a new Header with the inserted methods and versions
-	fn new(method: CompressionFormat, ver: u16) -> Header {
-		Header {
-			algo: method,
-			version: ver,
-		}
-	}
-
 	/// Returns a default value to modify without having to manually create a Header
 	fn default() -> Header {
 		Header {
@@ -177,14 +177,6 @@ impl Header {
 /// EmojiSlate is the struct that stores Slate in emoji format to transact
 #[derive(Clone)]
 pub struct EmojiSlate();
-
-/// Save the type of transaction in the functions
-enum TranslateType {
-	/// Not compressed
-	Normal(String),
-	/// Compressed
-	Compressed(Vec<u8>),
-}
 
 /// Transform implementations between, slate_json, EmojiSlate, Vec<u8>, and BitVec
 impl EmojiSlate {
@@ -251,7 +243,7 @@ impl EmojiSlate {
 	}
 
 	/// Transform a String of emojis into a slate_json
-	fn translate(&self, emoji_string: &str, type_transaction: &str) -> TranslateType {
+	fn translate(&self, emoji_string: &str) -> String {
 		// Final slate_json string
 		let mut content_string = String::new();
 
@@ -301,16 +293,11 @@ impl EmojiSlate {
 			content_string.push(self.bitvec2byte(bit_vec_8b_slice.clone()) as char);
 		}
 
-		let content_vec: Vec<u8> = content_string.chars().map(|c| c.to_owned() as u8).collect();
-
-		match type_transaction {
-			"compress" => TranslateType::Compressed(content_vec),
-			_ => TranslateType::Normal(content_string),
-		}
+		content_string
 	}
 
 	/// Encode the Slate struct into a Emoji String
-	pub fn encode(&self, slate: &Slate) -> String {
+	pub fn encode(&self, slate: &Slate, receive_compressed: bool) -> String {
 		// get the slate
 		let out_slate = {
 			if slate.payment_proof.is_some() || slate.ttl_cutoff_height.is_some() {
@@ -331,14 +318,19 @@ impl EmojiSlate {
 			Err(_) => "ERROR - Slate JSON generation".to_string(),
 		};
 
-		let slate_str = match TYPE_TRANSACTION {
-			"compress" => {
-				// Compressed slate_json
-				//let slate_str = compress(&slate_json);
-				let slate_str = compress(&slate_json.as_bytes(), COMPRESS_METHOD);
-				slate_str
-			}
-			_ => slate_json.into_bytes(),
+		let slate_str = if receive_compressed {
+			let slate_str = match TYPE_TRANSACTION {
+				"compress" => {
+					// Compressed slate_json
+					//let slate_str = compress(&slate_json);
+					let slate_str = compress(&slate_json.as_bytes(), COMPRESS_METHOD);
+					slate_str
+				}
+				_ => slate_json.into_bytes(),
+			};
+			slate_str
+		} else {
+			slate_json.into_bytes()
 		};
 
 		// Emoji BitVec
@@ -375,31 +367,38 @@ impl EmojiSlate {
 		// get the emoji string from slate_json
 		let emoji_string = self.translate2emoji(emoji_map_idx);
 
-		let final_emoji_string = match TYPE_TRANSACTION {
-			// if compressed
-			"compress" => {
-				// Get a default header (Gzip method and Version 1)
-				let header = Header::default();
-				// Turns the header into emoji_string
-				let h_emoji = header.to_emoji_string();
-				// Merge all strings of Emojis: Header + Divider + Transaction
-				let emoji_string_header = h_emoji + EMOJI_DIVIDER.glyph + &emoji_string;
+		let final_emoji_string = if receive_compressed {
+			let final_emoji_string = match TYPE_TRANSACTION {
+				// if compressed
+				"compress" => {
+					// Get a default header (Gzip method and Version 1)
+					let header = Header::default();
+					// Turns the header into emoji_string
+					let h_emoji = header.to_emoji_string();
+					// Merge all strings of Emojis: Header + Divider + Transaction
+					let emoji_string_header = h_emoji + EMOJI_DIVIDER.glyph + &emoji_string;
 
-				emoji_string_header
-			}
-			// If normal method
-			_ => emoji_string,
+					emoji_string_header
+				}
+				// If normal method
+				_ => emoji_string,
+			};
+
+			final_emoji_string
+		} else {
+			// The receive emoji_string is not compressed, so the reply-to-sender emoji string has to be normal
+			emoji_string
 		};
 
 		return final_emoji_string;
 	}
 
 	/// Transform a emoji string into a Slate
-	pub fn decode(&self, emoji_string: &str) -> Result<Slate, Error> {
+	pub fn decode(&self, emoji_string: &str) -> Result<(Slate, bool), Error> {
 		// get the Emoji Divider
 		let div = EMOJI_DIVIDER.glyph.to_string().chars().next().unwrap();
 		// If countain divider -> Compressed with header
-		let (header, compressed_msg) = if emoji_string.contains(div) {
+		let (slate_string, receive_compressed) = if emoji_string.contains(div) {
 			// Split the emoji_string into divider emoji
 			let mut splited_slate = emoji_string.split(div);
 
@@ -409,36 +408,31 @@ impl EmojiSlate {
 			let slate_emoji = splited_slate.next().unwrap();
 
 			// get the compressed message from emoji string
-			let compressed_msg = self.translate(slate_emoji, TYPE_TRANSACTION);
+			let compressed_msg = self.translate(slate_emoji);
 
 			// get the header from emoji string
 			let header = Header::to_header(header_emoji.to_string());
 
-			(header, compressed_msg)
+			// get the method of compression from emoji message
+			let compress_method = header.algo.clone();
+			// get the number of version from emoji message (don't used yet)
+			let _emoji_version = header.version.clone();
+
+			// Get the Vec<u8> from string to code can descompress this message
+			let compressed_vec = string2compressedvec(compressed_msg);
+
+			// decompress
+			let slate_string = decompress(&compressed_vec[..], compress_method);
+
+			(slate_string, true)
 		} else {
-			// If you don't have the divider, we create an artificial header with the Gzip compression method and consequently the Version is 0
-			let header = Header::new(CompressionFormat::Gzip, 0);
+			// Get the decompressed message from emoji string
+			let slate_string = self.translate(emoji_string);
 
-			// Get the compressed message from emoji string
-			let compressed_msg = self.translate(emoji_string, TYPE_TRANSACTION);
-
-			(header, compressed_msg)
+			(slate_string, false)
 		};
 
-		// If the message is compressed
-		let slate_string = match compressed_msg {
-			TranslateType::Compressed(compressed_vec) => {
-				// get the method of compression from emoji message
-				let compress_method = header.algo.clone();
-				// get the number of version from emoji message (don't used yet)
-				let emoji_version = header.version.clone();
-
-				// decompress
-				let slate_string = decompress(&compressed_vec[..], compress_method);
-				slate_string
-			}
-			TranslateType::Normal(slate_string) => slate_string,
-		};
-		Ok(Slate::deserialize_upgrade(&slate_string)?)
+		let slate = Slate::deserialize_upgrade(&slate_string)?;
+		Ok((slate, receive_compressed))
 	}
 }
