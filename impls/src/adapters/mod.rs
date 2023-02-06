@@ -18,11 +18,13 @@ mod emoji_map;
 mod file;
 pub mod http;
 mod keybase;
+mod qr;
 
 pub use self::emoji::EmojiSlate;
 pub use self::file::PathToSlate;
 pub use self::http::{HttpSlateSender, SchemeNotHttp};
 pub use self::keybase::{KeybaseAllChannels, KeybaseChannel};
+pub use self::qr::QrToSlate;
 
 use crate::config::{TorConfig, WalletConfig};
 use crate::libwallet::{Error, ErrorKind, NodeClient, Slate, WalletInst, WalletLCProvider};
