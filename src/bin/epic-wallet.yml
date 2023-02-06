@@ -131,6 +131,7 @@ subcommands:
               - self
               - keybase
               - emoji
+              - qr
             default_value: http
             takes_value: true
         - dest:
@@ -181,10 +182,11 @@ subcommands:
             possible_values:
               - file
               - emoji
+              - qr
             default_value: file
             takes_value: true
         - input:
-            help: Partial transaction to process, expects the sender's transaction file or emoji string.
+            help: Partial transaction to process, expects the sender's transaction file, emoji, qr string.
             short: i
             long: input
             takes_value: true
@@ -198,6 +200,7 @@ subcommands:
             possible_values:
               - file
               - emoji
+              - qr
             default_value: file
             takes_value: true
         - input:
