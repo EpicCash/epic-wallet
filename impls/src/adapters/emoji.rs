@@ -46,33 +46,6 @@ struct Header {
 	version: u16,
 }
 
-/// Get a Vec of String -> Header
-impl From<Vec<String>> for Header {
-	fn from(input: Vec<String>) -> Self {
-		// First information, algo
-		let algo_str = &input[0];
-		// Second position, version
-		let version_str = &input[1];
-
-		// Get the Enum from str
-		let algo = match algo_str.as_ref() {
-			"gzip" => CompressionFormat::Gzip,
-			"zlib" => CompressionFormat::Zlib,
-			"deflate" => CompressionFormat::Deflate,
-			_ => panic!("Invalid compression format!"),
-		};
-
-		// Get the version from str
-		let version = match version_str.parse() {
-			Ok(version) => version,
-			Err(_) => panic!("Invalid version number!"),
-		};
-
-		// return the Header
-		Header { algo, version }
-	}
-}
-
 /// This function returns a Dictionary that contains keys such as compression method and version of emoji
 /// And the values are the corresponding emojis, as there are few algorithms that we want to keep, we don't need something generic
 /// Something like an Encode for the Header without having to create a custom EMOJI_MAP for the Header
@@ -123,9 +96,31 @@ pub fn string2compressedvec(content_string: String) -> Vec<u8> {
 impl Header {
 	/// Returns a default value to modify without having to manually create a Header
 	fn default() -> Header {
+		let method: CompressionFormat = match EMOJI_VERSION {
+			// Version 0 had no compression method so it doesn't go here.
+			1 => CompressionFormat::Gzip,    // Latest version of emoji is version 1
+			2 => CompressionFormat::Zlib,    // just for example
+			_ => CompressionFormat::Deflate, // just for example
+		};
+
 		Header {
-			algo: COMPRESS_METHOD,
+			algo: method,
 			version: EMOJI_VERSION,
+		}
+	}
+
+	/// Returns a default value to modify without having to manually create a Header
+	fn new(ver: u16) -> Header {
+		let method: CompressionFormat = match ver {
+			// Version 0 had no compression method so it doesn't go here.
+			1 => CompressionFormat::Gzip,    // Latest version of emoji is version 1
+			2 => CompressionFormat::Zlib,    // just for example
+			_ => CompressionFormat::Deflate, // just for example
+		};
+
+		Header {
+			algo: method,
+			version: ver,
 		}
 	}
 
@@ -134,19 +129,13 @@ impl Header {
 		// Get the "Encoder"
 		let method2emoji = get_header_dict();
 
-		// Get the method
-		let method = self.algo.to_string();
-		// Transform this method into a correspondent emoji
-		let emoji_method = method2emoji.get(&method).unwrap();
-
 		// Get the version
 		let version = self.version.to_string();
 		// Transform this Version into a correspondent emoji
 		let emoji_version = method2emoji.get(&version).unwrap();
 
-		// Merge the emojis to return a unique String
-		let string = emoji_method.to_string() + emoji_version;
-		string
+		// Version will determinate all
+		emoji_version.to_string()
 	}
 
 	/// Turns an emoji string into a Header, consider the input as just 2 emojis, one emoji is the compression method the other is the version
@@ -156,24 +145,17 @@ impl Header {
 		// Get the "Decoder" reversing the "Encoder" so we have String_Emoji -> Header
 		let emoji2method = invert_hashmap(&method2emoji);
 
-		// For each emoji
-		let emojis = emoji_string.chars();
+		let version_str = emoji2method.get(&emoji_string).unwrap().to_owned();
 
-		// Save all emojis converted into a vector -> Vec -> Header
-		let mut header_vec = Vec::new();
+		// Get the version from str
+		let version = match version_str.parse() {
+			Ok(version) => version,
+			Err(_) => panic!("Invalid version number!"),
+		};
 
-		// For all emoji in message
-		for emoji_header in emojis {
-			// Get the String of this emoji
-			let unique_string = emoji_header.to_string();
-			// Transform this Emoji into a Method or Version
-			let unique_method = emoji2method.get(&unique_string).unwrap().to_owned();
-			// Push this information into the Vec
-			header_vec.push(unique_method);
-		}
+		// New header based on version
+		let header = Header::new(version);
 
-		// Transform this vec into a Header
-		let header = Header::from(header_vec);
 		header
 	}
 }
