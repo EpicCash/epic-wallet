@@ -24,9 +24,6 @@ pub const EMOJI_DIVIDER: Emoji = emoji::travel_and_places::transport_water::ANCH
 
 /// Saves which emoji corresponds to all the compression methods we have in the Header
 /// Need be unique between header
-pub const GZIP_METHOD: Emoji = emoji::symbols::zodiac::AQUARIUS;
-pub const ZLIB_METHOD: Emoji = emoji::symbols::zodiac::ARIES;
-pub const DEFLATE_METHOD: Emoji = emoji::symbols::zodiac::CANCER;
 pub const VERSION_0: Emoji = emoji::symbols::zodiac::CAPRICORN;
 pub const VERSION_1: Emoji = emoji::symbols::zodiac::GEMINI;
 

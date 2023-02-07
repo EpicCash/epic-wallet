@@ -21,9 +21,7 @@ use bitvec::prelude::*;
 use crate::libwallet::{Error, ErrorKind, Slate, SlateVersion, VersionedSlate};
 
 extern crate flate2;
-use super::emoji_map::{
-	DEFLATE_METHOD, EMOJI_DIVIDER, EMOJI_MAP, GZIP_METHOD, VERSION_0, VERSION_1, ZLIB_METHOD,
-};
+use super::emoji_map::{EMOJI_DIVIDER, EMOJI_MAP, VERSION_0, VERSION_1};
 
 use super::compress::{compress, decompress, CompressionFormat};
 use std::collections::HashMap;
@@ -52,20 +50,6 @@ struct Header {
 fn get_header_dict() -> HashMap<String, String> {
 	// dict
 	let mut map: HashMap<String, String> = HashMap::new();
-
-	// Add all methods to Dict
-	map.insert(
-		CompressionFormat::Gzip.to_string(),
-		GZIP_METHOD.glyph.to_string().clone(),
-	);
-	map.insert(
-		CompressionFormat::Zlib.to_string(),
-		ZLIB_METHOD.glyph.to_string().clone(),
-	);
-	map.insert(
-		CompressionFormat::Deflate.to_string(),
-		DEFLATE_METHOD.glyph.to_string().clone(),
-	);
 
 	// Add all versions to Dict
 	map.insert(0.to_string(), VERSION_0.glyph.to_string().clone());
@@ -148,10 +132,9 @@ impl Header {
 		let version_str = emoji2method.get(&emoji_string).unwrap().to_owned();
 
 		// Get the version from str
-		let version = match version_str.parse() {
-			Ok(version) => version,
-			Err(_) => panic!("Invalid version number!"),
-		};
+		let version: u16 = version_str
+			.parse()
+			.unwrap_or_else(|_| panic!("Invalid version number!"));
 
 		// New header based on version
 		let header = Header::new(version);
