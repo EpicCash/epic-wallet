@@ -17,8 +17,8 @@ use super::compress::{compress, decompress, CompressionFormat};
 /// File Output 'plugin' implementation
 use crate::libwallet::{Error, ErrorKind, Slate, SlateVersion, VersionedSlate};
 use crate::{SlateGetter, SlatePutter};
-use image::{open, Luma};
-use qr_code::QrCode;
+use image::Luma;
+use qrcode::QrCode;
 use quircs;
 use std::path::PathBuf;
 
@@ -29,9 +29,7 @@ const COMPRESS_METHOD: CompressionFormat = CompressionFormat::Gzip;
 pub struct QrToSlate(pub PathBuf);
 
 fn save2qr(data: &str, path_save: &str) {
-	println!("--1");
-
-	println!("Data: {:?}", data.len());
+	let compressed_data = compress(data, mode);
 
 	//let data_compressed = compress(data, COMPRESS_METHOD);
 	//println!("Data Compressed: {:?}", data_compressed.len());
@@ -40,12 +38,12 @@ fn save2qr(data: &str, path_save: &str) {
 	println!("--2");
 	// Render the bits into an image.
 
-	let b = code.to_vec();
+	//let b = code.to_colors();
 
-	//let image = code.render::<Luma<u8>>().build();
+	let img = code.render::<Luma<u8>>().build();
 	println!("--3");
 	// Save the image.
-	image.save(path_save).unwrap();
+	img.save(path_save).unwrap();
 	println!("--4");
 }
 
@@ -75,22 +73,22 @@ fn read_qr_2(path_read: &PathBuf) -> String {
 	String::from("aa")
 }
 
-fn read_qr(path_read: &PathBuf) -> String {
-	println!("==1");
-	// Load the PNG image
-	let img = image::open(path_read).unwrap().to_rgb8();
+// fn read_qr(path_read: &PathBuf) -> String {
+// 	println!("==1");
+// 	// Load the PNG image
+// 	let img = image::open(path_read).unwrap().to_rgb8();
 
-	println!("==2: {:?}", img.to_vec().len());
-	// Convert the PNG image to a 2D binary matrix representation of the QR code
-	let qr_matrix = qrcode::QrCode::new(img.to_vec()).unwrap();
-	println!("==3");
-	// Get the data encoded in the QR code
-	let string = qr_matrix.render().light_color(' ').dark_color('#').build();
-	println!("==4");
-	println!("QR code data: {}", string);
+// 	println!("==2: {:?}", img.to_vec().len());
+// 	// Convert the PNG image to a 2D binary matrix representation of the QR code
+// 	let qr_matrix = QrCode::new(img.to_vec()).unwrap();
+// 	println!("==3");
+// 	// Get the data encoded in the QR code
+// 	let string = qr_matrix.render().light_color(' ').dark_color('#').build();
+// 	println!("==4");
+// 	println!("QR code data: {}", string);
 
-	string
-}
+// 	string
+// }
 
 impl SlatePutter for QrToSlate {
 	fn put_tx(&self, slate: &Slate) -> Result<(), Error> {
