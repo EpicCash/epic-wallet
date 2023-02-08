@@ -85,10 +85,8 @@ fn save2qr(data: &str, path_save: &str) {
 	// Adding the compressed data
 	compressed_data_header.extend(compressed_data);
 
-	// The original transaction will have a size X.
-	// So the response file will be roughly 9/5 = 1.8 the size of the original transaction,
-	// so the send file needs to be smaller than the maximum size / (9/5) = maximum * 5 / 9
-	if compressed_data_header.len() > LIMIT_QR_BIN * 5 / 9 {
+	// The limit to QR is 2335 values
+	if compressed_data_header.len() > LIMIT_QR_BIN {
 		panic!(
 			"DataTooLong to generate the QR code! Try to perform the transaction by another method. The size of Slate is: {:?}", compressed_data_header.len()
 		);
