@@ -324,7 +324,6 @@ where
 
 			match args.method.as_str() {
 				"qr" => {
-					println!("Dest: {:?}, Slate: {slate:?}", &args.dest);
 					QrToSlate((&args.dest).into()).put_tx(&slate)?;
 					api.tx_lock_outputs(m, &slate, 0)?;
 					return Ok(());
@@ -423,6 +422,8 @@ where
 	if method == "emoji" {
 		println!("\n\nThis is your response emoji string. Please send it back to the payer to finalize the transaction:\n\n{}", EmojiSlate().encode(&slate, receive_compressed));
 		info!("Response emoji.response generated, and can be sent back to the transaction originator.");
+	} else if method == "qr" {
+		QrToSlate((format!("response_{}", args.input)).into()).put_tx(&slate)?;
 	} else {
 		PathToSlate(format!("{}.response", args.input).into()).put_tx(&slate)?;
 		info!(
@@ -457,6 +458,8 @@ where
 	let mut slate;
 	if method == "emoji" {
 		(slate, _) = EmojiSlate().decode(&args.input.as_str())?;
+	} else if method == "qr" {
+		slate = QrToSlate((&args.input).into()).get_tx()?;
 	} else {
 		slate = PathToSlate((&args.input).into()).get_tx()?;
 	}

@@ -22,77 +22,142 @@ use qrcode::QrCode;
 use quircs;
 use std::path::PathBuf;
 
-/// The default method to compress and decompress in this version of Epic
-const COMPRESS_METHOD: CompressionFormat = CompressionFormat::Gzip;
+/// The default version of the QR in this version of Epic
+const QR_VERSION: u8 = 1;
+
+const LIMIT_QR_BIN: usize = 2330;
+
+/// Saves all information and the type of compressor and which version of the epic for the emoji we are using
+struct QrHeader {
+	/// Method to compress/decompress
+	algo: CompressionFormat,
+	/// Version of emoji in Epic
+	version: u8,
+}
+
+/// Implementations that help handle Header in code
+impl QrHeader {
+	/// Returns a default value to modify without having to manually create a Header
+	fn default() -> QrHeader {
+		let method: CompressionFormat = match QR_VERSION {
+			// Version 0 had no compression method so it doesn't go here.
+			1 => CompressionFormat::Gzip,    // Latest version of emoji is version 1
+			2 => CompressionFormat::Zlib,    // just for example
+			_ => CompressionFormat::Deflate, // just for example
+		};
+
+		QrHeader {
+			algo: method,
+			version: QR_VERSION,
+		}
+	}
+
+	/// Returns a default value to modify without having to manually create a Header
+	fn new(ver: u8) -> QrHeader {
+		let method: CompressionFormat = match ver {
+			// Version 0 had no compression method so it doesn't go here.
+			1 => CompressionFormat::Gzip,    // Latest version of emoji is version 1
+			2 => CompressionFormat::Zlib,    // just for example
+			_ => CompressionFormat::Deflate, // just for example
+		};
+
+		QrHeader {
+			algo: method,
+			version: ver,
+		}
+	}
+}
 
 #[derive(Clone)]
 pub struct QrToSlate(pub PathBuf);
 
+/// This function will receive a skateboard as a `data` and save the QR code in image format based on `path_save`
 fn save2qr(data: &str, path_save: &str) {
-	let compressed_data = compress(data, mode);
+	// Header that will define the compression algorithm
+	let header = QrHeader::default();
 
-	//let data_compressed = compress(data, COMPRESS_METHOD);
-	//println!("Data Compressed: {:?}", data_compressed.len());
-	// Encode some data into bits.
-	let code = QrCode::new(data).unwrap();
-	println!("--2");
-	// Render the bits into an image.
+	// Compressing the data
+	let compressed_data = compress(data.as_bytes(), header.algo);
 
-	//let b = code.to_colors();
+	// Adding the QR code version at the beginning of the vector
+	let mut compressed_data_header: Vec<u8> = vec![QR_VERSION as u8];
 
+	// Adding the compressed data
+	compressed_data_header.extend(compressed_data);
+
+	// The original transaction will have a size X.
+	// So the response file will be roughly 9/5 = 1.8 the size of the original transaction,
+	// so the send file needs to be smaller than the maximum size / (9/5) = maximum * 5 / 9
+	if compressed_data_header.len() > LIMIT_QR_BIN * 5 / 9 {
+		panic!(
+			"DataTooLong to generate the QR code! Try to perform the transaction by another method. The size of Slate is: {:?}", compressed_data_header.len()
+		);
+	}
+
+	// Encode the data into bits
+	let code = QrCode::new(compressed_data_header).unwrap();
+
+	// Generate the image
 	let img = code.render::<Luma<u8>>().build();
-	println!("--3");
-	// Save the image.
+
+	// Save the image
 	img.save(path_save).unwrap();
-	println!("--4");
 }
 
+/// This function will read an image and get all the QR code written and will transcribe it into a binary vector and at the end it will return the slate_json
 fn read_qr_2(path_read: &PathBuf) -> String {
-	// open the image from disk
+	// Open the image from disk
 	let img = image::open(path_read).expect("failed to open image");
 
-	// convert to gray scale
+	// Convert to gray scale
 	let img_gray = img.into_luma8();
 
-	// create a decoder
+	// Create a decoder
 	let mut decoder = quircs::Quirc::default();
 
-	// identify all qr codes
+	// Identify all qr codes
 	let codes = decoder.identify(
 		img_gray.width() as usize,
 		img_gray.height() as usize,
 		&img_gray,
 	);
 
+	// All qr into the image
+	let mut all_qr: Vec<u8> = Vec::new();
+
+	// For all code into the codes
 	for code in codes {
+		// Get the Code struct
 		let code = code.expect("failed to extract qr code");
+
+		// Make the decoding process
 		let decoded = code.decode().expect("failed to decode qr code");
-		println!("qrcode: {}", std::str::from_utf8(&decoded.payload).unwrap());
+
+		// Get the compressed data
+		let compressed_data = decoded.payload;
+
+		// Save
+		all_qr.extend(compressed_data);
 	}
 
-	String::from("aa")
+	// Get the version of QR
+	let version = all_qr[0];
+
+	// Get the compressed data
+	let compressed_data = all_qr[1..].to_vec();
+
+	// Defines the Header to get the compression algorithm
+	let header = QrHeader::new(version);
+
+	// Decompress the data
+	let decompress_data = decompress(&compressed_data, header.algo);
+
+	// Return the slate_json
+	decompress_data
 }
-
-// fn read_qr(path_read: &PathBuf) -> String {
-// 	println!("==1");
-// 	// Load the PNG image
-// 	let img = image::open(path_read).unwrap().to_rgb8();
-
-// 	println!("==2: {:?}", img.to_vec().len());
-// 	// Convert the PNG image to a 2D binary matrix representation of the QR code
-// 	let qr_matrix = QrCode::new(img.to_vec()).unwrap();
-// 	println!("==3");
-// 	// Get the data encoded in the QR code
-// 	let string = qr_matrix.render().light_color(' ').dark_color('#').build();
-// 	println!("==4");
-// 	println!("QR code data: {}", string);
-
-// 	string
-// }
 
 impl SlatePutter for QrToSlate {
 	fn put_tx(&self, slate: &Slate) -> Result<(), Error> {
-		println!("-1");
 		let out_slate = {
 			if slate.payment_proof.is_some() || slate.ttl_cutoff_height.is_some() {
 				warn!("Transaction contains features that require epic-wallet 3.0.0 or later");
@@ -105,26 +170,22 @@ impl SlatePutter for QrToSlate {
 				VersionedSlate::into_version(s, SlateVersion::V2)
 			}
 		};
-		println!("-2");
 		let slate_json = serde_json::to_string(&out_slate).map_err(|_| ErrorKind::SlateSer)?;
-		println!("-3");
-		let slate_bytes = slate_json.as_bytes();
-		println!("-4");
-		let path_save = self.0.to_str().unwrap(); //"Test_QR.png";
-		println!("-5, path: {:?}", path_save);
+
+		let path_save = self.0.to_str().unwrap();
+
+		// Save the slate_json into a QR image
 		save2qr(&slate_json, path_save);
-		println!("-6");
+
 		Ok(())
 	}
 }
 
 impl SlateGetter for QrToSlate {
 	fn get_tx(&self) -> Result<Slate, Error> {
-		println!("=1");
-		let path = &self.0; //.to_str().unwrap();
-		println!("=2, path: {:?}", path);
+		let path = &self.0;
+		// Read the QR code and return the slate_json
 		let pub_tx_f = read_qr_2(path);
-		println!("=3");
 		Ok(Slate::deserialize_upgrade(&pub_tx_f)?)
 	}
 }
