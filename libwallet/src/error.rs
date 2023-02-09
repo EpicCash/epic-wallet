@@ -249,6 +249,10 @@ pub enum ErrorKind {
 	#[fail(display = "SQLite Error")]
 	SQLiteError(String),
 
+	/// QR Command line argument error
+	#[fail(display = "QR Error")]
+	QRArgumentError,
+
 	/// Other
 	#[fail(display = "Generic error: {}", _0)]
 	GenericError(String),

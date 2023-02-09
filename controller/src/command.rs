@@ -19,7 +19,7 @@ use crate::config::{TorConfig, WalletConfig, WALLET_CONFIG_FILE_NAME};
 use crate::core::{core, global};
 use crate::error::{Error, ErrorKind};
 use crate::impls::{create_sender, KeybaseAllChannels, SlateGetter as _, SlateReceiver as _};
-use crate::impls::{EmojiSlate, PathToSlate, QrToSlate, SlatePutter};
+use crate::impls::{EmojiSlate, PathToSlate, QrToSlate, SlatePutter, RESPONSE_EXTENTION};
 use crate::keychain;
 use crate::libwallet::{
 	self, address, InitTxArgs, IssueInvoiceTxArgs, NodeClient, PaymentProof, WalletInst,
@@ -324,9 +324,13 @@ where
 
 			match args.method.as_str() {
 				"qr" => {
-					QrToSlate((&args.dest).into()).put_tx(&slate)?;
-					api.tx_lock_outputs(m, &slate, 0)?;
-					return Ok(());
+					if !&args.dest.contains(RESPONSE_EXTENTION) {
+						QrToSlate((&args.dest).into()).put_tx(&slate)?;
+						api.tx_lock_outputs(m, &slate, 0)?;
+						return Ok(());
+					}
+					error!("Unable to generate send qr with {RESPONSE_EXTENTION} included in the path, this is the default reply name added to the file");
+					return Err(libwallet::ErrorKind::QRArgumentError.into());
 				}
 				"emoji" => {
 					println!("{}", EmojiSlate().encode(&slate, true));
@@ -423,7 +427,7 @@ where
 		println!("\n\nThis is your response emoji string. Please send it back to the payer to finalize the transaction:\n\n{}", EmojiSlate().encode(&slate, receive_compressed));
 		info!("Response emoji.response generated, and can be sent back to the transaction originator.");
 	} else if method == "qr" {
-		QrToSlate((format!("response_{}", args.input)).into()).put_tx(&slate)?;
+		QrToSlate((format!("{}{}", RESPONSE_EXTENTION, args.input)).into()).put_tx(&slate)?;
 	} else {
 		PathToSlate(format!("{}.response", args.input).into()).put_tx(&slate)?;
 		info!(
