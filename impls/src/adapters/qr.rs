@@ -25,7 +25,9 @@ use std::path::PathBuf;
 /// The default version of the QR in this version of Epic
 const QR_VERSION: u8 = 1;
 
-const LIMIT_QR_BIN: usize = 2330;
+const LIMIT_QR_BIN: f32 = 2330.0;
+
+pub const RESPONSE_EXTENTION: &str = "response_";
 
 /// Saves all information and the type of compressor and which version of the epic for the emoji we are using
 struct QrHeader {
@@ -72,7 +74,7 @@ impl QrHeader {
 pub struct QrToSlate(pub PathBuf);
 
 /// This function will receive a skateboard as a `data` and save the QR code in image format based on `path_save`
-fn save2qr(data: &str, path_save: &str) {
+fn save2qr(data: &str, path_save: &str, receive_op: bool) {
 	// Header that will define the compression algorithm
 	let header = QrHeader::default();
 
@@ -85,10 +87,22 @@ fn save2qr(data: &str, path_save: &str) {
 	// Adding the compressed data
 	compressed_data_header.extend(compressed_data);
 
-	// The limit to QR is 2335 values
-	if compressed_data_header.len() > LIMIT_QR_BIN {
+	// The response file is larger than send, so we limit to different scales
+	let scalar: f32 = if receive_op { 1.0 } else { 5.0 / 9.0 };
+
+	let num_out = data.matches("commit").count();
+	let num_ele: f32 = compressed_data_header.len() as f32;
+
+	// If have more than 4 commits => use more than 2 outputs to generate, because of that the QR can't be generated
+	// Also, the limit to QR is 2335 elements, so the response file is almost 1.8 = 9/5 biggest than the Send slate_json.
+	// So we limit the message size to be sent by 5 / 9 = length / (9/5)
+	if num_out > 3 || num_ele > LIMIT_QR_BIN * scalar {
 		panic!(
-			"DataTooLong to generate the QR code! Try to perform the transaction by another method. The size of Slate is: {:?}", compressed_data_header.len()
+			"DataTooLong to generate the QR code! Try to perform the transaction by another method.\n
+			The size of compressed Slate is: {:?}
+			The number of Outputs used is: {:?}",
+			num_ele,
+			num_out,
 		);
 	}
 
@@ -103,7 +117,7 @@ fn save2qr(data: &str, path_save: &str) {
 }
 
 /// This function will read an image and get all the QR code written and will transcribe it into a binary vector and at the end it will return the slate_json
-fn read_qr_2(path_read: &PathBuf) -> String {
+fn read_qr(path_read: &PathBuf) -> String {
 	// Open the image from disk
 	let img = image::open(path_read).expect("failed to open image");
 
@@ -172,8 +186,11 @@ impl SlatePutter for QrToSlate {
 
 		let path_save = self.0.to_str().unwrap();
 
+		// If have response_ in the path => it's
+		let receive_op = path_save.contains(RESPONSE_EXTENTION);
+
 		// Save the slate_json into a QR image
-		save2qr(&slate_json, path_save);
+		save2qr(&slate_json, path_save, receive_op);
 
 		Ok(())
 	}
@@ -183,7 +200,7 @@ impl SlateGetter for QrToSlate {
 	fn get_tx(&self) -> Result<Slate, Error> {
 		let path = &self.0;
 		// Read the QR code and return the slate_json
-		let pub_tx_f = read_qr_2(path);
+		let pub_tx_f = read_qr(path);
 		Ok(Slate::deserialize_upgrade(&pub_tx_f)?)
 	}
 }

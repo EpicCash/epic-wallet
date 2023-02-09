@@ -24,7 +24,7 @@ pub use self::emoji::EmojiSlate;
 pub use self::file::PathToSlate;
 pub use self::http::{HttpSlateSender, SchemeNotHttp};
 pub use self::keybase::{KeybaseAllChannels, KeybaseChannel};
-pub use self::qr::QrToSlate;
+pub use self::qr::{QrToSlate, RESPONSE_EXTENTION};
 
 use crate::config::{TorConfig, WalletConfig};
 use crate::libwallet::{Error, ErrorKind, NodeClient, Slate, WalletInst, WalletLCProvider};
@@ -115,9 +115,13 @@ pub fn create_sender(
 			)
 			.into());
 		}
-		"file" => {
+		"file" | "qr" | "emoji" => {
 			return Err(ErrorKind::WalletComms(
-				"File based transactions must be performed asynchronously.".to_string(),
+				format!(
+					"{} based transactions must be performed asynchronously.",
+					method
+				)
+				.to_string(),
 			)
 			.into());
 		}
