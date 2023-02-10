@@ -250,8 +250,12 @@ pub enum ErrorKind {
 	SQLiteError(String),
 
 	/// QR Command line argument error
-	#[fail(display = "QR Error")]
+	#[fail(display = "Argument QR Error")]
 	QRArgumentError,
+
+	/// QR Command line argument error
+	#[fail(display = "Data Too Long QR Error")]
+	DataTooLongQRError,
 
 	/// Other
 	#[fail(display = "Generic error: {}", _0)]

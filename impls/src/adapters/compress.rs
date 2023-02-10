@@ -16,8 +16,7 @@
 //! Has the main operations to handle the Emoji transaction, for now.
 //! This was built to make the transaction more efficient using less memory
 
-use std::io::{Read, Write};
-
+use std::io::{BufReader, Read, Write};
 extern crate flate2;
 use flate2::{
 	read::{DeflateDecoder, GzDecoder, ZlibDecoder},

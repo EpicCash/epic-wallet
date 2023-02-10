@@ -74,7 +74,7 @@ impl QrHeader {
 pub struct QrToSlate(pub PathBuf);
 
 /// This function will receive a skateboard as a `data` and save the QR code in image format based on `path_save`
-fn save2qr(data: &str, path_save: &str, receive_op: bool) {
+fn save2qr(data: &str, path_save: &str, receive_op: bool) -> Result<(), Error> {
 	// Header that will define the compression algorithm
 	let header = QrHeader::default();
 
@@ -97,13 +97,11 @@ fn save2qr(data: &str, path_save: &str, receive_op: bool) {
 	// Also, the limit to QR is 2335 elements, so the response file is almost 1.8 = 9/5 biggest than the Send slate_json.
 	// So we limit the message size to be sent by 5 / 9 = length / (9/5)
 	if num_out > 3 || num_ele > LIMIT_QR_BIN * scalar {
-		panic!(
-			"DataTooLong to generate the QR code! Try to perform the transaction by another method.\n
-			The size of compressed Slate is: {:?}
-			The number of Outputs used is: {:?}",
-			num_ele,
-			num_out,
-		);
+		error!("DataTooLong to generate the QR code! Try to perform the transaction by another method. The size of compressed Slate is: {:?}. The number of Outputs used is: {:?}",
+		num_ele,
+		num_out);
+
+		return Err(ErrorKind::DataTooLongQRError.into());
 	}
 
 	// Encode the data into bits
@@ -114,6 +112,8 @@ fn save2qr(data: &str, path_save: &str, receive_op: bool) {
 
 	// Save the image
 	img.save(path_save).unwrap();
+
+	Ok(())
 }
 
 /// This function will read an image and get all the QR code written and will transcribe it into a binary vector and at the end it will return the slate_json
@@ -190,9 +190,9 @@ impl SlatePutter for QrToSlate {
 		let receive_op = path_save.contains(RESPONSE_EXTENTION);
 
 		// Save the slate_json into a QR image
-		save2qr(&slate_json, path_save, receive_op);
+		let result = save2qr(&slate_json, path_save, receive_op);
 
-		Ok(())
+		result
 	}
 }
 
