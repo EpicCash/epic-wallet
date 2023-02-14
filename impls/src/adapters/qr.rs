@@ -88,15 +88,19 @@ fn save2qr(data: &str, path_save: &str, receive_op: bool) -> Result<(), Error> {
 	compressed_data_header.extend(compressed_data);
 
 	// The response file is larger than send, so we limit to different scales
-	let scalar: f32 = if receive_op { 1.0 } else { 5.0 / 9.0 };
+	let (scalar, num_scalar) = if receive_op {
+		(1.0, 2)
+	} else {
+		(50.0 / 89.0, 1)
+	};
 
 	let num_out = data.matches("commit").count();
 	let num_ele: f32 = compressed_data_header.len() as f32;
 
 	// If have more than 4 commits => use more than 2 outputs to generate, because of that the QR can't be generated
-	// Also, the limit to QR is 2335 elements, so the response file is almost 1.8 = 9/5 biggest than the Send slate_json.
-	// So we limit the message size to be sent by 5 / 9 = length / (9/5)
-	if num_out > 3 || num_ele > LIMIT_QR_BIN * scalar {
+	// Also, the limit to QR is 2335 elements, so the response file is almost 1.78 = 89/50 biggest than the Send slate_json.
+	// So we limit the message size to be sent by 50 / 89 = length / (89/50)
+	if num_out > 3 * num_scalar || num_ele > LIMIT_QR_BIN * scalar {
 		error!("DataTooLong to generate the QR code! Try to perform the transaction by another method. The size of compressed Slate is: {:?}. The number of Outputs used is: {:?}",
 		num_ele,
 		num_out);
