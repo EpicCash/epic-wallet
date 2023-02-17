@@ -20,11 +20,12 @@ pub mod http;
 mod keybase;
 mod qr;
 
-pub use self::emoji::EmojiSlate;
+pub use self::compress::Header;
+pub use self::emoji::{EmojiSlate, EMOJI_VERSION};
 pub use self::file::PathToSlate;
 pub use self::http::{HttpSlateSender, SchemeNotHttp};
 pub use self::keybase::{KeybaseAllChannels, KeybaseChannel};
-pub use self::qr::{QrToSlate, RESPONSE_EXTENTION};
+pub use self::qr::{QrToSlate, QR_VERSION, RESPONSE_EXTENTION};
 
 use crate::config::{TorConfig, WalletConfig};
 use crate::libwallet::{Error, ErrorKind, NodeClient, Slate, WalletInst, WalletLCProvider};

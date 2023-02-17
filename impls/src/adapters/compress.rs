@@ -24,6 +24,10 @@ use flate2::{
 	Compression,
 };
 
+use super::emoji_map::{VERSION_0, VERSION_1};
+use super::{EMOJI_VERSION, QR_VERSION};
+use std::collections::HashMap;
+
 /// Enum to specify the desired compression format
 #[derive(Debug, Eq, Hash, PartialEq, Clone)]
 pub enum CompressionFormat {
@@ -147,4 +151,111 @@ pub fn decompress(data: &[u8], mode: CompressionFormat) -> String {
 	};
 
 	decompressed
+}
+
+/// Header traits
+
+/// This function returns a Dictionary that contains keys such as compression method and version of emoji
+/// And the values are the corresponding emojis, as there are few algorithms that we want to keep, we don't need something generic
+/// Something like an Encode for the Header without having to create a custom EMOJI_MAP for the Header
+fn get_header_dict() -> HashMap<String, String> {
+	// dict
+	let mut map: HashMap<String, String> = HashMap::new();
+
+	// Add all versions to Dict
+	map.insert(0.to_string(), VERSION_0.glyph.to_string().clone());
+	map.insert(1.to_string(), VERSION_1.glyph.to_string().clone());
+
+	map
+}
+
+/// Inverts the dictionary resulting in a Dictionary where the Keys are emojis and the values are the compression methods and version of the emoji
+/// Something like an Dencoder for the Header without having to create a custom EMOJI_MAP for the Header
+fn invert_hashmap(map: &HashMap<String, String>) -> HashMap<String, String> {
+	let mut inverted = HashMap::new();
+	for (key, value) in map {
+		inverted.insert(value.clone(), key.clone());
+	}
+	inverted
+}
+
+/// Saves all information and the type of compressor and which version of the epic for the emoji/qr we are using
+#[derive(Debug)]
+pub struct Header {
+	/// Method to compress/decompress
+	pub algo: CompressionFormat,
+	/// Version of emoji/qr in Epic
+	pub version: u8,
+}
+
+/// Implementations that help handle Header in code
+impl Header {
+	/// Returns a default value to modify without having to manually create a Header
+	pub fn default(method_context: &str) -> Header {
+		let default_version = match method_context {
+			"qr" => QR_VERSION,
+			"emoji" => EMOJI_VERSION,
+		};
+
+		let method: CompressionFormat = match default_version {
+			// Version 0 had no compression method so it doesn't go here.
+			1 => CompressionFormat::Gzip, // Latest version of emoji/qr is version 1
+			2 => CompressionFormat::Zlib, // just for example
+			_ => CompressionFormat::Deflate, // just for example
+		};
+
+		Header {
+			algo: method,
+			version: default_version,
+		}
+	}
+
+	/// Returns a default value to modify without having to manually create a Header
+	pub fn new(ver: u8) -> Header {
+		let method: CompressionFormat = match ver {
+			// Version 0 had no compression method so it doesn't go here.
+			1 => CompressionFormat::Gzip, // Latest version of emoji/qr is version 1
+			2 => CompressionFormat::Zlib, // just for example
+			_ => CompressionFormat::Deflate, // just for example
+		};
+
+		Header {
+			algo: method,
+			version: ver,
+		}
+	}
+
+	/// Transforms the Header into a string of emojis, transforming only the values of each Header entry, in this case we only have Method and Version
+	pub fn to_emoji_string(&self) -> String {
+		// Get the "Encoder"
+		let method2emoji = get_header_dict();
+
+		// Get the version
+		let version = self.version.to_string();
+		// Transform this Version into a correspondent emoji
+		let emoji_version = method2emoji.get(&version).unwrap();
+
+		// Version will determinate all
+		emoji_version.to_string()
+	}
+
+	/// Turns an emoji string into a Header, consider the input as just 2 emojis, one emoji is the compression method the other is the version
+	pub fn to_header(emoji_string: String) -> Header {
+		// Get the "Encoder" Header -> String_Emoji
+		let method2emoji = get_header_dict();
+		// Get the "Decoder" reversing the "Encoder" so we have String_Emoji -> Header
+		let emoji2method = invert_hashmap(&method2emoji);
+
+		let version_str = emoji2method.get(&emoji_string).unwrap().to_owned();
+
+		// Get the version from str
+		let version: u8 = version_str
+			.parse()
+			.unwrap_or_else(|_| panic!("Invalid version number!"));
+
+		// New header based on version
+		let header = Header::new(version);
+
+		header
+	}
 }

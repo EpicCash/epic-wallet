@@ -403,12 +403,10 @@ where
 	let method = args.method.as_str();
 	let mut slate;
 	let mut receive_compressed = true;
-	if method == "emoji" {
-		(slate, receive_compressed) = EmojiSlate().decode(&args.input.as_str())?;
-	} else if method == "qr" {
-		slate = QrToSlate((&args.input).into()).get_tx()?;
-	} else {
-		slate = PathToSlate((&args.input).into()).get_tx()?;
+	match method {
+		"emoji" => (slate, receive_compressed) = EmojiSlate().decode(&args.input.as_str())?,
+		"qr" => slate = QrToSlate((&args.input).into()).get_tx()?,
+		_ => slate = PathToSlate((&args.input).into()).get_tx()?,
 	};
 
 	let km = match keychain_mask.as_ref() {
@@ -423,17 +421,22 @@ where
 		slate = api.receive_tx(&slate, Some(&g_args.account), args.message.clone())?;
 		Ok(())
 	})?;
-	if method == "emoji" {
-		println!("\n\nThis is your response emoji string. Please send it back to the payer to finalize the transaction:\n\n{}", EmojiSlate().encode(&slate, receive_compressed));
-		info!("Response emoji.response generated, and can be sent back to the transaction originator.");
-	} else if method == "qr" {
-		QrToSlate((format!("{}{}", RESPONSE_EXTENTION, args.input)).into()).put_tx(&slate)?;
-	} else {
-		PathToSlate(format!("{}.response", args.input).into()).put_tx(&slate)?;
-		info!(
-			"Response file {}.response generated, and can be sent back to the transaction originator.",
-			args.input
-		);
+
+	match method {
+		"emoji" => {
+			println!("\n\nThis is your response emoji string. Please send it back to the payer to finalize the transaction:\n\n{}", EmojiSlate().encode(&slate, receive_compressed));
+			info!("Response emoji.response generated, and can be sent back to the transaction originator.");
+		}
+		"qr" => {
+			QrToSlate((format!("{}{}", RESPONSE_EXTENTION, args.input)).into()).put_tx(&slate)?
+		}
+		_ => {
+			PathToSlate(format!("{}.response", args.input).into()).put_tx(&slate)?;
+			info!(
+				"Response file {}.response generated, and can be sent back to the transaction originator.",
+				args.input
+			);
+		}
 	}
 
 	Ok(())
