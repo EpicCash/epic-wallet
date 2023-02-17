@@ -43,8 +43,9 @@ pub mod test_framework;
 pub mod tor;
 
 pub use crate::adapters::{
-	create_sender, EmojiSlate, HttpSlateSender, KeybaseAllChannels, KeybaseChannel, PathToSlate,
-	QrToSlate, SlateGetter, SlatePutter, SlateReceiver, SlateSender, RESPONSE_EXTENTION,
+	create_sender, EmojiSlate, Header, HttpSlateSender, KeybaseAllChannels, KeybaseChannel,
+	PathToSlate, QrToSlate, SlateGetter, SlatePutter, SlateReceiver, SlateSender, EMOJI_VERSION,
+	QR_VERSION, RESPONSE_EXTENTION,
 };
 pub use crate::backends::{wallet_db_exists, LMDBBackend};
 pub use crate::error::{Error, ErrorKind};

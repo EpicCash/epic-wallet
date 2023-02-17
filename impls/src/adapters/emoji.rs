@@ -21,10 +21,9 @@ use bitvec::prelude::*;
 use crate::libwallet::{Error, ErrorKind, Slate, SlateVersion, VersionedSlate};
 
 extern crate flate2;
-use super::emoji_map::{EMOJI_DIVIDER, EMOJI_MAP, VERSION_0, VERSION_1};
+use super::emoji_map::{EMOJI_DIVIDER, EMOJI_MAP};
 
-use super::compress::{compress, decompress, CompressionFormat};
-use std::collections::HashMap;
+use super::compress::{compress, decompress, CompressionFormat, Header};
 
 /// Globally controls which type of transaction we will consider, compressed or normal
 static TYPE_TRANSACTION: &str = "compress";
@@ -33,40 +32,7 @@ static TYPE_TRANSACTION: &str = "compress";
 const COMPRESS_METHOD: CompressionFormat = CompressionFormat::Gzip;
 
 /// The default version of the emoji in this version of Epic
-const EMOJI_VERSION: u16 = 1;
-
-/// Saves all information and the type of compressor and which version of the epic for the emoji we are using
-#[derive(Debug)]
-struct Header {
-	/// Method to compress/decompress
-	algo: CompressionFormat,
-	/// Version of emoji in Epic
-	version: u16,
-}
-
-/// This function returns a Dictionary that contains keys such as compression method and version of emoji
-/// And the values are the corresponding emojis, as there are few algorithms that we want to keep, we don't need something generic
-/// Something like an Encode for the Header without having to create a custom EMOJI_MAP for the Header
-fn get_header_dict() -> HashMap<String, String> {
-	// dict
-	let mut map: HashMap<String, String> = HashMap::new();
-
-	// Add all versions to Dict
-	map.insert(0.to_string(), VERSION_0.glyph.to_string().clone());
-	map.insert(1.to_string(), VERSION_1.glyph.to_string().clone());
-
-	map
-}
-
-/// Inverts the dictionary resulting in a Dictionary where the Keys are emojis and the values are the compression methods and version of the emoji
-/// Something like an Dencoder for the Header without having to create a custom EMOJI_MAP for the Header
-fn invert_hashmap(map: &HashMap<String, String>) -> HashMap<String, String> {
-	let mut inverted = HashMap::new();
-	for (key, value) in map {
-		inverted.insert(value.clone(), key.clone());
-	}
-	inverted
-}
+pub const EMOJI_VERSION: u8 = 1;
 
 /// Helper function for compressed transactions
 pub fn string2compressedvec(content_string: String) -> Vec<u8> {
@@ -74,73 +40,6 @@ pub fn string2compressedvec(content_string: String) -> Vec<u8> {
 	let content_vec: Vec<u8> = content_string.chars().map(|c| c.to_owned() as u8).collect();
 
 	content_vec
-}
-
-/// Implementations that help handle Header in code
-impl Header {
-	/// Returns a default value to modify without having to manually create a Header
-	fn default() -> Header {
-		let method: CompressionFormat = match EMOJI_VERSION {
-			// Version 0 had no compression method so it doesn't go here.
-			1 => CompressionFormat::Gzip,    // Latest version of emoji is version 1
-			2 => CompressionFormat::Zlib,    // just for example
-			_ => CompressionFormat::Deflate, // just for example
-		};
-
-		Header {
-			algo: method,
-			version: EMOJI_VERSION,
-		}
-	}
-
-	/// Returns a default value to modify without having to manually create a Header
-	fn new(ver: u16) -> Header {
-		let method: CompressionFormat = match ver {
-			// Version 0 had no compression method so it doesn't go here.
-			1 => CompressionFormat::Gzip,    // Latest version of emoji is version 1
-			2 => CompressionFormat::Zlib,    // just for example
-			_ => CompressionFormat::Deflate, // just for example
-		};
-
-		Header {
-			algo: method,
-			version: ver,
-		}
-	}
-
-	/// Transforms the Header into a string of emojis, transforming only the values of each Header entry, in this case we only have Method and Version
-	fn to_emoji_string(&self) -> String {
-		// Get the "Encoder"
-		let method2emoji = get_header_dict();
-
-		// Get the version
-		let version = self.version.to_string();
-		// Transform this Version into a correspondent emoji
-		let emoji_version = method2emoji.get(&version).unwrap();
-
-		// Version will determinate all
-		emoji_version.to_string()
-	}
-
-	/// Turns an emoji string into a Header, consider the input as just 2 emojis, one emoji is the compression method the other is the version
-	fn to_header(emoji_string: String) -> Header {
-		// Get the "Encoder" Header -> String_Emoji
-		let method2emoji = get_header_dict();
-		// Get the "Decoder" reversing the "Encoder" so we have String_Emoji -> Header
-		let emoji2method = invert_hashmap(&method2emoji);
-
-		let version_str = emoji2method.get(&emoji_string).unwrap().to_owned();
-
-		// Get the version from str
-		let version: u16 = version_str
-			.parse()
-			.unwrap_or_else(|_| panic!("Invalid version number!"));
-
-		// New header based on version
-		let header = Header::new(version);
-
-		header
-	}
 }
 
 /// EmojiSlate is the struct that stores Slate in emoji format to transact
@@ -341,7 +240,7 @@ impl EmojiSlate {
 				// if compressed
 				"compress" => {
 					// Get a default header (Gzip method and Version 1)
-					let header = Header::default();
+					let header = Header::default("emoji");
 					// Turns the header into emoji_string
 					let h_emoji = header.to_emoji_string();
 					// Merge all strings of Emojis: Header + Divider + Transaction

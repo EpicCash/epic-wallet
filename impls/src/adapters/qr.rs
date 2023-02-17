@@ -13,7 +13,7 @@
 // limitations under the License.
 
 //use image::{ImageBuffer, Rgb};
-use super::compress::{compress, decompress, CompressionFormat};
+use super::compress::{compress, decompress, Header};
 /// File Output 'plugin' implementation
 use crate::libwallet::{Error, ErrorKind, Slate, SlateVersion, VersionedSlate};
 use crate::{SlateGetter, SlatePutter};
@@ -23,52 +23,11 @@ use quircs;
 use std::path::PathBuf;
 
 /// The default version of the QR in this version of Epic
-const QR_VERSION: u8 = 1;
+pub const QR_VERSION: u8 = 1;
 
 const LIMIT_QR_BIN: f32 = 2330.0;
 
 pub const RESPONSE_EXTENTION: &str = "response_";
-
-/// Saves all information and the type of compressor and which version of the epic for the emoji we are using
-struct QrHeader {
-	/// Method to compress/decompress
-	algo: CompressionFormat,
-	/// Version of emoji in Epic
-	version: u8,
-}
-
-/// Implementations that help handle Header in code
-impl QrHeader {
-	/// Returns a default value to modify without having to manually create a Header
-	fn default() -> QrHeader {
-		let method: CompressionFormat = match QR_VERSION {
-			// Version 0 had no compression method so it doesn't go here.
-			1 => CompressionFormat::Gzip,    // Latest version of emoji is version 1
-			2 => CompressionFormat::Zlib,    // just for example
-			_ => CompressionFormat::Deflate, // just for example
-		};
-
-		QrHeader {
-			algo: method,
-			version: QR_VERSION,
-		}
-	}
-
-	/// Returns a default value to modify without having to manually create a Header
-	fn new(ver: u8) -> QrHeader {
-		let method: CompressionFormat = match ver {
-			// Version 0 had no compression method so it doesn't go here.
-			1 => CompressionFormat::Gzip,    // Latest version of emoji is version 1
-			2 => CompressionFormat::Zlib,    // just for example
-			_ => CompressionFormat::Deflate, // just for example
-		};
-
-		QrHeader {
-			algo: method,
-			version: ver,
-		}
-	}
-}
 
 #[derive(Clone)]
 pub struct QrToSlate(pub PathBuf);
@@ -76,7 +35,7 @@ pub struct QrToSlate(pub PathBuf);
 /// This function will receive a skateboard as a `data` and save the QR code in image format based on `path_save`
 fn save2qr(data: &str, path_save: &str, receive_op: bool) -> Result<(), Error> {
 	// Header that will define the compression algorithm
-	let header = QrHeader::default();
+	let header = Header::default("qr");
 
 	// Compressing the data
 	let compressed_data = compress(data.as_bytes(), header.algo);
@@ -123,7 +82,8 @@ fn save2qr(data: &str, path_save: &str, receive_op: bool) -> Result<(), Error> {
 /// This function will read an image and get all the QR code written and will transcribe it into a binary vector and at the end it will return the slate_json
 fn read_qr(path_read: &PathBuf) -> String {
 	// Open the image from disk
-	let img = image::open(path_read).expect("failed to open image");
+	let img =
+		image::open(path_read).unwrap_or_else(|e| panic!("Failed to open QR image, error: {e}"));
 
 	// Convert to gray scale
 	let img_gray = img.into_luma8();
@@ -163,7 +123,7 @@ fn read_qr(path_read: &PathBuf) -> String {
 	let compressed_data = all_qr[1..].to_vec();
 
 	// Defines the Header to get the compression algorithm
-	let header = QrHeader::new(version);
+	let header = Header::new(version);
 
 	// Decompress the data
 	let decompress_data = decompress(&compressed_data, header.algo);
