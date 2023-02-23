@@ -351,12 +351,16 @@ pub fn parse_listen_args(
 	if let Some(port) = args.value_of("port") {
 		config.api_listen_port = port.parse().unwrap();
 	}
+
+	let interval = parse_u64_or_none(args.value_of("interval"));
 	let method = parse_required(args, "method")?;
+
 	if args.is_present("no_tor") {
 		tor_config.use_tor_listener = false;
 	}
 	Ok(command::ListenArgs {
 		method: method.to_owned(),
+		interval,
 	})
 }
 
@@ -389,7 +393,7 @@ pub fn parse_send_args(args: &ArgMatches) -> Result<command::SendArgs, ParseErro
 		Ok(a) => a,
 		Err(e) => {
 			let msg = format!(
-				"Could not parse amount as a number with optional decimal point. e={}",
+				"Could not parse amount as a number with optional decimal point. e={:?}",
 				e
 			);
 			return Err(ParseError::ArgumentError(msg));
@@ -555,9 +559,9 @@ pub fn parse_finalize_args(args: &ArgMatches) -> Result<command::FinalizeArgs, P
 	Ok(command::FinalizeArgs {
 		method: method.to_string(),
 		input: input.to_owned(),
-		fluff: fluff,
-		nopost: nopost,
 		dest: dest_file.to_owned(),
+		nopost,
+		fluff,
 	})
 }
 
@@ -570,7 +574,7 @@ pub fn parse_issue_invoice_args(
 		Ok(a) => a,
 		Err(e) => {
 			let msg = format!(
-				"Could not parse amount as a number with optional decimal point. e={}",
+				"Could not parse amount as a number with optional decimal point. e={:?}",
 				e
 			);
 			return Err(ParseError::ArgumentError(msg));
@@ -915,7 +919,7 @@ where
 			node_client,
 		)
 		.unwrap_or_else(|e| {
-			eprintln!("{}", e);
+			eprintln!("{:?}", e);
 			std::process::exit(1);
 		});
 
