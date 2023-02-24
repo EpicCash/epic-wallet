@@ -158,6 +158,35 @@ impl Default for TorConfig {
 		}
 	}
 }
+
+/// Epicbox configuration
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct EpicboxConfig {
+	/// Default epicbox Domain/Server
+	pub epicbox_domain: String,
+	/// Connect to epicbox port 443 or 80
+	pub epicbox_port: Option<u16>,
+	/// Use to epicbox port 443 or 80
+	pub epicbox_protocol_unsecure: Option<bool>,
+	/// Epicbox address id
+	pub epicbox_address_index: Option<u32>,
+	/// Duration of the epicbox listener subscribe update interval in seconds,
+	/// no less than 5 and no more than 120 seconds.
+	pub epicbox_listener_interval: Option<u64>,
+}
+
+impl Default for EpicboxConfig {
+	fn default() -> EpicboxConfig {
+		EpicboxConfig {
+			epicbox_domain: "epicbox.epic.tech".to_owned(),
+			epicbox_port: Some(443),
+			epicbox_protocol_unsecure: Some(false),
+			epicbox_address_index: Some(0),
+			epicbox_listener_interval: Some(10),
+		}
+	}
+}
+
 impl From<io::Error> for ConfigError {
 	fn from(error: io::Error) -> ConfigError {
 		ConfigError::FileIOError(
@@ -184,6 +213,8 @@ pub struct GlobalWalletConfigMembers {
 	pub wallet: WalletConfig,
 	/// Tor config
 	pub tor: Option<TorConfig>,
+	/// Epicbox config
+	pub epicbox: Option<EpicboxConfig>,
 	/// Logging config
 	pub logging: Option<LoggingConfig>,
 }

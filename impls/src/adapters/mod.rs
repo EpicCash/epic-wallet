@@ -13,15 +13,20 @@
 // limitations under the License.
 
 mod emoji;
+mod epicbox;
 mod file;
 pub mod http;
 mod keybase;
 
 pub use self::emoji::EmojiSlate;
+pub use self::epicbox::{
+	Container, EpicboxBroker, EpicboxController, EpicboxListener, EpicboxPublisher,
+	EpicboxSubscriber, Listener, ListenerInterface, Subscriber,
+};
+pub use self::epicbox::{EpicboxChannel, EpicboxListenChannel};
 pub use self::file::PathToSlate;
 pub use self::http::{HttpSlateSender, SchemeNotHttp};
 pub use self::keybase::{KeybaseAllChannels, KeybaseChannel};
-
 use crate::config::{TorConfig, WalletConfig};
 use crate::libwallet::{Error, ErrorKind, NodeClient, Slate, WalletInst, WalletLCProvider};
 use crate::tor::config::complete_tor_address;
@@ -93,6 +98,7 @@ pub fn create_sender(
 
 	Ok(match method {
 		"http" => Box::new(HttpSlateSender::new(&dest).map_err(|_| invalid())?),
+
 		"tor" => match tor_config {
 			None => {
 				return Err(
@@ -105,6 +111,7 @@ pub fn create_sender(
 			),
 		},
 		"keybase" => Box::new(KeybaseChannel::new(dest.to_owned())?),
+
 		"self" => {
 			return Err(ErrorKind::WalletComms(
 				"No sender implementation for \"self\".".to_string(),
@@ -117,6 +124,7 @@ pub fn create_sender(
 			)
 			.into());
 		}
+
 		_ => {
 			return Err(ErrorKind::WalletComms(format!(
 				"Wallet comm method \"{}\" does not exist.",

@@ -45,6 +45,8 @@ data-encoding = "2"
 regex = "1.3"
 timer = "0.2"
 sysinfo = "0.9"
+parking_lot = "0.6"
+tungstenite = {version="*", features = ["native-tls"] }
 
 epic_wallet_util = { path = "../util", version = "3.3.2" }
 epic_wallet_config = { path = "../config", version = "3.3.2" }
