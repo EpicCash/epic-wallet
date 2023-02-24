@@ -194,7 +194,7 @@ fn comments() -> HashMap<String, String> {
 		"[tor]".to_string(),
 		"
 #########################################
-### TOR CONFIGURATION (Experimental)  ###
+### TOR CONFIGURATION                 ###
 #########################################
 "
 		.to_string(),
@@ -228,6 +228,56 @@ fn comments() -> HashMap<String, String> {
 		"send_config_dir".to_string(),
 		"
 #Directory to output TOR configuration to when sending
+"
+		.to_string(),
+	);
+
+	retval.insert(
+		"[epicbox]".to_string(),
+		"
+#########################################
+###  EPICBOX CONFIGURATION            ###
+#########################################
+"
+		.to_string(),
+	);
+
+	retval.insert(
+		"epicbox_domain".to_string(),
+		"
+#Domain of the epicbox server to connect
+"
+		.to_string(),
+	);
+
+	retval.insert(
+		"epicbox_port".to_string(),
+		"
+#Port of the domain of the epicbox server to connect
+"
+		.to_string(),
+	);
+
+	retval.insert(
+		"epicbox_protocol_unsecure".to_string(),
+		"
+#Whether to allow unsecure connections without SSL (default false)
+"
+		.to_string(),
+	);
+
+	retval.insert(
+		"epicbox_address_index".to_string(),
+		"
+#Index of the epicbox address (default 0)
+"
+		.to_string(),
+	);
+
+	retval.insert(
+		"epicbox_listener_interval".to_string(),
+		"
+#Time interval in seconds between epicbox listener updates (default 10 seconds)
 "
 		.to_string(),
 	);
