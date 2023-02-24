@@ -165,7 +165,7 @@ impl EpicboxListenChannel {
 		};
 		let (tx, _rx): (Sender<bool>, Receiver<bool>) = channel();
 
-		info!("Connecting to the epicbox server at {} ..", url.clone());
+		debug!("Connecting to the epicbox server at {} ..", url.clone());
 		let (socket, _response) = connect(url.clone()).expect(CONNECTION_ERR_MSG);
 		let publisher = EpicboxPublisher::new(address.clone(), sec_key, socket, tx)?;
 
@@ -292,7 +292,7 @@ where
 			),
 		}
 	};
-	info!("Connecting to the epicbox server at {} ..", url.clone());
+	debug!("Connecting to the epicbox server at {} ..", url.clone());
 	let (socket, _) = connect(url.clone()).expect(CONNECTION_ERR_MSG);
 
 	let publisher = EpicboxPublisher::new(address.clone(), sec_key, socket, tx)?;
@@ -475,7 +475,7 @@ where
 			if slate.tx.inputs().len() == 0 {
 				// TODO: invoicing
 			} else {
-				debug!("foreign::receive_tx");
+				info!("Received new transaction (foreign::receive_tx)");
 				let ret_slate = foreign::receive_tx(
 					&mut **w,
 					self.keychain_mask.as_ref(),
@@ -489,8 +489,10 @@ where
 
 			Ok(false)
 		} else {
-			debug!("owner::finalize_tx and owner::post_tx");
+			info!("Finalize transaction (owner::finalize_tx)");
 			let slate = owner::finalize_tx(&mut **w, self.keychain_mask.as_ref(), slate)?;
+
+			info!("Post transaction to the network (owner::post_tx)");
 			owner::post_tx(w.w2n_client(), &slate.tx, false)?;
 			Ok(true)
 		}
@@ -767,7 +769,7 @@ impl EpicboxBroker {
 					.map_err(|_| error!("error attempting challenge!"))
 					.unwrap();
 
-				info!("Refresh epicbox subscription (interval: {:?})", duration);
+				debug!("Refresh epicbox subscription (interval: {:?})", duration);
 				if first_run {
 					std::thread::sleep(duration);
 					first_run = false;

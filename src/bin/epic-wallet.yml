@@ -81,9 +81,9 @@ subcommands:
             takes_value: true
             default_value: "10"
             possible_values:
+             - "2"
              - "5"
              - "10"
-             - "20"
              - "30"
              - "60"
              - "120"
