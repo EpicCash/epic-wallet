@@ -43,6 +43,11 @@ where
 		.expect("Can't read configuration file");
 	node_client.set_node_api_secret(global_wallet_args.node_api_secret.clone());
 
+	// Set the node api url, check if provided in cli as arg and if not use from config file
+	if global_wallet_args.api_server_address.is_some() {
+		node_client.set_node_url(global_wallet_args.api_server_address.unwrap().as_str())
+	}
+
 	// This will also cache the node version info for calls to foreign API check middleware
 	if let Some(v) = node_client.clone().get_version_info() {
 		// Isn't going to happen just yet (as of 2.0.0) but keep this here for

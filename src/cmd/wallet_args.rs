@@ -255,6 +255,12 @@ pub fn parse_global_args(
 	}
 	let api_secret = get_first_line(config.api_secret_path.clone());
 	let node_api_secret = get_first_line(config.node_api_secret_path.clone());
+
+	let api_server_address = match args.value_of("api_server_address") {
+		None => Some(config.check_node_api_http_addr.clone()),
+		Some(p) => Some(String::from(p)),
+	};
+
 	let password = match args.value_of("pass") {
 		None => None,
 		Some(p) => Some(ZeroingString::from(p)),
@@ -290,6 +296,7 @@ pub fn parse_global_args(
 		node_api_secret,
 		password,
 		tls_conf,
+		api_server_address,
 	})
 }
 
