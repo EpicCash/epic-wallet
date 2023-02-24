@@ -35,7 +35,6 @@ use epic_wallet_util::epic_keychain as keychain;
 use failure::Fail;
 use linefeed::terminal::Signal;
 use linefeed::{Interface, ReadResult};
-use log::debug;
 use rpassword;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -261,7 +260,7 @@ pub fn parse_global_args(
 		None => Some(config.check_node_api_http_addr.clone()),
 		Some(p) => Some(String::from(p)),
 	};
-	debug!("{:?}", config.check_node_api_http_addr.clone());
+
 	let password = match args.value_of("pass") {
 		None => None,
 		Some(p) => Some(ZeroingString::from(p)),
@@ -885,7 +884,7 @@ where
 		wallet_config.data_file_dir = dir.to_string().clone();
 	}
 
-	if let Some(sa) = wallet_args.value_of("check_node_api_http_addr") {
+	if let Some(sa) = wallet_args.value_of("api_server_address") {
 		wallet_config.check_node_api_http_addr = sa.to_string().clone();
 	}
 
