@@ -42,6 +42,7 @@ where
 	let global_wallet_args = wallet_args::parse_global_args(&wallet_config, &wallet_args)
 		.expect("Can't read configuration file");
 	node_client.set_node_api_secret(global_wallet_args.node_api_secret.clone());
+	node_client.set_node_url(global_wallet_args.api_server_address.unwrap().as_str());
 
 	// This will also cache the node version info for calls to foreign API check middleware
 	if let Some(v) = node_client.clone().get_version_info() {

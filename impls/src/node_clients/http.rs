@@ -77,6 +77,7 @@ impl NodeClient for HTTPNodeClient {
 		let mut retval = match client.get::<NodeVersionInfo>(url.as_str(), self.node_api_secret()) {
 			Ok(n) => n,
 			Err(e) => {
+				warn!("{}", url);
 				// If node isn't available, allow offline functions
 				// unfortunately have to parse string due to error structure
 				let err_string = format!("{}", e);
@@ -87,6 +88,7 @@ impl NodeClient for HTTPNodeClient {
 						verified: Some(false),
 					});
 				} else {
+					warn!("{}, {}", err_string, url);
 					error!("Unable to contact Node to get version info: {}", e);
 					return None;
 				}

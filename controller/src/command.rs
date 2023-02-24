@@ -61,6 +61,7 @@ pub struct GlobalArgs {
 	pub chain_type: global::ChainTypes,
 	pub password: Option<ZeroingString>,
 	pub tls_conf: Option<TLSConfig>,
+	pub api_server_address: Option<String>,
 }
 
 /// Arguments for init command
