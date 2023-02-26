@@ -16,12 +16,10 @@
 
 use crate::adapters::{SlateReceiver, SlateSender};
 use crate::config::WalletConfig;
-
 use crate::libwallet::api_impl::foreign;
 
 use crate::libwallet::{Error, ErrorKind, NodeClient, Slate, WalletInst, WalletLCProvider};
 use crate::util::Mutex;
-
 use serde::Serialize;
 use serde_json::{from_str, json, to_string, Value};
 use std::collections::{HashMap, HashSet};

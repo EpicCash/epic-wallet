@@ -39,12 +39,12 @@ pub mod epicbox;
 mod error;
 mod lifecycle;
 mod node_clients;
+mod serialization;
+pub mod test_framework;
 pub mod tor;
 
-pub mod test_framework;
-
 pub use crate::adapters::{
-	create_sender, Container, EpicboxBroker, EpicboxChannel, EpicboxController,
+	create_sender, Container, EmojiSlate, EpicboxBroker, EpicboxChannel, EpicboxController,
 	EpicboxListenChannel, EpicboxListener, EpicboxPublisher, EpicboxSubscriber, HttpSlateSender,
 	KeybaseAllChannels, KeybaseChannel, Listener, ListenerInterface, PathToSlate, SlateGetter,
 	SlatePutter, SlateReceiver, SlateSender, Subscriber,

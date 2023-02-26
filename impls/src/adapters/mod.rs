@@ -12,11 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+mod emoji;
 mod epicbox;
 mod file;
 pub mod http;
 mod keybase;
 
+pub use self::emoji::EmojiSlate;
 pub use self::epicbox::{
 	Container, EpicboxBroker, EpicboxController, EpicboxListener, EpicboxPublisher,
 	EpicboxSubscriber, Listener, ListenerInterface, Subscriber,

@@ -408,6 +408,7 @@ where
 		keychain_mask: Option<&SecretKey>,
 		include_spent: bool,
 		refresh_from_node: bool,
+		show_full_history: bool,
 		tx_id: Option<u32>,
 	) -> Result<(bool, Vec<OutputCommitMapping>), Error> {
 		let tx = {
@@ -424,6 +425,7 @@ where
 			&tx,
 			include_spent,
 			refresh_from_node,
+			show_full_history,
 			tx_id,
 		)
 	}
@@ -500,8 +502,8 @@ where
 				.1
 				.into_iter()
 				.map(|mut t| {
-					t.confirmation_ts = Some(Utc.ymd(2019, 1, 15).and_hms(16, 1, 26));
-					t.creation_ts = Utc.ymd(2019, 1, 15).and_hms(16, 1, 26);
+					t.confirmation_ts = Some(Utc.with_ymd_and_hms(2019, 1, 15, 16, 1, 26).unwrap());
+					t.creation_ts = Utc.with_ymd_and_hms(2019, 1, 15, 16, 1, 26).unwrap();
 					t
 				})
 				.collect();

@@ -306,6 +306,7 @@ where
 		wallet,
 		keychain_mask,
 		false,
+		false,
 		Some(tx.id),
 		Some(&parent_key_id),
 	)?;

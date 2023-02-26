@@ -67,10 +67,7 @@ pub trait OwnerRpc: Sync + Send {
 	# , false, 4, false, false, false, false);
 	```
 	*/
-	#[deprecated(
-		since = "3.0.0",
-		note = "The V2 Owner API (OwnerRpc) will be removed in epic-wallet 4.0.0. Please migrate to the V3 (OwnerRpcS) API as soon as possible."
-	)]
+
 	fn accounts(&self) -> Result<Vec<AcctPathMapping>, ErrorKind>;
 
 	/**
@@ -1298,7 +1295,7 @@ where
 		refresh_from_node: bool,
 		tx_id: Option<u32>,
 	) -> Result<(bool, Vec<OutputCommitMapping>), ErrorKind> {
-		Owner::retrieve_outputs(self, None, include_spent, refresh_from_node, tx_id)
+		Owner::retrieve_outputs(self, None, include_spent, refresh_from_node, false, tx_id)
 			.map_err(|e| e.kind())
 	}
 

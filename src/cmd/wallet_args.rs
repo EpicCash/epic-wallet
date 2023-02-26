@@ -351,12 +351,16 @@ pub fn parse_listen_args(
 	if let Some(port) = args.value_of("port") {
 		config.api_listen_port = port.parse().unwrap();
 	}
+
+	let interval = parse_u64_or_none(args.value_of("interval"));
 	let method = parse_required(args, "method")?;
+
 	if args.is_present("no_tor") {
 		tor_config.use_tor_listener = false;
 	}
 	Ok(command::ListenArgs {
 		method: method.to_owned(),
+		interval,
 	})
 }
 
@@ -389,7 +393,7 @@ pub fn parse_send_args(args: &ArgMatches) -> Result<command::SendArgs, ParseErro
 		Ok(a) => a,
 		Err(e) => {
 			let msg = format!(
-				"Could not parse amount as a number with optional decimal point. e={}",
+				"Could not parse amount as a number with optional decimal point. e={:?}",
 				e
 			);
 			return Err(ParseError::ArgumentError(msg));
@@ -422,6 +426,8 @@ pub fn parse_send_args(args: &ArgMatches) -> Result<command::SendArgs, ParseErro
 				Some(d) => d,
 				None => "default",
 			}
+		} else if method == "emoji" {
+			""
 		} else {
 			if !estimate_selection_strategies {
 				parse_required(args, "dest")?
@@ -506,29 +512,43 @@ pub fn parse_receive_args(receive_args: &ArgMatches) -> Result<command::ReceiveA
 		false => None,
 	};
 
+	// method
+	let method = parse_required(receive_args, "method")?;
+
 	// input
 	let tx_file = parse_required(receive_args, "input")?;
 
 	// validate input
-	if !Path::new(&tx_file).is_file() {
-		let msg = format!("File {} not found.", &tx_file);
-		return Err(ParseError::ArgumentError(msg));
+	if method == "file" {
+		if !Path::new(&tx_file).is_file() {
+			let msg = format!("File {} not found.", &tx_file);
+			return Err(ParseError::ArgumentError(msg));
+		}
 	}
 
 	Ok(command::ReceiveArgs {
 		input: tx_file.to_owned(),
-		message,
+		message: message,
+		method: method.to_string(),
 	})
 }
 
 pub fn parse_finalize_args(args: &ArgMatches) -> Result<command::FinalizeArgs, ParseError> {
 	let fluff = args.is_present("fluff");
 	let nopost = args.is_present("nopost");
-	let tx_file = parse_required(args, "input")?;
 
-	if !Path::new(&tx_file).is_file() {
-		let msg = format!("File {} not found.", tx_file);
-		return Err(ParseError::ArgumentError(msg));
+	// method
+	let method = parse_required(args, "method")?;
+
+	// input
+	let input = parse_required(args, "input")?;
+
+	// validate input
+	if method == "file" {
+		if !Path::new(&input).is_file() {
+			let msg = format!("File {} not found.", input);
+			return Err(ParseError::ArgumentError(msg));
+		}
 	}
 
 	let dest_file = match args.is_present("dest") {
@@ -537,10 +557,11 @@ pub fn parse_finalize_args(args: &ArgMatches) -> Result<command::FinalizeArgs, P
 	};
 
 	Ok(command::FinalizeArgs {
-		input: tx_file.to_owned(),
-		fluff,
-		nopost,
+		method: method.to_string(),
+		input: input.to_owned(),
 		dest: dest_file.to_owned(),
+		nopost,
+		fluff,
 	})
 }
 
@@ -553,7 +574,7 @@ pub fn parse_issue_invoice_args(
 		Ok(a) => a,
 		Err(e) => {
 			let msg = format!(
-				"Could not parse amount as a number with optional decimal point. e={}",
+				"Could not parse amount as a number with optional decimal point. e={:?}",
 				e
 			);
 			return Err(ParseError::ArgumentError(msg));
@@ -678,6 +699,13 @@ pub fn parse_info_args(args: &ArgMatches) -> Result<command::InfoArgs, ParseErro
 	let mc = parse_u64(mc, "minimum_confirmations")?;
 	Ok(command::InfoArgs {
 		minimum_confirmations: mc,
+	})
+}
+
+pub fn parse_outputs_args(args: &ArgMatches) -> Result<command::OutputsArgs, ParseError> {
+	let show_full_history = args.is_present("show_full_history");
+	Ok(command::OutputsArgs {
+		show_full_history: show_full_history,
 	})
 }
 
@@ -891,7 +919,7 @@ where
 			node_client,
 		)
 		.unwrap_or_else(|e| {
-			eprintln!("{}", e);
+			eprintln!("{:?}", e);
 			std::process::exit(1);
 		});
 
@@ -1031,12 +1059,16 @@ where
 				wallet_config.dark_background_color_scheme.unwrap_or(true),
 			)
 		}
-		("outputs", Some(_)) => command::outputs(
-			wallet,
-			km,
-			&global_wallet_args,
-			wallet_config.dark_background_color_scheme.unwrap_or(true),
-		),
+		("outputs", Some(args)) => {
+			let a = arg_parse!(parse_outputs_args(&args));
+			command::outputs(
+				wallet,
+				km,
+				&global_wallet_args,
+				a,
+				wallet_config.dark_background_color_scheme.unwrap_or(true),
+			)
+		}
 		("txs", Some(args)) => {
 			let a = arg_parse!(parse_txs_args(&args));
 			command::txs(

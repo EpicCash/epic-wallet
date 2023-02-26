@@ -2169,6 +2169,7 @@ where
 			(&token.keychain_mask).as_ref(),
 			include_spent,
 			refresh_from_node,
+			false,
 			tx_id,
 		)
 		.map_err(|e| e.kind())

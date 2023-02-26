@@ -74,6 +74,19 @@ subcommands:
               - epicbox
             default_value: http
             takes_value: true
+        - interval:
+            help: Epicbox listener update interval duration in seconds
+            short: i
+            long: interval
+            takes_value: true
+            default_value: "10"
+            possible_values:
+             - "2"
+             - "5"
+             - "10"
+             - "30"
+             - "60"
+             - "120"
         - no_tor:
             help: Don't start TOR listener when starting HTTP listener
             short: n
@@ -131,6 +144,7 @@ subcommands:
               - file
               - self
               - keybase
+              - emoji
               - epicbox
             default_value: http
             takes_value: true
@@ -175,14 +189,32 @@ subcommands:
             short: g
             long: message
             takes_value: true
+        - method:
+            help: Method of receiving this transaction
+            short: m
+            long: method
+            possible_values:
+              - file
+              - emoji
+            default_value: file
+            takes_value: true
         - input:
-            help: Partial transaction to process, expects the sender's transaction file.
+            help: Partial transaction to process, expects the sender's transaction file or emoji string.
             short: i
             long: input
             takes_value: true
   - finalize:
       about: Processes a receiver's transaction file to finalize a transfer.
       args:
+        - method:
+            help: Method for finalize this transaction
+            short: m
+            long: method
+            possible_values:
+              - file
+              - emoji
+            default_value: file
+            takes_value: true
         - input:
             help: Partial transaction to process, expects the receiver's transaction file.
             short: i
@@ -271,6 +303,12 @@ subcommands:
             takes_value: true
   - outputs:
       about: Raw wallet output info (list of outputs)
+      args:
+        - show_full_history:
+            help: If specified, display full outputs history
+            short: f
+            long: show_full_history
+            takes_value: false
   - txs:
       about: Display transaction information
       args:

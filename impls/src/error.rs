@@ -13,6 +13,7 @@
 // limitations under the License.
 
 //! Implementation specific error types
+
 use crate::core::libtx;
 use crate::keychain;
 use crate::libwallet;
@@ -85,6 +86,10 @@ pub enum ErrorKind {
 	/// Checking for onion address
 	#[fail(display = "Address is not an Onion v3 Address: {}", _0)]
 	NotOnion(String),
+
+	/// SQLite Errors
+	#[fail(display = "SQLite Error")]
+	SQLiteError(String),
 
 	/// Other
 	#[fail(display = "Generic error: {}", _0)]
@@ -185,5 +190,19 @@ impl From<libtx::Error> for Error {
 		Error {
 			inner: Context::new(ErrorKind::LibTX(error.kind())),
 		}
+	}
+}
+
+impl From<sqlite::Error> for Error {
+	fn from(error: sqlite::Error) -> Error {
+		Error {
+			inner: Context::new(ErrorKind::SQLiteError(format!("{}", error))),
+		}
+	}
+}
+
+impl From<Error> for libwallet::Error {
+	fn from(error: Error) -> libwallet::Error {
+		libwallet::Error::from(libwallet::ErrorKind::GenericError(format!("{}", error)))
 	}
 }

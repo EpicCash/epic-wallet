@@ -245,6 +245,9 @@ pub enum ErrorKind {
 	#[fail(display = "Transaction Expired")]
 	TransactionExpired,
 
+	#[fail(display = "SQLite Error")]
+	SQLiteError(String),
+
 	#[fail(display = "Invalid base58 character!")]
 	InvalidBase58Character(char, usize),
 	#[fail(display = "Invalid base58 length")]
@@ -396,5 +399,13 @@ impl From<committed::Error> for Error {
 impl From<epic_store::Error> for Error {
 	fn from(error: epic_store::Error) -> Error {
 		Error::from(ErrorKind::Backend(format!("{}", error)))
+	}
+}
+
+impl From<sqlite::Error> for Error {
+	fn from(error: sqlite::Error) -> Error {
+		Error {
+			inner: Context::new(ErrorKind::SQLiteError(format!("{}", error))),
+		}
 	}
 }

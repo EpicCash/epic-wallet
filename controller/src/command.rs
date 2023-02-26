@@ -23,7 +23,7 @@ use crate::impls::{
 	create_sender, EpicboxChannel, EpicboxListenChannel, KeybaseAllChannels, SlateGetter as _,
 	SlateReceiver as _,
 };
-use crate::impls::{PathToSlate, SlatePutter};
+use crate::impls::{EmojiSlate, PathToSlate, SlatePutter};
 use crate::keychain;
 use crate::libwallet::{
 	self, address, InitTxArgs, IssueInvoiceTxArgs, NodeClient, PaymentProof, WalletInst,
@@ -130,6 +130,7 @@ where
 /// Arguments for listen command
 pub struct ListenArgs {
 	pub method: String,
+	pub interval: Option<u64>,
 }
 
 pub fn listen<L, C, K>(
@@ -161,15 +162,19 @@ where
 			wallet.clone(),
 			keychain_mask.clone(),
 			epicbox_config.clone(),
+			args.interval,
 		),
 		method => {
 			return Err(ErrorKind::ArgumentError(format!(
-				"No listener for method \"{}\".",
-				method
+				"No listener for method {}",
+				method.clone()
 			))
 			.into());
 		}
 	};
+
+	debug!("{}", args.method.clone());
+	debug!("{}", args.interval.unwrap_or(10));
 
 	if let Err(e) = res {
 		return Err(ErrorKind::LibWallet(e.kind(), e.cause_string()).into());
@@ -340,6 +345,11 @@ where
 			};
 
 			match args.method.as_str() {
+				"emoji" => {
+					println!("{}", EmojiSlate().encode(&slate));
+					api.tx_lock_outputs(m, &slate, 0)?;
+					return Ok(());
+				}
 				"file" => {
 					PathToSlate((&args.dest).into()).put_tx(&slate)?;
 					api.tx_lock_outputs(m, &slate, 0)?;
@@ -404,6 +414,7 @@ where
 pub struct ReceiveArgs {
 	pub input: String,
 	pub message: Option<String>,
+	pub method: String,
 }
 
 pub fn receive<L, C, K>(
@@ -417,7 +428,14 @@ where
 	C: NodeClient + 'static,
 	K: keychain::Keychain + 'static,
 {
-	let mut slate = PathToSlate((&args.input).into()).get_tx()?;
+	let method = args.method.as_str();
+	let mut slate;
+	if method == "emoji" {
+		slate = EmojiSlate().decode(&args.input.as_str())?;
+	} else {
+		slate = PathToSlate((&args.input).into()).get_tx()?;
+	}
+
 	let km = match keychain_mask.as_ref() {
 		None => None,
 		Some(&m) => Some(m.to_owned()),
@@ -430,16 +448,23 @@ where
 		slate = api.receive_tx(&slate, Some(&g_args.account), args.message.clone())?;
 		Ok(())
 	})?;
-	PathToSlate(format!("{}.response", args.input).into()).put_tx(&slate)?;
-	info!(
-		"Response file {}.response generated, and can be sent back to the transaction originator.",
-		args.input
-	);
+	if method == "emoji" {
+		println!("\n\nThis is your response emoji string. Please send it back to the payer to finalize the transaction:\n\n{}", EmojiSlate().encode(&slate));
+		info!("Response emoji.response generated, and can be sent back to the transaction originator.");
+	} else {
+		PathToSlate(format!("{}.response", args.input).into()).put_tx(&slate)?;
+		info!(
+			"Response file {}.response generated, and can be sent back to the transaction originator.",
+			args.input
+		);
+	}
+
 	Ok(())
 }
 
 /// Finalize command args
 pub struct FinalizeArgs {
+	pub method: String,
 	pub input: String,
 	pub fluff: bool,
 	pub nopost: bool,
@@ -456,7 +481,13 @@ where
 	C: NodeClient + 'static,
 	K: keychain::Keychain + 'static,
 {
-	let mut slate = PathToSlate((&args.input).into()).get_tx()?;
+	let method = args.method.as_str();
+	let mut slate;
+	if method == "emoji" {
+		slate = EmojiSlate().decode(&args.input.as_str())?;
+	} else {
+		slate = PathToSlate((&args.input).into()).get_tx()?;
+	}
 
 	// Rather than duplicating the entire command, we'll just
 	// try to determine what kind of finalization this is
@@ -686,10 +717,16 @@ where
 	Ok(())
 }
 
+/// Outputs command args
+pub struct OutputsArgs {
+	pub show_full_history: bool,
+}
+
 pub fn outputs<L, C, K>(
 	wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K>>>>,
 	keychain_mask: Option<&SecretKey>,
 	g_args: &GlobalArgs,
+	args: OutputsArgs,
 	dark_scheme: bool,
 ) -> Result<(), Error>
 where
@@ -699,7 +736,8 @@ where
 {
 	controller::owner_single_use(wallet.clone(), keychain_mask, |api, m| {
 		let res = api.node_height(m)?;
-		let (validated, outputs) = api.retrieve_outputs(m, g_args.show_spent, true, None)?;
+		let (validated, outputs) =
+			api.retrieve_outputs(m, g_args.show_spent, true, args.show_full_history, None)?;
 		display::outputs(&g_args.account, res.height, validated, outputs, dark_scheme)?;
 		Ok(())
 	})?;
@@ -753,7 +791,7 @@ where
 		};
 
 		if id.is_some() {
-			let (_, outputs) = api.retrieve_outputs(m, true, false, id)?;
+			let (_, outputs) = api.retrieve_outputs(m, true, false, false, id)?;
 			display::outputs(&g_args.account, res.height, validated, outputs, dark_scheme)?;
 			// should only be one here, but just in case
 			for tx in txs {

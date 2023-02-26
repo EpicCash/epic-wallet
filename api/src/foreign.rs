@@ -268,6 +268,7 @@ where
 		)
 	}
 
+	/// Builds a new foundation for the wallet
 	pub fn build_foundation(&self, block_fees: &BlockFees) -> Result<CbData, Error> {
 		let mut w_lock = self.wallet_inst.lock();
 		let w = w_lock.lc_provider()?.wallet_inst()?;

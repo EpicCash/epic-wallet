@@ -127,6 +127,7 @@ pub fn retrieve_outputs<'a, L, C, K>(
 	status_send_channel: &Option<Sender<StatusMessage>>,
 	include_spent: bool,
 	refresh_from_node: bool,
+	show_full_history: bool,
 	tx_id: Option<u32>,
 ) -> Result<(bool, Vec<OutputCommitMapping>), Error>
 where
@@ -153,6 +154,7 @@ where
 			&mut **w,
 			keychain_mask,
 			include_spent,
+			show_full_history,
 			tx_id,
 			Some(&parent_key_id),
 		)?,
@@ -734,7 +736,8 @@ where
 			updated_from_node: true,
 		}),
 		Err(_) => {
-			let outputs = retrieve_outputs(wallet_inst, keychain_mask, &None, true, false, None)?;
+			let outputs =
+				retrieve_outputs(wallet_inst, keychain_mask, &None, true, false, false, None)?;
 			let height = match outputs.1.iter().map(|m| m.output.height).max() {
 				Some(height) => height,
 				None => 0,

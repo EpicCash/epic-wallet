@@ -1,13 +1,12 @@
 [package]
 name = "epic_wallet_controller"
-version = "3.0.0"
-authors = ["Epic Developers <mimblewimble@lists.launchpad.net>"]
+version = "3.3.2"
+authors = ["Epic Developers <epiccash@brickabode.com>"]
 description = "Controllers for epic wallet instantiation"
 license = "Apache-2.0"
-repository = "https://github.com/mimblewimble/epic-wallet"
-keywords = [ "crypto", "epic", "mimblewimble" ]
+repository = "https://github.com/EpicCash/epic-wallet"
+keywords = ["crypto", "epic", "mimblewimble"]
 exclude = ["**/*.epic", "**/*.epic2"]
-#build = "src/build/build.rs"
 edition = "2018"
 
 [dependencies]
@@ -31,13 +30,10 @@ url = "1.7.0"
 chrono = { version = "0.4.4", features = ["serde"] }
 easy-jsonrpc-mw = "0.5.3"
 lazy_static = "1"
-
-
 tungstenite = {version="*", features = ["native-tls"] }
 
-epic_wallet_util = { path = "../util", version = "3.0.0" }
-
-epic_wallet_api = { path = "../api", version = "3.0.0" }
-epic_wallet_impls = { path = "../impls", version = "3.0.0" }
-epic_wallet_libwallet = { path = "../libwallet", version = "3.0.0" }
-epic_wallet_config = { path = "../config", version = "3.0.0" }
+epic_wallet_util = { path = "../util", version = "3.3.2" }
+epic_wallet_api = { path = "../api", version = "3.3.2" }
+epic_wallet_impls = { path = "../impls", version = "3.3.2" }
+epic_wallet_libwallet = { path = "../libwallet", version = "3.3.2" }
+epic_wallet_config = { path = "../config", version = "3.3.2" }
