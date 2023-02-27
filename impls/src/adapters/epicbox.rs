@@ -24,7 +24,10 @@ use crate::libwallet::{
 	address, Address, AddressType, EpicboxAddress, TxProof, DEFAULT_EPICBOX_PORT_443,
 	DEFAULT_EPICBOX_PORT_80,
 };
-use crate::libwallet::{Error, ErrorKind, NodeClient, WalletInst, WalletLCProvider};
+use crate::libwallet::{NodeClient, WalletInst, WalletLCProvider};
+
+use crate::Error;
+use crate::ErrorKind;
 
 use crate::libwallet::{Slate, SlateVersion, VersionedSlate};
 use crate::util::secp::key::SecretKey;
@@ -166,10 +169,15 @@ impl EpicboxListenChannel {
 		let (tx, _rx): (Sender<bool>, Receiver<bool>) = channel();
 
 		debug!("Connecting to the epicbox server at {} ..", url.clone());
-		let (socket, _response) = connect(url.clone()).expect(CONNECTION_ERR_MSG);
+		let (socket, _response) = connect(url.clone()).map_err(|e| {
+			warn!("{}", ErrorKind::EpicboxTungstenite(format!("{}", e).into()));
+			ErrorKind::EpicboxTungstenite(format!("{}", e).into())
+		})?;
+
 		let publisher = EpicboxPublisher::new(address.clone(), sec_key, socket, tx)?;
 
 		let mut subscriber = EpicboxSubscriber::new(&publisher)?;
+
 		let container = Container::new(epicbox_config.clone());
 		let cpublisher = publisher.clone();
 		let mask = keychain_mask.lock();
@@ -179,10 +187,7 @@ impl EpicboxListenChannel {
 
 		warn!("Starting epicbox listener for: {}", address);
 
-		subscriber
-			.start(controller, interval)
-			.expect("Could not start epicbox listener!");
-		Ok(())
+		subscriber.start(controller, interval)
 	}
 }
 impl EpicboxChannel {
@@ -597,8 +602,7 @@ impl Subscriber for EpicboxSubscriber {
 		K: Keychain + 'static,
 	{
 		self.broker
-			.subscribe(&self.address, &self.secret_key, handler, interval)?;
-		Ok(())
+			.subscribe(&self.address, &self.secret_key, handler, interval)
 	}
 
 	fn stop(&self) {
@@ -670,7 +674,7 @@ impl EpicboxBroker {
 			tx: self.tx.clone(),
 		};
 
-		loop {
+		let res = loop {
 			let err = client.sender.lock().read_message();
 			let mut new_challenge = false;
 
@@ -685,7 +689,7 @@ impl EpicboxBroker {
 						Err(e) => error!("Client closed connection {:?}", e),
 					}
 
-					break;
+					break Err(ErrorKind::EpicboxWebsocketAbnormalTermination.into());
 				}
 				Ok(message) => match message {
 					Message::Text(_) | Message::Binary(_) => {
@@ -758,7 +762,7 @@ impl EpicboxBroker {
 						info!("Close {:?}", &message.to_string());
 						handler.lock().on_close(CloseReason::Normal);
 						client.sender.lock().close(None).unwrap();
-						break;
+						break Ok(());
 					}
 				},
 			};
@@ -775,9 +779,9 @@ impl EpicboxBroker {
 					first_run = false;
 				}
 			}
-		} //end loop
+		}; //end loop
 
-		Ok(())
+		res
 	}
 
 	fn post_slate(

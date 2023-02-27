@@ -158,12 +158,34 @@ where
 		"keybase" => {
 			KeybaseAllChannels::new()?.listen(wallet.clone(), keychain_mask.clone(), config.clone())
 		}
-		"epicbox" => EpicboxListenChannel::new()?.listen(
-			wallet.clone(),
-			keychain_mask.clone(),
-			epicbox_config.clone(),
-			args.interval,
-		),
+		"epicbox" => {
+			let mut reconnect = 0;
+			loop {
+				let listener = EpicboxListenChannel::new()?.listen(
+					wallet.clone(),
+					keychain_mask.clone(),
+					epicbox_config.clone(),
+					args.interval,
+				);
+				warn!("try to reconnect to epicbox");
+				match listener {
+					Ok(_) => {
+						reconnect = 0;
+						()
+					}
+					Err(_e) => {
+						if reconnect >= 5 {
+							break;
+						} else {
+							reconnect += 1;
+						}
+					}
+				}
+				let duration = std::time::Duration::from_secs(20);
+				std::thread::sleep(duration);
+			}
+			Ok(())
+		}
 		method => {
 			return Err(ErrorKind::ArgumentError(format!(
 				"No listener for method {}",

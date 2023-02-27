@@ -258,8 +258,7 @@ pub enum ErrorKind {
 	InvalidBase58Version,
 	#[fail(display = "Invalid key")]
 	InvalidBase58Key,
-	#[fail(display = "Epicbox websocket terminated unexpectedly")]
-	EpicboxWebsocketAbnormalTermination,
+
 	#[fail(display = "Could not parse number from string")]
 	NumberParsingError,
 	#[fail(display = "Listener for {} closed", 0)]
@@ -270,8 +269,6 @@ pub enum ErrorKind {
 	Decryption,
 	#[fail(display = "Could not parse '{}' to a epicbox address", 0)]
 	EpicboxAddressParsingError(String),
-	#[fail(display = "No listener on {}", 0)]
-	NoListener(String),
 
 	/// Other
 	#[fail(display = "Generic error: {}", _0)]

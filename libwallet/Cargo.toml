@@ -32,6 +32,8 @@ sha2 = "0.9"
 digest = "0.9"
 ring = "0.13"
 regex = "1"
+tungstenite = {version="*", features = ["native-tls"] }
+
 
 epic_wallet_util = { path = "../util", version = "3.3.2" }
 epic_wallet_config = { path = "../config", version = "3.3.2" }
