@@ -31,7 +31,7 @@ use crate::util::{self, to_hex};
 
 #[derive(Clone)]
 pub struct HTTPNodeClient {
-	node_url: String,
+	pub node_url: String,
 	node_api_secret: Option<String>,
 	node_version_info: Option<NodeVersionInfo>,
 }
@@ -80,16 +80,16 @@ impl NodeClient for HTTPNodeClient {
 				// If node isn't available, allow offline functions
 				// unfortunately have to parse string due to error structure
 				let err_string = format!("{}", e);
-				if err_string.contains("404") {
-					return Some(NodeVersionInfo {
+				return if err_string.contains("404") {
+					Some(NodeVersionInfo {
 						node_version: "1.0.0".into(),
 						block_header_version: 1,
 						verified: Some(false),
-					});
+					})
 				} else {
 					error!("Unable to contact Node to get version info: {}", e);
-					return None;
-				}
+					None
+				};
 			}
 		};
 		retval.verified = Some(true);
