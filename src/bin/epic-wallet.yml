@@ -79,7 +79,6 @@ subcommands:
             short: i
             long: interval
             takes_value: true
-            default_value: "10"
             possible_values:
              - "2"
              - "5"
