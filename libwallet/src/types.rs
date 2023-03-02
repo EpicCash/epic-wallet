@@ -204,6 +204,45 @@ where
 	/// Iterate over all output data stored by the backend
 	fn tx_log_iter<'a>(&'a self) -> Box<dyn Iterator<Item = TxLogEntry> + 'a>;
 
+	/// Iterate over TxLogIter using filtered queries
+	fn tx_log_iter_filtered<'a>(
+		&'a self,
+		tx_id: Option<u32>,
+		tx_slate_id: Option<Uuid>,
+		parent_key_id: Option<&Identifier>,
+		outstanding_only: bool,
+	) -> Box<dyn Iterator<Item = TxLogEntry> + 'a>;
+
+	/// Iterate over OutputDate using filtered queries
+	fn output_data_iter<'a>(
+		&self,
+		tx_id: Option<u32>,
+		parent_key_id: Option<&Identifier>,
+		show_full_history: bool,
+		show_spent: bool,
+	) -> Box<dyn Iterator<Item = OutputData> + 'a>;
+
+	/// Get all eligible OutputData from database
+	fn eligible_outputs_preset(
+		&self,
+		key: Option<&Identifier>,
+	) -> Box<dyn Iterator<Item = OutputData>>;
+
+	/// Get old and unconfirmed outputs
+	/// A output is considered unconfirmed if the tx_status is unconfirmed and
+	/// the height of the txos is bigger than 0 and smaller than the height minus 50
+	/// It also needs to be a coinbase
+	fn old_unconfirmed_outputs(&self, height: u64) -> Box<dyn Iterator<Item = OutputData>>;
+
+	/// Returns unspent outputs
+	/// tx_entries_ids can be passed to select outputs
+	/// that are actually involved in an outstanding transaction
+	fn unspent_ouputs(
+		&self,
+		parent_key_id: &Identifier,
+		tx_entries_ids: Option<Vec<u32>>,
+	) -> Box<dyn Iterator<Item = OutputData>>;
+
 	/// Iterate over all stored account paths
 	fn acct_path_iter<'a>(&'a self) -> Box<dyn Iterator<Item = AcctPathMapping> + 'a>;
 
@@ -267,6 +306,30 @@ where
 
 	/// Iterate over all outputs available in the output history table
 	fn history_iter(&self) -> Box<dyn Iterator<Item = OutputData>>;
+
+	/// Iterate over TxLogIter using filtered queries
+	fn tx_log_iter_filtered(
+		&self,
+		tx_id: Option<u32>,
+		tx_slate_id: Option<Uuid>,
+		parent_key_id: Option<&Identifier>,
+		outstanding_only: bool,
+	) -> Box<dyn Iterator<Item = TxLogEntry>>;
+
+	/// Iterate over OutputData using filtered queries
+	fn output_data_iter(
+		&self,
+		tx_id: Option<u32>,
+		parent_key_id: Option<&Identifier>,
+		show_full_history: bool,
+		show_spent: bool,
+	) -> Box<dyn Iterator<Item = OutputData>>;
+
+	/// Get all eligible OutputData from database
+	fn eligible_outputs_preset(
+		&self,
+		key: Option<&Identifier>,
+	) -> Box<dyn Iterator<Item = OutputData>>;
 
 	/// Delete data about an output from the backend
 	fn delete(

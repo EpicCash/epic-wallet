@@ -45,9 +45,10 @@ pub mod tor;
 
 pub use crate::adapters::{
 	create_sender, Container, EmojiSlate, EpicboxBroker, EpicboxChannel, EpicboxController,
-	EpicboxListenChannel, EpicboxListener, EpicboxPublisher, EpicboxSubscriber, HttpSlateSender,
-	KeybaseAllChannels, KeybaseChannel, Listener, ListenerInterface, PathToSlate, SlateGetter,
-	SlatePutter, SlateReceiver, SlateSender, Subscriber,
+	EpicboxListenChannel, EpicboxListener, EpicboxPublisher, EpicboxSubscriber, Header,
+	HttpSlateSender, KeybaseAllChannels, KeybaseChannel, Listener, ListenerInterface, PathToSlate,
+	QrToSlate, SlateGetter, SlatePutter, SlateReceiver, SlateSender, Subscriber, EMOJI_VERSION,
+	QR_VERSION, RESPONSE_EXTENTION,
 };
 pub use crate::backends::{wallet_db_exists, LMDBBackend};
 pub use crate::error::{Error, ErrorKind};

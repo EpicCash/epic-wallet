@@ -49,36 +49,9 @@ where
 	C: NodeClient + 'a,
 	K: Keychain + 'a,
 {
-	// just read the wallet here, no need for a write lock
-	let mut outputs = wallet
-		.iter()
-		.filter(|out| show_spent || out.status != OutputStatus::Spent)
-		.collect::<Vec<_>>();
-
-	if show_full_history {
-		outputs.append(
-			&mut wallet
-				.history_iter()
-				.filter(|out| show_spent || out.status != OutputStatus::Spent)
-				.collect::<Vec<_>>(),
-		);
-	}
-
-	// only include outputs with a given tx_id if provided
-	if let Some(id) = tx_id {
-		outputs = outputs
-			.into_iter()
-			.filter(|out| out.tx_log_entry == Some(id))
-			.collect::<Vec<_>>();
-	}
-
-	if let Some(k) = parent_key_id {
-		outputs = outputs
-			.iter()
-			.filter(|o| o.root_key_id == *k)
-			.map(|o| o.clone())
-			.collect();
-	}
+	let mut outputs: Vec<OutputData> = wallet
+		.output_data_iter(tx_id, parent_key_id, show_full_history, show_spent)
+		.collect();
 
 	outputs.sort_by_key(|out| (out.n_child, out.tx_log_entry));
 	let keychain = wallet.keychain(keychain_mask)?;
@@ -113,30 +86,7 @@ where
 	K: Keychain + 'a,
 {
 	let mut txs: Vec<TxLogEntry> = wallet
-		.tx_log_iter()
-		.filter(|tx_entry| {
-			let f_pk = match parent_key_id {
-				Some(k) => tx_entry.parent_key_id == *k,
-				None => true,
-			};
-			let f_tx_id = match tx_id {
-				Some(i) => tx_entry.id == i,
-				None => true,
-			};
-			let f_txs = match tx_slate_id {
-				Some(t) => tx_entry.tx_slate_id == Some(t),
-				None => true,
-			};
-			let f_outstanding = match outstanding_only {
-				true => {
-					!tx_entry.confirmed
-						&& (tx_entry.tx_type == TxLogEntryType::TxReceived
-							|| tx_entry.tx_type == TxLogEntryType::TxSent)
-				}
-				false => true,
-			};
-			f_pk && f_tx_id && f_txs && f_outstanding
-		})
+		.tx_log_iter_filtered(tx_id, tx_slate_id, parent_key_id, outstanding_only)
 		.collect();
 	txs.sort_by_key(|tx| tx.creation_ts);
 	Ok(txs)
@@ -176,30 +126,19 @@ where
 	let mut wallet_outputs: HashMap<pedersen::Commitment, (Identifier, Option<u64>)> =
 		HashMap::new();
 	let keychain = wallet.keychain(keychain_mask)?;
-	let unspents: Vec<OutputData> = wallet
-		.iter()
-		.filter(|x| x.root_key_id == *parent_key_id && x.status != OutputStatus::Spent)
+
+	let mut tx_entries_ids: Option<Vec<u32>> = None;
+	if !update_all {
+		tx_entries_ids = Some(
+			retrieve_txs(wallet, None, None, Some(&parent_key_id), true)?
+				.iter()
+				.map(|f| f.id)
+				.collect(),
+		);
+	}
+	let unspents: Vec<_> = wallet
+		.unspent_ouputs(parent_key_id, tx_entries_ids)
 		.collect();
-
-	let tx_entries = retrieve_txs(wallet, None, None, Some(&parent_key_id), true)?;
-
-	// Only select outputs that are actually involved in an outstanding transaction
-	let unspents: Vec<OutputData> = match update_all {
-		false => unspents
-			.into_iter()
-			.filter(|x| match x.tx_log_entry.as_ref() {
-				Some(t) => {
-					if let Some(_) = tx_entries.iter().find(|&te| te.id == *t) {
-						true
-					} else {
-						false
-					}
-				}
-				None => true,
-			})
-			.collect(),
-		true => unspents,
-	};
 
 	for out in unspents {
 		let commit = match out.commit.clone() {
@@ -378,6 +317,7 @@ where
 	Ok(())
 }
 
+/// Clean old uncofirmed data to keep the database clean from old unconfirmed coinbase blocks
 fn clean_old_unconfirmed<'a, T: ?Sized, C, K>(
 	wallet: &mut T,
 	keychain_mask: Option<&SecretKey>,
@@ -391,16 +331,10 @@ where
 	if height < 50 {
 		return Ok(());
 	}
-	let mut ids_to_del = vec![];
-	for out in wallet.iter() {
-		if out.status == OutputStatus::Unconfirmed
-			&& out.height > 0
-			&& out.height < height - 50
-			&& out.is_coinbase
-		{
-			ids_to_del.push(out.key_id.clone())
-		}
-	}
+	let ids_to_del: Vec<Identifier> = wallet
+		.old_unconfirmed_outputs(height)
+		.map(|o| o.key_id.clone())
+		.collect();
 	let mut batch = wallet.batch(keychain_mask)?;
 	for id in ids_to_del {
 		batch.delete(&id, &None, &None)?;

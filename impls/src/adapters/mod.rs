@@ -12,13 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+mod compress;
 mod emoji;
+mod emoji_map;
 mod epicbox;
 mod file;
 pub mod http;
 mod keybase;
+mod qr;
 
-pub use self::emoji::EmojiSlate;
+pub use self::compress::Header;
+pub use self::emoji::{EmojiSlate, EMOJI_VERSION};
 pub use self::epicbox::{
 	Container, EpicboxBroker, EpicboxController, EpicboxListener, EpicboxPublisher,
 	EpicboxSubscriber, Listener, ListenerInterface, Subscriber,
@@ -27,6 +31,8 @@ pub use self::epicbox::{EpicboxChannel, EpicboxListenChannel};
 pub use self::file::PathToSlate;
 pub use self::http::{HttpSlateSender, SchemeNotHttp};
 pub use self::keybase::{KeybaseAllChannels, KeybaseChannel};
+pub use self::qr::{QrToSlate, QR_VERSION, RESPONSE_EXTENTION};
+
 use crate::config::{TorConfig, WalletConfig};
 use crate::libwallet::{Error, ErrorKind, NodeClient, Slate, WalletInst, WalletLCProvider};
 use crate::tor::config::complete_tor_address;
@@ -118,9 +124,13 @@ pub fn create_sender(
 			)
 			.into());
 		}
-		"file" => {
+		"file" | "qr" | "emoji" => {
 			return Err(ErrorKind::WalletComms(
-				"File based transactions must be performed asynchronously.".to_string(),
+				format!(
+					"{} based transactions must be performed asynchronously.",
+					method
+				)
+				.to_string(),
 			)
 			.into());
 		}

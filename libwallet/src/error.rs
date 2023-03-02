@@ -272,6 +272,13 @@ pub enum ErrorKind {
 	EpicboxAddressParsingError(String),
 	#[fail(display = "No listener on {}", 0)]
 	NoListener(String),
+	/// QR Command line argument error
+	#[fail(display = "Argument QR Error")]
+	QRArgumentError,
+
+	/// QR Command line argument error
+	#[fail(display = "Data Too Long QR Error")]
+	DataTooLongQRError,
 
 	/// Other
 	#[fail(display = "Generic error: {}", _0)]

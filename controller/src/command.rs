@@ -18,12 +18,11 @@ use crate::api::TLSConfig;
 use crate::config::{EpicboxConfig, TorConfig, WalletConfig, WALLET_CONFIG_FILE_NAME};
 use crate::core::{core, global};
 use crate::error::{Error, ErrorKind};
-
 use crate::impls::{
 	create_sender, EpicboxChannel, EpicboxListenChannel, KeybaseAllChannels, SlateGetter as _,
 	SlateReceiver as _,
 };
-use crate::impls::{EmojiSlate, PathToSlate, SlatePutter};
+use crate::impls::{EmojiSlate, PathToSlate, QrToSlate, SlatePutter, RESPONSE_EXTENTION};
 use crate::keychain;
 use crate::libwallet::{
 	self, address, InitTxArgs, IssueInvoiceTxArgs, NodeClient, PaymentProof, WalletInst,
@@ -340,8 +339,17 @@ where
 			};
 
 			match args.method.as_str() {
+				"qr" => {
+					if !&args.dest.contains(RESPONSE_EXTENTION) {
+						QrToSlate((&args.dest).into()).put_tx(&slate)?;
+						api.tx_lock_outputs(m, &slate, 0)?;
+						return Ok(());
+					}
+					error!("Unable to generate send qr with {RESPONSE_EXTENTION} included in the path, this is the default reply name added to the file");
+					return Err(libwallet::ErrorKind::QRArgumentError.into());
+				}
 				"emoji" => {
-					println!("{}", EmojiSlate().encode(&slate));
+					println!("{}", EmojiSlate().encode(&slate, true));
 					api.tx_lock_outputs(m, &slate, 0)?;
 					return Ok(());
 				}
@@ -425,11 +433,12 @@ where
 {
 	let method = args.method.as_str();
 	let mut slate;
-	if method == "emoji" {
-		slate = EmojiSlate().decode(&args.input.as_str())?;
-	} else {
-		slate = PathToSlate((&args.input).into()).get_tx()?;
-	}
+	let mut receive_compressed = true;
+	match method {
+		"emoji" => (slate, receive_compressed) = EmojiSlate().decode(&args.input.as_str())?,
+		"qr" => slate = QrToSlate((&args.input).into()).get_tx()?,
+		_ => slate = PathToSlate((&args.input).into()).get_tx()?,
+	};
 
 	let km = match keychain_mask.as_ref() {
 		None => None,
@@ -443,15 +452,22 @@ where
 		slate = api.receive_tx(&slate, Some(&g_args.account), args.message.clone())?;
 		Ok(())
 	})?;
-	if method == "emoji" {
-		println!("\n\nThis is your response emoji string. Please send it back to the payer to finalize the transaction:\n\n{}", EmojiSlate().encode(&slate));
-		info!("Response emoji.response generated, and can be sent back to the transaction originator.");
-	} else {
-		PathToSlate(format!("{}.response", args.input).into()).put_tx(&slate)?;
-		info!(
-			"Response file {}.response generated, and can be sent back to the transaction originator.",
-			args.input
-		);
+
+	match method {
+		"emoji" => {
+			println!("\n\nThis is your response emoji string. Please send it back to the payer to finalize the transaction:\n\n{}", EmojiSlate().encode(&slate, receive_compressed));
+			info!("Response emoji.response generated, and can be sent back to the transaction originator.");
+		}
+		"qr" => {
+			QrToSlate((format!("{}{}", RESPONSE_EXTENTION, args.input)).into()).put_tx(&slate)?
+		}
+		_ => {
+			PathToSlate(format!("{}.response", args.input).into()).put_tx(&slate)?;
+			info!(
+				"Response file {}.response generated, and can be sent back to the transaction originator.",
+				args.input
+			);
+		}
 	}
 
 	Ok(())
@@ -479,7 +495,9 @@ where
 	let method = args.method.as_str();
 	let mut slate;
 	if method == "emoji" {
-		slate = EmojiSlate().decode(&args.input.as_str())?;
+		(slate, _) = EmojiSlate().decode(&args.input.as_str())?;
+	} else if method == "qr" {
+		slate = QrToSlate((&args.input).into()).get_tx()?;
 	} else {
 		slate = PathToSlate((&args.input).into()).get_tx()?;
 	}
