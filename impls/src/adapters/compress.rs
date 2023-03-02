@@ -195,6 +195,7 @@ impl Header {
 		let default_version = match method_context {
 			"qr" => QR_VERSION,
 			"emoji" => EMOJI_VERSION,
+			&_ => panic!("The method {} is not implemented yet!", method_context),
 		};
 
 		let method: CompressionFormat = match default_version {
