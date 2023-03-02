@@ -23,7 +23,7 @@ const EPICBOX_ADDRESS_VERSION_MAINNET: [u8; 2] = [1, 0];
 const EPICBOX_ADDRESS_VERSION_TESTNET: [u8; 2] = [1, 136];
 
 const EPICBOX_ADDRESS_REGEX: &str = r"^(epicbox://)?(?P<public_key>[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{52})(@(?P<domain>[a-zA-Z0-9\.]+)(:(?P<port>[0-9]*))?)?$";
-const DEFAULT_EPICBOX_DOMAIN: &str = "epicbox.io";
+const DEFAULT_EPICBOX_DOMAIN: &str = "epicbox.epic.tech";
 pub const DEFAULT_EPICBOX_PORT_80: u16 = 80;
 pub const DEFAULT_EPICBOX_PORT_443: u16 = 443;
 
