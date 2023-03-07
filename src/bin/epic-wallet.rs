@@ -104,6 +104,7 @@ fn real_main() -> i32 {
 
 	// Load relevant config, try and load a wallet config file
 	// Use defaults for configuration if config file not found anywhere
+
 	let mut config = config::initial_setup_wallet(&chain_type, current_dir).unwrap_or_else(|e| {
 		panic!("Error loading wallet configuration: {}", e);
 	});

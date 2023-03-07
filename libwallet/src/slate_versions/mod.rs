@@ -94,6 +94,21 @@ impl From<VersionedSlate> for Slate {
 	}
 }
 
+impl From<&VersionedSlate> for Slate {
+	fn from(slate: &VersionedSlate) -> Slate {
+		match slate {
+			VersionedSlate::V3(s) => {
+				let s = SlateV3::from(s.clone());
+				Slate::from(s)
+			}
+			VersionedSlate::V2(s) => {
+				let s = SlateV3::from(s.clone());
+				Slate::from(s)
+			}
+		}
+	}
+}
+
 #[derive(Deserialize, Serialize)]
 #[serde(untagged)]
 /// Versions are ordered newest to oldest so serde attempts to
