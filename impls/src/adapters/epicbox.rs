@@ -170,8 +170,11 @@ impl EpicboxListenChannel {
 
 		debug!("Connecting to the epicbox server at {} ..", url.clone());
 		let (socket, _response) = connect(url.clone()).map_err(|e| {
-			warn!("{}", ErrorKind::EpicboxTungstenite(format!("{}", e).into()));
-			ErrorKind::EpicboxTungstenite(format!("{}", e).into())
+			warn!(
+				"{:?}",
+				ErrorKind::EpicboxTungstenite(format!("{:?}", e).into())
+			);
+			ErrorKind::EpicboxTungstenite(format!("{:?}", e).into())
 		})?;
 
 		let publisher = EpicboxPublisher::new(address.clone(), sec_key, socket, tx)?;
@@ -520,14 +523,14 @@ where
 		let mut slate: Slate = slate.clone().into();
 
 		/*if slate.num_participants > slate.participant_data.len() {
-			println!(
+			debug!(
 				"Slate [{}] received from [{}] for [{}] epics",
 				slate.id.to_string(),
 				display_from,
 				amount_to_hr_string(slate.amount, false)
 			);
 		} else {
-			println!(
+			debug!(
 				"Slate [{}] received back from [{}] for [{}] epics",
 				slate.id.to_string(),
 				display_from,
@@ -549,26 +552,26 @@ where
 					self.publisher
 						.post_slate(&slate, from, false)
 						.map_err(|e| {
-							println!("{}: {}", "ERROR", e);
+							debug!("{}: {}", "ERROR", e);
 							e
 						})
 						.expect("failed posting slate!");
 				} else {
-					println!("Slate [{}] finalized successfully", slate.id.to_string());
+					debug!("Slate [{}] finalized successfully", slate.id.to_string());
 				}
 				Ok(())
 			});
 
 		match result {
 			Ok(()) => {}
-			Err(e) => println!("{}", e),
+			Err(e) => debug!("{}", e),
 		}
 	}
 
 	fn on_close(&self, reason: CloseReason) {
 		match reason {
 			CloseReason::Normal => {
-				//println!("Listener for {} stopped", self.name)
+				//debug!("Listener for {} stopped", self.name)
 			}
 			CloseReason::Abnormal(error) => {
 				error!("{:?}", error.to_string())
@@ -653,7 +656,6 @@ impl EpicboxBroker {
 	{
 		let handler = Arc::new(Mutex::new(handler));
 		let sender = self.inner.clone();
-		let mut first_run = true;
 
 		// Parse from epicbox config or use default value for the
 		// time interval between new subscribe calls from the wallet
@@ -674,9 +676,8 @@ impl EpicboxBroker {
 			tx: self.tx.clone(),
 		};
 
-		let res = loop {
+		loop {
 			let err = client.sender.lock().read_message();
-			let mut new_challenge = false;
 
 			match err {
 				Err(e) => {
@@ -688,8 +689,7 @@ impl EpicboxBroker {
 						Ok(_) => error!("Client closed connection"),
 						Err(e) => error!("Client closed connection {:?}", e),
 					}
-
-					break Err(ErrorKind::EpicboxWebsocketAbnormalTermination.into());
+					break;
 				}
 				Ok(message) => match message {
 					Message::Text(_) | Message::Binary(_) => {
@@ -701,7 +701,7 @@ impl EpicboxBroker {
 									return Ok(());
 								}
 							};
-
+						debug!(">> WALLET RECEIVED FROM EB: {}", &message);
 						match response {
 							ProtocolResponse::Challenge { str } => {
 								client.challenge = Some(str.clone());
@@ -711,12 +711,8 @@ impl EpicboxBroker {
 										error!("Error attempting to subscribe!");
 									})
 									.unwrap();
-
-								if !first_run {
-									std::thread::sleep(duration);
-								}
-								new_challenge = true;
 							}
+
 							ProtocolResponse::Slate {
 								from,
 								str,
@@ -762,26 +758,21 @@ impl EpicboxBroker {
 						info!("Close {:?}", &message.to_string());
 						handler.lock().on_close(CloseReason::Normal);
 						client.sender.lock().close(None).unwrap();
-						break Ok(());
+						break;
 					}
 				},
 			};
 
-			if new_challenge {
-				client
-					.new_challenge()
-					.map_err(|_| error!("error attempting challenge!"))
-					.unwrap();
+			// Wait until next ping to the epicbox server
+			debug!("Refresh epicbox subscription (interval: {:?})", duration);
+			std::thread::sleep(duration);
 
-				debug!("Refresh epicbox subscription (interval: {:?})", duration);
-				if first_run {
-					std::thread::sleep(duration);
-					first_run = false;
-				}
-			}
-		}; //end loop
-
-		res
+			client
+				.new_challenge()
+				.map_err(|_| error!("error attempting challenge!"))
+				.unwrap();
+		}
+		Ok(())
 	}
 
 	fn post_slate(
@@ -864,6 +855,7 @@ where
 		let unsubscribe = ProtocolRequest::Unsubscribe {
 			address: self.address.public_key.to_string(),
 		};
+
 		self.send(&unsubscribe)
 			.expect("could not send unsubscribe request!");
 
@@ -877,6 +869,7 @@ where
 
 	fn send(&self, request: &ProtocolRequest) -> Result<(), ErrorTungstenite> {
 		let request = serde_json::to_string(&request).unwrap();
+		debug!("<< WALLET SENDING TO EB: {}", &request);
 
 		self.sender
 			.lock()
