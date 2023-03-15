@@ -69,9 +69,6 @@ use tungstenite::{Error as ErrorTungstenite, Message};
 const CONNECTION_ERR_MSG: &str = "\nCan't connect to the epicbox server!\n\
 	Check your epic-wallet.toml settings and make sure epicbox domain is correct.\n";
 const DEFAULT_INTERVAL: u64 = 10;
-const MIN_INTERVAL: u64 = 2;
-const MAX_INTERVAL: u64 = 120;
-
 const DEFAULT_CHALLENGE_RAW: &str = "7WUDtkSaKyGRUnQ22rE3QUXChV8DmA6NnunDYP4vheTpc";
 
 /// Epicbox 'plugin' implementation
@@ -120,14 +117,13 @@ impl EpicboxListenChannel {
 		wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K> + 'static>>>,
 		keychain_mask: Arc<Mutex<Option<SecretKey>>>,
 		epicbox_config: EpicboxConfig,
-		interval_arg: Option<u64>,
 	) -> Result<(), Error>
 	where
 		L: WalletLCProvider<'static, C, K> + 'static,
 		C: NodeClient + 'static,
 		K: Keychain + 'static,
 	{
-		let (address, sec_key, interval) = {
+		let (address, sec_key) = {
 			let a_keychain = keychain_mask.clone();
 			let a_wallet = wallet.clone();
 			let mask = a_keychain.lock();
@@ -147,12 +143,7 @@ impl EpicboxListenChannel {
 				epicbox_config.epicbox_port,
 			);
 
-			let mut interval = interval_arg;
-			if interval.is_none() {
-				interval = epicbox_config.epicbox_listener_interval
-			}
-
-			(address, sec_key, interval)
+			(address, sec_key)
 		};
 		let url = {
 			let cloned_address = address.clone();
@@ -190,7 +181,7 @@ impl EpicboxListenChannel {
 
 		warn!("Starting epicbox listener for: {}", address);
 
-		subscriber.start(controller, interval)
+		subscriber.start(controller)
 	}
 }
 impl EpicboxChannel {
@@ -264,7 +255,7 @@ where
 	C: NodeClient + 'static,
 	K: Keychain + 'static,
 {
-	let (address, sec_key, interval) = {
+	let (address, sec_key) = {
 		let a_wallet = wallet.clone();
 		let mut w_lock = a_wallet.lock();
 		let lc = w_lock.lc_provider()?;
@@ -276,14 +267,12 @@ where
 			.unwrap();
 		let pub_key = PublicKey::from_secret_key(k.secp(), &sec_key).unwrap();
 
-		let interval: Option<u64> = config.epicbox_listener_interval;
-
 		let address = EpicboxAddress::new(
 			pub_key.clone(),
 			Some(config.epicbox_domain.clone()),
 			config.epicbox_port,
 		);
-		(address, sec_key, interval)
+		(address, sec_key)
 	};
 	let url = {
 		let cloned_address = address.clone();
@@ -314,7 +303,7 @@ where
 			.expect("Could not init epicbox controller!");
 
 		csubscriber
-			.start(controller, interval)
+			.start(controller)
 			.expect("Could not start epicbox controller!");
 		()
 	});
@@ -580,11 +569,7 @@ where
 	}
 }
 pub trait Subscriber {
-	fn start<P, L, C, K>(
-		&mut self,
-		handler: EpicboxController<P, L, C, K>,
-		interval: Option<u64>,
-	) -> Result<(), Error>
+	fn start<P, L, C, K>(&mut self, handler: EpicboxController<P, L, C, K>) -> Result<(), Error>
 	where
 		P: Publisher,
 		L: WalletLCProvider<'static, C, K> + 'static,
@@ -593,11 +578,7 @@ pub trait Subscriber {
 	fn stop(&self);
 }
 impl Subscriber for EpicboxSubscriber {
-	fn start<P, L, C, K>(
-		&mut self,
-		handler: EpicboxController<P, L, C, K>,
-		interval: Option<u64>,
-	) -> Result<(), Error>
+	fn start<P, L, C, K>(&mut self, handler: EpicboxController<P, L, C, K>) -> Result<(), Error>
 	where
 		P: Publisher,
 		L: WalletLCProvider<'static, C, K> + 'static,
@@ -605,7 +586,7 @@ impl Subscriber for EpicboxSubscriber {
 		K: Keychain + 'static,
 	{
 		self.broker
-			.subscribe(&self.address, &self.secret_key, handler, interval)
+			.subscribe(&self.address, &self.secret_key, handler)
 	}
 
 	fn stop(&self) {
@@ -646,7 +627,6 @@ impl EpicboxBroker {
 		address: &EpicboxAddress,
 		secret_key: &SecretKey,
 		handler: EpicboxController<P, L, C, K>,
-		interval: Option<u64>,
 	) -> Result<(), Error>
 	where
 		P: Publisher,
@@ -658,15 +638,8 @@ impl EpicboxBroker {
 		let sender = self.inner.clone();
 		let mut first_run = true;
 
-		// Parse from epicbox config or use default value for the
-		// time interval between new subscribe calls from the wallet
-		let mut seconds = interval.unwrap_or(DEFAULT_INTERVAL);
-		if seconds < MIN_INTERVAL {
-			seconds = MIN_INTERVAL
-		} else if seconds > MAX_INTERVAL {
-			seconds = MAX_INTERVAL
-		}
-		let duration = std::time::Duration::from_secs(seconds);
+		// time interval for sleep in main loop
+		let duration = std::time::Duration::from_secs(DEFAULT_INTERVAL);
 
 		let mut client = EpicboxClient {
 			sender,
@@ -722,7 +695,7 @@ impl EpicboxBroker {
 								client
 									.challenge_send()
 									.map_err(|_| {
-										error!("Error attempting to subscribe!");
+										error!("Error attempting to send Challenge!");
 									})
 									.unwrap();
 
@@ -788,7 +761,6 @@ impl EpicboxBroker {
 					.map_err(|_| error!("error attempting challenge!"))
 					.unwrap();
 
-				debug!("Refresh epicbox subscription (interval: {:?})", duration);
 				if first_run {
 					std::thread::sleep(duration);
 					first_run = false;

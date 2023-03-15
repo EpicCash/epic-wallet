@@ -352,7 +352,6 @@ pub fn parse_listen_args(
 		config.api_listen_port = port.parse().unwrap();
 	}
 
-	let interval = parse_u64_or_none(args.value_of("interval"));
 	let method = parse_required(args, "method")?;
 
 	if args.is_present("no_tor") {
@@ -360,7 +359,6 @@ pub fn parse_listen_args(
 	}
 	Ok(command::ListenArgs {
 		method: method.to_owned(),
-		interval,
 	})
 }
 

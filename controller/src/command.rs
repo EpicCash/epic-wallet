@@ -130,7 +130,6 @@ where
 /// Arguments for listen command
 pub struct ListenArgs {
 	pub method: String,
-	pub interval: Option<u64>,
 }
 
 pub fn listen<L, C, K>(
@@ -165,7 +164,6 @@ where
 					wallet.clone(),
 					keychain_mask.clone(),
 					epicbox_config.clone(),
-					args.interval,
 				);
 				warn!("try to reconnect to epicbox");
 				match listener {
@@ -196,7 +194,6 @@ where
 	};
 
 	debug!("{}", args.method.clone());
-	debug!("{}", args.interval.unwrap_or(10));
 
 	if let Err(e) = res {
 		return Err(ErrorKind::LibWallet(e.kind(), e.cause_string()).into());
