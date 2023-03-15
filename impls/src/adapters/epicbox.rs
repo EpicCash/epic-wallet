@@ -42,6 +42,7 @@ use std::thread::JoinHandle;
 
 use crate::libwallet::api_impl::foreign;
 use crate::libwallet::api_impl::owner;
+use epic_wallet_util::epic_core::core::amount_to_hr_string;
 use std::net::TcpStream;
 use std::string::ToString;
 use std::sync::mpsc::{channel, Receiver, Sender};
@@ -70,6 +71,8 @@ const CONNECTION_ERR_MSG: &str = "\nCan't connect to the epicbox server!\n\
 const DEFAULT_INTERVAL: u64 = 10;
 const MIN_INTERVAL: u64 = 2;
 const MAX_INTERVAL: u64 = 120;
+
+const DEFAULT_CHALLENGE_RAW: &str = "7WUDtkSaKyGRUnQ22rE3QUXChV8DmA6NnunDYP4vheTpc";
 
 /// Epicbox 'plugin' implementation
 pub enum CloseReason {
@@ -519,21 +522,21 @@ where
 		let version = slate.version();
 		let mut slate: Slate = slate.clone().into();
 
-		/*if slate.num_participants > slate.participant_data.len() {
-			println!(
+		if slate.num_participants > slate.participant_data.len() {
+			debug!(
 				"Slate [{}] received from [{}] for [{}] epics",
 				slate.id.to_string(),
-				display_from,
+				from.to_string(),
 				amount_to_hr_string(slate.amount, false)
 			);
 		} else {
-			println!(
+			debug!(
 				"Slate [{}] received back from [{}] for [{}] epics",
 				slate.id.to_string(),
-				display_from,
+				from.to_string(),
 				amount_to_hr_string(slate.amount, false)
 			);
-		};*/
+		};
 
 		if from.address_type() == AddressType::Epicbox {
 			EpicboxAddress::from_str(&from.to_string()).expect("invalid epicbox address");
@@ -549,26 +552,26 @@ where
 					self.publisher
 						.post_slate(&slate, from, false)
 						.map_err(|e| {
-							println!("{}: {}", "ERROR", e);
+							error!("{}: {}", "ERROR", e);
 							e
 						})
 						.expect("failed posting slate!");
 				} else {
-					println!("Slate [{}] finalized successfully", slate.id.to_string());
+					debug!("Slate [{}] finalized successfully", slate.id.to_string());
 				}
 				Ok(())
 			});
 
 		match result {
 			Ok(()) => {}
-			Err(e) => println!("{}", e),
+			Err(e) => error!("{}", e),
 		}
 	}
 
 	fn on_close(&self, reason: CloseReason) {
 		match reason {
 			CloseReason::Normal => {
-				//println!("Listener for {} stopped", self.name)
+				debug!("Listener for stopped, normal exit")
 			}
 			CloseReason::Abnormal(error) => {
 				error!("{:?}", error.to_string())
@@ -674,6 +677,17 @@ impl EpicboxBroker {
 			tx: self.tx.clone(),
 		};
 
+		let subscribe = DEFAULT_CHALLENGE_RAW;
+		let signature = sign_challenge(&subscribe, &secret_key)?.to_hex();
+
+		let request = ProtocolRequest::Subscribe {
+			address: client.address.public_key.to_string(),
+			signature,
+		};
+		client
+			.send(&request)
+			.expect("Could not send Subscribe request!");
+
 		let res = loop {
 			let err = client.sender.lock().read_message();
 			let mut new_challenge = false;
@@ -706,7 +720,7 @@ impl EpicboxBroker {
 							ProtocolResponse::Challenge { str } => {
 								client.challenge = Some(str.clone());
 								client
-									.challenge_subscribe(&str)
+									.challenge_send()
 									.map_err(|_| {
 										error!("Error attempting to subscribe!");
 									})
@@ -714,8 +728,9 @@ impl EpicboxBroker {
 
 								if !first_run {
 									std::thread::sleep(duration);
+								} else {
+									new_challenge = true;
 								}
-								new_challenge = true;
 							}
 							ProtocolResponse::Slate {
 								from,
@@ -847,31 +862,18 @@ where
 	C: NodeClient + 'static,
 	K: Keychain + 'static,
 {
-	fn challenge_subscribe(&self, challenge: &str) -> Result<(), Error> {
-		let signature = sign_challenge(&challenge, &self.secret_key)?.to_hex();
-		let request = ProtocolRequest::Subscribe {
-			address: self.address.public_key.to_string(),
-			signature,
-		};
-
+	fn challenge_send(&self) -> Result<(), Error> {
+		let request = ProtocolRequest::Challenge;
 		self.send(&request)
-			.expect("could not send subscribe request!");
+			.expect("could not send Challenge request!");
 		self.tx.send(true).unwrap();
 		Ok(())
 	}
 
 	fn new_challenge(&self) -> Result<(), Error> {
-		let unsubscribe = ProtocolRequest::Unsubscribe {
-			address: self.address.public_key.to_string(),
-		};
-		self.send(&unsubscribe)
-			.expect("could not send unsubscribe request!");
-
 		let request = ProtocolRequest::Challenge;
-
 		self.send(&request)
-			.expect("could not send subscribe request!");
-
+			.expect("Could not send Challenge request!");
 		Ok(())
 	}
 
