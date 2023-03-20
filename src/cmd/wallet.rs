@@ -15,32 +15,32 @@
 use crate::cmd::wallet_args;
 use crate::config::GlobalWalletConfig;
 use clap::ArgMatches;
+use epic_wallet_impls::HTTPNodeClient;
 use epic_wallet_libwallet::NodeClient;
+use log::debug;
 use semver::Version;
 use std::thread;
 use std::time::Duration;
 
 const MIN_COMPAT_NODE_VERSION: &str = "3.0.0";
 
-pub fn wallet_command<C>(
-	wallet_args: &ArgMatches<'_>,
-	config: GlobalWalletConfig,
-	mut node_client: C,
-) -> i32
-where
-	C: NodeClient + 'static,
-{
-	// just get defaults from the global config
+pub fn wallet_command(wallet_args: &ArgMatches<'_>, config: GlobalWalletConfig) -> i32 {
+	// Get defaults from the global config
 	let wallet_config = config.members.clone().unwrap().wallet;
-
 	let tor_config = config.members.clone().unwrap().tor;
-
 	let epicbox_config = config.members.unwrap().epicbox;
 
+	// Setup node client, check for provided node URL, else use default
+	let mut node_client = match wallet_args.value_of("api_server_address") {
+		Some(node_url) => HTTPNodeClient::new(node_url, None),
+		None => HTTPNodeClient::new(wallet_config.check_node_api_http_addr.as_str(), None),
+	};
+	debug!("Connecting to the node: {} ..", node_client.node_url);
+
 	// Check the node version info, and exit with report if we're not compatible
-	//let mut node_client = HTTPNodeClient::new(&wallet_config.check_node_api_http_addr, None);
 	let global_wallet_args = wallet_args::parse_global_args(&wallet_config, &wallet_args)
 		.expect("Can't read configuration file");
+
 	node_client.set_node_api_secret(global_wallet_args.node_api_secret.clone());
 
 	// This will also cache the node version info for calls to foreign API check middleware
