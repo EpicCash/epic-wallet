@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::config::EpicboxConfig;
-use crate::epicbox::protocol::{ProtocolRequest, ProtocolResponse};
+use crate::epicbox::protocol::{ProtocolRequest, ProtocolRequestV2, ProtocolResponse, ProtocolResponseV2};
 use crate::keychain::Keychain;
 use crate::libwallet::crypto::{sign_challenge, Hex};
 use crate::libwallet::message::EncryptedMessage;
