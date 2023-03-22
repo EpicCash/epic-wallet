@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::config::EpicboxConfig;
-use crate::epicbox::protocol::{ProtocolRequest, ProtocolRequestV2, ProtocolResponse, ProtocolResponseV2};
+use crate::epicbox::protocol::{ProtocolRequest, ProtocolRequestV2, ProtocolResponseV2};
 use crate::keychain::Keychain;
 use crate::libwallet::crypto::{sign_challenge, Hex};
 use crate::libwallet::message::EncryptedMessage;
@@ -633,7 +633,7 @@ impl EpicboxBroker {
 	) -> Result<Self, Error> {
 		Ok(Self {
 			inner: Arc::new(Mutex::new(inner)),
-			inner_send: Arc::new(Mutex::new(inner)),
+			inner_send: Arc::new(Mutex::new(inner_send)),
 			tx,
 		})
 	}
@@ -656,8 +656,8 @@ impl EpicboxBroker {
 		let mut first_run = true;
 
 		// time interval for sleep in main loop
-		let duration = std::time::Duration::from_secs(DEFAULT_INTERVAL);
-        let durationv2 = std::time::Duration::from_secs(1);
+		//let duration = std::time::Duration::from_secs(DEFAULT_INTERVAL);
+		//let durationv2 = std::time::Duration::from_secs(1);
 
 		let mut client = EpicboxClient {
 			sender,
@@ -671,10 +671,8 @@ impl EpicboxBroker {
 		let subscribe = DEFAULT_CHALLENGE_RAW;
 		let signature = sign_challenge(&subscribe, &secret_key)?.to_hex();
 
-
 		let mut ver = "2.0.0";
 		let mut last_message_id_v2 = String::from("");
-
 
 		let request = ProtocolRequestV2::Subscribe {
 			address: client.address.public_key.to_string(),
@@ -685,12 +683,11 @@ impl EpicboxBroker {
 		client
 			.sendv2(&request)
 			.expect("Could not send Subscribe request!");
-		
+
 		let mut tester_challenge = 0;
 		let mut fornow = 0;
 
 		let now = Instant::now();
-        let mut get_version = false;	
 
 		let res = loop {
 			let err = client.sender.lock().read_message();
@@ -710,14 +707,15 @@ impl EpicboxBroker {
 				}
 				Ok(message) => match message {
 					Message::Text(_) | Message::Binary(_) => {
-						let response =
-							match serde_json::from_str::<ProtocolResponseV2>(&message.to_string()) {
-								Ok(x) => x,
-								Err(_) => {
-									error!("Could not parse response");
-									return Ok(());
-								}
-							};
+						let response = match serde_json::from_str::<ProtocolResponseV2>(
+							&message.to_string(),
+						) {
+							Ok(x) => x,
+							Err(_) => {
+								error!("Could not parse response");
+								return Ok(());
+							}
+						};
 
 						match response {
 							ProtocolResponseV2::Challenge { str } => {
@@ -732,7 +730,6 @@ impl EpicboxBroker {
 										})
 										.unwrap();
 								} else {
-
 									tester_challenge = 0;
 								}
 
@@ -748,19 +745,17 @@ impl EpicboxBroker {
 										.map_err(|_| error!("error attempting challenge!"))
 										.unwrap();
 
-									get_version = false;
-									first_run = false;	
-
+									first_run = false;
 								}
-
 							}
 							ProtocolResponseV2::Slate {
 								from,
 								str,
 								challenge,
 								signature,
+								ver,
+								epicboxmsgid,
 							} => {
-
 								if last_message_id_v2 != epicboxmsgid {
 									last_message_id_v2 = epicboxmsgid.clone();
 
@@ -787,7 +782,6 @@ impl EpicboxBroker {
 									);
 								}
 
-
 								client
 									.made_send(epicboxmsgid)
 									.map_err(|_| {
@@ -796,7 +790,7 @@ impl EpicboxBroker {
 									.unwrap();
 							}
 							ProtocolResponseV2::GetVersion { str } => {
-								error!("ProtocolResponseV2 {}", str);
+								warn!("ProtocolResponseV2 {}", str);
 
 								ver = &str;
 								/*ver = "2.0.0";
@@ -826,7 +820,6 @@ impl EpicboxBroker {
 					}
 				},
 			};
-
 		}; //end loop
 
 		res
@@ -866,28 +859,26 @@ impl EpicboxBroker {
 			.unwrap();
 
 		let err = self.inner_send.lock().read_message();
-		
+
 		match err {
-
 			Err(e) => {
-					error!("Error reading message {:?}", e);
-					//self.handler.lock().on_close(CloseReason::Abnormal(
-					//	ErrorKind::EpicboxWebsocketAbnormalTermination.into(),
-					//));
-					match self.inner_send.lock().close(None) {
-						Ok(_) => error!("Client closed connection"),
-						Err(e) => error!("Client closed connection {:?}", e),
-					}
-
-					//break Err(ErrorKind::EpicboxWebsocketAbnormalTermination.into());
-					return Err(ErrorKind::EpicboxWebsocketAbnormalTermination.into())
+				error!("Error reading message {:?}", e);
+				//self.handler.lock().on_close(CloseReason::Abnormal(
+				//	ErrorKind::EpicboxWebsocketAbnormalTermination.into(),
+				//));
+				match self.inner_send.lock().close(None) {
+					Ok(_) => error!("Client closed connection"),
+					Err(e) => error!("Client closed connection {:?}", e),
 				}
 
+				//break Err(ErrorKind::EpicboxWebsocketAbnormalTermination.into());
+				return Err(ErrorKind::EpicboxWebsocketAbnormalTermination.into());
+			}
+
 			Ok(message) => match message {
-					Message::Text(_) | Message::Binary(_) => {
-						let response = match serde_json::from_str::<ProtocolResponseV2>(
-							&message.to_string(),
-						) {
+				Message::Text(_) | Message::Binary(_) => {
+					let response =
+						match serde_json::from_str::<ProtocolResponseV2>(&message.to_string()) {
 							Ok(x) => x,
 							Err(_) => {
 								error!("Could not pharse {}", message.to_string());
@@ -896,40 +887,32 @@ impl EpicboxBroker {
 							}
 						};
 
-						warn!(">>> from send {}", &message.to_string());
+					warn!(">>> from send {}", &message.to_string());
 
-						match response {
-
-							ProtocolResponseV2::Error {
-								kind: _,
-								description: _,
-							} => {
-								error!("ProtocolResponse::Error {}", response);
-								()
-							},
-							_ => ()
-				
+					match response {
+						ProtocolResponseV2::Error {
+							kind: _,
+							description: _,
+						} => {
+							error!("ProtocolResponse::Error {}", response);
+							()
 						}
-
+						_ => (),
 					}
+				}
 
-
-					Message::Ping(_) => {}
-					Message::Pong(_) => {}
-					Message::Frame(_) => {}
-					Message::Close(_) => {
-						info!("Close {:?}", &message.to_string());
-						error!("Close");
-						//handler.lock().on_close(CloseReason::Normal);
-						//client.sender.lock().close(None).unwrap();
-						return Ok(());
-					}
-
-			}							
-
-
-		} 	
-
+				Message::Ping(_) => {}
+				Message::Pong(_) => {}
+				Message::Frame(_) => {}
+				Message::Close(_) => {
+					info!("Close {:?}", &message.to_string());
+					error!("Close");
+					//handler.lock().on_close(CloseReason::Normal);
+					//client.sender.lock().close(None).unwrap();
+					return Ok(());
+				}
+			},
+		}
 
 		Ok(())
 	}
@@ -976,7 +959,7 @@ where
 		};
 
 		let signature = sign_challenge(&chell, &self.secret_key)?.to_hex();
-	
+
 		let request = ProtocolRequestV2::Made {
 			address: self.address.public_key.to_string(),
 			signature,
@@ -984,8 +967,7 @@ where
 			ver: "2.0.0".to_string(),
 		};
 
-		self.sendv2(&request)
-			.expect("could not send made request!");
+		self.sendv2(&request).expect("could not send made request!");
 		self.tx.send(true).unwrap();
 
 		debug!(">>> (made_send) called!");
@@ -993,16 +975,7 @@ where
 		Ok(())
 	}
 
-	fn new_challenge(&self) -> Result<(), Error> {
-		let request = ProtocolRequest::Challenge;
-		self.send(&request)
-			.expect("Could not send Challenge request!");
-		Ok(())
-	}
-
-
 	fn get_version(&self) -> Result<(), Error> {
-	
 		let request = ProtocolRequestV2::GetVersion;
 
 		self.sendv2(&request)
@@ -1028,5 +1001,4 @@ where
 			.lock()
 			.write_message(Message::Text(request.into()))
 	}
-
 }
