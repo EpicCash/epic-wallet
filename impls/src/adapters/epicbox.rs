@@ -671,7 +671,7 @@ impl EpicboxBroker {
 		let subscribe = DEFAULT_CHALLENGE_RAW;
 		let signature = sign_challenge(&subscribe, &secret_key)?.to_hex();
 
-		let mut ver = "2.0.0";
+		let ver = "2.0.0";
 		let mut last_message_id_v2 = String::from("");
 
 		let request = ProtocolRequestV2::Subscribe {
@@ -792,7 +792,7 @@ impl EpicboxBroker {
 							ProtocolResponseV2::GetVersion { str } => {
 								warn!("ProtocolResponseV2 {}", str);
 
-								ver = &str;
+								//ver = &str;
 								/*ver = "2.0.0";
 								justsendgetversion = false;
 								client
