@@ -55,6 +55,34 @@ pub enum ProtocolRequest {
 	},
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(tag = "type")]
+pub enum ProtocolRequestV2 {
+	Challenge,
+	Subscribe {
+		address: String,
+		ver: String,
+		signature: String,
+	},
+	PostSlate {
+		from: String,
+		to: String,
+		str: String,
+		signature: String,
+	},
+	Unsubscribe {
+		address: String,
+	},
+	Made {
+		address: String,
+		signature: String,
+		ver: String,
+		epicboxmsgid: String,
+	},
+	GetVersion 
+
+}
+
 impl Display for ProtocolRequest {
 	fn fmt(&self, f: &mut Formatter) -> Result {
 		match *self {
@@ -72,6 +100,39 @@ impl Display for ProtocolRequest {
 				str: _,
 				signature: _,
 			} => write!(f, "{} from {} to {}", "PostSlate", from, to),
+		}
+	}
+}
+
+impl Display for ProtocolRequestV2 {
+	fn fmt(&self, f: &mut Formatter) -> Result {
+		match *self {
+			ProtocolRequestV2::Challenge => write!(f, "{}", "Challenge"),
+			ProtocolRequestV2::Subscribe {
+				ref address,
+				signature: _,
+				ver: _,
+			} => write!(f, "{} to {}", "Subscribe", address),
+			ProtocolRequestV2::Unsubscribe { ref address } => {
+				write!(f, "{} from {}", "Unsubscribe", address)
+			}
+			ProtocolRequestV2::PostSlate {
+				ref from,
+				ref to,
+				str: _,
+				signature: _,
+			} => write!(f, "{} from {} to {}", "PostSlate", from, to),
+			ProtocolRequestV2::Made {
+
+				ref epicboxmsgid,
+				address: _,
+				signature: _,
+				ver: _,
+
+			} => write!(f, "{} to {}", "Made for", epicboxmsgid),
+			ProtocolRequestV2::GetVersion {
+
+			} => write!(f, "{} ", "GetVersion "),
 		}
 	}
 }
@@ -95,6 +156,31 @@ pub enum ProtocolResponse {
 	},
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(tag = "type")]
+pub enum ProtocolResponseV2 {
+	Ok,
+	Error {
+		kind: ProtocolError,
+		description: String,
+	},
+	Challenge {
+		str: String,
+	},
+	Slate {
+		from: String,
+		str: String,
+		signature: String,
+		challenge: String,
+		ver: String,
+		epicboxmsgid: String,
+
+	},
+	GetVersion {
+		str: String,
+	},
+}
+
 impl Display for ProtocolResponse {
 	fn fmt(&self, f: &mut Formatter) -> Result {
 		match *self {
@@ -112,6 +198,34 @@ impl Display for ProtocolResponse {
 				signature: _,
 				challenge: _,
 			} => write!(f, "{} from {}", "Slate", from),
+		}
+	}
+}
+
+
+
+impl Display for ProtocolResponseV2 {
+	fn fmt(&self, f: &mut Formatter) -> Result {
+		match *self {
+			ProtocolResponseV2::Ok => write!(f, "{}", "Ok"),
+			ProtocolResponseV2::Error {
+				ref kind,
+				description: _,
+			} => write!(f, "{}: {}", "error", kind),
+			ProtocolResponseV2::Challenge { ref str } => {
+				write!(f, "{} {}", "Challenge", str)
+			},
+			ProtocolResponseV2::GetVersion { ref str } => {
+				write!(f, "{} {}", "Version", str)
+			},
+			ProtocolResponseV2::Slate {
+				ref from,
+				str: _,
+				signature: _,
+				challenge: _,
+				ver: _,
+				ref epicboxmsgid,
+			} => write!(f, "{} from {} with epicboxmsgid {}", "Slate", from, epicboxmsgid),
 		}
 	}
 }
