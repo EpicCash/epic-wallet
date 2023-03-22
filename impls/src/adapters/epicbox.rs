@@ -560,7 +560,7 @@ where
 						})
 						.expect("failed posting slate!");
 				} else {
-					debug!("Slate [{}] finalized successfully", slate.id.to_string());
+					warn!("Slate [{}] finalized successfully", slate.id.to_string());
 				}
 				Ok(())
 			});
