@@ -79,8 +79,8 @@ pub enum ProtocolRequestV2 {
 		ver: String,
 		epicboxmsgid: String,
 	},
-	GetVersion 
-
+	GetVersion,
+	FastSend,
 }
 
 impl Display for ProtocolRequest {
@@ -123,16 +123,13 @@ impl Display for ProtocolRequestV2 {
 				signature: _,
 			} => write!(f, "{} from {} to {}", "PostSlate", from, to),
 			ProtocolRequestV2::Made {
-
 				ref epicboxmsgid,
 				address: _,
 				signature: _,
 				ver: _,
-
 			} => write!(f, "{} to {}", "Made for", epicboxmsgid),
-			ProtocolRequestV2::GetVersion {
-
-			} => write!(f, "{} ", "GetVersion "),
+			ProtocolRequestV2::GetVersion {} => write!(f, "{} ", "GetVersion "),
+			ProtocolRequestV2::FastSend {} => write!(f, "{} ", "FastSend "),
 		}
 	}
 }
@@ -174,11 +171,11 @@ pub enum ProtocolResponseV2 {
 		challenge: String,
 		ver: String,
 		epicboxmsgid: String,
-
 	},
 	GetVersion {
 		str: String,
 	},
+	FastSend,
 }
 
 impl Display for ProtocolResponse {
@@ -202,8 +199,6 @@ impl Display for ProtocolResponse {
 	}
 }
 
-
-
 impl Display for ProtocolResponseV2 {
 	fn fmt(&self, f: &mut Formatter) -> Result {
 		match *self {
@@ -214,10 +209,11 @@ impl Display for ProtocolResponseV2 {
 			} => write!(f, "{}: {}", "error", kind),
 			ProtocolResponseV2::Challenge { ref str } => {
 				write!(f, "{} {}", "Challenge", str)
-			},
+			}
 			ProtocolResponseV2::GetVersion { ref str } => {
 				write!(f, "{} {}", "Version", str)
-			},
+			}
+			ProtocolResponseV2::FastSend => write!(f, "{}", "FastSend"),
 			ProtocolResponseV2::Slate {
 				ref from,
 				str: _,
@@ -225,7 +221,11 @@ impl Display for ProtocolResponseV2 {
 				challenge: _,
 				ver: _,
 				ref epicboxmsgid,
-			} => write!(f, "{} from {} with epicboxmsgid {}", "Slate", from, epicboxmsgid),
+			} => write!(
+				f,
+				"{} from {} with epicboxmsgid {}",
+				"Slate", from, epicboxmsgid
+			),
 		}
 	}
 }
