@@ -674,16 +674,6 @@ impl EpicboxBroker {
 		let ver = "2.0.0";
 		let mut last_message_id_v2 = String::from("");
 
-		let request = ProtocolRequestV2::Subscribe {
-			address: client.address.public_key.to_string(),
-			ver: ver.to_string(),
-			signature,
-		};
-
-		client
-			.sendv2(&request)
-			.expect("Could not send Subscribe request!");
-
 		let mut tester_challenge = 0;
 		let mut fornow = 0;
 
@@ -798,6 +788,19 @@ impl EpicboxBroker {
 								client
 									.sendV2(&repeatrequestV2)
 									.expect("Could not send Subscribe request!");*/
+
+								// Subcscribe move here to run only one after Challenge received and after GetVersion
+								// Subscribe could be send only if it is listen -m epicbox command - but now is run in send function too. Need change.
+
+								let request_sub = ProtocolRequestV2::Subscribe {
+									address: client.address.public_key.to_string(),
+									ver: ver.to_string(),
+									signature,
+								};
+
+								client
+									.sendv2(&request_sub)
+									.expect("Could not send Subscribe request!");
 							}
 
 							ProtocolResponseV2::Error {
