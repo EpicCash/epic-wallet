@@ -756,6 +756,13 @@ impl EpicboxBroker {
 								ver,
 								epicboxmsgid,
 							} => {
+								client
+									.made_send(epicboxmsgid)
+									.map_err(|_| {
+										error!("Error attempting to made_send!");
+									})
+									.unwrap();
+
 								if last_message_id_v2 != epicboxmsgid {
 									last_message_id_v2 = epicboxmsgid.clone();
 
@@ -781,13 +788,6 @@ impl EpicboxBroker {
 										Some(&mut tx_proof),
 									);
 								}
-
-								client
-									.made_send(epicboxmsgid)
-									.map_err(|_| {
-										error!("Error attempting to made_send!");
-									})
-									.unwrap();
 							}
 							ProtocolResponseV2::GetVersion { str } => {
 								warn!("ProtocolResponseV2 {}", str);
