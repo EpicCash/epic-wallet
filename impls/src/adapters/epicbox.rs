@@ -172,12 +172,6 @@ impl EpicboxListenChannel {
 			ErrorKind::EpicboxTungstenite(format!("{}", e).into())
 		})?;
 
-		// debug!("Connecting for sending method to the epicbox server at {} ..", url.clone());
-		let (socket_send, _response_send) = connect(url.clone()).map_err(|e| {
-			warn!("{}", ErrorKind::EpicboxTungstenite(format!("{}", e).into()));
-			ErrorKind::EpicboxTungstenite(format!("{}", e).into())
-		})?;
-
 		let start_subscribe = true;
 
 		let publisher =
@@ -234,7 +228,7 @@ impl EpicboxChannel {
 			.lock()
 			.listeners
 			.insert(ListenerInterface::Epicbox, listener);
-		warn!("Waitng for rx");
+		//warn!("Waitng for rx");
 
 		loop {
 			std::thread::sleep(std::time::Duration::from_secs(1));
@@ -243,7 +237,7 @@ impl EpicboxChannel {
 			}
 		}
 
-		warn!("After rx");
+		//warn!("After rx");
 
 		let vslate = VersionedSlate::into_version(slate.clone(), SlateVersion::V2);
 
@@ -727,7 +721,7 @@ impl EpicboxBroker {
 									tester_challenge = 0;
 								}
 
-								if fornow >= 2 {
+								if fornow >= 10 {
 									fornow = 0;
 									let elapsed_time = now.elapsed();
 									warn!("Still receive data from fastepicbox after {:?} without disconection.", elapsed_time);
@@ -812,7 +806,7 @@ impl EpicboxBroker {
 								// Subscribe could be send only if it is listen -m epicbox command - but now is run in send function too. Need change.
 
 								if self.start_subscribe {
-									warn!("Start subscribe");
+									warn!("Start subscribe ...");
 									let signature =
 										sign_challenge(&subscribe, &secret_key)?.to_hex();
 									let request_sub = ProtocolRequestV2::Subscribe {
@@ -825,11 +819,11 @@ impl EpicboxBroker {
 										.sendv2(&request_sub)
 										.expect("Could not send Subscribe request!");
 								} else {
-									warn!("DON'T Start subscribe");
+									warn!("OK. I am sending ... I DON'T start subscribe.");
 								}
 							}
 							ProtocolResponseV2::FastSend {} => {
-								warn!("FastSend message");
+								warn!("FastSend message received");
 							}
 							ProtocolResponseV2::Error {
 								kind: _,
@@ -884,14 +878,14 @@ impl EpicboxBroker {
 			signature,
 		};
 
-		warn!("I AM here to SEND");
+		warn!("I am starting sending SLATE ...");
 
 		self.inner
 			.lock()
 			.write_message(Message::Text(serde_json::to_string(&request).unwrap()))
 			.unwrap();
 
-		warn!("After send");
+		warn!("SLATE sent.");
 
 		Ok(())
 	}
