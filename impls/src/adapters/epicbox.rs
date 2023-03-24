@@ -117,6 +117,7 @@ impl EpicboxListenChannel {
 		wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K> + 'static>>>,
 		keychain_mask: Arc<Mutex<Option<SecretKey>>>,
 		epicbox_config: EpicboxConfig,
+		reconnections: &mut u32,
 	) -> Result<(), Error>
 	where
 		L: WalletLCProvider<'static, C, K> + 'static,
@@ -165,6 +166,7 @@ impl EpicboxListenChannel {
 		debug!("Connecting to the epicbox server at {} ..", url.clone());
 		let (socket, _response) = connect(url.clone()).map_err(|e| {
 			warn!("{}", ErrorKind::EpicboxTungstenite(format!("{}", e).into()));
+			*reconnections += 1;
 			ErrorKind::EpicboxTungstenite(format!("{}", e).into())
 		})?;
 
@@ -176,7 +178,7 @@ impl EpicboxListenChannel {
 		let cpublisher = publisher.clone();
 		let mask = keychain_mask.lock();
 		let km = mask.clone();
-		let controller = EpicboxController::new(container, cpublisher, wallet, km)
+		let controller = EpicboxController::new(container, cpublisher, wallet, km, reconnections)
 			.expect("Could not init epicbox listener!");
 
 		warn!("Starting epicbox listener for: {}", address);
@@ -297,10 +299,17 @@ where
 
 	let mut csubscriber = subscriber.clone();
 	let cpublisher = publisher.clone();
+	let mut reconnections = 0;
 
 	let handle = spawn(move || {
-		let controller = EpicboxController::new(container, cpublisher, wallet, keychain_mask)
-			.expect("Could not init epicbox controller!");
+		let controller = EpicboxController::new(
+			container,
+			cpublisher,
+			wallet,
+			keychain_mask,
+			&mut reconnections,
+		)
+		.expect("Could not init epicbox controller!");
 
 		csubscriber
 			.start(controller)
@@ -381,7 +390,7 @@ impl EpicboxSubscriber {
 	}
 }
 
-pub struct EpicboxController<P, L, C, K>
+pub struct EpicboxController<'a, P, L, C, K>
 where
 	P: Publisher,
 	L: WalletLCProvider<'static, C, K> + 'static,
@@ -393,6 +402,7 @@ where
 	pub wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K> + 'static>>>,
 	/// Keychain mask
 	pub keychain_mask: Option<SecretKey>,
+	pub reconnections: &'a mut u32,
 }
 pub struct Container {
 	pub config: EpicboxConfig,
@@ -436,7 +446,7 @@ impl fmt::Display for ListenerInterface {
 	}
 }
 
-impl<P, L, C, K> EpicboxController<P, L, C, K>
+impl<'a, P, L, C, K> EpicboxController<'a, P, L, C, K>
 where
 	P: Publisher,
 	L: WalletLCProvider<'static, C, K> + 'static,
@@ -449,11 +459,13 @@ where
 		publisher: P,
 		wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K> + 'static>>>,
 		keychain_mask: Option<SecretKey>,
+		reconnections: &'a mut u32,
 	) -> Result<Self, Error> {
 		Ok(Self {
 			publisher,
 			wallet,
 			keychain_mask,
+			reconnections: reconnections,
 		})
 	}
 
@@ -500,7 +512,7 @@ pub trait SubscriptionHandler: Send {
 	fn on_close(&self, result: CloseReason);
 }
 
-impl<P, L, C, K> SubscriptionHandler for EpicboxController<P, L, C, K>
+impl<'a, P, L, C, K> SubscriptionHandler for EpicboxController<'a, P, L, C, K>
 where
 	P: Publisher,
 	L: WalletLCProvider<'static, C, K> + 'static,
@@ -667,6 +679,7 @@ impl EpicboxBroker {
 
 			match err {
 				Err(e) => {
+					*handler.lock().reconnections += 1;
 					error!("Error reading message {:?}", e);
 					handler.lock().on_close(CloseReason::Abnormal(
 						ErrorKind::EpicboxWebsocketAbnormalTermination.into(),
@@ -688,6 +701,8 @@ impl EpicboxBroker {
 									return Ok(());
 								}
 							};
+
+						*handler.lock().reconnections = 0;
 
 						match response {
 							ProtocolResponse::Challenge { str } => {
@@ -811,7 +826,7 @@ impl EpicboxBroker {
 	}
 }
 
-struct EpicboxClient<P, L, C, K>
+struct EpicboxClient<'a, P, L, C, K>
 where
 	L: WalletLCProvider<'static, C, K> + 'static,
 	C: NodeClient + 'static,
@@ -819,7 +834,7 @@ where
 	P: Publisher,
 {
 	sender: Arc<Mutex<WebSocket<MaybeTlsStream<TcpStream>>>>,
-	handler: Arc<Mutex<EpicboxController<P, L, C, K>>>,
+	handler: Arc<Mutex<EpicboxController<'a, P, L, C, K>>>,
 	challenge: Option<String>,
 	address: EpicboxAddress,
 	secret_key: SecretKey,
@@ -827,7 +842,7 @@ where
 }
 
 /// client with handler from ws package
-impl<P, L, C, K> EpicboxClient<P, L, C, K>
+impl<'a, P, L, C, K> EpicboxClient<'a, P, L, C, K>
 where
 	P: Publisher,
 	L: WalletLCProvider<'static, C, K> + 'static,
