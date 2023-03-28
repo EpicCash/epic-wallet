@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::config::EpicboxConfig;
-use crate::epicbox::protocol::{ProtocolRequest, ProtocolResponse};
+use crate::epicbox::protocol::{ProtocolRequest, ProtocolRequestV2, ProtocolResponseV2};
 use crate::keychain::Keychain;
 use crate::libwallet::crypto::{sign_challenge, Hex};
 use crate::libwallet::message::EncryptedMessage;
@@ -51,6 +51,10 @@ use tungstenite::connect;
 use tungstenite::Error as tungsteniteError;
 use tungstenite::{protocol::WebSocket, stream::MaybeTlsStream};
 use tungstenite::{Error as ErrorTungstenite, Message};
+
+// for 2.0.0 protocol
+
+use std::time::Instant;
 
 // Copyright 2019 The vault713 Developers
 //
@@ -117,6 +121,7 @@ impl EpicboxListenChannel {
 		wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K> + 'static>>>,
 		keychain_mask: Arc<Mutex<Option<SecretKey>>>,
 		epicbox_config: EpicboxConfig,
+		reconnections: &mut u32,
 	) -> Result<(), Error>
 	where
 		L: WalletLCProvider<'static, C, K> + 'static,
@@ -165,10 +170,14 @@ impl EpicboxListenChannel {
 		debug!("Connecting to the epicbox server at {} ..", url.clone());
 		let (socket, _response) = connect(url.clone()).map_err(|e| {
 			warn!("{}", ErrorKind::EpicboxTungstenite(format!("{}", e).into()));
+			*reconnections += 1;
 			ErrorKind::EpicboxTungstenite(format!("{}", e).into())
 		})?;
 
-		let publisher = EpicboxPublisher::new(address.clone(), sec_key, socket, tx)?;
+		let start_subscribe = true;
+
+		let publisher =
+			EpicboxPublisher::new(address.clone(), sec_key, socket, start_subscribe, tx)?;
 
 		let mut subscriber = EpicboxSubscriber::new(&publisher)?;
 
@@ -176,7 +185,7 @@ impl EpicboxListenChannel {
 		let cpublisher = publisher.clone();
 		let mask = keychain_mask.lock();
 		let km = mask.clone();
-		let controller = EpicboxController::new(container, cpublisher, wallet, km)
+		let controller = EpicboxController::new(container, cpublisher, wallet, km, reconnections)
 			.expect("Could not init epicbox listener!");
 
 		warn!("Starting epicbox listener for: {}", address);
@@ -221,6 +230,7 @@ impl EpicboxChannel {
 			.lock()
 			.listeners
 			.insert(ListenerInterface::Epicbox, listener);
+		//warn!("Waitng for rx");
 
 		loop {
 			std::thread::sleep(std::time::Duration::from_secs(1));
@@ -228,6 +238,8 @@ impl EpicboxChannel {
 				break;
 			}
 		}
+
+		//warn!("After rx");
 
 		let vslate = VersionedSlate::into_version(slate.clone(), SlateVersion::V2);
 
@@ -292,15 +304,24 @@ where
 	debug!("Connecting to the epicbox server at {} ..", url.clone());
 	let (socket, _) = connect(url.clone()).expect(CONNECTION_ERR_MSG);
 
-	let publisher = EpicboxPublisher::new(address.clone(), sec_key, socket, tx)?;
+	let start_subscribe = false;
+
+	let publisher = EpicboxPublisher::new(address.clone(), sec_key, socket, start_subscribe, tx)?;
 	let subscriber = EpicboxSubscriber::new(&publisher)?;
 
 	let mut csubscriber = subscriber.clone();
 	let cpublisher = publisher.clone();
+	let mut reconnections = 0;
 
 	let handle = spawn(move || {
-		let controller = EpicboxController::new(container, cpublisher, wallet, keychain_mask)
-			.expect("Could not init epicbox controller!");
+		let controller = EpicboxController::new(
+			container,
+			cpublisher,
+			wallet,
+			keychain_mask,
+			&mut reconnections,
+		)
+		.expect("Could not init epicbox controller!");
 
 		csubscriber
 			.start(controller)
@@ -345,11 +366,12 @@ impl EpicboxPublisher {
 		address: EpicboxAddress,
 		secret_key: SecretKey,
 		socket: WebSocket<MaybeTlsStream<TcpStream>>,
+		start_subscribe: bool,
 		tx: Sender<bool>,
 	) -> Result<Self, Error> {
 		Ok(Self {
 			address,
-			broker: EpicboxBroker::new(socket, tx)?,
+			broker: EpicboxBroker::new(socket, start_subscribe, tx)?,
 			secret_key,
 		})
 	}
@@ -381,7 +403,7 @@ impl EpicboxSubscriber {
 	}
 }
 
-pub struct EpicboxController<P, L, C, K>
+pub struct EpicboxController<'a, P, L, C, K>
 where
 	P: Publisher,
 	L: WalletLCProvider<'static, C, K> + 'static,
@@ -393,6 +415,7 @@ where
 	pub wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K> + 'static>>>,
 	/// Keychain mask
 	pub keychain_mask: Option<SecretKey>,
+	pub reconnections: &'a mut u32,
 }
 pub struct Container {
 	pub config: EpicboxConfig,
@@ -436,7 +459,7 @@ impl fmt::Display for ListenerInterface {
 	}
 }
 
-impl<P, L, C, K> EpicboxController<P, L, C, K>
+impl<'a, P, L, C, K> EpicboxController<'a, P, L, C, K>
 where
 	P: Publisher,
 	L: WalletLCProvider<'static, C, K> + 'static,
@@ -449,11 +472,13 @@ where
 		publisher: P,
 		wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K> + 'static>>>,
 		keychain_mask: Option<SecretKey>,
+		reconnections: &'a mut u32,
 	) -> Result<Self, Error> {
 		Ok(Self {
 			publisher,
 			wallet,
 			keychain_mask,
+			reconnections: reconnections,
 		})
 	}
 
@@ -500,7 +525,7 @@ pub trait SubscriptionHandler: Send {
 	fn on_close(&self, result: CloseReason);
 }
 
-impl<P, L, C, K> SubscriptionHandler for EpicboxController<P, L, C, K>
+impl<'a, P, L, C, K> SubscriptionHandler for EpicboxController<'a, P, L, C, K>
 where
 	P: Publisher,
 	L: WalletLCProvider<'static, C, K> + 'static,
@@ -546,7 +571,7 @@ where
 						})
 						.expect("failed posting slate!");
 				} else {
-					debug!("Slate [{}] finalized successfully", slate.id.to_string());
+					warn!("Slate [{}] finalized successfully", slate.id.to_string());
 				}
 				Ok(())
 			});
@@ -607,16 +632,19 @@ pub trait Publisher: Send {
 #[derive(Clone)]
 pub struct EpicboxBroker {
 	inner: Arc<Mutex<WebSocket<MaybeTlsStream<TcpStream>>>>,
+	start_subscribe: bool,
 	tx: Sender<bool>,
 }
 impl EpicboxBroker {
 	/// Create a EpicboxBroker,
 	pub fn new(
 		inner: WebSocket<MaybeTlsStream<TcpStream>>,
+		start_subscribe: bool,
 		tx: Sender<bool>,
 	) -> Result<Self, Error> {
 		Ok(Self {
 			inner: Arc::new(Mutex::new(inner)),
+			start_subscribe: start_subscribe,
 			tx,
 		})
 	}
@@ -639,7 +667,8 @@ impl EpicboxBroker {
 		let mut first_run = true;
 
 		// time interval for sleep in main loop
-		let duration = std::time::Duration::from_secs(DEFAULT_INTERVAL);
+		//let duration = std::time::Duration::from_secs(DEFAULT_INTERVAL);
+		//let durationv2 = std::time::Duration::from_secs(1);
 
 		let mut client = EpicboxClient {
 			sender,
@@ -651,22 +680,21 @@ impl EpicboxBroker {
 		};
 
 		let subscribe = DEFAULT_CHALLENGE_RAW;
-		let signature = sign_challenge(&subscribe, &secret_key)?.to_hex();
 
-		let request = ProtocolRequest::Subscribe {
-			address: client.address.public_key.to_string(),
-			signature,
-		};
-		client
-			.send(&request)
-			.expect("Could not send Subscribe request!");
+		let ver = "2.0.0";
+		let mut last_message_id_v2 = String::from("");
+
+		let mut tester_challenge = 0;
+		let mut fornow = 0;
+
+		let now = Instant::now();
 
 		let res = loop {
 			let err = client.sender.lock().read_message();
-			let mut new_challenge = false;
 
 			match err {
 				Err(e) => {
+					*handler.lock().reconnections += 1;
 					error!("Error reading message {:?}", e);
 					handler.lock().on_close(CloseReason::Abnormal(
 						ErrorKind::EpicboxWebsocketAbnormalTermination.into(),
@@ -680,61 +708,139 @@ impl EpicboxBroker {
 				}
 				Ok(message) => match message {
 					Message::Text(_) | Message::Binary(_) => {
-						let response =
-							match serde_json::from_str::<ProtocolResponse>(&message.to_string()) {
-								Ok(x) => x,
-								Err(_) => {
-									error!("Could not parse response");
-									return Ok(());
-								}
-							};
+						let response = match serde_json::from_str::<ProtocolResponseV2>(
+							&message.to_string(),
+						) {
+							Ok(x) => x,
+							Err(_) => {
+								error!("Could not parse response");
+								return Ok(());
+							}
+						};
+
+						*handler.lock().reconnections = 0;
 
 						match response {
-							ProtocolResponse::Challenge { str } => {
+							ProtocolResponseV2::Challenge { str } => {
+								tester_challenge = tester_challenge + 1;
+								fornow = fornow + 1;
 								client.challenge = Some(str.clone());
-								client
-									.challenge_send()
-									.map_err(|_| {
-										error!("Error attempting to send Challenge!");
-									})
-									.unwrap();
-
-								if !first_run {
-									std::thread::sleep(duration);
+								if tester_challenge == 1 {
+									client
+										.challenge_send()
+										.map_err(|_| {
+											error!("Error attempting to send Challenge!");
+										})
+										.unwrap();
 								} else {
-									new_challenge = true;
+									tester_challenge = 0;
+								}
+
+								if fornow >= 10 {
+									fornow = 0;
+									let elapsed_time = now.elapsed();
+									warn!("Still receive data from fastepicbox after {:?} without disconection.", elapsed_time);
+								}
+
+								if first_run {
+									client
+										.get_version()
+										.map_err(|_| error!("error attempting challenge!"))
+										.unwrap();
+
+									first_run = false;
+
+									client
+										.challenge_send()
+										.map_err(|_| {
+											error!("Error attempting to send Challenge!");
+										})
+										.unwrap();
+									if !self.start_subscribe {
+										client
+											.get_fastsend()
+											.map_err(|_| {
+												error!("Error attempting to send Challenge!");
+											})
+											.unwrap();
+									}
 								}
 							}
-							ProtocolResponse::Slate {
+							ProtocolResponseV2::Slate {
 								from,
 								str,
 								challenge,
 								signature,
+								ver,
+								epicboxmsgid,
 							} => {
-								let (slate, mut tx_proof) = match TxProof::from_response(
-									from,
-									str,
-									challenge,
-									signature,
-									&client.secret_key,
-									Some(&client.address),
-								) {
-									Ok(x) => x,
-									Err(e) => {
-										error!("{}", e.to_string());
-										return Ok(());
-									}
-								};
+								client
+									.made_send(epicboxmsgid.clone())
+									.map_err(|_| {
+										error!("Error attempting to made_send!");
+									})
+									.unwrap();
 
-								let address = tx_proof.address.clone();
-								client.handler.lock().on_slate(
-									&address,
-									&slate,
-									Some(&mut tx_proof),
-								);
+								if last_message_id_v2 != epicboxmsgid {
+									last_message_id_v2 = epicboxmsgid.clone();
+
+									let (slate, mut tx_proof) = match TxProof::from_response(
+										from,
+										str,
+										challenge,
+										signature,
+										&client.secret_key,
+										Some(&client.address),
+									) {
+										Ok(x) => x,
+										Err(e) => {
+											error!("{}", e.to_string());
+											return Ok(());
+										}
+									};
+
+									let address = tx_proof.address.clone();
+									client.handler.lock().on_slate(
+										&address,
+										&slate,
+										Some(&mut tx_proof),
+									);
+								}
 							}
+							ProtocolResponseV2::GetVersion { str } => {
+								warn!("ProtocolResponseV2 {}", str);
 
-							ProtocolResponse::Error {
+								//ver = &str;
+								/*ver = "2.0.0";
+								justsendgetversion = false;
+								client
+									.sendV2(&repeatrequestV2)
+									.expect("Could not send Subscribe request!");*/
+
+								// Subcscribe move here to run only one after Challenge received and after GetVersion
+								// Subscribe could be send only if it is listen -m epicbox command - but now is run in send function too. Need change.
+
+								if self.start_subscribe {
+									warn!("Start subscribe ...");
+									let signature =
+										sign_challenge(&subscribe, &secret_key)?.to_hex();
+									let request_sub = ProtocolRequestV2::Subscribe {
+										address: client.address.public_key.to_string(),
+										ver: ver.to_string(),
+										signature,
+									};
+
+									client
+										.sendv2(&request_sub)
+										.expect("Could not send Subscribe request!");
+								} else {
+									warn!("OK. I am sending ... I DON'T start subscribe.");
+								}
+							}
+							ProtocolResponseV2::FastSend {} => {
+								warn!("FastSend message received");
+							}
+							ProtocolResponseV2::Error {
 								kind: _,
 								description: _,
 							} => {
@@ -754,18 +860,6 @@ impl EpicboxBroker {
 					}
 				},
 			};
-
-			if new_challenge {
-				client
-					.new_challenge()
-					.map_err(|_| error!("error attempting challenge!"))
-					.unwrap();
-
-				if first_run {
-					std::thread::sleep(duration);
-					first_run = false;
-				}
-			}
 		}; //end loop
 
 		res
@@ -799,10 +893,14 @@ impl EpicboxBroker {
 			signature,
 		};
 
+		warn!("I am starting sending SLATE ...");
+
 		self.inner
 			.lock()
 			.write_message(Message::Text(serde_json::to_string(&request).unwrap()))
 			.unwrap();
+
+		warn!("SLATE sent.");
 
 		Ok(())
 	}
@@ -811,7 +909,7 @@ impl EpicboxBroker {
 	}
 }
 
-struct EpicboxClient<P, L, C, K>
+struct EpicboxClient<'a, P, L, C, K>
 where
 	L: WalletLCProvider<'static, C, K> + 'static,
 	C: NodeClient + 'static,
@@ -819,7 +917,7 @@ where
 	P: Publisher,
 {
 	sender: Arc<Mutex<WebSocket<MaybeTlsStream<TcpStream>>>>,
-	handler: Arc<Mutex<EpicboxController<P, L, C, K>>>,
+	handler: Arc<Mutex<EpicboxController<'a, P, L, C, K>>>,
 	challenge: Option<String>,
 	address: EpicboxAddress,
 	secret_key: SecretKey,
@@ -827,7 +925,7 @@ where
 }
 
 /// client with handler from ws package
-impl<P, L, C, K> EpicboxClient<P, L, C, K>
+impl<'a, P, L, C, K> EpicboxClient<'a, P, L, C, K>
 where
 	P: Publisher,
 	L: WalletLCProvider<'static, C, K> + 'static,
@@ -842,14 +940,60 @@ where
 		Ok(())
 	}
 
-	fn new_challenge(&self) -> Result<(), Error> {
-		let request = ProtocolRequest::Challenge;
-		self.send(&request)
-			.expect("Could not send Challenge request!");
+	fn made_send(&self, epicboxmsgid: String) -> Result<(), Error> {
+		let chell = match &self.challenge {
+			None => String::from(""),
+			Some(c) => c.to_string(),
+		};
+
+		let signature = sign_challenge(&chell, &self.secret_key)?.to_hex();
+
+		let request = ProtocolRequestV2::Made {
+			address: self.address.public_key.to_string(),
+			signature,
+			epicboxmsgid,
+			ver: "2.0.0".to_string(),
+		};
+
+		self.sendv2(&request).expect("could not send made request!");
+		self.tx.send(true).unwrap();
+
+		debug!(">>> (made_send) called!");
+
+		Ok(())
+	}
+
+	fn get_version(&self) -> Result<(), Error> {
+		let request = ProtocolRequestV2::GetVersion;
+
+		self.sendv2(&request)
+			.expect("Could not send GetVersion request!");
+
+		debug!(">>> (get_version) called!");
+
+		Ok(())
+	}
+
+	fn get_fastsend(&self) -> Result<(), Error> {
+		let request = ProtocolRequestV2::FastSend;
+
+		self.sendv2(&request)
+			.expect("Could not send FastSend request!");
+
+		debug!(">>> (get_fastsend) called!");
+
 		Ok(())
 	}
 
 	fn send(&self, request: &ProtocolRequest) -> Result<(), ErrorTungstenite> {
+		let request = serde_json::to_string(&request).unwrap();
+
+		self.sender
+			.lock()
+			.write_message(Message::Text(request.into()))
+	}
+
+	fn sendv2(&self, request: &ProtocolRequestV2) -> Result<(), ErrorTungstenite> {
 		let request = serde_json::to_string(&request).unwrap();
 
 		self.sender
