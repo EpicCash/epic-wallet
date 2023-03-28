@@ -763,6 +763,19 @@ impl EpicboxBroker {
 												error!("Error attempting to send Challenge!");
 											})
 											.unwrap();
+									} else {
+										warn!("Start subscribe ...");
+										let signature =
+											sign_challenge(&subscribe, &secret_key)?.to_hex();
+										let request_sub = ProtocolRequestV2::Subscribe {
+											address: client.address.public_key.to_string(),
+											ver: ver.to_string(),
+											signature,
+										};
+
+										client
+											.sendv2(&request_sub)
+											.expect("Could not send Subscribe request!");
 									}
 								}
 							}
@@ -810,17 +823,10 @@ impl EpicboxBroker {
 							ProtocolResponseV2::GetVersion { str } => {
 								warn!("ProtocolResponseV2 {}", str);
 
-								//ver = &str;
-								/*ver = "2.0.0";
-								justsendgetversion = false;
-								client
-									.sendV2(&repeatrequestV2)
-									.expect("Could not send Subscribe request!");*/
-
 								// Subcscribe move here to run only one after Challenge received and after GetVersion
 								// Subscribe could be send only if it is listen -m epicbox command - but now is run in send function too. Need change.
 
-								if self.start_subscribe {
+								/*if self.start_subscribe {
 									warn!("Start subscribe ...");
 									let signature =
 										sign_challenge(&subscribe, &secret_key)?.to_hex();
@@ -835,7 +841,7 @@ impl EpicboxBroker {
 										.expect("Could not send Subscribe request!");
 								} else {
 									warn!("OK. I am sending ... I DON'T start subscribe.");
-								}
+								}*/
 							}
 							ProtocolResponseV2::FastSend {} => {
 								warn!("FastSend message received");
