@@ -74,7 +74,6 @@ use std::time::Instant;
 
 const CONNECTION_ERR_MSG: &str = "\nCan't connect to the epicbox server!\n\
 	Check your epic-wallet.toml settings and make sure epicbox domain is correct.\n";
-const DEFAULT_INTERVAL: u64 = 10;
 const DEFAULT_CHALLENGE_RAW: &str = "7WUDtkSaKyGRUnQ22rE3QUXChV8DmA6NnunDYP4vheTpc";
 const EPICBOX_PROTOCOL_VERSION: &str = "2.0.0";
 
@@ -668,10 +667,6 @@ impl EpicboxBroker {
 		let handler = Arc::new(Mutex::new(handler));
 		let sender = self.inner.clone();
 		let mut first_run = true;
-
-		// time interval for sleep in main loop
-		//let duration = std::time::Duration::from_secs(DEFAULT_INTERVAL);
-		//let durationv2 = std::time::Duration::from_secs(1);
 
 		let mut client = EpicboxClient {
 			sender,
