@@ -191,7 +191,7 @@ impl EpicboxListenChannel {
 		let controller = EpicboxController::new(container, cpublisher, wallet, km, reconnections)
 			.expect("Could not init epicbox listener!");
 
-		warn!("Starting epicbox listener for: {}", address);
+		info!("Starting epicbox listener for: {}", address);
 
 		subscriber.start(controller)
 	}
@@ -574,7 +574,7 @@ where
 						})
 						.expect("failed posting slate!");
 				} else {
-					warn!("Slate [{}] finalized successfully", slate.id.to_string());
+					debug!("Slate [{}] finalized successfully", slate.id.to_string());
 				}
 				Ok(())
 			});
@@ -687,7 +687,7 @@ impl EpicboxBroker {
 		let ver = EPICBOX_PROTOCOL_VERSION;
 		let mut last_message_id_v2 = String::from("");
 
-		let mut tester_challenge = 0;
+		let mut tester_challenge = 1;
 		let mut fornow = 0;
 
 		let now = Instant::now();
@@ -725,8 +725,7 @@ impl EpicboxBroker {
 
 						match response {
 							ProtocolResponseV2::Challenge { str } => {
-								tester_challenge = tester_challenge + 1;
-								fornow = fornow + 1;
+								fornow += 1;
 								client.challenge = Some(str.clone());
 								if tester_challenge == 1 {
 									client
@@ -759,6 +758,7 @@ impl EpicboxBroker {
 											error!("Error attempting to send Challenge!");
 										})
 										.unwrap();
+
 									if !self.start_subscribe {
 										client
 											.get_fastsend()
@@ -793,7 +793,7 @@ impl EpicboxBroker {
 								client
 									.made_send(epicboxmsgid.clone())
 									.map_err(|_| {
-										error!("Error attempting to made_send!");
+										error!("Error attempting to send Made message!");
 									})
 									.unwrap();
 
@@ -890,14 +890,15 @@ impl EpicboxBroker {
 			signature,
 		};
 
-		warn!("I am starting sending SLATE ...");
+		let slate: Slate = slate.clone().into();
+		debug!("Starting to send slate with id [{}]", slate.id.to_string());
 
 		self.inner
 			.lock()
 			.write_message(Message::Text(serde_json::to_string(&request).unwrap()))
 			.unwrap();
 
-		warn!("SLATE sent.");
+		debug!("Slate sent successfully");
 
 		Ok(())
 	}
@@ -955,7 +956,7 @@ where
 		self.sendv2(&request).expect("could not send made request!");
 		self.tx.send(true).unwrap();
 
-		debug!(">>> (made_send) called!");
+		//debug!(">>> (made_send) called!");
 
 		Ok(())
 	}
@@ -966,7 +967,7 @@ where
 		self.sendv2(&request)
 			.expect("Could not send GetVersion request!");
 
-		debug!(">>> (get_version) called!");
+		//debug!(">>> (get_version) called!");
 
 		Ok(())
 	}
