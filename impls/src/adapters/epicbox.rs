@@ -573,7 +573,7 @@ where
 						})
 						.expect("failed posting slate!");
 				} else {
-					debug!("Slate [{}] finalized successfully", slate.id.to_string());
+					warn!("Slate [{}] finalized successfully", slate.id.to_string());
 				}
 				Ok(())
 			});
@@ -680,6 +680,7 @@ impl EpicboxBroker {
 		let subscribe = DEFAULT_CHALLENGE_RAW;
 
 		let ver = EPICBOX_PROTOCOL_VERSION;
+
 		let mut last_message_id_v2 = String::from("");
 
 		let mut tester_challenge = 0;
