@@ -823,7 +823,7 @@ impl EpicboxBroker {
 								trace!("ProtocolResponseV2::GetVersion {}", str);
 							}
 							ProtocolResponseV2::FastSend {} => {
-								warn!("FastSend message received");
+								trace!("FastSend message received");
 							}
 							ProtocolResponseV2::Error {
 								ref kind,
@@ -894,7 +894,7 @@ impl EpicboxBroker {
 			.write_message(Message::Text(serde_json::to_string(&request).unwrap()))
 			.unwrap();
 
-		debug!("Slate sent successfully");
+		debug!("Slate sent successfully!");
 
 		Ok(())
 	}
@@ -949,7 +949,7 @@ where
 			ver: EPICBOX_PROTOCOL_VERSION.to_string(),
 		};
 
-		self.sendv2(&request).expect("could not send made request!");
+		self.sendv2(&request).expect("could not send Made request!");
 		self.tx.send(true).unwrap();
 
 		//debug!(">>> (made_send) called!");
@@ -974,7 +974,7 @@ where
 		self.sendv2(&request)
 			.expect("Could not send FastSend request!");
 
-		debug!(">>> (get_fastsend) called!");
+		//debug!(">>> (get_fastsend) called!");
 
 		Ok(())
 	}
