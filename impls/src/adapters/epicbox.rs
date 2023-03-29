@@ -74,6 +74,7 @@ const CONNECTION_ERR_MSG: &str = "\nCan't connect to the epicbox server!\n\
 	Check your epic-wallet.toml settings and make sure epicbox domain is correct.\n";
 const DEFAULT_INTERVAL: u64 = 10;
 const DEFAULT_CHALLENGE_RAW: &str = "7WUDtkSaKyGRUnQ22rE3QUXChV8DmA6NnunDYP4vheTpc";
+const EPICBOX_PROTOCOL_VERSION: &str = "2.0.0";
 
 /// Epicbox 'plugin' implementation
 pub enum CloseReason {
@@ -681,7 +682,7 @@ impl EpicboxBroker {
 
 		let subscribe = DEFAULT_CHALLENGE_RAW;
 
-		let ver = "2.0.0";
+		let ver = EPICBOX_PROTOCOL_VERSION;
 		let mut last_message_id_v2 = String::from("");
 
 		let mut tester_challenge = 0;
@@ -739,13 +740,13 @@ impl EpicboxBroker {
 								if fornow >= 10 {
 									fornow = 0;
 									let elapsed_time = now.elapsed();
-									warn!("Still receive data from fastepicbox after {:?} without disconection.", elapsed_time);
+									warn!("Still receiving data from epicbox after {:?} without disconection.", elapsed_time);
 								}
 
 								if first_run {
 									client
 										.get_version()
-										.map_err(|_| error!("error attempting challenge!"))
+										.map_err(|_| error!("error attempting GetVersion!"))
 										.unwrap();
 
 									first_run = false;
@@ -760,11 +761,11 @@ impl EpicboxBroker {
 										client
 											.get_fastsend()
 											.map_err(|_| {
-												error!("Error attempting to send Challenge!");
+												error!("Error attempting to send FastSend!");
 											})
 											.unwrap();
 									} else {
-										warn!("Start subscribe ...");
+										debug!("Starting epicbox subscription...");
 										let signature =
 											sign_challenge(&subscribe, &secret_key)?.to_hex();
 										let request_sub = ProtocolRequestV2::Subscribe {
@@ -784,7 +785,7 @@ impl EpicboxBroker {
 								str,
 								challenge,
 								signature,
-								ver,
+								ver: _, // unused, ignore
 								epicboxmsgid,
 							} => {
 								client
@@ -958,7 +959,7 @@ where
 			address: self.address.public_key.to_string(),
 			signature,
 			epicboxmsgid,
-			ver: "2.0.0".to_string(),
+			ver: EPICBOX_PROTOCOL_VERSION.to_string(),
 		};
 
 		self.sendv2(&request).expect("could not send made request!");
