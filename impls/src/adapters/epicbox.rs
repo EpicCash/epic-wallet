@@ -13,7 +13,9 @@
 // limitations under the License.
 
 use crate::config::EpicboxConfig;
-use crate::epicbox::protocol::{ProtocolRequest, ProtocolRequestV2, ProtocolResponseV2};
+use crate::epicbox::protocol::{
+	ProtocolError, ProtocolRequest, ProtocolRequestV2, ProtocolResponseV2,
+};
 use crate::keychain::Keychain;
 use crate::libwallet::crypto::{sign_challenge, Hex};
 use crate::libwallet::message::EncryptedMessage;
@@ -822,37 +824,25 @@ impl EpicboxBroker {
 								}
 							}
 							ProtocolResponseV2::GetVersion { str } => {
-								warn!("ProtocolResponseV2 {}", str);
-
-								// Subcscribe move here to run only one after Challenge received and after GetVersion
-								// Subscribe could be send only if it is listen -m epicbox command - but now is run in send function too. Need change.
-
-								/*if self.start_subscribe {
-									warn!("Start subscribe ...");
-									let signature =
-										sign_challenge(&subscribe, &secret_key)?.to_hex();
-									let request_sub = ProtocolRequestV2::Subscribe {
-										address: client.address.public_key.to_string(),
-										ver: ver.to_string(),
-										signature,
-									};
-
-									client
-										.sendv2(&request_sub)
-										.expect("Could not send Subscribe request!");
-								} else {
-									warn!("OK. I am sending ... I DON'T start subscribe.");
-								}*/
+								trace!("ProtocolResponseV2::GetVersion {}", str);
 							}
 							ProtocolResponseV2::FastSend {} => {
 								warn!("FastSend message received");
 							}
 							ProtocolResponseV2::Error {
-								kind: _,
+								ref kind,
 								description: _,
-							} => {
-								error!("ProtocolResponse::Error {}", response);
-							}
+							} => match kind {
+								ProtocolError::InvalidRequest {} => {
+									error!(
+										"Invalid Request! Ensure you are connected to an \
+											epicbox that supports protocol v2.0.0!"
+									);
+								}
+								_ => {
+									error!("ProtocolResponse::Error {}", response);
+								}
+							},
 							_ => {}
 						}
 					}
