@@ -74,18 +74,6 @@ subcommands:
               - epicbox
             default_value: http
             takes_value: true
-        - interval:
-            help: Epicbox listener update interval duration in seconds
-            short: i
-            long: interval
-            takes_value: true
-            possible_values:
-             - "2"
-             - "5"
-             - "10"
-             - "30"
-             - "60"
-             - "120"
         - no_tor:
             help: Don't start TOR listener when starting HTTP listener
             short: n

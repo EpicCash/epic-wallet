@@ -13,7 +13,9 @@
 // limitations under the License.
 
 use crate::config::EpicboxConfig;
-use crate::epicbox::protocol::{ProtocolRequest, ProtocolRequestV2, ProtocolResponseV2};
+use crate::epicbox::protocol::{
+	ProtocolError, ProtocolRequest, ProtocolRequestV2, ProtocolResponseV2,
+};
 use crate::keychain::Keychain;
 use crate::libwallet::crypto::{sign_challenge, Hex};
 use crate::libwallet::message::EncryptedMessage;
@@ -72,8 +74,8 @@ use std::time::Instant;
 
 const CONNECTION_ERR_MSG: &str = "\nCan't connect to the epicbox server!\n\
 	Check your epic-wallet.toml settings and make sure epicbox domain is correct.\n";
-const DEFAULT_INTERVAL: u64 = 10;
 const DEFAULT_CHALLENGE_RAW: &str = "7WUDtkSaKyGRUnQ22rE3QUXChV8DmA6NnunDYP4vheTpc";
+const EPICBOX_PROTOCOL_VERSION: &str = "2.0.0";
 
 /// Epicbox 'plugin' implementation
 pub enum CloseReason {
@@ -188,7 +190,7 @@ impl EpicboxListenChannel {
 		let controller = EpicboxController::new(container, cpublisher, wallet, km, reconnections)
 			.expect("Could not init epicbox listener!");
 
-		warn!("Starting epicbox listener for: {}", address);
+		info!("Starting epicbox listener for: {}", address);
 
 		subscriber.start(controller)
 	}
@@ -666,10 +668,6 @@ impl EpicboxBroker {
 		let sender = self.inner.clone();
 		let mut first_run = true;
 
-		// time interval for sleep in main loop
-		//let duration = std::time::Duration::from_secs(DEFAULT_INTERVAL);
-		//let durationv2 = std::time::Duration::from_secs(1);
-
 		let mut client = EpicboxClient {
 			sender,
 			handler: handler.clone(),
@@ -681,7 +679,8 @@ impl EpicboxBroker {
 
 		let subscribe = DEFAULT_CHALLENGE_RAW;
 
-		let ver = "2.0.0";
+		let ver = EPICBOX_PROTOCOL_VERSION;
+
 		let mut last_message_id_v2 = String::from("");
 
 		let mut tester_challenge = 0;
@@ -722,8 +721,8 @@ impl EpicboxBroker {
 
 						match response {
 							ProtocolResponseV2::Challenge { str } => {
-								tester_challenge = tester_challenge + 1;
-								fornow = fornow + 1;
+								tester_challenge += 1;
+								fornow += 1;
 								client.challenge = Some(str.clone());
 								if tester_challenge == 1 {
 									client
@@ -739,13 +738,13 @@ impl EpicboxBroker {
 								if fornow >= 10 {
 									fornow = 0;
 									let elapsed_time = now.elapsed();
-									warn!("Still receive data from fastepicbox after {:?} without disconection.", elapsed_time);
+									warn!("Still receiving data from epicbox after {:?} without disconection.", elapsed_time);
 								}
 
 								if first_run {
 									client
 										.get_version()
-										.map_err(|_| error!("error attempting challenge!"))
+										.map_err(|_| error!("error attempting GetVersion!"))
 										.unwrap();
 
 									first_run = false;
@@ -756,13 +755,27 @@ impl EpicboxBroker {
 											error!("Error attempting to send Challenge!");
 										})
 										.unwrap();
+
 									if !self.start_subscribe {
 										client
 											.get_fastsend()
 											.map_err(|_| {
-												error!("Error attempting to send Challenge!");
+												error!("Error attempting to send FastSend!");
 											})
 											.unwrap();
+									} else {
+										debug!("Starting epicbox subscription...");
+										let signature =
+											sign_challenge(&subscribe, &secret_key)?.to_hex();
+										let request_sub = ProtocolRequestV2::Subscribe {
+											address: client.address.public_key.to_string(),
+											ver: ver.to_string(),
+											signature,
+										};
+
+										client
+											.sendv2(&request_sub)
+											.expect("Could not send Subscribe request!");
 									}
 								}
 							}
@@ -771,13 +784,13 @@ impl EpicboxBroker {
 								str,
 								challenge,
 								signature,
-								ver,
+								ver: _, // unused, ignore
 								epicboxmsgid,
 							} => {
 								client
 									.made_send(epicboxmsgid.clone())
 									.map_err(|_| {
-										error!("Error attempting to made_send!");
+										error!("Error attempting to send Made message!");
 									})
 									.unwrap();
 
@@ -808,44 +821,25 @@ impl EpicboxBroker {
 								}
 							}
 							ProtocolResponseV2::GetVersion { str } => {
-								warn!("ProtocolResponseV2 {}", str);
-
-								//ver = &str;
-								/*ver = "2.0.0";
-								justsendgetversion = false;
-								client
-									.sendV2(&repeatrequestV2)
-									.expect("Could not send Subscribe request!");*/
-
-								// Subcscribe move here to run only one after Challenge received and after GetVersion
-								// Subscribe could be send only if it is listen -m epicbox command - but now is run in send function too. Need change.
-
-								if self.start_subscribe {
-									warn!("Start subscribe ...");
-									let signature =
-										sign_challenge(&subscribe, &secret_key)?.to_hex();
-									let request_sub = ProtocolRequestV2::Subscribe {
-										address: client.address.public_key.to_string(),
-										ver: ver.to_string(),
-										signature,
-									};
-
-									client
-										.sendv2(&request_sub)
-										.expect("Could not send Subscribe request!");
-								} else {
-									warn!("OK. I am sending ... I DON'T start subscribe.");
-								}
+								trace!("ProtocolResponseV2::GetVersion {}", str);
 							}
 							ProtocolResponseV2::FastSend {} => {
-								warn!("FastSend message received");
+								trace!("FastSend message received");
 							}
 							ProtocolResponseV2::Error {
-								kind: _,
+								ref kind,
 								description: _,
-							} => {
-								error!("ProtocolResponse::Error {}", response);
-							}
+							} => match kind {
+								ProtocolError::InvalidRequest {} => {
+									error!(
+										"Invalid Request! Ensure you are connected to an \
+											epicbox that supports protocol v2.0.0!"
+									);
+								}
+								_ => {
+									error!("ProtocolResponse::Error {}", response);
+								}
+							},
 							_ => {}
 						}
 					}
@@ -893,14 +887,15 @@ impl EpicboxBroker {
 			signature,
 		};
 
-		warn!("I am starting sending SLATE ...");
+		let slate: Slate = slate.clone().into();
+		debug!("Starting to send slate with id [{}]", slate.id.to_string());
 
 		self.inner
 			.lock()
 			.write_message(Message::Text(serde_json::to_string(&request).unwrap()))
 			.unwrap();
 
-		warn!("SLATE sent.");
+		debug!("Slate sent successfully!");
 
 		Ok(())
 	}
@@ -952,13 +947,13 @@ where
 			address: self.address.public_key.to_string(),
 			signature,
 			epicboxmsgid,
-			ver: "2.0.0".to_string(),
+			ver: EPICBOX_PROTOCOL_VERSION.to_string(),
 		};
 
-		self.sendv2(&request).expect("could not send made request!");
+		self.sendv2(&request).expect("could not send Made request!");
 		self.tx.send(true).unwrap();
 
-		debug!(">>> (made_send) called!");
+		//debug!(">>> (made_send) called!");
 
 		Ok(())
 	}
@@ -969,7 +964,7 @@ where
 		self.sendv2(&request)
 			.expect("Could not send GetVersion request!");
 
-		debug!(">>> (get_version) called!");
+		//debug!(">>> (get_version) called!");
 
 		Ok(())
 	}
@@ -980,7 +975,7 @@ where
 		self.sendv2(&request)
 			.expect("Could not send FastSend request!");
 
-		debug!(">>> (get_fastsend) called!");
+		//debug!(">>> (get_fastsend) called!");
 
 		Ok(())
 	}

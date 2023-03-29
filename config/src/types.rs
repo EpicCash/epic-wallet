@@ -170,9 +170,6 @@ pub struct EpicboxConfig {
 	pub epicbox_protocol_unsecure: Option<bool>,
 	/// Epicbox address id
 	pub epicbox_address_index: Option<u32>,
-	/// Duration of the epicbox listener subscribe update interval in seconds,
-	/// no less than 5 and no more than 120 seconds.
-	pub epicbox_listener_interval: Option<u64>,
 }
 
 impl Default for EpicboxConfig {
@@ -182,7 +179,6 @@ impl Default for EpicboxConfig {
 			epicbox_port: Some(443),
 			epicbox_protocol_unsecure: Some(false),
 			epicbox_address_index: Some(0),
-			epicbox_listener_interval: Some(10),
 		}
 	}
 }
