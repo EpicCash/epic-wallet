@@ -682,7 +682,7 @@ impl EpicboxBroker {
 		let ver = EPICBOX_PROTOCOL_VERSION;
 		let mut last_message_id_v2 = String::from("");
 
-		let mut tester_challenge = 1;
+		let mut tester_challenge = 0;
 		let mut fornow = 0;
 
 		let now = Instant::now();
@@ -720,6 +720,7 @@ impl EpicboxBroker {
 
 						match response {
 							ProtocolResponseV2::Challenge { str } => {
+								tester_challenge += 1;
 								fornow += 1;
 								client.challenge = Some(str.clone());
 								if tester_challenge == 1 {
