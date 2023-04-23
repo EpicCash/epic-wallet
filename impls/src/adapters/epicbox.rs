@@ -12,59 +12,46 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::config::EpicboxConfig;
-use crate::epicbox::protocol::{ProtocolRequest, ProtocolResponse};
-use crate::keychain::Keychain;
-use crate::libwallet::crypto::{sign_challenge, Hex};
-use crate::libwallet::message::EncryptedMessage;
-use crate::util::secp::key::PublicKey;
-
-use crate::libwallet::wallet_lock;
 use crate::libwallet::{
-	address, Address, AddressType, EpicboxAddress, TxProof, DEFAULT_EPICBOX_PORT_443,
+	address,
+	api_impl::{foreign, owner},
+	crypto::{sign_challenge, Hex},
+	message::EncryptedMessage,
+	wallet_lock, Address, AddressType, EpicboxAddress, NodeClient, Slate, SlateVersion, TxProof,
+	VersionedSlate, WalletInst, WalletLCProvider, DEFAULT_EPICBOX_PORT_443,
 	DEFAULT_EPICBOX_PORT_80,
 };
-use crate::libwallet::{NodeClient, WalletInst, WalletLCProvider};
 
+use crate::util::{
+	secp::key::{PublicKey, SecretKey},
+	Mutex,
+};
+
+use crate::error::ErrorKind as ErrorKind2;
 use crate::Error;
 use crate::ErrorKind;
 
-use crate::libwallet::{Slate, SlateVersion, VersionedSlate};
-use crate::util::secp::key::SecretKey;
-use crate::util::Mutex;
+use crate::config::EpicboxConfig;
+use crate::epicbox::protocol::{ProtocolRequest, ProtocolResponse};
+use crate::keychain::Keychain;
 
-use std::collections::HashMap;
-use std::fmt::{self, Debug};
+use std::{
+	collections::HashMap,
+	fmt::{self, Debug},
+	net::TcpStream,
+	string::ToString,
+	sync::{
+		mpsc::{channel, Receiver, Sender},
+		Arc,
+	},
+	thread::spawn,
+	thread::JoinHandle,
+};
 
-use crate::error::ErrorKind as ErrorKind2;
-use std::sync::Arc;
-use std::thread::JoinHandle;
-
-use crate::libwallet::api_impl::foreign;
-use crate::libwallet::api_impl::owner;
-use epic_wallet_util::epic_core::core::amount_to_hr_string;
-use std::net::TcpStream;
-use std::string::ToString;
-use std::sync::mpsc::{channel, Receiver, Sender};
-use std::thread::spawn;
-use tungstenite::connect;
-use tungstenite::Error as tungsteniteError;
-use tungstenite::{protocol::WebSocket, stream::MaybeTlsStream};
-use tungstenite::{Error as ErrorTungstenite, Message};
-
-// Copyright 2019 The vault713 Developers
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+use tungstenite::{
+	connect, protocol::WebSocket, stream::MaybeTlsStream, Error as tungsteniteError,
+	Error as ErrorTungstenite, Message,
+};
 
 const CONNECTION_ERR_MSG: &str = "\nCan't connect to the epicbox server!\n\
 	Check your epic-wallet.toml settings and make sure epicbox domain is correct.\n";
@@ -145,24 +132,24 @@ impl EpicboxListenChannel {
 
 			(address, sec_key)
 		};
+
 		let url = {
-			let cloned_address = address.clone();
 			match epicbox_config.epicbox_protocol_unsecure.unwrap_or(false) {
 				true => format!(
 					"ws://{}:{}",
-					cloned_address.domain,
-					cloned_address.port.unwrap_or(DEFAULT_EPICBOX_PORT_80)
+					address.domain,
+					address.port.unwrap_or(DEFAULT_EPICBOX_PORT_80)
 				),
 				false => format!(
 					"wss://{}:{}",
-					cloned_address.domain,
-					cloned_address.port.unwrap_or(DEFAULT_EPICBOX_PORT_443)
+					address.domain,
+					address.port.unwrap_or(DEFAULT_EPICBOX_PORT_443)
 				),
 			}
 		};
 		let (tx, _rx): (Sender<bool>, Receiver<bool>) = channel();
 
-		debug!("Connecting to the epicbox server at {} ..", url.clone());
+		debug!("Connecting to the epicbox server at: {} ..", url.clone());
 		let (socket, _response) = connect(url.clone()).map_err(|e| {
 			warn!("{}", ErrorKind::EpicboxTungstenite(format!("{}", e).into()));
 			ErrorKind::EpicboxTungstenite(format!("{}", e).into())
@@ -177,9 +164,12 @@ impl EpicboxListenChannel {
 		let mask = keychain_mask.lock();
 		let km = mask.clone();
 		let controller = EpicboxController::new(container, cpublisher, wallet, km)
-			.expect("Could not init epicbox listener!");
+			.expect("Failed to initialize the epicbox listener!");
 
-		warn!("Starting epicbox listener for: {}", address);
+		warn!(
+			"Starting the epicbox listener for: {}@{}",
+			address, address.domain
+		);
 
 		subscriber.start(controller)
 	}
@@ -289,7 +279,7 @@ where
 			),
 		}
 	};
-	debug!("Connecting to the epicbox server at {} ..", url.clone());
+	info!("Connecting to the epicbox server at: {} ..", url.clone());
 	let (socket, _) = connect(url.clone()).expect(CONNECTION_ERR_MSG);
 
 	let publisher = EpicboxPublisher::new(address.clone(), sec_key, socket, tx)?;
@@ -300,11 +290,11 @@ where
 
 	let handle = spawn(move || {
 		let controller = EpicboxController::new(container, cpublisher, wallet, keychain_mask)
-			.expect("Could not init epicbox controller!");
+			.expect("Failed to initialize the epicbox controller");
 
 		csubscriber
 			.start(controller)
-			.expect("Could not start epicbox controller!");
+			.expect("Failed to start the epicbox controller");
 		()
 	});
 
@@ -464,15 +454,17 @@ where
 		_tx_proof: Option<&mut TxProof>,
 	) -> Result<bool, Error> {
 		/* build owner and foreign here */
-		//let wallet = self.wallet.clone();
-
 		wallet_lock!(self.wallet, w);
 
 		if slate.num_participants > slate.participant_data.len() {
 			if slate.tx.inputs().len() == 0 {
 				// TODO: invoicing
 			} else {
-				info!("Received new transaction (foreign::receive_tx)");
+				info!(
+					"Received new Transaction({}) (foreign::receive_tx)",
+					slate.id.to_string()
+				);
+
 				let ret_slate = foreign::receive_tx(
 					&mut **w,
 					self.keychain_mask.as_ref(),
@@ -486,10 +478,16 @@ where
 
 			Ok(false)
 		} else {
-			info!("Finalize transaction (owner::finalize_tx)");
+			info!(
+				"Finalize Transaction({}) (owner::finalize_tx)",
+				slate.id.to_string()
+			);
 			let slate = owner::finalize_tx(&mut **w, self.keychain_mask.as_ref(), slate)?;
 
-			info!("Post transaction to the network (owner::post_tx)");
+			info!(
+				"Post Transaction({}) to the network (owner::post_tx)",
+				slate.id.to_string()
+			);
 			owner::post_tx(w.w2n_client(), &slate.tx, false)?;
 			Ok(true)
 		}
@@ -513,17 +511,15 @@ where
 
 		if slate.num_participants > slate.participant_data.len() {
 			debug!(
-				"Slate [{}] received from [{}] for [{}] epics",
+				"Slate({}) received from Address({})",
 				slate.id.to_string(),
 				from.to_string(),
-				amount_to_hr_string(slate.amount, false)
 			);
 		} else {
 			debug!(
-				"Slate [{}] received back from [{}] for [{}] epics",
+				"ResponseSlate({}) received from Address({})",
 				slate.id.to_string(),
 				from.to_string(),
-				amount_to_hr_string(slate.amount, false)
 			);
 		};
 
@@ -544,9 +540,12 @@ where
 							error!("{}: {}", "ERROR", e);
 							e
 						})
-						.expect("failed posting slate!");
+						.expect(&format!("Failed to post Transaction({})", _id.to_string()));
 				} else {
-					debug!("Slate [{}] finalized successfully", slate.id.to_string());
+					info!(
+						"Transaction({}) finalized successfully",
+						slate.id.to_string()
+					);
 				}
 				Ok(())
 			});
@@ -560,10 +559,10 @@ where
 	fn on_close(&self, reason: CloseReason) {
 		match reason {
 			CloseReason::Normal => {
-				debug!("Listener for stopped, normal exit")
+				debug!("Epicbox listener stopped (normal exit)")
 			}
 			CloseReason::Abnormal(error) => {
-				error!("{:?}", error.to_string())
+				error!("Epicbox listener stopped ({:?}", error.to_string())
 			}
 		}
 	}
@@ -636,7 +635,7 @@ impl EpicboxBroker {
 	{
 		let handler = Arc::new(Mutex::new(handler));
 		let sender = self.inner.clone();
-		let mut first_run = true;
+		// let mut first_run = true;
 
 		// time interval for sleep in main loop
 		let duration = std::time::Duration::from_secs(DEFAULT_INTERVAL);
@@ -659,7 +658,7 @@ impl EpicboxBroker {
 		};
 		client
 			.send(&request)
-			.expect("Could not send Subscribe request!");
+			.expect("Failed to send the subscribe request");
 
 		let res = loop {
 			let err = client.sender.lock().read_message();
@@ -667,7 +666,7 @@ impl EpicboxBroker {
 
 			match err {
 				Err(e) => {
-					error!("Error reading message {:?}", e);
+					error!("Failed to read the message {:?}", e);
 					handler.lock().on_close(CloseReason::Abnormal(
 						ErrorKind::EpicboxWebsocketAbnormalTermination.into(),
 					));
@@ -684,10 +683,13 @@ impl EpicboxBroker {
 							match serde_json::from_str::<ProtocolResponse>(&message.to_string()) {
 								Ok(x) => x,
 								Err(_) => {
-									error!("Could not parse response");
+									error!("Failed to parse the response");
+									debug!("Response string:\n{}", message.to_string());
 									return Ok(());
 								}
 							};
+
+						trace!(">> WALLET RECEIVED FROM EB: {}", &message);
 
 						match response {
 							ProtocolResponse::Challenge { str } => {
@@ -695,15 +697,19 @@ impl EpicboxBroker {
 								client
 									.challenge_send()
 									.map_err(|_| {
-										error!("Error attempting to send Challenge!");
+										error!("Failed attempt to subscribe");
+										debug!("Subscribe string:\n{}", str);
 									})
 									.unwrap();
 
-								if !first_run {
-									std::thread::sleep(duration);
-								} else {
-									new_challenge = true;
-								}
+								new_challenge = true;
+
+								// if !first_run {
+								// 	trace!("Refresh epicbox subscription (interval: {:?})", duration);
+								// 	std::thread::sleep(duration);
+								// } else {
+								// 	new_challenge = true;
+								// }
 							}
 							ProtocolResponse::Slate {
 								from,
@@ -758,13 +764,15 @@ impl EpicboxBroker {
 			if new_challenge {
 				client
 					.new_challenge()
-					.map_err(|_| error!("error attempting challenge!"))
+					.map_err(|_| error!("Failed to attempt the challenge"))
 					.unwrap();
 
-				if first_run {
-					std::thread::sleep(duration);
-					first_run = false;
-				}
+				trace!("Refresh epicbox subscription (interval: {:?})", duration);
+				std::thread::sleep(duration);
+
+				// if first_run {
+				// 	first_run = false;
+				// }
 			}
 		}; //end loop
 
@@ -779,12 +787,12 @@ impl EpicboxBroker {
 		secret_key: &SecretKey,
 	) -> Result<(), Error> {
 		let pkey = to.public_key()?;
-
 		let skey = secret_key.clone();
+		let _slate: Slate = slate.clone().into();
 
 		let message =
 			EncryptedMessage::new(serde_json::to_string(&slate).unwrap(), &to, &pkey, &skey)
-				.map_err(|_| error!("could not encrypt slate!"))
+				.map_err(|_| error!("Failed to encrypt the Slate({})", _slate.id.to_string()))
 				.unwrap();
 
 		let message_ser = serde_json::to_string(&message).unwrap();
@@ -798,6 +806,12 @@ impl EpicboxBroker {
 			str: message_ser,
 			signature,
 		};
+
+		debug!(
+			"Sending Slate({}) to Address({})",
+			_slate.id.to_string(),
+			to.stripped()
+		);
 
 		self.inner
 			.lock()
@@ -837,7 +851,7 @@ where
 	fn challenge_send(&self) -> Result<(), Error> {
 		let request = ProtocolRequest::Challenge;
 		self.send(&request)
-			.expect("could not send Challenge request!");
+			.expect("Failed to send the subscribe request");
 		self.tx.send(true).unwrap();
 		Ok(())
 	}
@@ -845,12 +859,13 @@ where
 	fn new_challenge(&self) -> Result<(), Error> {
 		let request = ProtocolRequest::Challenge;
 		self.send(&request)
-			.expect("Could not send Challenge request!");
+			.expect("Failed to send the subscribe request");
 		Ok(())
 	}
 
 	fn send(&self, request: &ProtocolRequest) -> Result<(), ErrorTungstenite> {
 		let request = serde_json::to_string(&request).unwrap();
+		trace!("<< WALLET SENDING TO EB: {}", &request);
 
 		self.sender
 			.lock()
