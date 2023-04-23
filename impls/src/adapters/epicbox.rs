@@ -42,6 +42,7 @@ use std::thread::JoinHandle;
 
 use crate::libwallet::api_impl::foreign;
 use crate::libwallet::api_impl::owner;
+use epic_wallet_util::epic_core::core::amount_to_hr_string;
 use std::net::TcpStream;
 use std::string::ToString;
 use std::sync::mpsc::{channel, Receiver, Sender};
@@ -68,8 +69,7 @@ use tungstenite::{Error as ErrorTungstenite, Message};
 const CONNECTION_ERR_MSG: &str = "\nCan't connect to the epicbox server!\n\
 	Check your epic-wallet.toml settings and make sure epicbox domain is correct.\n";
 const DEFAULT_INTERVAL: u64 = 10;
-const MIN_INTERVAL: u64 = 2;
-const MAX_INTERVAL: u64 = 120;
+const DEFAULT_CHALLENGE_RAW: &str = "7WUDtkSaKyGRUnQ22rE3QUXChV8DmA6NnunDYP4vheTpc";
 
 /// Epicbox 'plugin' implementation
 pub enum CloseReason {
@@ -117,14 +117,13 @@ impl EpicboxListenChannel {
 		wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K> + 'static>>>,
 		keychain_mask: Arc<Mutex<Option<SecretKey>>>,
 		epicbox_config: EpicboxConfig,
-		interval_arg: Option<u64>,
 	) -> Result<(), Error>
 	where
 		L: WalletLCProvider<'static, C, K> + 'static,
 		C: NodeClient + 'static,
 		K: Keychain + 'static,
 	{
-		let (address, sec_key, interval) = {
+		let (address, sec_key) = {
 			let a_keychain = keychain_mask.clone();
 			let a_wallet = wallet.clone();
 			let mask = a_keychain.lock();
@@ -144,12 +143,7 @@ impl EpicboxListenChannel {
 				epicbox_config.epicbox_port,
 			);
 
-			let mut interval = interval_arg;
-			if interval.is_none() {
-				interval = epicbox_config.epicbox_listener_interval
-			}
-
-			(address, sec_key, interval)
+			(address, sec_key)
 		};
 		let url = {
 			let cloned_address = address.clone();
@@ -190,7 +184,7 @@ impl EpicboxListenChannel {
 
 		warn!("Starting the epicbox listener for: {}", address);
 
-		subscriber.start(controller, interval)
+		subscriber.start(controller)
 	}
 }
 impl EpicboxChannel {
@@ -264,7 +258,7 @@ where
 	C: NodeClient + 'static,
 	K: Keychain + 'static,
 {
-	let (address, sec_key, interval) = {
+	let (address, sec_key) = {
 		let a_wallet = wallet.clone();
 		let mut w_lock = a_wallet.lock();
 		let lc = w_lock.lc_provider()?;
@@ -276,14 +270,12 @@ where
 			.unwrap();
 		let pub_key = PublicKey::from_secret_key(k.secp(), &sec_key).unwrap();
 
-		let interval: Option<u64> = config.epicbox_listener_interval;
-
 		let address = EpicboxAddress::new(
 			pub_key.clone(),
 			Some(config.epicbox_domain.clone()),
 			config.epicbox_port,
 		);
-		(address, sec_key, interval)
+		(address, sec_key)
 	};
 	let url = {
 		let cloned_address = address.clone();
@@ -316,6 +308,7 @@ where
 		csubscriber
 			.start(controller, interval)
 			.expect("Failed to start the epicbox controller");
+
 		()
 	});
 
@@ -545,6 +538,7 @@ where
 			);
 		}
 
+
 		if from.address_type() == AddressType::Epicbox {
 			EpicboxAddress::from_str(&from.to_string()).expect("invalid epicbox address");
 		}
@@ -560,6 +554,7 @@ where
 						.post_slate(&slate, from, false)
 						.map_err(|e| {
 							debug!("{}: {}", "ERROR", e);
+
 							e
 						})
 						.expect(&format!("Failed to post Transaction({})", _id.to_string()));
@@ -568,6 +563,7 @@ where
 						"Transaction({}) finalized successfully",
 						slate.id.to_string()
 					);
+
 				}
 				Ok(())
 			});
@@ -581,7 +577,7 @@ where
 	fn on_close(&self, reason: CloseReason) {
 		match reason {
 			CloseReason::Normal => {
-				//debug!("Listener for {} stopped", self.name)
+				debug!("Listener for {} stopped (normal exit)", self.name)
 			}
 			CloseReason::Abnormal(error) => {
 				error!("{:?}", error.to_string())
@@ -590,11 +586,7 @@ where
 	}
 }
 pub trait Subscriber {
-	fn start<P, L, C, K>(
-		&mut self,
-		handler: EpicboxController<P, L, C, K>,
-		interval: Option<u64>,
-	) -> Result<(), Error>
+	fn start<P, L, C, K>(&mut self, handler: EpicboxController<P, L, C, K>) -> Result<(), Error>
 	where
 		P: Publisher,
 		L: WalletLCProvider<'static, C, K> + 'static,
@@ -603,11 +595,7 @@ pub trait Subscriber {
 	fn stop(&self);
 }
 impl Subscriber for EpicboxSubscriber {
-	fn start<P, L, C, K>(
-		&mut self,
-		handler: EpicboxController<P, L, C, K>,
-		interval: Option<u64>,
-	) -> Result<(), Error>
+	fn start<P, L, C, K>(&mut self, handler: EpicboxController<P, L, C, K>) -> Result<(), Error>
 	where
 		P: Publisher,
 		L: WalletLCProvider<'static, C, K> + 'static,
@@ -615,7 +603,7 @@ impl Subscriber for EpicboxSubscriber {
 		K: Keychain + 'static,
 	{
 		self.broker
-			.subscribe(&self.address, &self.secret_key, handler, interval)
+			.subscribe(&self.address, &self.secret_key, handler)
 	}
 
 	fn stop(&self) {
@@ -656,7 +644,6 @@ impl EpicboxBroker {
 		address: &EpicboxAddress,
 		secret_key: &SecretKey,
 		handler: EpicboxController<P, L, C, K>,
-		interval: Option<u64>,
 	) -> Result<(), Error>
 	where
 		P: Publisher,
@@ -667,15 +654,8 @@ impl EpicboxBroker {
 		let handler = Arc::new(Mutex::new(handler));
 		let sender = self.inner.clone();
 
-		// Parse from epicbox config or use default value for the
-		// time interval between new subscribe calls from the wallet
-		let mut seconds = interval.unwrap_or(DEFAULT_INTERVAL);
-		if seconds < MIN_INTERVAL {
-			seconds = MIN_INTERVAL
-		} else if seconds > MAX_INTERVAL {
-			seconds = MAX_INTERVAL
-		}
-		let duration = std::time::Duration::from_secs(seconds);
+		// time interval for sleep in main loop
+		let duration = std::time::Duration::from_secs(DEFAULT_INTERVAL);
 
 		let mut client = EpicboxClient {
 			sender,
@@ -717,7 +697,7 @@ impl EpicboxBroker {
 							ProtocolResponse::Challenge { str } => {
 								client.challenge = Some(str.clone());
 								client
-									.challenge_subscribe(&str)
+									.challenge_send()
 									.map_err(|_| {
 										error!("Failed attempt to subscribe");
 										debug!("Subscribe string:\n{}", str);
@@ -778,6 +758,7 @@ impl EpicboxBroker {
 			// Wait until next ping to the epicbox server
 			trace!("Refresh epicbox subscription (interval: {:?})", duration);
 			std::thread::sleep(duration);
+
 
 			client
 				.new_challenge()
@@ -856,13 +837,8 @@ where
 	C: NodeClient + 'static,
 	K: Keychain + 'static,
 {
-	fn challenge_subscribe(&self, challenge: &str) -> Result<(), Error> {
-		let signature = sign_challenge(&challenge, &self.secret_key)?.to_hex();
-		let request = ProtocolRequest::Subscribe {
-			address: self.address.public_key.to_string(),
-			signature,
-		};
-
+	fn challenge_send(&self) -> Result<(), Error> {
+		let request = ProtocolRequest::Challenge;
 		self.send(&request)
 			.expect("Failed to send the subscribe request");
 		self.tx.send(true).unwrap();
@@ -878,10 +854,8 @@ where
 			.expect("Failed to send the unsubscribe request");
 
 		let request = ProtocolRequest::Challenge;
-
 		self.send(&request)
 			.expect("Failed to send the subscribe request");
-
 		Ok(())
 	}
 

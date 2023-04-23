@@ -352,7 +352,6 @@ pub fn parse_listen_args(
 		config.api_listen_port = port.parse().unwrap();
 	}
 
-	let interval = parse_u64_or_none(args.value_of("interval"));
 	let method = parse_required(args, "method")?;
 
 	if args.is_present("no_tor") {
@@ -360,7 +359,6 @@ pub fn parse_listen_args(
 	}
 	Ok(command::ListenArgs {
 		method: method.to_owned(),
-		interval,
 	})
 }
 
@@ -844,7 +842,7 @@ pub fn wallet_command<C, F>(
 	mut wallet_config: WalletConfig,
 	tor_config: Option<TorConfig>,
 	epicbox_config: Option<EpicboxConfig>,
-	mut node_client: C,
+	node_client: C,
 	test_mode: bool,
 	wallet_inst_cb: F,
 ) -> Result<String, Error>
@@ -866,7 +864,7 @@ where
 	),
 {
 	if let Some(t) = wallet_config.chain_type.clone() {
-		core::global::set_mining_mode(t);
+		global::set_mining_mode(t);
 	}
 
 	if wallet_args.is_present("external") {
@@ -877,14 +875,7 @@ where
 		wallet_config.data_file_dir = dir.to_string().clone();
 	}
 
-	if let Some(sa) = wallet_args.value_of("api_server_address") {
-		wallet_config.check_node_api_http_addr = sa.to_string().clone();
-	}
-
 	let global_wallet_args = arg_parse!(parse_global_args(&wallet_config, &wallet_args));
-
-	node_client.set_node_url(&wallet_config.check_node_api_http_addr);
-	node_client.set_node_api_secret(global_wallet_args.node_api_secret.clone());
 
 	// legacy hack to avoid the need for changes in existing epic-wallet.toml files
 	// remove `wallet_data` from end of path as
@@ -929,8 +920,7 @@ where
 		let _ = lc.set_top_level_directory(&wallet_config.data_file_dir);
 	}
 
-	// provide wallet instance back to the caller (handy for testing with
-	// local wallet proxy, etc)
+	// provide wallet instance back to the caller (handy for testing with local wallet proxy, etc)
 	wallet_inst_cb(wallet.clone());
 
 	// don't open wallet for certain lifecycle commands
