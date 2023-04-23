@@ -186,9 +186,9 @@ impl EpicboxListenChannel {
 		let mask = keychain_mask.lock();
 		let km = mask.clone();
 		let controller = EpicboxController::new(container, cpublisher, wallet, km)
-			.expect("Could not init epicbox listener!");
+			.expect("Failed to initialize the epicbox listener!");
 
-		warn!("Starting epicbox listener for: {}", address);
+		warn!("Starting the epicbox listener for: {}", address);
 
 		subscriber.start(controller, interval)
 	}
@@ -311,11 +311,11 @@ where
 
 	let handle = spawn(move || {
 		let controller = EpicboxController::new(container, cpublisher, wallet, keychain_mask)
-			.expect("Could not init epicbox controller!");
+			.expect("Failed to initialize the epicbox controller");
 
 		csubscriber
 			.start(controller, interval)
-			.expect("Could not start epicbox controller!");
+			.expect("Failed to start the epicbox controller");
 		()
 	});
 
@@ -483,7 +483,10 @@ where
 			if slate.tx.inputs().len() == 0 {
 				// TODO: invoicing
 			} else {
-				info!("Received new transaction (foreign::receive_tx)");
+				info!(
+					"Received new Transaction({}) (foreign::receive_tx)",
+					slate.id.to_string()
+				);
 				let ret_slate = foreign::receive_tx(
 					&mut **w,
 					self.keychain_mask.as_ref(),
@@ -497,10 +500,16 @@ where
 
 			Ok(false)
 		} else {
-			info!("Finalize transaction (owner::finalize_tx)");
+			info!(
+				"Finalize Transaction({}) (owner::finalize_tx)",
+				slate.id.to_string()
+			);
 			let slate = owner::finalize_tx(&mut **w, self.keychain_mask.as_ref(), slate)?;
 
-			info!("Post transaction to the network (owner::post_tx)");
+			info!(
+				"Post Transaction({}) to the network (owner::post_tx)",
+				slate.id.to_string()
+			);
 			owner::post_tx(w.w2n_client(), &slate.tx, false)?;
 			Ok(true)
 		}
@@ -522,21 +531,19 @@ where
 		let version = slate.version();
 		let mut slate: Slate = slate.clone().into();
 
-		/*if slate.num_participants > slate.participant_data.len() {
+		if slate.num_participants > slate.participant_data.len() {
 			debug!(
-				"Slate [{}] received from [{}] for [{}] epics",
+				"Slate({}) received from Address({})",
 				slate.id.to_string(),
-				display_from,
-				amount_to_hr_string(slate.amount, false)
+				from.stripped(),
 			);
 		} else {
 			debug!(
-				"Slate [{}] received back from [{}] for [{}] epics",
+				"ResponseSlate({}) received from Address({})",
 				slate.id.to_string(),
-				display_from,
-				amount_to_hr_string(slate.amount, false)
+				from.stripped(),
 			);
-		};*/
+		}
 
 		if from.address_type() == AddressType::Epicbox {
 			EpicboxAddress::from_str(&from.to_string()).expect("invalid epicbox address");
@@ -555,9 +562,12 @@ where
 							debug!("{}: {}", "ERROR", e);
 							e
 						})
-						.expect("failed posting slate!");
+						.expect(&format!("Failed to post Transaction({})", _id.to_string()));
 				} else {
-					debug!("Slate [{}] finalized successfully", slate.id.to_string());
+					info!(
+						"Transaction({}) finalized successfully",
+						slate.id.to_string()
+					);
 				}
 				Ok(())
 			});
@@ -681,7 +691,7 @@ impl EpicboxBroker {
 
 			match err {
 				Err(e) => {
-					error!("Error reading message {:?}", e);
+					error!("Error reading the message {:?}", e);
 					handler.lock().on_close(CloseReason::Abnormal(
 						ErrorKind::EpicboxWebsocketAbnormalTermination.into(),
 					));
@@ -697,18 +707,20 @@ impl EpicboxBroker {
 							match serde_json::from_str::<ProtocolResponse>(&message.to_string()) {
 								Ok(x) => x,
 								Err(_) => {
-									error!("Could not parse response");
+									error!("Failed to parse the response");
+									debug!("Response string:\n{}", message.to_string());
 									return Ok(());
 								}
 							};
-						debug!(">> WALLET RECEIVED FROM EB: {}", &message);
+						trace!(">> WALLET RECEIVED FROM EB: {}", &message);
 						match response {
 							ProtocolResponse::Challenge { str } => {
 								client.challenge = Some(str.clone());
 								client
 									.challenge_subscribe(&str)
 									.map_err(|_| {
-										error!("Error attempting to subscribe!");
+										error!("Failed attempt to subscribe");
+										debug!("Subscribe string:\n{}", str);
 									})
 									.unwrap();
 							}
@@ -764,12 +776,12 @@ impl EpicboxBroker {
 			};
 
 			// Wait until next ping to the epicbox server
-			debug!("Refresh epicbox subscription (interval: {:?})", duration);
+			trace!("Refresh epicbox subscription (interval: {:?})", duration);
 			std::thread::sleep(duration);
 
 			client
 				.new_challenge()
-				.map_err(|_| error!("error attempting challenge!"))
+				.map_err(|_| error!("Failed to attempt the challenge"))
 				.unwrap();
 		}
 		Ok(())
@@ -783,12 +795,11 @@ impl EpicboxBroker {
 		secret_key: &SecretKey,
 	) -> Result<(), Error> {
 		let pkey = to.public_key()?;
-
 		let skey = secret_key.clone();
-
+		let mut _slate: Slate = slate.clone().into();
 		let message =
 			EncryptedMessage::new(serde_json::to_string(&slate).unwrap(), &to, &pkey, &skey)
-				.map_err(|_| error!("could not encrypt slate!"))
+				.map_err(|_| error!("Failed to encrypt the Slate({})", _slate.id.to_string()))
 				.unwrap();
 
 		let message_ser = serde_json::to_string(&message).unwrap();
@@ -796,12 +807,19 @@ impl EpicboxBroker {
 		challenge.push_str(&message_ser);
 
 		let signature = sign_challenge(&challenge, secret_key)?.to_hex();
+
 		let request = ProtocolRequest::PostSlate {
 			from: from.stripped(),
 			to: to.stripped(),
 			str: message_ser,
 			signature,
 		};
+
+		info!(
+			"Sending Slate({}) to Address({})",
+			_slate.id.to_string(),
+			to.stripped()
+		);
 
 		self.inner
 			.lock()
@@ -846,7 +864,7 @@ where
 		};
 
 		self.send(&request)
-			.expect("could not send subscribe request!");
+			.expect("Failed to send the subscribe request");
 		self.tx.send(true).unwrap();
 		Ok(())
 	}
@@ -857,19 +875,19 @@ where
 		};
 
 		self.send(&unsubscribe)
-			.expect("could not send unsubscribe request!");
+			.expect("Failed to send the unsubscribe request");
 
 		let request = ProtocolRequest::Challenge;
 
 		self.send(&request)
-			.expect("could not send subscribe request!");
+			.expect("Failed to send the subscribe request");
 
 		Ok(())
 	}
 
 	fn send(&self, request: &ProtocolRequest) -> Result<(), ErrorTungstenite> {
 		let request = serde_json::to_string(&request).unwrap();
-		debug!("<< WALLET SENDING TO EB: {}", &request);
+		trace!("<< WALLET SENDING TO EB: {}", &request);
 
 		self.sender
 			.lock()
