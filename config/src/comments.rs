@@ -274,14 +274,6 @@ fn comments() -> HashMap<String, String> {
 		.to_string(),
 	);
 
-	retval.insert(
-		"epicbox_listener_interval".to_string(),
-		"
-#Time interval in seconds between epicbox listener updates (default 10 seconds)
-"
-		.to_string(),
-	);
-
 	retval
 }
 
