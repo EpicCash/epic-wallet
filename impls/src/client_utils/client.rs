@@ -96,6 +96,8 @@ pub struct Client {
 	pub use_socks: bool,
 	/// Proxy url/port
 	pub socks_proxy_addr: Option<SocketAddr>,
+	// Read timeout
+	pub read_timeout: Option<u64>,
 }
 
 impl Client {
@@ -104,6 +106,7 @@ impl Client {
 		Client {
 			use_socks: false,
 			socks_proxy_addr: None,
+			read_timeout: None,
 		}
 	}
 
@@ -299,7 +302,8 @@ impl Client {
 				let https = hyper_rustls::HttpsConnector::new(1);
 				let mut connector = TimeoutConnector::new(https);
 				connector.set_connect_timeout(Some(Duration::from_secs(20)));
-				connector.set_read_timeout(Some(Duration::from_secs(20)));
+				connector
+					.set_read_timeout(Some(Duration::from_secs(self.read_timeout.unwrap_or(20))));
 				connector.set_write_timeout(Some(Duration::from_secs(20)));
 				let client = hyper::Client::builder().build::<_, hyper::Body>(connector);
 				Box::new(
@@ -348,7 +352,8 @@ impl Client {
 				let socks_connector = Socksv5Connector::new(addr);
 				let mut connector = TimeoutConnector::new(socks_connector);
 				connector.set_connect_timeout(Some(Duration::from_secs(20)));
-				connector.set_read_timeout(Some(Duration::from_secs(20)));
+				connector
+					.set_read_timeout(Some(Duration::from_secs(self.read_timeout.unwrap_or(20))));
 				connector.set_write_timeout(Some(Duration::from_secs(20)));
 				let client = hyper::Client::builder().build::<_, hyper::Body>(connector);
 				Box::new(
