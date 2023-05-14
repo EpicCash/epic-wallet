@@ -1253,6 +1253,7 @@ dependencies = [
  "hyper",
  "hyper-rustls",
  "hyper-timeout",
+ "libsqlite3-sys",
  "log",
  "parking_lot 0.6.4",
  "rand 0.5.6",
@@ -1289,6 +1290,7 @@ dependencies = [
  "failure",
  "failure_derive",
  "lazy_static",
+ "libsqlite3-sys",
  "log",
  "rand 0.5.6",
  "regex",
@@ -1987,6 +1989,17 @@ checksum = "f2b111a074963af1d37a139918ac6d49ad1d0d5e47f72fd55388619691a7d753"
 dependencies = [
  "cc",
  "winapi 0.3.9",
+]
+
+[[package]]
+name = "libsqlite3-sys"
+version = "0.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0e9eb7b8e152b6a01be6a4a2917248381875758250dc3df5d46caf9250341dda"
+dependencies = [
+ "cc",
+ "pkg-config",
+ "vcpkg",
 ]
 
 [[package]]
