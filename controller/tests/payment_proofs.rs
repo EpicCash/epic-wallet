@@ -22,7 +22,6 @@ use epic_wallet_libwallet as libwallet;
 use impls::test_framework::{self, LocalWalletClient};
 use libwallet::{InitTxArgs, Slate};
 use std::thread;
-use std::time::Duration;
 
 #[macro_use]
 mod common;
@@ -88,7 +87,7 @@ fn payment_proofs_test_impl(test_dir: &'static str) -> Result<(), libwallet::Err
 		// note this will increment the block count as part of the transaction "Posting"
 		let args = InitTxArgs {
 			src_acct_name: None,
-			amount: amount,
+			amount,
 			minimum_confirmations: 2,
 			max_outputs: 500,
 			num_change_outputs: 1,

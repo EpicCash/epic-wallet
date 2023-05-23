@@ -164,9 +164,10 @@ where
 	///
 	/// ```
 
-	pub fn new(wallet_inst: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K>>>>) -> Self {
-		let (tx, rx) = channel();
-
+	pub fn new(
+		wallet_inst: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K>>>>,
+		custom_channel: Option<Sender<StatusMessage>>,
+	) -> Self {
 		let updater_running = Arc::new(AtomicBool::new(false));
 		let updater = Arc::new(Mutex::new(owner_updater::Updater::new(
 			wallet_inst.clone(),
@@ -174,7 +175,14 @@ where
 		)));
 
 		let updater_messages = Arc::new(Mutex::new(vec![]));
-		let _ = start_updater_log_thread(rx, updater_messages.clone());
+		let tx = match custom_channel {
+			Some(c) => c,
+			None => {
+				let (tx, rx) = channel();
+				let _ = start_updater_log_thread(rx, updater_messages.clone());
+				tx
+			}
+		};
 
 		Owner {
 			wallet_inst,

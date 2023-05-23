@@ -130,7 +130,7 @@ where
 	C: NodeClient + 'static,
 	K: Keychain + 'static,
 {
-	f(&mut Owner::new(wallet), keychain_mask)?;
+	f(&mut Owner::new(wallet, None), keychain_mask)?;
 	Ok(())
 }
 
@@ -326,7 +326,7 @@ where
 	}
 
 	fn handle_post_request(&self, req: Request<Body>) -> WalletResponseFuture {
-		let api = Owner::new(self.wallet.clone());
+		let api = Owner::new(self.wallet.clone(), None);
 		Box::new(
 			self.call_api(req, api)
 				.and_then(|resp| ok(json_response_pretty(&resp))),
@@ -610,7 +610,7 @@ where
 		epicbox_config: Option<EpicboxConfig>,
 		running_foreign: bool,
 	) -> OwnerAPIHandlerV3<L, C, K> {
-		let owner_api = Owner::new(wallet.clone());
+		let owner_api = Owner::new(wallet.clone(), None);
 		owner_api.set_tor_config(tor_config);
 		owner_api.set_epicbox_config(epicbox_config);
 		let owner_api = Arc::new(owner_api);
