@@ -1,6 +1,6 @@
 [package]
 name = "epic_wallet_impls"
-version = "3.3.2"
+version = "3.4.0"
 authors = ["Epic Developers <epiccash@brickabode.com>"]
 description = "Concrete types derived from libwallet traits"
 license = "Apache-2.0"
@@ -49,6 +49,6 @@ sysinfo = "0.9"
 parking_lot = "0.6"
 tungstenite = {version="*", features = ["native-tls"] }
 
-epic_wallet_util = { path = "../util", version = "3.3.2" }
-epic_wallet_config = { path = "../config", version = "3.3.2" }
-epic_wallet_libwallet = { path = "../libwallet", version = "3.3.2" }
+epic_wallet_util = { path = "../util", version = "3.4.0" }
+epic_wallet_config = { path = "../config", version = "3.4.0" }
+epic_wallet_libwallet = { path = "../libwallet", version = "3.4.0" }

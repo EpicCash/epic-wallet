@@ -1,6 +1,6 @@
 [package]
 name = "epic_wallet_libwallet"
-version = "3.3.2"
+version = "3.4.0"
 authors = ["Epic Developers <epiccash@brickabode.com>"]
 description = "Simple, private and scalable cryptocurrency implementation based on the MimbleWimble chain format."
 license = "Apache-2.0"
@@ -37,5 +37,5 @@ tungstenite = {version="*", features = ["native-tls"] }
 aead = "0.5.2"
 chacha20poly1305 = "0.10.1"
 
-epic_wallet_util = { path = "../util", version = "3.3.2" }
-epic_wallet_config = { path = "../config", version = "3.3.2" }
+epic_wallet_util = { path = "../util", version = "3.4.0" }
+epic_wallet_config = { path = "../config", version = "3.4.0" }

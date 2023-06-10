@@ -1,6 +1,6 @@
 [package]
 name = "epic_wallet_util"
-version = "3.3.2"
+version = "3.4.0"
 authors = ["Epic Developers <epiccash@brickabode.com>"]
 description = "Util, for generic utilities and to re-export epic crates"
 license = "Apache-2.0"
@@ -17,23 +17,12 @@ toml = "0.4"
 dirs = "1.0.3"
 
 # For Release
-#epic_core     = { git = "https://github.com/EpicCash/epic", tag = "v3.3.2" }
-#epic_keychain = { git = "https://github.com/EpicCash/epic", tag = "v3.3.2" }
-#epic_chain    = { git = "https://github.com/EpicCash/epic", tag = "v3.3.2" }
-#epic_util     = { git = "https://github.com/EpicCash/epic", tag = "v3.3.2" }
-#epic_api      = { git = "https://github.com/EpicCash/epic", tag = "v3.3.2" }
-#epic_store    = { git = "https://github.com/EpicCash/epic", tag = "v3.3.2" }
-
-# For Release
-epic_core     = { git = "https://github.com/EpicCash/epic", branch="epicbox-0.0.2-fix-ring-fix-ownerapi-threads" }
-epic_keychain = { git = "https://github.com/EpicCash/epic", branch="epicbox-0.0.2-fix-ring-fix-ownerapi-threads" }
-epic_chain    = { git = "https://github.com/EpicCash/epic", branch="epicbox-0.0.2-fix-ring-fix-ownerapi-threads" }
-epic_util     = { git = "https://github.com/EpicCash/epic", branch="epicbox-0.0.2-fix-ring-fix-ownerapi-threads" }
-epic_api      = { git = "https://github.com/EpicCash/epic", branch="epicbox-0.0.2-fix-ring-fix-ownerapi-threads" }
-epic_store    = { git = "https://github.com/EpicCash/epic", branch="epicbox-0.0.2-fix-ring-fix-ownerapi-threads" }
-
-
-
+epic_core     = { git = "https://github.com/EpicCash/epic", tag = "v3.4.0" }
+epic_keychain = { git = "https://github.com/EpicCash/epic", tag = "v3.4.0" }
+epic_chain    = { git = "https://github.com/EpicCash/epic", tag = "v3.4.0" }
+epic_util     = { git = "https://github.com/EpicCash/epic", tag = "v3.4.0" }
+epic_api      = { git = "https://github.com/EpicCash/epic", tag = "v3.4.0" }
+epic_store    = { git = "https://github.com/EpicCash/epic", tag = "v3.4.0" }
 
 [dev-dependencies]
 pretty_assertions = "0.5.1"
