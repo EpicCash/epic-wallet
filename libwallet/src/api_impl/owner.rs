@@ -25,6 +25,8 @@ use crate::epic_util::Mutex;
 
 use crate::api_impl::owner_updater::StatusMessage;
 use crate::epic_keychain::{Identifier, Keychain};
+use crate::epic_util::secp::key::PublicKey;
+use crate::epicbox_address::EpicboxAddress;
 use crate::internal::{keys, scan, selection, tx, updater};
 use crate::slate::{PaymentInfo, Slate};
 use crate::types::{AcctPathMapping, NodeClient, TxLogEntry, TxWrapper, WalletBackend, WalletInfo};
@@ -32,6 +34,7 @@ use crate::{
 	address, wallet_lock, InitTxArgs, IssueInvoiceTxArgs, NodeHeightResult, OutputCommitMapping,
 	PaymentProof, ScannedBlockInfo, TxLogEntryType, WalletInitStatus, WalletInst, WalletLCProvider,
 };
+
 use crate::{Error, ErrorKind};
 use ed25519_dalek::PublicKey as DalekPublicKey;
 use ed25519_dalek::SecretKey as DalekSecretKey;
@@ -93,6 +96,28 @@ where
 	let k = w.keychain(keychain_mask)?;
 	let sec_addr_key = address::address_from_derivation_path(&k, &parent_key_id, index)?;
 	Ok(address::ed25519_keypair(&sec_addr_key)?.1)
+}
+
+/// Retrieve the payment address for the current parent key at
+/// the given index
+/// set active account
+pub fn get_public_address<'a, L, C, K>(
+	wallet_inst: Arc<Mutex<Box<dyn WalletInst<'a, L, C, K>>>>,
+	keychain_mask: Option<&SecretKey>,
+	index: u32,
+) -> Result<EpicboxAddress, Error>
+where
+	L: WalletLCProvider<'a, C, K>,
+	C: NodeClient + 'a,
+	K: Keychain + 'a,
+{
+	wallet_lock!(wallet_inst, w);
+	let parent_key_id = w.parent_key_id();
+	let k = w.keychain(keychain_mask)?;
+	let sec_addr_key = address::address_from_derivation_path(&k, &parent_key_id, index)?;
+	let pub_key = PublicKey::from_secret_key(k.secp(), &sec_addr_key).unwrap();
+
+	Ok(EpicboxAddress::new(pub_key, Some("".to_string()), Some(0)))
 }
 
 /// retrieve outputs
@@ -283,8 +308,8 @@ where
 		}
 	};
 	Ok(PaymentProof {
-		amount: amount,
-		excess: excess,
+		amount,
+		excess,
 		recipient_address: address::onion_v3_from_pubkey(&proof.receiver_address)?,
 		recipient_sig: r_sig,
 		sender_address: address::onion_v3_from_pubkey(&proof.sender_address)?,
@@ -627,7 +652,7 @@ where
 	C: NodeClient + 'a,
 {
 	let tx_hex = epic_util::to_hex(ser::ser_vec(tx, ser::ProtocolVersion(1)).unwrap());
-	let res = client.post_tx(&TxWrapper { tx_hex: tx_hex }, fluff);
+	let res = client.post_tx(&TxWrapper { tx_hex }, fluff);
 	if let Err(e) = res {
 		error!("api: post_tx: failed with error: {}", e);
 		Err(e)

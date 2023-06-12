@@ -15,15 +15,18 @@ use crate::core::libtx::secp_ser;
 use crate::libwallet::dalek_ser;
 use crate::libwallet::{Error, ErrorKind};
 use crate::util::secp::key::{PublicKey, SecretKey};
-use crate::util::{from_hex, to_hex};
-use failure::ResultExt;
 
+use crate::util::from_hex;
+use crate::util::to_hex;
 use base64;
 use ed25519_dalek::PublicKey as DalekPublicKey;
-use rand::{thread_rng, Rng};
-use ring::aead;
+use failure::ResultExt;
+
 use serde_json::{self, Value};
 use std::collections::HashMap;
+
+use rand::{thread_rng, Rng};
+use ring::aead;
 
 /// Wrapper for API Tokens
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -62,24 +65,30 @@ pub struct EncryptedBody {
 
 impl EncryptedBody {
 	/// Encrypts and encodes json as base 64
+	/// Encrypts and encodes json as base 64
 	pub fn from_json(json_in: &Value, enc_key: &SecretKey) -> Result<Self, Error> {
 		let mut to_encrypt = serde_json::to_string(&json_in)
-			.context(ErrorKind::APIEncryption(
-				"EncryptedBody Enc: Unable to encode JSON".to_owned(),
-			))?
+			.map_err(|_| {
+				ErrorKind::APIEncryption("EncryptedBody Enc: Unable to encode JSON".to_owned())
+			})?
 			.as_bytes()
 			.to_vec();
-		let sealing_key = aead::SealingKey::new(&aead::AES_256_GCM, &enc_key.0).context(
-			ErrorKind::APIEncryption("EncryptedBody Enc: Unable to create key".to_owned()),
-		)?;
+
 		let nonce: [u8; 12] = thread_rng().gen();
-		let suffix_len = aead::AES_256_GCM.tag_len();
-		for _ in 0..suffix_len {
-			to_encrypt.push(0);
+
+		let unbound_key = aead::UnboundKey::new(&aead::AES_256_GCM, &enc_key.0).unwrap();
+		let sealing_key: aead::LessSafeKey = aead::LessSafeKey::new(unbound_key);
+		let aad = aead::Aad::from(&[]);
+		let res = sealing_key.seal_in_place_append_tag(
+			aead::Nonce::assume_unique_for_key(nonce),
+			aad,
+			&mut to_encrypt,
+		);
+		if let Err(_) = res {
+			return Err(
+				ErrorKind::APIEncryption("EncryptedBody: encryption failed".to_owned()).into(),
+			);
 		}
-		aead::seal_in_place(&sealing_key, &nonce, &[], &mut to_encrypt, suffix_len).context(
-			ErrorKind::APIEncryption("EncryptedBody: Encryption Failed".to_owned()),
-		)?;
 
 		Ok(EncryptedBody {
 			nonce: to_hex(nonce.to_vec()),
@@ -106,31 +115,41 @@ impl EncryptedBody {
 
 	/// Return original request
 	pub fn decrypt(&self, dec_key: &SecretKey) -> Result<Value, Error> {
-		let mut to_decrypt = base64::decode(&self.body_enc).context(ErrorKind::APIEncryption(
-			"EncryptedBody Dec: Encrypted request contains invalid Base64".to_string(),
-		))?;
-		let opening_key = aead::OpeningKey::new(&aead::AES_256_GCM, &dec_key.0).context(
-			ErrorKind::APIEncryption("EncryptedBody Dec: Unable to create key".to_owned()),
-		)?;
-		let nonce = from_hex(self.nonce.clone()).context(ErrorKind::APIEncryption(
-			"EncryptedBody Dec: Invalid Nonce".to_string(),
-		))?;
-		aead::open_in_place(&opening_key, &nonce, &[], 0, &mut to_decrypt).context(
+		let mut to_decrypt = base64::decode(&self.body_enc).map_err(|_| {
 			ErrorKind::APIEncryption(
-				"EncryptedBody Dec: Decryption Failed (is key correct?)".to_string(),
-			),
-		)?;
+				"EncryptedBody Dec: Encrypted request contains invalid Base64".to_string(),
+			)
+		})?;
+		let nonce = from_hex(self.nonce.clone()).map_err(|_| {
+			ErrorKind::APIEncryption("EncryptedBody Dec: Invalid Nonce".to_string())
+		})?;
+		if nonce.len() < 12 {
+			return Err(ErrorKind::APIEncryption(
+				"EncryptedBody Dec: Invalid Nonce length".to_string(),
+			)
+			.into());
+		}
+		let mut n = [0u8; 12];
+		n.copy_from_slice(&nonce[0..12]);
+		let unbound_key = aead::UnboundKey::new(&aead::AES_256_GCM, &dec_key.0).unwrap();
+		let opening_key: aead::LessSafeKey = aead::LessSafeKey::new(unbound_key);
+		let aad = aead::Aad::from(&[]);
+		let res =
+			opening_key.open_in_place(aead::Nonce::assume_unique_for_key(n), aad, &mut to_decrypt);
+		if let Err(_) = res {
+			return Err(
+				ErrorKind::APIEncryption("EncryptedBody: decryption failed".to_owned()).into(),
+			);
+		}
 		for _ in 0..aead::AES_256_GCM.tag_len() {
 			to_decrypt.pop();
 		}
-		let decrypted = String::from_utf8(to_decrypt).context(ErrorKind::APIEncryption(
-			"EncryptedBody Dec: Invalid UTF-8".to_string(),
-		))?;
-		Ok(
-			serde_json::from_str(&decrypted).context(ErrorKind::APIEncryption(
-				"EncryptedBody Dec: Invalid JSON".to_string(),
-			))?,
-		)
+
+		let decrypted = String::from_utf8(to_decrypt).map_err(|_| {
+			ErrorKind::APIEncryption("EncryptedBody Dec: Invalid UTF-8".to_string())
+		})?;
+		Ok(serde_json::from_str(&decrypted)
+			.map_err(|_| ErrorKind::APIEncryption("EncryptedBody Dec: Invalid JSON".to_string()))?)
 	}
 }
 
@@ -165,7 +184,7 @@ impl EncryptedRequest {
 		Ok(EncryptedRequest {
 			jsonrpc: "2.0".to_owned(),
 			method: "encrypted_request_v3".to_owned(),
-			id: id,
+			id,
 			params: EncryptedBody::from_json(json_in, enc_key)?,
 		})
 	}
@@ -214,7 +233,7 @@ impl EncryptedResponse {
 		);
 		Ok(EncryptedResponse {
 			jsonrpc: "2.0".to_owned(),
-			id: id,
+			id,
 			result: result_set,
 		})
 	}
@@ -267,9 +286,9 @@ impl EncryptionErrorResponse {
 	pub fn new(id: RpcId, code: i32, message: &str) -> Self {
 		EncryptionErrorResponse {
 			jsonrpc: "2.0".to_owned(),
-			id: id,
+			id,
 			error: EncryptionError {
-				code: code,
+				code,
 				message: message.to_owned(),
 			},
 		}
@@ -316,14 +335,16 @@ fn encrypted_request() -> Result<(), Error> {
 			"token": "d202964900000000d302964900000000d402964900000000d502964900000000"
 		}
 	});
-	let id = RpcId::Integer(1);
-	let enc_req = EncryptedRequest::from_json(id, &req, &shared_key)?;
+
+	let rpcid = RpcId::Integer(1);
+	let enc_req = EncryptedRequest::from_json(rpcid, &req, &shared_key)?;
 	println!("{:?}", enc_req);
 	let dec_req = enc_req.decrypt(&shared_key)?;
 	println!("{:?}", dec_req);
 	assert_eq!(req, dec_req);
-	let id = RpcId::Integer(1);
-	let enc_res = EncryptedResponse::from_json(id, &req, &shared_key)?;
+
+	let rpcid = RpcId::Integer(1);
+	let enc_res = EncryptedResponse::from_json(rpcid, &req, &shared_key)?;
 	println!("{:?}", enc_res);
 	println!("{:?}", enc_res.as_json_str()?);
 	let dec_res = enc_res.decrypt(&shared_key)?;

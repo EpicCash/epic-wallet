@@ -22,7 +22,6 @@ use epic_wallet_libwallet as libwallet;
 use impls::test_framework::{self, LocalWalletClient};
 use libwallet::{InitTxArgs, Slate};
 use std::thread;
-use std::time::Duration;
 
 #[macro_use]
 mod common;
@@ -88,7 +87,7 @@ fn payment_proofs_test_impl(test_dir: &'static str) -> Result<(), libwallet::Err
 		// note this will increment the block count as part of the transaction "Posting"
 		let args = InitTxArgs {
 			src_acct_name: None,
-			amount: amount,
+			amount,
 			minimum_confirmations: 2,
 			max_outputs: 500,
 			num_change_outputs: 1,
@@ -127,13 +126,13 @@ fn payment_proofs_test_impl(test_dir: &'static str) -> Result<(), libwallet::Err
 		assert_eq!(pp.sender_signature, None);
 
 		// check we should get an error at this point since proof is not complete
- 		let pp = sender_api.retrieve_payment_proof(m, true, None, Some(slate.id));
- 		assert!(pp.is_err());
+		let pp = sender_api.retrieve_payment_proof(m, true, None, Some(slate.id));
+		assert!(pp.is_err());
 
 		slate = sender_api.finalize_tx(m, &slate)?;
 
 		sender_api.post_tx(m, &slate.tx, true)?;
- 		Ok(())
+
 		// Check payment proof here
 		let (_, txs) = sender_api.retrieve_txs(m, true, None, Some(slate.id))?;
 		let tx = txs[0].clone();
@@ -145,26 +144,26 @@ fn payment_proofs_test_impl(test_dir: &'static str) -> Result<(), libwallet::Err
 	let _ = test_framework::award_blocks_to_wallet(&chain, wallet1.clone(), mask1, 2, false);
 	// let logging finish
 	wallet::controller::owner_single_use(wallet1.clone(), mask1, |sender_api, m| {
- 		// Check payment proof here
- 		let (_, txs) = sender_api.retrieve_txs(m, true, None, Some(slate.id))?;
- 		let tx = txs[0].clone();
- 		let mut pp = sender_api.retrieve_payment_proof(m, true, None, Some(slate.id))?;
+		// Check payment proof here
+		let (_, txs) = sender_api.retrieve_txs(m, true, None, Some(slate.id))?;
+		let tx = txs[0].clone();
+		let mut pp = sender_api.retrieve_payment_proof(m, true, None, Some(slate.id))?;
 
- 		println!("{:?}", pp);
+		println!("{:?}", pp);
 
- 		println!("{:?}", tx);
- 		// verify, should be good
- 		let res = sender_api.verify_payment_proof(m, &pp)?;
- 		assert_eq!(res, (true, false));
+		println!("{:?}", tx);
+		// verify, should be good
+		let res = sender_api.verify_payment_proof(m, &pp)?;
+		assert_eq!(res, (true, false));
 
- 		// Modify values, should not be good
- 		pp.amount = 20;
- 		let res = sender_api.verify_payment_proof(m, &pp);
- 		assert!(res.is_err());
- 		Ok(())
- 	})?;
+		// Modify values, should not be good
+		pp.amount = 20;
+		let res = sender_api.verify_payment_proof(m, &pp);
+		assert!(res.is_err());
+		Ok(())
+	})?;
 	//thread::sleep(Duration::from_millis(200));
-	//Ok(())
+	Ok(())
 }
 
 #[test]

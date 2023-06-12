@@ -232,6 +232,48 @@ fn comments() -> HashMap<String, String> {
 		.to_string(),
 	);
 
+	retval.insert(
+		"[epicbox]".to_string(),
+		"
+#########################################
+###  EPICBOX CONFIGURATION            ###
+#########################################
+"
+		.to_string(),
+	);
+
+	retval.insert(
+		"epicbox_domain".to_string(),
+		"
+#Domain of the epicbox server to connect
+"
+		.to_string(),
+	);
+
+	retval.insert(
+		"epicbox_port".to_string(),
+		"
+#Port of the domain of the epicbox server to connect
+"
+		.to_string(),
+	);
+
+	retval.insert(
+		"epicbox_protocol_unsecure".to_string(),
+		"
+#Whether to allow unsecure connections without SSL (default false)
+"
+		.to_string(),
+	);
+
+	retval.insert(
+		"epicbox_address_index".to_string(),
+		"
+#Index of the epicbox address (default 0)
+"
+		.to_string(),
+	);
+
 	retval
 }
 

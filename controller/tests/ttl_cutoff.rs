@@ -80,7 +80,7 @@ fn ttl_cutoff_test_impl(test_dir: &'static str) -> Result<(), libwallet::Error> 
 		// note this will increment the block count as part of the transaction "Posting"
 		let args = InitTxArgs {
 			src_acct_name: None,
-			amount: amount,
+			amount,
 			minimum_confirmations: 2,
 			max_outputs: 500,
 			num_change_outputs: 1,
@@ -116,7 +116,7 @@ fn ttl_cutoff_test_impl(test_dir: &'static str) -> Result<(), libwallet::Error> 
 	wallet::controller::owner_single_use(wallet2.clone(), mask2, |sender_api, m| {
 		let (_, txs) = sender_api.retrieve_txs(m, true, None, Some(slate.id))?;
 		let tx = txs[0].clone();
-		let outputs = sender_api.retrieve_outputs(m, false, true, None)?.1;
+		let outputs = sender_api.retrieve_outputs(m, false, true, false, None)?.1;
 		assert_eq!(outputs.len(), 0);
 
 		assert_eq!(tx.ttl_cutoff_height, Some(12));
@@ -130,7 +130,7 @@ fn ttl_cutoff_test_impl(test_dir: &'static str) -> Result<(), libwallet::Error> 
 		// note this will increment the block count as part of the transaction "Posting"
 		let args = InitTxArgs {
 			src_acct_name: None,
-			amount: amount,
+			amount,
 			minimum_confirmations: 2,
 			max_outputs: 500,
 			num_change_outputs: 1,

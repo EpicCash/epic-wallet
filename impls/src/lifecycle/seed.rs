@@ -11,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
+use core::num::NonZeroU32;
 use std::fs::{self, File};
 use std::io::{Read, Write};
 use std::path::Path;
@@ -19,10 +19,9 @@ use std::path::MAIN_SEPARATOR;
 
 use crate::blake2;
 use rand::{thread_rng, Rng};
-use serde_json;
-
 use ring::aead;
-use ring::{digest, pbkdf2};
+use ring::pbkdf2;
+use serde_json;
 
 use crate::keychain::{mnemonic, Keychain};
 use crate::util;
@@ -229,7 +228,6 @@ pub struct EncryptedWalletSeed {
 }
 
 impl EncryptedWalletSeed {
-	/// Create a new encrypted seed from the given seed + password
 	pub fn from_seed(
 		seed: &WalletSeed,
 		password: util::ZeroingString,
@@ -238,17 +236,31 @@ impl EncryptedWalletSeed {
 		let nonce: [u8; 12] = thread_rng().gen();
 		let password = password.as_bytes();
 		let mut key = [0; 32];
-		pbkdf2::derive(&digest::SHA512, 100, &salt, password, &mut key);
+		pbkdf2::derive(
+			ring::pbkdf2::PBKDF2_HMAC_SHA512,
+			NonZeroU32::new(100).unwrap(),
+			&salt,
+			password,
+			&mut key,
+		);
 		let content = seed.0.to_vec();
-		let mut enc_bytes = content.clone();
-		let suffix_len = aead::CHACHA20_POLY1305.tag_len();
+		let mut enc_bytes = content;
+		/*let suffix_len = aead::CHACHA20_POLY1305.tag_len();
 		for _ in 0..suffix_len {
 			enc_bytes.push(0);
+		}*/
+		let unbound_key = aead::UnboundKey::new(&aead::CHACHA20_POLY1305, &key).unwrap();
+		let sealing_key: aead::LessSafeKey = aead::LessSafeKey::new(unbound_key);
+		let aad = aead::Aad::from(&[]);
+		let res = sealing_key.seal_in_place_append_tag(
+			aead::Nonce::assume_unique_for_key(nonce),
+			aad,
+			&mut enc_bytes,
+		);
+		if let Err(_) = res {
+			return Err(ErrorKind::Encryption)?;
 		}
-		let sealing_key =
-			aead::SealingKey::new(&aead::CHACHA20_POLY1305, &key).context(ErrorKind::Encryption)?;
-		aead::seal_in_place(&sealing_key, &nonce, &[], &mut enc_bytes, suffix_len)
-			.context(ErrorKind::Encryption)?;
+
 		Ok(EncryptedWalletSeed {
 			encrypted_seed: util::to_hex(enc_bytes.to_vec()),
 			salt: util::to_hex(salt.to_vec()),
@@ -272,14 +284,32 @@ impl EncryptedWalletSeed {
 		};
 		let password = password.as_bytes();
 		let mut key = [0; 32];
-		pbkdf2::derive(&digest::SHA512, 100, &salt, password, &mut key);
+		pbkdf2::derive(
+			ring::pbkdf2::PBKDF2_HMAC_SHA512,
+			NonZeroU32::new(100).unwrap(),
+			&salt,
+			password,
+			&mut key,
+		);
 
-		let opening_key =
-			aead::OpeningKey::new(&aead::CHACHA20_POLY1305, &key).context(ErrorKind::Encryption)?;
-		let decrypted_data = aead::open_in_place(&opening_key, &nonce, &[], 0, &mut encrypted_seed)
-			.context(ErrorKind::Encryption)?;
+		let mut n = [0u8; 12];
+		n.copy_from_slice(&nonce[0..12]);
+		let unbound_key = aead::UnboundKey::new(&aead::CHACHA20_POLY1305, &key).unwrap();
+		let opening_key: aead::LessSafeKey = aead::LessSafeKey::new(unbound_key);
+		let aad = aead::Aad::from(&[]);
+		let res = opening_key.open_in_place(
+			aead::Nonce::assume_unique_for_key(n),
+			aad,
+			&mut encrypted_seed,
+		);
+		if let Err(_) = res {
+			return Err(ErrorKind::Encryption)?;
+		}
+		for _ in 0..aead::AES_256_GCM.tag_len() {
+			encrypted_seed.pop();
+		}
 
-		Ok(WalletSeed::from_bytes(&decrypted_data))
+		Ok(WalletSeed::from_bytes(&encrypted_seed))
 	}
 }
 

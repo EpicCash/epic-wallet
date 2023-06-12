@@ -15,24 +15,31 @@
 //! Epic wallet command-line function implementations
 
 use crate::api::TLSConfig;
-use crate::config::{TorConfig, WalletConfig, WALLET_CONFIG_FILE_NAME};
+use crate::config::{EpicboxConfig, TorConfig, WalletConfig, WALLET_CONFIG_FILE_NAME};
 use crate::core::{core, global};
 use crate::error::{Error, ErrorKind};
-use crate::impls::{create_sender, KeybaseAllChannels, SlateGetter as _, SlateReceiver as _};
+
+use crate::impls::{
+	create_sender, EpicboxChannel, EpicboxListenChannel, KeybaseAllChannels, SlateGetter as _,
+	SlateReceiver as _,
+};
 use crate::impls::{EmojiSlate, PathToSlate, SlatePutter};
 use crate::keychain;
 use crate::libwallet::{
 	self, address, InitTxArgs, IssueInvoiceTxArgs, NodeClient, PaymentProof, WalletInst,
 	WalletLCProvider,
 };
+
 use crate::util::secp::key::SecretKey;
 use crate::util::{to_hex, Mutex, ZeroingString};
 use crate::{controller, display};
+
 use serde_json as json;
 use std::fs::File;
 use std::io::{Read, Write};
 use std::sync::Arc;
 use std::thread;
+
 use std::time::Duration;
 use uuid::Uuid;
 
@@ -84,6 +91,7 @@ where
 		None,
 		None,
 		None,
+		None,
 	)?;
 	p.create_wallet(
 		None,
@@ -129,6 +137,7 @@ pub fn listen<L, C, K>(
 	keychain_mask: Arc<Mutex<Option<SecretKey>>>,
 	config: &WalletConfig,
 	tor_config: &TorConfig,
+	epicbox_config: &EpicboxConfig,
 	args: &ListenArgs,
 	g_args: &GlobalArgs,
 ) -> Result<(), Error>
@@ -146,16 +155,42 @@ where
 			tor_config.use_tor_listener,
 		),
 		"keybase" => {
-			KeybaseAllChannels::new()?.listen(wallet.clone(), keychain_mask, config.clone())
+			KeybaseAllChannels::new()?.listen(wallet.clone(), keychain_mask.clone(), config.clone())
+		}
+		"epicbox" => {
+			let mut reconnections = 0;
+			loop {
+				let listener = EpicboxListenChannel::new()?.listen(
+					wallet.clone(),
+					keychain_mask.clone(),
+					epicbox_config.clone(),
+					&mut reconnections,
+				);
+				warn!("try to reconnect to epicbox");
+				match listener {
+					Err(e) => {
+						error!("Error in listener loop ({})", e);
+					}
+					Ok(_) => (),
+				}
+				if reconnections >= 5 {
+					break;
+				}
+				let duration = std::time::Duration::from_secs(20);
+				std::thread::sleep(duration);
+			}
+			return Err(ErrorKind::EpicboxReconnectLimit.into());
 		}
 		method => {
 			return Err(ErrorKind::ArgumentError(format!(
-				"No listener for method \"{}\".",
-				method
+				"No listener for method {}",
+				method.clone()
 			))
 			.into());
 		}
 	};
+
+	debug!("{}", args.method.clone());
 
 	if let Err(e) = res {
 		return Err(ErrorKind::LibWallet(e.kind(), e.cause_string()).into());
@@ -168,6 +203,7 @@ pub fn owner_api<L, C, K>(
 	keychain_mask: Option<SecretKey>,
 	config: &WalletConfig,
 	tor_config: &TorConfig,
+	epicbox_config: &EpicboxConfig,
 	g_args: &GlobalArgs,
 ) -> Result<(), Error>
 where
@@ -186,6 +222,7 @@ where
 		g_args.tls_conf.clone(),
 		config.owner_api_include_foreign.clone(),
 		Some(tor_config.clone()),
+		Some(epicbox_config.clone()),
 	);
 	if let Err(e) = res {
 		return Err(ErrorKind::LibWallet(e.kind(), e.cause_string()).into());
@@ -258,6 +295,7 @@ pub fn send<L, C, K>(
 	wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K>>>>,
 	keychain_mask: Option<&SecretKey>,
 	tor_config: Option<TorConfig>,
+	epicbox_config: Option<EpicboxConfig>,
 	args: SendArgs,
 	dark_scheme: bool,
 ) -> Result<(), Error>
@@ -344,8 +382,23 @@ where
 						Ok(())
 					})?;
 				}
+				"epicbox" => {
+					let epicbox_channel = Box::new(EpicboxChannel::new(&args.dest, epicbox_config))
+						.expect("error starting epicbox");
+
+					let km = match keychain_mask.as_ref() {
+						None => None,
+						Some(&m) => Some(m.to_owned()),
+					};
+					slate = epicbox_channel.send(wallet, km, &slate)?;
+
+					api.tx_lock_outputs(m, &slate, 0)?;
+
+					return Ok(());
+				}
 				method => {
 					let sender = create_sender(method, &args.dest, tor_config)?;
+
 					slate = sender.send_tx(&slate)?;
 					api.tx_lock_outputs(m, &slate, 0)?;
 				}
@@ -928,8 +981,15 @@ where
 		// Just address at derivation index 0 for now
 		let pub_key = api.get_public_proof_address(m, 0)?;
 		let result = address::onion_v3_from_pubkey(&pub_key);
+
+		let address = api.get_public_address(m, 0)?;
+
 		match result {
 			Ok(a) => {
+				println!();
+				println!("Address for account - {}", g_args.account);
+				println!("-------------------------------------");
+				println!("{}", address.public_key);
 				println!();
 				println!("Public Proof Address for account - {}", g_args.account);
 				println!("-------------------------------------");

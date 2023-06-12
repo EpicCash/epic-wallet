@@ -67,10 +67,7 @@ pub trait OwnerRpc: Sync + Send {
 	# , false, 4, false, false, false, false);
 	```
 	*/
-	#[deprecated(
-		since = "3.0.0",
-		note = "The V2 Owner API (OwnerRpc) will be removed in epic-wallet 4.0.0. Please migrate to the V3 (OwnerRpcS) API as soon as possible."
-	)]
+
 	fn accounts(&self) -> Result<Vec<AcctPathMapping>, ErrorKind>;
 
 	/**
@@ -1602,7 +1599,7 @@ pub fn run_doctest_owner(
 		);
 	}
 
-	let mut api_owner = Owner::new(wallet1);
+	let mut api_owner = Owner::new(wallet1, None);
 	api_owner.doctest_mode = true;
 	let res = if use_token {
 		let owner_api = &api_owner as &dyn OwnerRpcS;

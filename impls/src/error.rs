@@ -94,6 +94,15 @@ pub enum ErrorKind {
 	/// Other
 	#[fail(display = "Generic error: {}", _0)]
 	GenericError(String),
+
+	#[fail(display = "Epicbox Error {}", _0)]
+	EpicboxTungstenite(String),
+
+	#[fail(display = "No listener on {}", 0)]
+	NoListener(String),
+
+	#[fail(display = "Epicbox websocket terminated unexpectedly")]
+	EpicboxWebsocketAbnormalTermination,
 }
 
 impl Fail for Error {
@@ -204,5 +213,13 @@ impl From<sqlite::Error> for Error {
 impl From<Error> for libwallet::Error {
 	fn from(error: Error) -> libwallet::Error {
 		libwallet::Error::from(libwallet::ErrorKind::GenericError(format!("{}", error)))
+	}
+}
+
+impl From<tungstenite::Error> for Error {
+	fn from(error: tungstenite::Error) -> Error {
+		Error {
+			inner: Context::new(ErrorKind::EpicboxTungstenite(format!("{}", error))),
+		}
 	}
 }

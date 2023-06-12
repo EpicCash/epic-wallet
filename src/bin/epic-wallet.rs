@@ -24,7 +24,6 @@ use crate::util::init_logger;
 use clap::App;
 use epic_wallet::cmd;
 use epic_wallet_config as config;
-use epic_wallet_impls::HTTPNodeClient;
 use epic_wallet_util::epic_core as core;
 use epic_wallet_util::epic_util as util;
 use std::env;
@@ -93,6 +92,7 @@ fn real_main() -> i32 {
 	// special cases for certain lifecycle commands
 	match args.subcommand() {
 		("init", Some(init_args)) => {
+			// Use current working directory as the top wallet data directory
 			if init_args.is_present("here") {
 				current_dir = Some(env::current_dir().unwrap_or_else(|e| {
 					panic!("Error creating config file: {}", e);
@@ -107,8 +107,6 @@ fn real_main() -> i32 {
 	let mut config = config::initial_setup_wallet(&chain_type, current_dir).unwrap_or_else(|e| {
 		panic!("Error loading wallet configuration: {}", e);
 	});
-
-	//config.members.as_mut().unwrap().wallet.chain_type = Some(chain_type);
 
 	// Load logging config
 	let l = config.members.as_mut().unwrap().logging.clone().unwrap();
@@ -132,8 +130,5 @@ fn real_main() -> i32 {
 			.clone(),
 	);
 
-	let wallet_config = config.clone().members.unwrap().wallet;
-	let node_client = HTTPNodeClient::new(&wallet_config.check_node_api_http_addr, None);
-
-	cmd::wallet_command(&args, config, node_client)
+	cmd::wallet_command(&args, config)
 }

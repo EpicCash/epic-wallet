@@ -107,6 +107,9 @@ pub enum ErrorKind {
 	/// Other
 	#[fail(display = "Generic error: {}", _0)]
 	GenericError(String),
+
+	#[fail(display = "Too many unsuccessful attempts at reconnection")]
+	EpicboxReconnectLimit,
 }
 
 impl Fail for Error {
