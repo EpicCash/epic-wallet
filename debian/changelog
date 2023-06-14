@@ -1,3 +1,13 @@
+epic-wallet (3.3.2) focal; urgency=high
+
+  [ Epic Team ]
+  * New Transaction method "epicbox" with public epic address
+  * Update ring to 0.16.x
+  * Fix bug, where owner_api threads are not closed
+  * Epicbox Protocol V2
+
+ -- Epic Team <admin@epic.tech>  Wed, 14 June 2023 12:00:00 +0000
+
 epic-wallet (3.3.2) bionic; urgency=medium
 
   [ Epic Team ]
@@ -8,6 +18,8 @@ epic-wallet (3.3.2) bionic; urgency=medium
   * Fix for Rust warnings
   * New readme
   * LMDB to SQLite interface
+
+ -- Epic Team <admin@epic.tech>  Mon, 23 Jan 2023 12:00:00 +0000
 
 epic-wallet (3.2.2~alpha-1) UNRELEASED; urgency=medium
 
