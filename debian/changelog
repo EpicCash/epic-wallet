@@ -1,4 +1,4 @@
-epic-wallet (3.3.2) focal; urgency=high
+epic-wallet (3.4.0) focal; urgency=high
 
   [ Epic Team ]
   * New Transaction method "epicbox" with public epic address
@@ -6,7 +6,7 @@ epic-wallet (3.3.2) focal; urgency=high
   * Fix bug, where owner_api threads are not closed
   * Epicbox Protocol V2
 
- -- Epic Team <admin@epic.tech>  Wed, 14 June 2023 12:00:00 +0000
+ -- Epic Team <admin@epic.tech>  Wed, 14 Jun 2023 12:00:00 +0000
 
 epic-wallet (3.3.2) bionic; urgency=medium
 
