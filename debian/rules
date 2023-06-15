@@ -23,7 +23,7 @@ binary binary-arch binary-indep: build/stamp debian/control
 	@set -e
 	dh_testroot
 	dh_prep
-	cargo install --path . --root $(ROOTDIR)/usr/
+	cargo install --locked --path . --root $(ROOTDIR)/usr/
 	strip $(ROOTDIR)/usr/bin/epic-wallet
 	rm $(ROOTDIR)/usr/.crates.toml
 	rm $(ROOTDIR)/usr/.crates2.json
@@ -34,4 +34,4 @@ binary binary-arch binary-indep: build/stamp debian/control
 	dh_installdeb
 	dh_gencontrol
 	dh_md5sums
-	dh_builddeb --destdir ./release/epic_wallet/
+	dh_builddeb --destdir .
