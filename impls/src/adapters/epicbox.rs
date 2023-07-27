@@ -146,7 +146,7 @@ impl EpicboxListenChannel {
 
 			let address = EpicboxAddress::new(
 				pub_key.clone(),
-				Some(epicbox_config.epicbox_domain.clone()),
+				epicbox_config.epicbox_domain.clone(),
 				epicbox_config.epicbox_port,
 			);
 
@@ -283,7 +283,7 @@ where
 
 		let address = EpicboxAddress::new(
 			pub_key.clone(),
-			Some(config.epicbox_domain.clone()),
+			config.epicbox_domain.clone(),
 			config.epicbox_port,
 		);
 		(address, sec_key)

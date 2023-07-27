@@ -190,7 +190,7 @@ where
 		running_foreign = true;
 	}
 
-	let api_handler_v2 = OwnerAPIHandlerV2::new(wallet.clone());
+	let api_handler_v2 = OwnerAPIHandlerV2::new(wallet.clone(), epicbox_config.clone());
 	let api_handler_v3 = OwnerAPIHandlerV3::new(
 		wallet.clone(),
 		keychain_mask.clone(),
@@ -292,6 +292,9 @@ where
 {
 	/// Wallet instance
 	pub wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K> + 'static>>>,
+
+	// Epicbox config to passthrough to API
+	pub epicbox_config: Option<EpicboxConfig>,
 }
 
 impl<L, C, K> OwnerAPIHandlerV2<L, C, K>
@@ -303,8 +306,12 @@ where
 	/// Create a new owner API handler for GET methods
 	pub fn new(
 		wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K> + 'static>>>,
+		epicbox_config: Option<EpicboxConfig>,
 	) -> OwnerAPIHandlerV2<L, C, K> {
-		OwnerAPIHandlerV2 { wallet }
+		OwnerAPIHandlerV2 {
+			wallet,
+			epicbox_config,
+		}
 	}
 
 	fn call_api(
@@ -312,6 +319,7 @@ where
 		req: Request<Body>,
 		api: Owner<L, C, K>,
 	) -> Box<dyn Future<Item = serde_json::Value, Error = Error> + Send> {
+		api.set_epicbox_config(self.epicbox_config.clone());
 		Box::new(parse_body(req).and_then(move |val: serde_json::Value| {
 			let owner_api = &api as &dyn OwnerRpc;
 			match owner_api.handle_request(val) {
