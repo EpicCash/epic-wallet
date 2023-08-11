@@ -42,7 +42,7 @@ pub enum AddressType {
 pub struct EpicboxAddress {
 	pub public_key: String,
 	pub domain: String,
-	pub port: Option<u16>,
+	pub port: u16,
 }
 
 pub trait Address: Debug + Display {
@@ -58,7 +58,7 @@ impl EpicboxAddress {
 		Self {
 			public_key: public_key.to_base58_check(version_bytes()),
 			domain: domain.unwrap_or(DEFAULT_EPICBOX_DOMAIN.to_string()),
-			port,
+			port: port.unwrap_or(443),
 		}
 	}
 
@@ -83,6 +83,11 @@ impl Address for EpicboxAddress {
 			.name("port")
 			.map(|m| u16::from_str_radix(m.as_str(), 10).unwrap());
 
+		warn!(
+			">>> Parsing regex capture: pubkey({:?}),domain({:?}),port({:?})",
+			public_key, domain, port
+		);
+
 		let public_key = PublicKey::from_base58_check(&public_key, version_bytes())?;
 
 		Ok(EpicboxAddress::new(public_key, domain, port))
@@ -100,12 +105,10 @@ impl Address for EpicboxAddress {
 impl Display for EpicboxAddress {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		write!(f, "{}", self.public_key)?;
-		if self.domain != DEFAULT_EPICBOX_DOMAIN
-			|| (self.port.is_some() && self.port.unwrap() != DEFAULT_EPICBOX_PORT_443)
-		{
+		if self.domain != DEFAULT_EPICBOX_DOMAIN || self.port != DEFAULT_EPICBOX_PORT_443 {
 			write!(f, "@{}", self.domain)?;
-			if self.port.is_some() && self.port.unwrap() != DEFAULT_EPICBOX_PORT_443 {
-				write!(f, ":{}", self.port.unwrap())?;
+			if self.port != DEFAULT_EPICBOX_PORT_443 {
+				write!(f, ":{}", self.port)?;
 			}
 		}
 		Ok(())
