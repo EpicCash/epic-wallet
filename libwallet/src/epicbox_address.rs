@@ -83,11 +83,6 @@ impl Address for EpicboxAddress {
 			.name("port")
 			.map(|m| u16::from_str_radix(m.as_str(), 10).unwrap());
 
-		warn!(
-			">>> Parsing regex capture: pubkey({:?}),domain({:?}),port({:?})",
-			public_key, domain, port
-		);
-
 		let public_key = PublicKey::from_base58_check(&public_key, version_bytes())?;
 
 		Ok(EpicboxAddress::new(public_key, domain, port))

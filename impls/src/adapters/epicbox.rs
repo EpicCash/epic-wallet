@@ -237,7 +237,6 @@ impl EpicboxChannel {
 
 		let vslate = VersionedSlate::into_version(slate.clone(), SlateVersion::V2);
 
-		warn!("<<<< in EpicboxChannel::send, dest({:?})", self.dest);
 		let _ = container
 			.lock()
 			.listener(ListenerInterface::Epicbox)
@@ -335,9 +334,7 @@ impl Listener for EpicboxListener {
 	}
 	/// post slate
 	fn publish(&self, slate: &VersionedSlate, to: &String) -> Result<(), Error> {
-		warn!(">>> in Listener::publish");
 		let address = EpicboxAddress::from_str(to)?;
-		warn!(">>> EboxAddr({:?})", address);
 		self.publisher.post_slate(slate, &address, true)
 	}
 
@@ -373,9 +370,6 @@ impl Publisher for EpicboxPublisher {
 		to: &EpicboxAddress,
 		close_connection: bool,
 	) -> Result<(), Error> {
-		warn!(">>>> in Publisher::post_slate");
-		//		let to = EpicboxAddress::from_str(&to.to_string())?;
-		warn!(">>>> to({:?}), self.addr({:?})", to, self.address);
 		self.broker
 			.post_slate(slate, &to, &self.address, &self.secret_key)?;
 		if close_connection {
