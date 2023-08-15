@@ -105,11 +105,9 @@ impl Address for EpicboxAddress {
 impl Display for EpicboxAddress {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		write!(f, "{}", self.public_key)?;
-		if self.domain != DEFAULT_EPICBOX_DOMAIN || self.port != DEFAULT_EPICBOX_PORT_443 {
-			write!(f, "@{}", self.domain)?;
-			if self.port != DEFAULT_EPICBOX_PORT_443 {
-				write!(f, ":{}", self.port)?;
-			}
+		write!(f, "@{}", self.domain)?;
+		if self.port != DEFAULT_EPICBOX_PORT_443 {
+			write!(f, ":{}", self.port)?;
 		}
 		Ok(())
 	}
