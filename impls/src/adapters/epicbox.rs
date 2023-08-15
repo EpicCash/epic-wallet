@@ -22,10 +22,7 @@ use crate::libwallet::message::EncryptedMessage;
 use crate::util::secp::key::PublicKey;
 
 use crate::libwallet::wallet_lock;
-use crate::libwallet::{
-	address, Address, AddressType, EpicboxAddress, TxProof, DEFAULT_EPICBOX_PORT_443,
-	DEFAULT_EPICBOX_PORT_80,
-};
+use crate::libwallet::{address, Address, EpicboxAddress, TxProof};
 use crate::libwallet::{NodeClient, WalletInst, WalletLCProvider};
 
 use crate::Error;
