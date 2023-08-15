@@ -58,7 +58,7 @@ impl EpicboxAddress {
 		Self {
 			public_key: public_key.to_base58_check(version_bytes()),
 			domain: domain.unwrap_or(DEFAULT_EPICBOX_DOMAIN.to_string()),
-			port: port.unwrap_or(443),
+			port: port.unwrap_or(DEFAULT_EPICBOX_PORT_443),
 		}
 	}
 
