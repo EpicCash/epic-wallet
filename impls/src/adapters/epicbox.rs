@@ -234,12 +234,15 @@ impl EpicboxChannel {
 
 		let vslate = VersionedSlate::into_version(slate.clone(), SlateVersion::V2);
 
-		let _ = container
+		let _ = match container
 			.lock()
 			.listener(ListenerInterface::Epicbox)
 			.unwrap()
 			.publish(&vslate, &self.dest)
-			.unwrap();
+		{
+			Ok(_) => (),
+			Err(e) => return Err(e),
+		};
 
 		let slate: Slate = VersionedSlate::into_version(slate.clone(), SlateVersion::V2).into();
 		Ok(slate)
@@ -538,10 +541,6 @@ where
 				amount_to_hr_string(slate.amount, false)
 			);
 		};
-
-		/*if from.address_type() == AddressType::Epicbox {
-			EpicboxAddress::from_str(&from.to_string()).expect("invalid epicbox address");
-		}*/
 
 		let result = self
 			.process_incoming_slate(Some(from.to_string()), &mut slate, tx_proof)
