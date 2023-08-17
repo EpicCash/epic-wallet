@@ -22,10 +22,7 @@ use crate::libwallet::message::EncryptedMessage;
 use crate::util::secp::key::PublicKey;
 
 use crate::libwallet::wallet_lock;
-use crate::libwallet::{
-	address, Address, AddressType, EpicboxAddress, TxProof, DEFAULT_EPICBOX_PORT_443,
-	DEFAULT_EPICBOX_PORT_80,
-};
+use crate::libwallet::{address, Address, EpicboxAddress, TxProof};
 use crate::libwallet::{NodeClient, WalletInst, WalletLCProvider};
 
 use crate::Error;
@@ -155,16 +152,8 @@ impl EpicboxListenChannel {
 		let url = {
 			let cloned_address = address.clone();
 			match epicbox_config.epicbox_protocol_unsecure.unwrap_or(false) {
-				true => format!(
-					"ws://{}:{}",
-					cloned_address.domain,
-					cloned_address.port.unwrap_or(DEFAULT_EPICBOX_PORT_80)
-				),
-				false => format!(
-					"wss://{}:{}",
-					cloned_address.domain,
-					cloned_address.port.unwrap_or(DEFAULT_EPICBOX_PORT_443)
-				),
+				true => format!("ws://{}:{}", cloned_address.domain, cloned_address.port),
+				false => format!("wss://{}:{}", cloned_address.domain, cloned_address.port),
 			}
 		};
 		let (tx, _rx): (Sender<bool>, Receiver<bool>) = channel();
@@ -293,16 +282,8 @@ where
 	let url = {
 		let cloned_address = address.clone();
 		match config.epicbox_protocol_unsecure.unwrap_or(false) {
-			true => format!(
-				"ws://{}:{}",
-				cloned_address.domain,
-				cloned_address.port.unwrap_or(DEFAULT_EPICBOX_PORT_80)
-			),
-			false => format!(
-				"wss://{}:{}",
-				cloned_address.domain,
-				cloned_address.port.unwrap_or(DEFAULT_EPICBOX_PORT_443)
-			),
+			true => format!("ws://{}:{}", cloned_address.domain, cloned_address.port),
+			false => format!("wss://{}:{}", cloned_address.domain, cloned_address.port),
 		}
 	};
 	debug!("Connecting to the epicbox server at {} ..", url.clone());
@@ -385,10 +366,9 @@ impl Publisher for EpicboxPublisher {
 	fn post_slate(
 		&self,
 		slate: &VersionedSlate,
-		to: &dyn Address,
+		to: &EpicboxAddress,
 		close_connection: bool,
 	) -> Result<(), Error> {
-		let to = EpicboxAddress::from_str(&to.to_string())?;
 		self.broker
 			.post_slate(slate, &to, &self.address, &self.secret_key)?;
 		if close_connection {
@@ -525,7 +505,7 @@ where
 	}
 }
 pub trait SubscriptionHandler: Send {
-	fn on_slate(&self, from: &dyn Address, slate: &VersionedSlate, proof: Option<&mut TxProof>);
+	fn on_slate(&self, from: &EpicboxAddress, slate: &VersionedSlate, proof: Option<&mut TxProof>);
 	fn on_close(&self, result: CloseReason);
 }
 
@@ -536,7 +516,12 @@ where
 	C: NodeClient + 'static,
 	K: Keychain + 'static,
 {
-	fn on_slate(&self, from: &dyn Address, slate: &VersionedSlate, tx_proof: Option<&mut TxProof>) {
+	fn on_slate(
+		&self,
+		from: &EpicboxAddress,
+		slate: &VersionedSlate,
+		tx_proof: Option<&mut TxProof>,
+	) {
 		let version = slate.version();
 		let mut slate: Slate = slate.clone().into();
 
@@ -555,10 +540,6 @@ where
 				amount_to_hr_string(slate.amount, false)
 			);
 		};
-
-		if from.address_type() == AddressType::Epicbox {
-			EpicboxAddress::from_str(&from.to_string()).expect("invalid epicbox address");
-		}
 
 		let result = self
 			.process_incoming_slate(Some(from.to_string()), &mut slate, tx_proof)
@@ -627,7 +608,7 @@ pub trait Publisher: Send {
 	fn post_slate(
 		&self,
 		slate: &VersionedSlate,
-		to: &dyn Address,
+		to: &EpicboxAddress,
 		close_connection: bool,
 	) -> Result<(), Error>;
 }
