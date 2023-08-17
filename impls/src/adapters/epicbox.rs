@@ -238,11 +238,10 @@ impl EpicboxChannel {
 			.lock()
 			.listener(ListenerInterface::Epicbox)
 			.unwrap()
-			.publish(&vslate, &self.dest)
-		{
-			Ok(_) => (),
-			Err(e) => return Err(e),
-		};
+			.publish(&vslate, &self.dest) {
+				Ok(_) => (),
+				Err(e) => return Err(e)
+			};
 
 		let slate: Slate = VersionedSlate::into_version(slate.clone(), SlateVersion::V2).into();
 		Ok(slate)
