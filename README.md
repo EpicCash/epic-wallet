@@ -3,6 +3,7 @@
 [![Documentation Wiki](https://img.shields.io/badge/doc-wiki-blue.svg)](https://github.com/EpicCash/documentation/wiki)
 [![Release Version](https://img.shields.io/github/release/EpicCash/epic-wallet.svg)](https://github.com/EpicCash/epic-wallet/releases/)
 [![License](https://img.shields.io/github/license/EpicCash/epic-wallet.svg)](https://github.com/EpicCash/epic-wallet/blob/master/LICENSE)
+[![Epic Wallet Master Branch Build Status](https://github.com/EpicCash/epic-wallet/actions/workflows/epic-wallet-master-branch.yml/badge.svg)](https://github.com/EpicCash/epic-wallet/actions/workflows/epic-wallet-master-branch.yml)
 
 This is the implementation of the Epic Wallet.
 
