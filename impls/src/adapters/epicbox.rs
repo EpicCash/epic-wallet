@@ -22,7 +22,9 @@ use crate::libwallet::message::EncryptedMessage;
 use crate::util::secp::key::PublicKey;
 
 use crate::libwallet::wallet_lock;
-use crate::libwallet::{address, Address, EpicboxAddress, TxProof};
+use crate::libwallet::{
+	address, Address, EpicboxAddress, TxProof, DEFAULT_EPICBOX_PORT_443, DEFAULT_EPICBOX_PORT_80,
+};
 use crate::libwallet::{NodeClient, WalletInst, WalletLCProvider};
 
 use crate::Error;
@@ -152,8 +154,16 @@ impl EpicboxListenChannel {
 		let url = {
 			let cloned_address = address.clone();
 			match epicbox_config.epicbox_protocol_unsecure.unwrap_or(false) {
-				true => format!("ws://{}:{}", cloned_address.domain, cloned_address.port),
-				false => format!("wss://{}:{}", cloned_address.domain, cloned_address.port),
+				true => format!(
+					"ws://{}:{}",
+					cloned_address.domain,
+					cloned_address.port.unwrap_or(DEFAULT_EPICBOX_PORT_80)
+				),
+				false => format!(
+					"wss://{}:{}",
+					cloned_address.domain,
+					cloned_address.port.unwrap_or(DEFAULT_EPICBOX_PORT_443)
+				),
 			}
 		};
 		let (tx, _rx): (Sender<bool>, Receiver<bool>) = channel();
@@ -238,10 +248,11 @@ impl EpicboxChannel {
 			.lock()
 			.listener(ListenerInterface::Epicbox)
 			.unwrap()
-			.publish(&vslate, &self.dest) {
-				Ok(_) => (),
-				Err(e) => return Err(e)
-			};
+			.publish(&vslate, &self.dest)
+		{
+			Ok(_) => (),
+			Err(e) => return Err(e),
+		};
 
 		let slate: Slate = VersionedSlate::into_version(slate.clone(), SlateVersion::V2).into();
 		Ok(slate)
@@ -282,8 +293,16 @@ where
 	let url = {
 		let cloned_address = address.clone();
 		match config.epicbox_protocol_unsecure.unwrap_or(false) {
-			true => format!("ws://{}:{}", cloned_address.domain, cloned_address.port),
-			false => format!("wss://{}:{}", cloned_address.domain, cloned_address.port),
+			true => format!(
+				"ws://{}:{}",
+				cloned_address.domain,
+				cloned_address.port.unwrap_or(DEFAULT_EPICBOX_PORT_80)
+			),
+			false => format!(
+				"wss://{}:{}",
+				cloned_address.domain,
+				cloned_address.port.unwrap_or(DEFAULT_EPICBOX_PORT_443)
+			),
 		}
 	};
 	debug!("Connecting to the epicbox server at {} ..", url.clone());

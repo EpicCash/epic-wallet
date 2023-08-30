@@ -42,7 +42,7 @@ pub enum AddressType {
 pub struct EpicboxAddress {
 	pub public_key: String,
 	pub domain: String,
-	pub port: u16,
+	pub port: Option<u16>,
 }
 
 pub trait Address: Debug + Display {
@@ -58,7 +58,7 @@ impl EpicboxAddress {
 		Self {
 			public_key: public_key.to_base58_check(version_bytes()),
 			domain: domain.unwrap_or(DEFAULT_EPICBOX_DOMAIN.to_string()),
-			port: port.unwrap_or(DEFAULT_EPICBOX_PORT_443),
+			port: port,
 		}
 	}
 
@@ -101,9 +101,10 @@ impl Display for EpicboxAddress {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		write!(f, "{}", self.public_key)?;
 		write!(f, "@{}", self.domain)?;
-		if self.port != DEFAULT_EPICBOX_PORT_443 {
-			write!(f, ":{}", self.port)?;
+		if self.port.is_some() && self.port.unwrap() != DEFAULT_EPICBOX_PORT_443 {
+			write!(f, ":{}", self.port.unwrap())?;
 		}
+
 		Ok(())
 	}
 }
