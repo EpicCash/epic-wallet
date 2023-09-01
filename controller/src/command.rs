@@ -971,6 +971,7 @@ pub fn address<L, C, K>(
 	wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K>>>>,
 	g_args: &GlobalArgs,
 	keychain_mask: Option<&SecretKey>,
+	epicbox_config: EpicboxConfig,
 ) -> Result<(), Error>
 where
 	L: WalletLCProvider<'static, C, K> + 'static,
@@ -981,15 +982,18 @@ where
 		// Just address at derivation index 0 for now
 		let pub_key = api.get_public_proof_address(m, 0)?;
 		let result = address::onion_v3_from_pubkey(&pub_key);
-
 		let address = api.get_public_address(m, 0)?;
 
 		match result {
 			Ok(a) => {
 				println!();
-				println!("Address for account - {}", g_args.account);
+				println!("Epicbox address for account - {}", g_args.account);
 				println!("-------------------------------------");
-				println!("{}", address.public_key);
+				println!(
+					"{}@{}",
+					address.public_key,
+					epicbox_config.epicbox_domain.unwrap()
+				);
 				println!();
 				println!("Public Proof Address for account - {}", g_args.account);
 				println!("-------------------------------------");

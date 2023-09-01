@@ -24,6 +24,7 @@ use crate::epic_util::secp::key::SecretKey;
 use crate::epic_util::Mutex;
 
 use crate::api_impl::owner_updater::StatusMessage;
+use crate::config::EpicboxConfig;
 use crate::epic_keychain::{Identifier, Keychain};
 use crate::epic_util::secp::key::PublicKey;
 use crate::epicbox_address::EpicboxAddress;
@@ -104,6 +105,7 @@ where
 pub fn get_public_address<'a, L, C, K>(
 	wallet_inst: Arc<Mutex<Box<dyn WalletInst<'a, L, C, K>>>>,
 	keychain_mask: Option<&SecretKey>,
+	epicbox_config: EpicboxConfig,
 	index: u32,
 ) -> Result<EpicboxAddress, Error>
 where
@@ -116,8 +118,11 @@ where
 	let k = w.keychain(keychain_mask)?;
 	let sec_addr_key = address::address_from_derivation_path(&k, &parent_key_id, index)?;
 	let pub_key = PublicKey::from_secret_key(k.secp(), &sec_addr_key).unwrap();
-
-	Ok(EpicboxAddress::new(pub_key, Some("".to_string()), Some(0)))
+	Ok(EpicboxAddress::new(
+		pub_key,
+		Some(epicbox_config.epicbox_domain.unwrap()),
+		Some(epicbox_config.epicbox_port.unwrap()),
+	))
 }
 
 /// retrieve outputs
