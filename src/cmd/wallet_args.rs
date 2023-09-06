@@ -1089,7 +1089,7 @@ where
 			let a = arg_parse!(parse_verify_proof_args(&args));
 			command::proof_verify(wallet, km, a)
 		}
-		("address", Some(_)) => command::address(wallet, &global_wallet_args, km),
+		("address", Some(_)) => command::address(wallet, &global_wallet_args, km, epicbox_config),
 		("scan", Some(args)) => {
 			let a = arg_parse!(parse_check_args(&args));
 			command::scan(wallet, km, a)

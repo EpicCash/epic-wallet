@@ -2020,7 +2020,17 @@ where
 		keychain_mask: Option<&SecretKey>,
 		derivation_index: u32,
 	) -> Result<EpicboxAddress, Error> {
-		owner::get_public_address(self.wallet_inst.clone(), keychain_mask, derivation_index)
+		let epicbox_config_lock = self.epicbox_config.lock();
+		let epicbox_config = match epicbox_config_lock.clone() {
+			None => EpicboxConfig::default(),
+			Some(epicbox_config) => epicbox_config,
+		};
+		owner::get_public_address(
+			self.wallet_inst.clone(),
+			keychain_mask,
+			epicbox_config,
+			derivation_index,
+		)
 	}
 
 	/// Retrieve the public proof "addresses" associated with the active account at the
