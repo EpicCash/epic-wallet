@@ -17,12 +17,14 @@ toml = "0.4"
 dirs = "1.0.3"
 
 # For Release
-epic_core     = { git = "https://github.com/EpicCash/epic", tag = "v3.4.0" }
-epic_keychain = { git = "https://github.com/EpicCash/epic", tag = "v3.4.0" }
-epic_chain    = { git = "https://github.com/EpicCash/epic", tag = "v3.4.0" }
-epic_util     = { git = "https://github.com/EpicCash/epic", tag = "v3.4.0" }
-epic_api      = { git = "https://github.com/EpicCash/epic", tag = "v3.4.0" }
-epic_store    = { git = "https://github.com/EpicCash/epic", tag = "v3.4.0" }
+epic_core     = { git = "https://github.com/EpicCash/epic", branch = "update-deps" }
+epic_keychain = { git = "https://github.com/EpicCash/epic", branch = "update-deps" }
+epic_chain    = { git = "https://github.com/EpicCash/epic", branch = "update-deps" }
+epic_util     = { git = "https://github.com/EpicCash/epic", branch = "update-deps" }
+epic_api      = { git = "https://github.com/EpicCash/epic", branch = "update-deps" }
+epic_store    = { git = "https://github.com/EpicCash/epic", branch = "update-deps" }
+
+
 
 [dev-dependencies]
 pretty_assertions = "0.5.1"

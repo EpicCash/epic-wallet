@@ -70,7 +70,7 @@ pub enum ErrorKind {
 
 	/// Error when contacting a node through its API
 	#[fail(display = "Node API error")]
-	Node(api::ErrorKind),
+	Node(api::Error),
 
 	/// Error originating from hyper.
 	#[fail(display = "Hyper error")]
@@ -173,14 +173,14 @@ impl From<ErrorKind> for Error {
 
 impl From<Context<ErrorKind>> for Error {
 	fn from(inner: Context<ErrorKind>) -> Error {
-		Error { inner: inner }
+		Error { inner }
 	}
 }
 
 impl From<api::Error> for Error {
 	fn from(error: api::Error) -> Error {
 		Error {
-			inner: Context::new(ErrorKind::Node(error.kind().clone())),
+			inner: Context::new(ErrorKind::Node(error)),
 		}
 	}
 }
