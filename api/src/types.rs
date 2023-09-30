@@ -13,14 +13,13 @@
 
 use crate::core::libtx::secp_ser;
 use crate::libwallet::dalek_ser;
-use crate::libwallet::{Error, ErrorKind};
+use crate::libwallet::Error;
 use crate::util::secp::key::{PublicKey, SecretKey};
 
 use crate::util::from_hex;
 use crate::util::to_hex;
 use base64;
 use ed25519_dalek::PublicKey as DalekPublicKey;
-use failure::ResultExt;
 
 use serde_json::{self, Value};
 use std::collections::HashMap;
@@ -69,7 +68,7 @@ impl EncryptedBody {
 	pub fn from_json(json_in: &Value, enc_key: &SecretKey) -> Result<Self, Error> {
 		let mut to_encrypt = serde_json::to_string(&json_in)
 			.map_err(|_| {
-				ErrorKind::APIEncryption("EncryptedBody Enc: Unable to encode JSON".to_owned())
+				Error::APIEncryption("EncryptedBody Enc: Unable to encode JSON".to_owned())
 			})?
 			.as_bytes()
 			.to_vec();
@@ -85,9 +84,7 @@ impl EncryptedBody {
 			&mut to_encrypt,
 		);
 		if let Err(_) = res {
-			return Err(
-				ErrorKind::APIEncryption("EncryptedBody: encryption failed".to_owned()).into(),
-			);
+			return Err(Error::APIEncryption("EncryptedBody: encryption failed".to_owned()).into());
 		}
 
 		Ok(EncryptedBody {
@@ -98,33 +95,32 @@ impl EncryptedBody {
 
 	/// return serialize JSON self
 	pub fn as_json_value(&self) -> Result<Value, Error> {
-		let res = serde_json::to_value(self).context(ErrorKind::APIEncryption(
-			"EncryptedBody: JSON serialization failed".to_owned(),
-		))?;
+		let res = serde_json::to_value(self).map_err(|_| {
+			Error::APIEncryption("EncryptedBody: JSON serialization failed".to_owned())
+		})?;
 		Ok(res)
 	}
 
 	/// return serialized JSON self as string
 	pub fn as_json_str(&self) -> Result<String, Error> {
 		let res = self.as_json_value()?;
-		let res = serde_json::to_string(&res).context(ErrorKind::APIEncryption(
-			"EncryptedBody: JSON String serialization failed".to_owned(),
-		))?;
+		let res = serde_json::to_string(&res).map_err(|_| {
+			Error::APIEncryption("EncryptedBody: JSON String serialization failed".to_owned())
+		})?;
 		Ok(res)
 	}
 
 	/// Return original request
 	pub fn decrypt(&self, dec_key: &SecretKey) -> Result<Value, Error> {
 		let mut to_decrypt = base64::decode(&self.body_enc).map_err(|_| {
-			ErrorKind::APIEncryption(
+			Error::APIEncryption(
 				"EncryptedBody Dec: Encrypted request contains invalid Base64".to_string(),
 			)
 		})?;
-		let nonce = from_hex(self.nonce.clone()).map_err(|_| {
-			ErrorKind::APIEncryption("EncryptedBody Dec: Invalid Nonce".to_string())
-		})?;
+		let nonce = from_hex(self.nonce.clone())
+			.map_err(|_| Error::APIEncryption("EncryptedBody Dec: Invalid Nonce".to_string()))?;
 		if nonce.len() < 12 {
-			return Err(ErrorKind::APIEncryption(
+			return Err(Error::APIEncryption(
 				"EncryptedBody Dec: Invalid Nonce length".to_string(),
 			)
 			.into());
@@ -137,19 +133,16 @@ impl EncryptedBody {
 		let res =
 			opening_key.open_in_place(aead::Nonce::assume_unique_for_key(n), aad, &mut to_decrypt);
 		if let Err(_) = res {
-			return Err(
-				ErrorKind::APIEncryption("EncryptedBody: decryption failed".to_owned()).into(),
-			);
+			return Err(Error::APIEncryption("EncryptedBody: decryption failed".to_owned()).into());
 		}
 		for _ in 0..aead::AES_256_GCM.tag_len() {
 			to_decrypt.pop();
 		}
 
-		let decrypted = String::from_utf8(to_decrypt).map_err(|_| {
-			ErrorKind::APIEncryption("EncryptedBody Dec: Invalid UTF-8".to_string())
-		})?;
+		let decrypted = String::from_utf8(to_decrypt)
+			.map_err(|_| Error::APIEncryption("EncryptedBody Dec: Invalid UTF-8".to_string()))?;
 		Ok(serde_json::from_str(&decrypted)
-			.map_err(|_| ErrorKind::APIEncryption("EncryptedBody Dec: Invalid JSON".to_string()))?)
+			.map_err(|_| Error::APIEncryption("EncryptedBody Dec: Invalid JSON".to_string()))?)
 	}
 }
 
@@ -191,18 +184,18 @@ impl EncryptedRequest {
 
 	/// return serialize JSON self
 	pub fn as_json_value(&self) -> Result<Value, Error> {
-		let res = serde_json::to_value(self).context(ErrorKind::APIEncryption(
-			"EncryptedRequest: JSON serialization failed".to_owned(),
-		))?;
+		let res = serde_json::to_value(self).map_err(|_| {
+			Error::APIEncryption("EncryptedRequest: JSON serialization failed".to_owned())
+		})?;
 		Ok(res)
 	}
 
 	/// return serialized JSON self as string
 	pub fn as_json_str(&self) -> Result<String, Error> {
 		let res = self.as_json_value()?;
-		let res = serde_json::to_string(&res).context(ErrorKind::APIEncryption(
-			"EncryptedRequest: JSON String serialization failed".to_owned(),
-		))?;
+		let res = serde_json::to_string(&res).map_err(|_| {
+			Error::APIEncryption("EncryptedRequest: JSON String serialization failed".to_owned())
+		})?;
 		Ok(res)
 	}
 
@@ -240,18 +233,18 @@ impl EncryptedResponse {
 
 	/// return serialize JSON self
 	pub fn as_json_value(&self) -> Result<Value, Error> {
-		let res = serde_json::to_value(self).context(ErrorKind::APIEncryption(
-			"EncryptedResponse: JSON serialization failed".to_owned(),
-		))?;
+		let res = serde_json::to_value(self).map_err(|_| {
+			Error::APIEncryption("EncryptedResponse: JSON serialization failed".to_owned())
+		})?;
 		Ok(res)
 	}
 
 	/// return serialized JSON self as string
 	pub fn as_json_str(&self) -> Result<String, Error> {
 		let res = self.as_json_value()?;
-		let res = serde_json::to_string(&res).context(ErrorKind::APIEncryption(
-			"EncryptedResponse: JSON String serialization failed".to_owned(),
-		))?;
+		let res = serde_json::to_string(&res).map_err(|_| {
+			Error::APIEncryption("EncryptedResponse: JSON String serialization failed".to_owned())
+		})?;
 		Ok(res)
 	}
 
@@ -296,9 +289,9 @@ impl EncryptionErrorResponse {
 
 	/// return serialized JSON self
 	pub fn as_json_value(&self) -> Value {
-		let res = serde_json::to_value(self).context(ErrorKind::APIEncryption(
-			"EncryptedResponse: JSON serialization failed".to_owned(),
-		));
+		let res = serde_json::to_value(self).map_err(|_| {
+			Error::APIEncryption("EncryptedResponse: JSON serialization failed".to_owned())
+		});
 		match res {
 			Ok(r) => r,
 			// proverbial "should never happen"
@@ -325,7 +318,7 @@ fn encrypted_request() -> Result<(), Error> {
 		let secp = secp_inst.lock();
 
 		let sec_key_bytes = from_hex(sec_key_str.to_owned()).unwrap();
-		SecretKey::from_slice(&secp, &sec_key_bytes)?
+		SecretKey::from_slice(&secp, &sec_key_bytes).unwrap()
 	};
 	let req = serde_json::json!({
 		"jsonrpc": "2.0",

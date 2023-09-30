@@ -19,7 +19,7 @@ use crate::core::core::Transaction;
 use crate::keychain::{Identifier, Keychain};
 use crate::libwallet::slate_versions::v3::TransactionV3;
 use crate::libwallet::{
-	AcctPathMapping, ErrorKind, InitTxArgs, IssueInvoiceTxArgs, NodeClient, NodeHeightResult,
+	AcctPathMapping, Error, InitTxArgs, IssueInvoiceTxArgs, NodeClient, NodeHeightResult,
 	OutputCommitMapping, Slate, SlateVersion, TxLogEntry, VersionedSlate, WalletInfo,
 	WalletLCProvider,
 };
@@ -68,7 +68,7 @@ pub trait OwnerRpc: Sync + Send {
 	```
 	*/
 
-	fn accounts(&self) -> Result<Vec<AcctPathMapping>, ErrorKind>;
+	fn accounts(&self) -> Result<Vec<AcctPathMapping>, Error>;
 
 	/**
 	Networked version of [Owner::create_account_path](struct.Owner.html#method.create_account_path).
@@ -98,7 +98,7 @@ pub trait OwnerRpc: Sync + Send {
 	# ,false, 4, false, false, false, false);
 	```
 	 */
-	fn create_account_path(&self, label: &String) -> Result<Identifier, ErrorKind>;
+	fn create_account_path(&self, label: &String) -> Result<Identifier, Error>;
 
 	/**
 	Networked version of [Owner::set_active_account](struct.Owner.html#method.set_active_account).
@@ -128,7 +128,7 @@ pub trait OwnerRpc: Sync + Send {
 	# , false, 4, false, false, false, false);
 	```
 	 */
-	fn set_active_account(&self, label: &String) -> Result<(), ErrorKind>;
+	fn set_active_account(&self, label: &String) -> Result<(), Error>;
 
 	/**
 	Networked version of [Owner::retrieve_outputs](struct.Owner.html#method.retrieve_outputs).
@@ -199,7 +199,7 @@ pub trait OwnerRpc: Sync + Send {
 		include_spent: bool,
 		refresh_from_node: bool,
 		tx_id: Option<u32>,
-	) -> Result<(bool, Vec<OutputCommitMapping>), ErrorKind>;
+	) -> Result<(bool, Vec<OutputCommitMapping>), Error>;
 
 	/**
 	Networked version of [Owner::retrieve_txs](struct.Owner.html#method.retrieve_txs).
@@ -279,7 +279,7 @@ pub trait OwnerRpc: Sync + Send {
 		refresh_from_node: bool,
 		tx_id: Option<u32>,
 		tx_slate_id: Option<Uuid>,
-	) -> Result<(bool, Vec<TxLogEntry>), ErrorKind>;
+	) -> Result<(bool, Vec<TxLogEntry>), Error>;
 
 	/**
 	Networked version of [Owner::retrieve_summary_info](struct.Owner.html#method.retrieve_summary_info).
@@ -327,7 +327,7 @@ pub trait OwnerRpc: Sync + Send {
 		&self,
 		refresh_from_node: bool,
 		minimum_confirmations: u64,
-	) -> Result<(bool, WalletInfo), ErrorKind>;
+	) -> Result<(bool, WalletInfo), Error>;
 
 	/**
 	Networked version of [Owner::init_send_tx](struct.Owner.html#method.init_send_tx).
@@ -423,7 +423,7 @@ pub trait OwnerRpc: Sync + Send {
 	```
 	*/
 
-	fn init_send_tx(&self, args: InitTxArgs) -> Result<VersionedSlate, ErrorKind>;
+	fn init_send_tx(&self, args: InitTxArgs) -> Result<VersionedSlate, Error>;
 
 	/**
 	Networked version of [Owner::issue_invoice_tx](struct.Owner.html#method.issue_invoice_tx).
@@ -507,7 +507,7 @@ pub trait OwnerRpc: Sync + Send {
 	```
 	*/
 
-	fn issue_invoice_tx(&self, args: IssueInvoiceTxArgs) -> Result<VersionedSlate, ErrorKind>;
+	fn issue_invoice_tx(&self, args: IssueInvoiceTxArgs) -> Result<VersionedSlate, Error>;
 
 	/**
 	Networked version of [Owner::process_invoice_tx](struct.Owner.html#method.process_invoice_tx).
@@ -667,7 +667,7 @@ pub trait OwnerRpc: Sync + Send {
 		&self,
 		slate: VersionedSlate,
 		args: InitTxArgs,
-	) -> Result<VersionedSlate, ErrorKind>;
+	) -> Result<VersionedSlate, Error>;
 
 	/**
 	Networked version of [Owner::tx_lock_outputs](struct.Owner.html#method.tx_lock_outputs).
@@ -751,11 +751,7 @@ pub trait OwnerRpc: Sync + Send {
 
 	```
 	 */
-	fn tx_lock_outputs(
-		&self,
-		slate: VersionedSlate,
-		participant_id: usize,
-	) -> Result<(), ErrorKind>;
+	fn tx_lock_outputs(&self, slate: VersionedSlate, participant_id: usize) -> Result<(), Error>;
 
 	/**
 	Networked version of [Owner::finalize_tx](struct.Owner.html#method.finalize_tx).
@@ -923,7 +919,7 @@ pub trait OwnerRpc: Sync + Send {
 	# , false, 5, true, true, false, false);
 	```
 	 */
-	fn finalize_tx(&self, slate: VersionedSlate) -> Result<VersionedSlate, ErrorKind>;
+	fn finalize_tx(&self, slate: VersionedSlate) -> Result<VersionedSlate, Error>;
 
 	/**
 	Networked version of [Owner::post_tx](struct.Owner.html#method.post_tx).
@@ -993,7 +989,7 @@ pub trait OwnerRpc: Sync + Send {
 	```
 	 */
 
-	fn post_tx(&self, tx: TransactionV3, fluff: bool) -> Result<(), ErrorKind>;
+	fn post_tx(&self, tx: TransactionV3, fluff: bool) -> Result<(), Error>;
 
 	/**
 	Networked version of [Owner::cancel_tx](struct.Owner.html#method.cancel_tx).
@@ -1023,7 +1019,7 @@ pub trait OwnerRpc: Sync + Send {
 	# , false, 5, true, true, false, false);
 	```
 	 */
-	fn cancel_tx(&self, tx_id: Option<u32>, tx_slate_id: Option<Uuid>) -> Result<(), ErrorKind>;
+	fn cancel_tx(&self, tx_id: Option<u32>, tx_slate_id: Option<Uuid>) -> Result<(), Error>;
 
 	/**
 	Networked version of [Owner::get_stored_tx](struct.Owner.html#method.get_stored_tx).
@@ -1122,7 +1118,7 @@ pub trait OwnerRpc: Sync + Send {
 	# , false, 5, true, true, false, false);
 	```
 	 */
-	fn get_stored_tx(&self, tx: &TxLogEntry) -> Result<Option<TransactionV3>, ErrorKind>;
+	fn get_stored_tx(&self, tx: &TxLogEntry) -> Result<Option<TransactionV3>, Error>;
 
 	/**
 	Networked version of [Owner::verify_slate_messages](struct.Owner.html#method.verify_slate_messages).
@@ -1204,7 +1200,7 @@ pub trait OwnerRpc: Sync + Send {
 	# ,false, 0 ,false, false, false, false);
 	```
 	*/
-	fn verify_slate_messages(&self, slate: VersionedSlate) -> Result<(), ErrorKind>;
+	fn verify_slate_messages(&self, slate: VersionedSlate) -> Result<(), Error>;
 
 	/**
 	Networked version of [Owner::scan](struct.Owner.html#method.scan).
@@ -1234,7 +1230,7 @@ pub trait OwnerRpc: Sync + Send {
 	# , false, 1, false, false, false, false);
 	```
 	 */
-	fn scan(&self, start_height: Option<u64>, delete_unconfirmed: bool) -> Result<(), ErrorKind>;
+	fn scan(&self, start_height: Option<u64>, delete_unconfirmed: bool) -> Result<(), Error>;
 
 	/**
 	Networked version of [Owner::node_height](struct.Owner.html#method.node_height).
@@ -1268,7 +1264,7 @@ pub trait OwnerRpc: Sync + Send {
 	# , false, 5, false, false, false, false);
 	```
 	 */
-	fn node_height(&self) -> Result<NodeHeightResult, ErrorKind>;
+	fn node_height(&self) -> Result<NodeHeightResult, Error>;
 }
 
 impl<'a, L, C, K> OwnerRpc for Owner<L, C, K>
@@ -1277,16 +1273,16 @@ where
 	C: NodeClient + 'static,
 	K: Keychain + 'static,
 {
-	fn accounts(&self) -> Result<Vec<AcctPathMapping>, ErrorKind> {
-		Owner::accounts(self, None).map_err(|e| e.kind())
+	fn accounts(&self) -> Result<Vec<AcctPathMapping>, Error> {
+		Owner::accounts(self, None)
 	}
 
-	fn create_account_path(&self, label: &String) -> Result<Identifier, ErrorKind> {
-		Owner::create_account_path(self, None, label).map_err(|e| e.kind())
+	fn create_account_path(&self, label: &String) -> Result<Identifier, Error> {
+		Owner::create_account_path(self, None, label)
 	}
 
-	fn set_active_account(&self, label: &String) -> Result<(), ErrorKind> {
-		Owner::set_active_account(self, None, label).map_err(|e| e.kind())
+	fn set_active_account(&self, label: &String) -> Result<(), Error> {
+		Owner::set_active_account(self, None, label)
 	}
 
 	fn retrieve_outputs(
@@ -1294,9 +1290,8 @@ where
 		include_spent: bool,
 		refresh_from_node: bool,
 		tx_id: Option<u32>,
-	) -> Result<(bool, Vec<OutputCommitMapping>), ErrorKind> {
+	) -> Result<(bool, Vec<OutputCommitMapping>), Error> {
 		Owner::retrieve_outputs(self, None, include_spent, refresh_from_node, false, tx_id)
-			.map_err(|e| e.kind())
 	}
 
 	fn retrieve_txs(
@@ -1304,27 +1299,26 @@ where
 		refresh_from_node: bool,
 		tx_id: Option<u32>,
 		tx_slate_id: Option<Uuid>,
-	) -> Result<(bool, Vec<TxLogEntry>), ErrorKind> {
-		Owner::retrieve_txs(self, None, refresh_from_node, tx_id, tx_slate_id).map_err(|e| e.kind())
+	) -> Result<(bool, Vec<TxLogEntry>), Error> {
+		Owner::retrieve_txs(self, None, refresh_from_node, tx_id, tx_slate_id)
 	}
 
 	fn retrieve_summary_info(
 		&self,
 		refresh_from_node: bool,
 		minimum_confirmations: u64,
-	) -> Result<(bool, WalletInfo), ErrorKind> {
+	) -> Result<(bool, WalletInfo), Error> {
 		Owner::retrieve_summary_info(self, None, refresh_from_node, minimum_confirmations)
-			.map_err(|e| e.kind())
 	}
 
-	fn init_send_tx(&self, args: InitTxArgs) -> Result<VersionedSlate, ErrorKind> {
-		let slate = Owner::init_send_tx(self, None, args).map_err(|e| e.kind())?;
+	fn init_send_tx(&self, args: InitTxArgs) -> Result<VersionedSlate, Error> {
+		let slate = Owner::init_send_tx(self, None, args)?;
 		let version = SlateVersion::V3;
 		Ok(VersionedSlate::into_version(slate, version))
 	}
 
-	fn issue_invoice_tx(&self, args: IssueInvoiceTxArgs) -> Result<VersionedSlate, ErrorKind> {
-		let slate = Owner::issue_invoice_tx(self, None, args).map_err(|e| e.kind())?;
+	fn issue_invoice_tx(&self, args: IssueInvoiceTxArgs) -> Result<VersionedSlate, Error> {
+		let slate = Owner::issue_invoice_tx(self, None, args)?;
 		let version = SlateVersion::V3;
 		Ok(VersionedSlate::into_version(slate, version))
 	}
@@ -1333,53 +1327,44 @@ where
 		&self,
 		in_slate: VersionedSlate,
 		args: InitTxArgs,
-	) -> Result<VersionedSlate, ErrorKind> {
-		let out_slate = Owner::process_invoice_tx(self, None, &Slate::from(in_slate), args)
-			.map_err(|e| e.kind())?;
+	) -> Result<VersionedSlate, Error> {
+		let out_slate = Owner::process_invoice_tx(self, None, &Slate::from(in_slate), args)?;
 		let version = SlateVersion::V3;
 		Ok(VersionedSlate::into_version(out_slate, version))
 	}
 
-	fn finalize_tx(&self, in_slate: VersionedSlate) -> Result<VersionedSlate, ErrorKind> {
-		let out_slate =
-			Owner::finalize_tx(self, None, &Slate::from(in_slate)).map_err(|e| e.kind())?;
+	fn finalize_tx(&self, in_slate: VersionedSlate) -> Result<VersionedSlate, Error> {
+		let out_slate = Owner::finalize_tx(self, None, &Slate::from(in_slate))?;
 		let version = SlateVersion::V3;
 		Ok(VersionedSlate::into_version(out_slate, version))
 	}
 
-	fn tx_lock_outputs(
-		&self,
-		slate: VersionedSlate,
-		participant_id: usize,
-	) -> Result<(), ErrorKind> {
+	fn tx_lock_outputs(&self, slate: VersionedSlate, participant_id: usize) -> Result<(), Error> {
 		Owner::tx_lock_outputs(self, None, &Slate::from(slate), participant_id)
-			.map_err(|e| e.kind())
 	}
 
-	fn cancel_tx(&self, tx_id: Option<u32>, tx_slate_id: Option<Uuid>) -> Result<(), ErrorKind> {
-		Owner::cancel_tx(self, None, tx_id, tx_slate_id).map_err(|e| e.kind())
+	fn cancel_tx(&self, tx_id: Option<u32>, tx_slate_id: Option<Uuid>) -> Result<(), Error> {
+		Owner::cancel_tx(self, None, tx_id, tx_slate_id)
 	}
 
-	fn get_stored_tx(&self, tx: &TxLogEntry) -> Result<Option<TransactionV3>, ErrorKind> {
-		Owner::get_stored_tx(self, None, tx)
-			.map(|x| x.map(|y| TransactionV3::from(y)))
-			.map_err(|e| e.kind())
+	fn get_stored_tx(&self, tx: &TxLogEntry) -> Result<Option<TransactionV3>, Error> {
+		Owner::get_stored_tx(self, None, tx).map(|x| x.map(|y| TransactionV3::from(y)))
 	}
 
-	fn post_tx(&self, tx: TransactionV3, fluff: bool) -> Result<(), ErrorKind> {
-		Owner::post_tx(self, None, &Transaction::from(tx), fluff).map_err(|e| e.kind())
+	fn post_tx(&self, tx: TransactionV3, fluff: bool) -> Result<(), Error> {
+		Owner::post_tx(self, None, &Transaction::from(tx), fluff)
 	}
 
-	fn verify_slate_messages(&self, slate: VersionedSlate) -> Result<(), ErrorKind> {
-		Owner::verify_slate_messages(self, None, &Slate::from(slate)).map_err(|e| e.kind())
+	fn verify_slate_messages(&self, slate: VersionedSlate) -> Result<(), Error> {
+		Owner::verify_slate_messages(self, None, &Slate::from(slate))
 	}
 
-	fn scan(&self, start_height: Option<u64>, delete_unconfirmed: bool) -> Result<(), ErrorKind> {
-		Owner::scan(self, None, start_height, delete_unconfirmed).map_err(|e| e.kind())
+	fn scan(&self, start_height: Option<u64>, delete_unconfirmed: bool) -> Result<(), Error> {
+		Owner::scan(self, None, start_height, delete_unconfirmed)
 	}
 
-	fn node_height(&self) -> Result<NodeHeightResult, ErrorKind> {
-		Owner::node_height(self, None).map_err(|e| e.kind())
+	fn node_height(&self) -> Result<NodeHeightResult, Error> {
+		Owner::node_height(self, None)
 	}
 }
 
