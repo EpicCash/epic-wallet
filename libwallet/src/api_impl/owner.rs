@@ -18,8 +18,6 @@ use uuid::Uuid;
 
 use crate::epic_core::core::hash::Hashed;
 use crate::epic_core::core::Transaction;
-use crate::epic_core::ser;
-use crate::epic_util;
 use crate::epic_util::secp::key::SecretKey;
 use crate::epic_util::Mutex;
 
@@ -30,13 +28,13 @@ use crate::epic_util::secp::key::PublicKey;
 use crate::epicbox_address::EpicboxAddress;
 use crate::internal::{keys, scan, selection, tx, updater};
 use crate::slate::{PaymentInfo, Slate};
-use crate::types::{AcctPathMapping, NodeClient, TxLogEntry, TxWrapper, WalletBackend, WalletInfo};
+use crate::types::{AcctPathMapping, NodeClient, TxLogEntry, WalletBackend, WalletInfo};
 use crate::{
 	address, wallet_lock, InitTxArgs, IssueInvoiceTxArgs, NodeHeightResult, OutputCommitMapping,
 	PaymentProof, ScannedBlockInfo, TxLogEntryType, WalletInitStatus, WalletInst, WalletLCProvider,
 };
 
-use crate::{Error, ErrorKind};
+use crate::Error;
 use ed25519_dalek::PublicKey as DalekPublicKey;
 use ed25519_dalek::SecretKey as DalekSecretKey;
 
@@ -240,7 +238,7 @@ where
 	K: Keychain + 'a,
 {
 	if tx_id.is_none() && tx_slate_id.is_none() {
-		return Err(ErrorKind::PaymentProofRetrieval(
+		return Err(Error::PaymentProofRetrieval(
 			"Transaction ID or Slate UUID must be specified".into(),
 		)
 		.into());
@@ -263,14 +261,14 @@ where
 		tx_slate_id,
 	)?;
 	if txs.1.len() != 1 {
-		return Err(ErrorKind::PaymentProofRetrieval("Transaction doesn't exist".into()).into());
+		return Err(Error::PaymentProofRetrieval("Transaction doesn't exist".into()).into());
 	}
 	// Pull out all needed fields, returning an error if they're not present
 	let tx = txs.1[0].clone();
 	let proof = match tx.payment_proof {
 		Some(p) => p,
 		None => {
-			return Err(ErrorKind::PaymentProofRetrieval(
+			return Err(Error::PaymentProofRetrieval(
 				"Transaction does not contain a payment proof".into(),
 			)
 			.into());
@@ -288,7 +286,7 @@ where
 	let excess = match tx.kernel_excess {
 		Some(e) => e,
 		None => {
-			return Err(ErrorKind::PaymentProofRetrieval(
+			return Err(Error::PaymentProofRetrieval(
 				"Transaction does not contain kernel excess".into(),
 			)
 			.into());
@@ -297,7 +295,7 @@ where
 	let r_sig = match proof.receiver_signature {
 		Some(e) => e,
 		None => {
-			return Err(ErrorKind::PaymentProofRetrieval(
+			return Err(Error::PaymentProofRetrieval(
 				"Proof does not contain receiver signature ".into(),
 			)
 			.into());
@@ -306,7 +304,7 @@ where
 	let s_sig = match proof.sender_signature {
 		Some(e) => e,
 		None => {
-			return Err(ErrorKind::PaymentProofRetrieval(
+			return Err(Error::PaymentProofRetrieval(
 				"Proof does not contain sender signature ".into(),
 			)
 			.into());
@@ -516,7 +514,7 @@ where
 	)?;
 	for t in &tx {
 		if t.tx_type == TxLogEntryType::TxSent {
-			return Err(ErrorKind::TransactionAlreadyReceived(ret_slate.id.to_string()).into());
+			return Err(Error::TransactionAlreadyReceived(ret_slate.id.to_string()).into());
 		}
 	}
 
@@ -628,7 +626,7 @@ where
 		status_send_channel,
 		false,
 	)? {
-		return Err(ErrorKind::TransactionCancellationError(
+		return Err(Error::TransactionCancellationError(
 			"Can't contact running Epic node. Not Cancelling.",
 		))?;
 	}
@@ -639,7 +637,7 @@ where
 
 /// get stored tx
 pub fn get_stored_tx<'a, T: ?Sized, C, K>(
-	w: &T,
+	w: &mut T,
 	entry: &TxLogEntry,
 ) -> Result<Option<Transaction>, Error>
 where
@@ -656,8 +654,8 @@ pub fn post_tx<'a, C>(client: &C, tx: &Transaction, fluff: bool) -> Result<(), E
 where
 	C: NodeClient + 'a,
 {
-	let tx_hex = epic_util::to_hex(ser::ser_vec(tx, ser::ProtocolVersion(1)).unwrap());
-	let res = client.post_tx(&TxWrapper { tx_hex }, fluff);
+	let res = client.post_tx(&tx, fluff);
+
 	if let Err(e) = res {
 		error!("api: post_tx: failed with error: {}", e);
 		Err(e)
@@ -903,7 +901,7 @@ where
 	let last_confirmed_height = w.last_confirmed_height()?;
 	if let Some(e) = slate.ttl_cutoff_height {
 		if last_confirmed_height >= e {
-			return Err(ErrorKind::TransactionExpired)?;
+			return Err(Error::TransactionExpired)?;
 		}
 	}
 	Ok(())
@@ -935,12 +933,12 @@ where
 	// Check kernel exists
 	match client.get_kernel(&proof.excess, None, None) {
 		Err(e) => {
-			return Err(ErrorKind::PaymentProof(
+			return Err(Error::PaymentProof(
 				format!("Error retrieving kernel from chain: {}", e).to_owned(),
 			))?;
 		}
 		Ok(None) => {
-			return Err(ErrorKind::PaymentProof(
+			return Err(Error::PaymentProof(
 				format!(
 					"Transaction kernel with excess {:?} not found on chain",
 					proof.excess
@@ -954,16 +952,14 @@ where
 	// Check Sigs
 	let recipient_pubkey = address::pubkey_from_onion_v3(&proof.recipient_address)?;
 	if let Err(_) = recipient_pubkey.verify(&msg, &proof.recipient_sig) {
-		return Err(ErrorKind::PaymentProof(
+		return Err(Error::PaymentProof(
 			"Invalid recipient signature".to_owned(),
 		))?;
 	};
 
 	let sender_pubkey = address::pubkey_from_onion_v3(&proof.sender_address)?;
 	if let Err(_) = sender_pubkey.verify(&msg, &proof.sender_sig) {
-		return Err(ErrorKind::PaymentProof(
-			"Invalid sender signature".to_owned(),
-		))?;
+		return Err(Error::PaymentProof("Invalid sender signature".to_owned()))?;
 	};
 
 	// for now, simple test as to whether one of the addresses belongs to this wallet
@@ -971,7 +967,7 @@ where
 	let d_skey = match DalekSecretKey::from_bytes(&sec_key.0) {
 		Ok(k) => k,
 		Err(e) => {
-			return Err(ErrorKind::ED25519Key(format!("{}", e)).to_owned())?;
+			return Err(Error::ED25519Key(format!("{}", e)).to_owned())?;
 		}
 	};
 	let my_address_pubkey: DalekPublicKey = (&d_skey).into();
@@ -982,7 +978,6 @@ where
 	Ok((sender_mine, recipient_mine))
 }
 
-/// Attempt to upda
 /// Attempt to update outputs in wallet, return whether it was successful
 fn update_outputs<'a, L, C, K>(
 	wallet_inst: Arc<Mutex<Box<dyn WalletInst<'a, L, C, K>>>>,
@@ -999,7 +994,7 @@ where
 	match updater::refresh_outputs(&mut **w, keychain_mask, &parent_key_id, update_all) {
 		Ok(_) => Ok(true),
 		Err(e) => {
-			if let ErrorKind::InvalidKeychainMask = e.kind() {
+			if let Error::InvalidKeychainMask = e {
 				return Err(e);
 			}
 			Ok(false)

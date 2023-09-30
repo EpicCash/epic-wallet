@@ -21,7 +21,7 @@ use crate::epic_util::secp::key::SecretKey;
 use crate::internal::{tx, updater};
 use crate::slate_versions::SlateVersion;
 use crate::{
-	address, BlockFees, CbData, Error, ErrorKind, NodeClient, Slate, TxLogEntryType, VersionInfo,
+	address, BlockFees, CbData, Error, NodeClient, Slate, TxLogEntryType, VersionInfo,
 	WalletBackend,
 };
 
@@ -107,7 +107,7 @@ where
 	)?;
 	for t in &tx {
 		if t.tx_type == TxLogEntryType::TxReceived {
-			return Err(ErrorKind::TransactionAlreadyReceived(ret_slate.id.to_string()).into());
+			return Err(Error::TransactionAlreadyReceived(ret_slate.id.to_string()).into());
 		}
 	}
 
@@ -132,7 +132,7 @@ where
 	tx::update_message(&mut *w, keychain_mask, &mut ret_slate)?;
 
 	let keychain = w.keychain(keychain_mask)?;
-	let excess = ret_slate.calc_excess(&keychain)?;
+	let excess = ret_slate.calc_excess(&keychain).unwrap();
 
 	if let Some(ref mut p) = ret_slate.payment_proof {
 		let sig = tx::create_payment_proof_signature(

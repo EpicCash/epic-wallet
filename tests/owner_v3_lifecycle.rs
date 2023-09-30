@@ -69,7 +69,7 @@ fn owner_v3_lifecycle() -> Result<(), epic_wallet_controller::Error> {
 		// epics into the equation
 		let client2 = LocalWalletClient::new("wallet2", wallet_proxy.tx.clone());
 		let arg_vec = vec!["epic-wallet", "-p", "password", "init", "-h"];
-		execute_command(&app, test_dir, "wallet2", &client2, arg_vec.clone())?;
+		execute_command(&app, test_dir, "wallet2", &client2, arg_vec.clone()).unwrap();
 
 		let config2 = initial_setup_wallet(test_dir, "wallet2");
 		let wallet_config2 = config2.clone().members.unwrap().wallet;
@@ -138,7 +138,7 @@ fn owner_v3_lifecycle() -> Result<(), epic_wallet_controller::Error> {
 	// We have an owner API with no wallet initialized. Init the secure API
 	let sec_key_str = "e00dcc4a009e3427c6b1e1a550c538179d46f3827a13ed74c759c860761caf1e";
 	let req = include_str!("data/v3_reqs/init_secure_api.req.json");
-	let res = send_request(1, "http://127.0.0.1:43420/v3/owner", req)?;
+	let res = send_request(1, "http://127.0.0.1:43420/v3/owner", req).unwrap();
 	println!("RES 1: {:?}", res);
 
 	assert!(res.is_ok());
@@ -153,7 +153,8 @@ fn owner_v3_lifecycle() -> Result<(), epic_wallet_controller::Error> {
 		"http://127.0.0.1:43420/v3/owner",
 		&req,
 		&shared_key,
-	)?;
+	)
+	.unwrap();
 	println!("RES 2: {:?}", res);
 	assert!(res.is_ok());
 	assert!(res.unwrap().contains("auto"));
@@ -173,7 +174,8 @@ fn owner_v3_lifecycle() -> Result<(), epic_wallet_controller::Error> {
 		"http://127.0.0.1:43420/v3/owner",
 		&req.to_string(),
 		&shared_key,
-	)?;
+	)
+	.unwrap();
 	println!("RES 3: {:?}", res);
 	assert!(res.is_ok());
 
@@ -185,7 +187,8 @@ fn owner_v3_lifecycle() -> Result<(), epic_wallet_controller::Error> {
 		"http://127.0.0.1:43420/v3/owner",
 		&req,
 		&shared_key,
-	)?;
+	)
+	.unwrap();
 	println!("RES 4: {:?}", res);
 	assert!(res.is_ok());
 	let pb = PathBuf::from(format!("{}/wallet1/epic-wallet.toml", test_dir));
@@ -199,7 +202,8 @@ fn owner_v3_lifecycle() -> Result<(), epic_wallet_controller::Error> {
 		"http://127.0.0.1:43420/v3/owner",
 		&req,
 		&shared_key,
-	)?;
+	)
+	.unwrap();
 	println!("RES 5: {:?}", res);
 	assert!(res.is_err());
 
@@ -211,7 +215,8 @@ fn owner_v3_lifecycle() -> Result<(), epic_wallet_controller::Error> {
 		"http://127.0.0.1:43420/v3/owner",
 		&req,
 		&shared_key,
-	)?;
+	)
+	.unwrap();
 	println!("RES 6: {:?}", res);
 	assert!(res.is_ok());
 
@@ -223,7 +228,8 @@ fn owner_v3_lifecycle() -> Result<(), epic_wallet_controller::Error> {
 		"http://127.0.0.1:43420/v3/owner",
 		&req,
 		&shared_key,
-	)?;
+	)
+	.unwrap();
 	println!("RES 7: {:?}", res);
 	assert!(res.is_err());
 
@@ -235,7 +241,8 @@ fn owner_v3_lifecycle() -> Result<(), epic_wallet_controller::Error> {
 		"http://127.0.0.1:43420/v3/owner",
 		&req,
 		&shared_key,
-	)?;
+	)
+	.unwrap();
 	println!("RES 8: {:?}", res);
 	assert!(res.is_ok());
 	let token = res.unwrap();
@@ -258,7 +265,8 @@ fn owner_v3_lifecycle() -> Result<(), epic_wallet_controller::Error> {
 		"http://127.0.0.1:43420/v3/owner",
 		&req.to_string(),
 		&shared_key,
-	)?;
+	)
+	.unwrap();
 	println!("RES 9: {:?}", res);
 	assert!(res.is_ok());
 
@@ -280,7 +288,8 @@ fn owner_v3_lifecycle() -> Result<(), epic_wallet_controller::Error> {
 		"http://127.0.0.1:43420/v3/owner",
 		&req.to_string(),
 		&shared_key,
-	)?;
+	)
+	.unwrap();
 	println!("RES 10: {:?}", res);
 	assert!(res.is_err());
 
@@ -292,7 +301,8 @@ fn owner_v3_lifecycle() -> Result<(), epic_wallet_controller::Error> {
 		"http://127.0.0.1:43420/v3/owner",
 		&req,
 		&shared_key,
-	)?;
+	)
+	.unwrap();
 	println!("RES 11: {:?}", res);
 	assert!(res.is_ok());
 
@@ -314,7 +324,8 @@ fn owner_v3_lifecycle() -> Result<(), epic_wallet_controller::Error> {
 		"http://127.0.0.1:43420/v3/owner",
 		&req.to_string(),
 		&shared_key,
-	)?;
+	)
+	.unwrap();
 	println!("RES 12: {:?}", res);
 	assert!(res.is_err());
 
@@ -326,7 +337,8 @@ fn owner_v3_lifecycle() -> Result<(), epic_wallet_controller::Error> {
 		"http://127.0.0.1:43420/v3/owner",
 		&req,
 		&shared_key,
-	)?;
+	)
+	.unwrap();
 	println!("RES 13: {:?}", res);
 	assert!(res.is_ok());
 	let token = res.unwrap();
@@ -348,7 +360,8 @@ fn owner_v3_lifecycle() -> Result<(), epic_wallet_controller::Error> {
 		"http://127.0.0.1:43420/v3/owner",
 		&req.to_string(),
 		&shared_key,
-	)?;
+	)
+	.unwrap();
 	println!("RES 14: {:?}", res);
 	assert!(res.is_ok());
 
@@ -373,7 +386,8 @@ fn owner_v3_lifecycle() -> Result<(), epic_wallet_controller::Error> {
 		"http://127.0.0.1:43420/v3/owner",
 		&req.to_string(),
 		&shared_key,
-	)?;
+	)
+	.unwrap();
 	println!("RES 15: {:?}", res);
 	assert!(res.is_ok());
 	let mut slate: Slate = res.unwrap().into();
@@ -395,7 +409,8 @@ fn owner_v3_lifecycle() -> Result<(), epic_wallet_controller::Error> {
 		api.tx_lock_outputs(m, &slate, 0)?;
 
 		Ok(())
-	})?;
+	})
+	.unwrap();
 
 	//16) Finalize the invoice tx (to foreign api)
 	// (Tests that foreign API on same port also has its stored mask updated)
@@ -408,7 +423,8 @@ fn owner_v3_lifecycle() -> Result<(), epic_wallet_controller::Error> {
 		}
 	});
 	let res =
-		send_request::<VersionedSlate>(1, "http://127.0.0.1:43420/v2/foreign", &req.to_string())?;
+		send_request::<VersionedSlate>(1, "http://127.0.0.1:43420/v2/foreign", &req.to_string())
+			.unwrap();
 	println!("RES 16: {:?}", res);
 	assert!(res.is_ok());
 
@@ -420,7 +436,8 @@ fn owner_v3_lifecycle() -> Result<(), epic_wallet_controller::Error> {
 		"http://127.0.0.1:43420/v3/owner",
 		&req,
 		&shared_key,
-	)?;
+	)
+	.unwrap();
 	println!("RES 17: {:?}", res);
 	assert!(res.is_ok());
 
@@ -431,7 +448,8 @@ fn owner_v3_lifecycle() -> Result<(), epic_wallet_controller::Error> {
 		"http://127.0.0.1:43420/v3/owner",
 		&req,
 		&shared_key,
-	)?;
+	)
+	.unwrap();
 	println!("RES 17a: {:?}", res);
 	assert!(res.is_ok());
 
@@ -443,7 +461,8 @@ fn owner_v3_lifecycle() -> Result<(), epic_wallet_controller::Error> {
 		"http://127.0.0.1:43420/v3/owner",
 		&req,
 		&shared_key,
-	)?;
+	)
+	.unwrap();
 	println!("RES 18: {:?}", res);
 	assert!(res.is_err());
 
@@ -463,7 +482,8 @@ fn owner_v3_lifecycle() -> Result<(), epic_wallet_controller::Error> {
 		"http://127.0.0.1:43420/v3/owner",
 		&req.to_string(),
 		&shared_key,
-	)?;
+	)
+	.unwrap();
 	println!("RES 19: {:?}", res);
 	assert!(res.is_ok());
 	let token = res.unwrap();
@@ -487,7 +507,8 @@ fn owner_v3_lifecycle() -> Result<(), epic_wallet_controller::Error> {
 		"http://127.0.0.1:43420/v3/owner",
 		&req.to_string(),
 		&shared_key,
-	)?;
+	)
+	.unwrap();
 	println!("RES 20: {:?}", res);
 
 	thread::sleep(Duration::from_millis(200));
@@ -510,7 +531,8 @@ fn owner_v3_lifecycle() -> Result<(), epic_wallet_controller::Error> {
 		"http://127.0.0.1:43420/v3/owner",
 		&req.to_string(),
 		&shared_key,
-	)?;
+	)
+	.unwrap();
 	assert!(res.is_ok());
 	println!("RES 21: {:?}", res);
 	thread::sleep(Duration::from_millis(5000));
@@ -531,7 +553,8 @@ fn owner_v3_lifecycle() -> Result<(), epic_wallet_controller::Error> {
 		"http://127.0.0.1:43420/v3/owner",
 		&req.to_string(),
 		&shared_key,
-	)?;
+	)
+	.unwrap();
 	assert!(res.is_ok());
 	println!("RES 22: {:?}", res);
 
@@ -549,7 +572,8 @@ fn owner_v3_lifecycle() -> Result<(), epic_wallet_controller::Error> {
 		"http://127.0.0.1:43420/v3/owner",
 		&req.to_string(),
 		&shared_key,
-	)?;
+	)
+	.unwrap();
 	assert!(res.is_ok());
 	println!("RES 23: {:?}", res);
 
@@ -561,7 +585,8 @@ fn owner_v3_lifecycle() -> Result<(), epic_wallet_controller::Error> {
 		"http://127.0.0.1:43420/v3/owner",
 		&req,
 		&shared_key,
-	)?;
+	)
+	.unwrap();
 	assert!(res.is_ok());
 
 	let req = include_str!("data/v3_reqs/delete_wallet.req.json");
@@ -571,7 +596,8 @@ fn owner_v3_lifecycle() -> Result<(), epic_wallet_controller::Error> {
 		"http://127.0.0.1:43420/v3/owner",
 		&req,
 		&shared_key,
-	)?;
+	)
+	.unwrap();
 	println!("RES 24: {:?}", res);
 	assert!(res.is_ok());
 
@@ -583,7 +609,8 @@ fn owner_v3_lifecycle() -> Result<(), epic_wallet_controller::Error> {
 		"http://127.0.0.1:43420/v3/owner",
 		&req,
 		&shared_key,
-	)?;
+	)
+	.unwrap();
 	println!("RES 25: {:?}", res);
 	assert!(res.is_err());
 

@@ -79,7 +79,8 @@ pub fn start_updater_log_thread(
 					StatusMessage::UpdateWarning(s) => warn!("{}", s),
 				}
 			}
-		})?;
+		})
+		.unwrap();
 
 	Ok(())
 }

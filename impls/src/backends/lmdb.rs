@@ -18,8 +18,8 @@ use crate::core::core::Transaction;
 use crate::core::ser;
 use crate::keychain::{ChildNumber, ExtKeychain, Identifier, Keychain, SwitchCommitmentType};
 use crate::libwallet::{
-	AcctPathMapping, Context, Error, ErrorKind, NodeClient, OutputData, OutputStatus,
-	ScannedBlockInfo, TxLogEntry, WalletBackend, WalletInitStatus, WalletOutputBatch,
+	AcctPathMapping, Context, Error, NodeClient, OutputData, OutputStatus, ScannedBlockInfo,
+	TxLogEntry, WalletBackend, WalletInitStatus, WalletOutputBatch,
 };
 use crate::serialization::Serializable;
 use crate::store::Error as StoreError;
@@ -71,7 +71,9 @@ fn private_ctx_xor_keys<K>(
 where
 	K: Keychain,
 {
-	let root_key = keychain.derive_key(0, &K::root_key_id(), &SwitchCommitmentType::Regular)?;
+	let root_key = keychain
+		.derive_key(0, &K::root_key_id(), &SwitchCommitmentType::Regular)
+		.unwrap();
 
 	// derive XOR values for storing secret values in DB
 	// h(root_key|slate_id|"blind")
@@ -127,7 +129,7 @@ where
 		fs::create_dir_all(&stored_tx_path)
 			.expect("Couldn't create wallet backend tx storage directory!");
 
-		let store = db::Store::new(db_path)?;
+		let store = db::Store::new(db_path).unwrap();
 
 		// Make sure default wallet derivation path always exists
 		// as well as path (so it can be retrieved by batches to know where to store
@@ -143,7 +145,9 @@ where
 
 		{
 			let batch = store.batch();
-			batch.put(&acct_key, Serializable::AcctPathMapping(default_account))?;
+			batch
+				.put(&acct_key, Serializable::AcctPathMapping(default_account))
+				.unwrap();
 		}
 
 		let res = LMDBBackend {
@@ -186,7 +190,9 @@ where
 		use_test_rng: bool,
 	) -> Result<Option<SecretKey>, Error> {
 		// store hash of master key, so it can be verified later after unmasking
-		let root_key = k.derive_key(0, &K::root_key_id(), &SwitchCommitmentType::Regular)?;
+		let root_key = k
+			.derive_key(0, &K::root_key_id(), &SwitchCommitmentType::Regular)
+			.unwrap();
 		let mut hasher = Blake2b::new(SECRET_KEY_SIZE);
 		hasher.update(&root_key.0[..]);
 		self.master_checksum = Box::new(Some(hasher.finalize()));
@@ -203,7 +209,7 @@ where
 						}
 						false => secp::key::SecretKey::new(&k.secp(), &mut thread_rng()),
 					};
-					k.mask_master_key(&mask_value)?;
+					k.mask_master_key(&mask_value).unwrap();
 					Some(mask_value)
 				}
 				false => None,
@@ -227,20 +233,21 @@ where
 			Some(k) => {
 				let mut k_masked = k.clone();
 				if let Some(m) = mask {
-					k_masked.mask_master_key(m)?;
+					k_masked.mask_master_key(m).unwrap();
 				}
 				// Check if master seed is what is expected (especially if it's been xored)
-				let root_key =
-					k_masked.derive_key(0, &K::root_key_id(), &SwitchCommitmentType::Regular)?;
+				let root_key = k_masked
+					.derive_key(0, &K::root_key_id(), &SwitchCommitmentType::Regular)
+					.unwrap();
 				let mut hasher = Blake2b::new(SECRET_KEY_SIZE);
 				hasher.update(&root_key.0[..]);
 				if *self.master_checksum != Some(hasher.finalize()) {
 					error!("Supplied keychain mask is invalid");
-					return Err(ErrorKind::InvalidKeychainMask.into());
+					return Err(Error::InvalidKeychainMask.into());
 				}
 				Ok(k_masked)
 			}
-			None => Err(ErrorKind::KeychainDoesntExist.into()),
+			None => Err(Error::KeychainDoesntExist.into()),
 		}
 	}
 
@@ -263,7 +270,8 @@ where
 		} else {*/
 		Ok(Some(util::to_hex(
 			self.keychain(keychain_mask)?
-				.commit(amount, &id, &SwitchCommitmentType::Regular)?
+				.commit(amount, &id, &SwitchCommitmentType::Regular)
+				.unwrap()
 				.0
 				.to_vec(), // TODO: proper support for different switch commitment schemes
 		)))
@@ -279,7 +287,7 @@ where
 			self.set_parent_key_id(a.path);
 			Ok(())
 		} else {
-			return Err(ErrorKind::UnknownAccountLabel(label.clone()).into());
+			return Err(Error::UnknownAccountLabel(label.clone()).into());
 		}
 	}
 
@@ -301,7 +309,7 @@ where
 		Ok(self
 			.db
 			.get_ser(&key)
-			.ok_or(StoreError::NotFoundErr(format!("Key Id: {}", id)))?
+			.ok_or(Error::NotFoundErr(format!("Key Id: {}", id)))?
 			.as_output_data()
 			.unwrap())
 	}
@@ -364,7 +372,7 @@ where
 		let mut ctx = self
 			.db
 			.get(&ctx_key)
-			.ok_or(StoreError::NotFoundErr(format!(
+			.ok_or(Error::NotFoundErr(format!(
 				"Slate id: {:x?}",
 				slate_id.to_vec()
 			)))?
@@ -408,10 +416,10 @@ where
 			.join(TX_SAVE_DIR)
 			.join(filename);
 		let path_buf = Path::new(&path).to_path_buf();
-		let mut stored_tx = File::create(path_buf)?;
+		let mut stored_tx = File::create(path_buf).unwrap();
 		let tx_hex = util::to_hex(ser::ser_vec(tx, ser::ProtocolVersion(1)).unwrap());
-		stored_tx.write_all(&tx_hex.as_bytes())?;
-		stored_tx.sync_all()?;
+		stored_tx.write_all(&tx_hex.as_bytes()).unwrap();
+		stored_tx.sync_all().unwrap();
 		Ok(())
 	}
 
@@ -424,9 +432,9 @@ where
 			.join(TX_SAVE_DIR)
 			.join(filename);
 		let tx_file = Path::new(&path).to_path_buf();
-		let mut tx_f = File::open(tx_file)?;
+		let mut tx_f = File::open(tx_file).unwrap();
 		let mut content = String::new();
-		tx_f.read_to_string(&mut content)?;
+		tx_f.read_to_string(&mut content).unwrap();
 		let tx_bin = util::from_hex(content).unwrap();
 		Ok(Some(
 			ser::deserialize::<Transaction>(&mut &tx_bin[..], ser::ProtocolVersion(1)).unwrap(),
@@ -589,7 +597,8 @@ where
 				.borrow()
 				.as_ref()
 				.unwrap()
-				.put_ser(&key, Serializable::OutputData(out))?;
+				.put_ser(&key, Serializable::OutputData(out))
+				.unwrap();
 		}
 
 		Ok(())
@@ -619,7 +628,8 @@ where
 					.borrow()
 					.as_ref()
 					.unwrap()
-					.put_ser(&output_history_key, Serializable::OutputData(out))?;
+					.put_ser(&output_history_key, Serializable::OutputData(out))
+					.unwrap();
 			}
 		}
 
@@ -637,7 +647,7 @@ where
 			.as_ref()
 			.unwrap()
 			.get_ser(&key)
-			.ok_or(StoreError::NotFoundErr(format!("Key Id: {}", id)))?
+			.ok_or(Error::NotFoundErr(format!("Key Id: {}", id)))?
 			.as_output_data()
 			.unwrap())
 	}
@@ -713,10 +723,15 @@ where
 			},
 			None => 0,
 		};
-		self.db.borrow().as_ref().unwrap().put_ser(
-			&output_history_key_id,
-			Serializable::Numeric((last_output_history_id + 1).into()),
-		)?;
+		self.db
+			.borrow()
+			.as_ref()
+			.unwrap()
+			.put_ser(
+				&output_history_key_id,
+				Serializable::Numeric((last_output_history_id + 1).into()),
+			)
+			.unwrap();
 		Ok(last_output_history_id)
 	}
 
@@ -729,10 +744,15 @@ where
 			},
 			None => 0,
 		};
-		self.db.borrow().as_ref().unwrap().put_ser(
-			&tx_id_key,
-			Serializable::Numeric((last_tx_log_id + 1).into()),
-		)?;
+		self.db
+			.borrow()
+			.as_ref()
+			.unwrap()
+			.put_ser(
+				&tx_id_key,
+				Serializable::Numeric((last_tx_log_id + 1).into()),
+			)
+			.unwrap();
 		Ok(last_tx_log_id)
 	}
 
@@ -763,7 +783,8 @@ where
 			.borrow()
 			.as_ref()
 			.unwrap()
-			.put_ser(&height_key, Serializable::Numeric(height))?;
+			.put_ser(&height_key, Serializable::Numeric(height))
+			.unwrap();
 		Ok(())
 	}
 
@@ -776,7 +797,8 @@ where
 			.borrow()
 			.as_ref()
 			.unwrap()
-			.put_ser(&pmmr_index_key, Serializable::ScannedBlockInfo(block_info))?;
+			.put_ser(&pmmr_index_key, Serializable::ScannedBlockInfo(block_info))
+			.unwrap();
 		Ok(())
 	}
 
@@ -789,7 +811,8 @@ where
 			.borrow()
 			.as_ref()
 			.unwrap()
-			.put_ser(&init_status_key, Serializable::WalletInitStatus(value))?;
+			.put_ser(&init_status_key, Serializable::WalletInitStatus(value))
+			.unwrap();
 		Ok(())
 	}
 
@@ -799,7 +822,8 @@ where
 			.borrow()
 			.as_ref()
 			.unwrap()
-			.put_ser(&deriv_key, Serializable::Numeric(child_n.into()))?;
+			.put_ser(&deriv_key, Serializable::Numeric(child_n.into()))
+			.unwrap();
 		Ok(())
 	}
 
@@ -817,7 +841,8 @@ where
 			.borrow()
 			.as_ref()
 			.unwrap()
-			.put_ser(&tx_log_key, Serializable::TxLogEntry(tx_in))?;
+			.put_ser(&tx_log_key, Serializable::TxLogEntry(tx_in))
+			.unwrap();
 		Ok(())
 	}
 
@@ -830,7 +855,8 @@ where
 			.borrow()
 			.as_ref()
 			.unwrap()
-			.put_ser(&acct_key, Serializable::AcctPathMapping(mapping))?;
+			.put_ser(&acct_key, Serializable::AcctPathMapping(mapping))
+			.unwrap();
 		Ok(())
 	}
 
@@ -876,7 +902,8 @@ where
 			.borrow()
 			.as_ref()
 			.unwrap()
-			.put_ser(&ctx_key, Serializable::Context(s_ctx))?;
+			.put_ser(&ctx_key, Serializable::Context(s_ctx))
+			.unwrap();
 		Ok(())
 	}
 
@@ -895,7 +922,7 @@ where
 			.as_ref()
 			.unwrap()
 			.delete(&ctx_key)
-			.map_err(|e| e.into())
+			.map_err(|e| Error::Backend(format!("{}", e)))
 	}
 
 	fn commit(&self) -> Result<(), Error> {

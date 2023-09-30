@@ -32,8 +32,8 @@ pub fn wallet_command(wallet_args: &ArgMatches<'_>, config: GlobalWalletConfig) 
 
 	// Setup node client, check for provided node URL, else use default
 	let mut node_client = match wallet_args.value_of("api_server_address") {
-		Some(node_url) => HTTPNodeClient::new(node_url, None),
-		None => HTTPNodeClient::new(wallet_config.check_node_api_http_addr.as_str(), None),
+		Some(node_url) => HTTPNodeClient::new(node_url, None).unwrap(),
+		None => HTTPNodeClient::new(wallet_config.check_node_api_http_addr.as_str(), None).unwrap(),
 	};
 	debug!("Connecting to the node: {} ..", node_client.node_url);
 

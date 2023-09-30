@@ -10,10 +10,9 @@ exclude = ["**/*.epic", "**/*.epic2"]
 edition = "2018"
 
 [dependencies]
-failure = "0.1"
-failure_derive = "0.1"
+thiserror = "1"
 futures = "0.3"
-hyper = "0.13"
+hyper = { version = "0.14.27", features = ["full"]}
 rand = "0.5"
 serde = "1"
 serde_derive = "1"
@@ -23,7 +22,7 @@ prettytable-rs = "0.10"
 ring = "^0.16"
 term = "0.5"
 
-tokio = { version = "0.2", features = ["full"] }
+tokio = { version = "1.32", features = ["full"] }
 
 uuid = { version = "0.7", features = ["serde", "v4"] }
 url = "1.7.0"

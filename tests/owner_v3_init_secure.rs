@@ -80,20 +80,21 @@ fn owner_v3_init_secure() -> Result<(), epic_wallet_controller::Error> {
 		"http://127.0.0.1:33420/v3/owner",
 		&req,
 		&sec_key,
-	)?;
+	)
+	.unwrap();
 	println!("RES 1: {:?}", res);
 	assert!(res.is_err());
 	assert_eq!(res.unwrap_err().code, -32001);
 
 	// 2) Call any function on the V3 api without calling 'init_secure_api` first
-	let res = send_request::<String>(1, "http://127.0.0.1:33420/v3/owner", &req)?;
+	let res = send_request::<String>(1, "http://127.0.0.1:33420/v3/owner", &req).unwrap();
 	println!("RES 2: {:?}", res);
 	assert!(res.is_err());
 	assert_eq!(res.unwrap_err().code, -32001);
 
 	// 3) Call 'init_secure_api' and negotiate shared key
 	let req = include_str!("data/v3_reqs/init_secure_api.req.json");
-	let res = send_request(1, "http://127.0.0.1:33420/v3/owner", req)?;
+	let res = send_request(1, "http://127.0.0.1:33420/v3/owner", req).unwrap();
 	println!("RES 3: {:?}", res);
 
 	assert!(res.is_ok());
@@ -108,7 +109,8 @@ fn owner_v3_init_secure() -> Result<(), epic_wallet_controller::Error> {
 		"http://127.0.0.1:33420/v3/owner",
 		&req,
 		&shared_key,
-	)?;
+	)
+	.unwrap();
 	println!("RES 4: {:?}", res);
 	assert!(res.is_ok());
 
@@ -122,7 +124,8 @@ fn owner_v3_init_secure() -> Result<(), epic_wallet_controller::Error> {
 		"http://127.0.0.1:33420/v3/owner",
 		&req,
 		&bad_key,
-	)?;
+	)
+	.unwrap();
 	println!("RES 5: {:?}", res);
 	assert!(res.is_err());
 	assert_eq!(res.unwrap_err().code, -32002);
@@ -136,7 +139,8 @@ fn owner_v3_init_secure() -> Result<(), epic_wallet_controller::Error> {
 			"body_enc:": "thisiswrong",
 		}
 	});
-	let res = send_request::<String>(1, "http://127.0.0.1:33420/v3/owner", &req.to_string())?;
+	let res =
+		send_request::<String>(1, "http://127.0.0.1:33420/v3/owner", &req.to_string()).unwrap();
 	println!("RES 6: {:?}", res);
 	assert!(res.is_err());
 	assert_eq!(res.unwrap_err().code, -32002);
@@ -151,7 +155,8 @@ fn owner_v3_init_secure() -> Result<(), epic_wallet_controller::Error> {
 			"body_enc": "thisiswrong",
 		}
 	});
-	let res = send_request::<String>(1, "http://127.0.0.1:33420/v3/owner", &req.to_string())?;
+	let res =
+		send_request::<String>(1, "http://127.0.0.1:33420/v3/owner", &req.to_string()).unwrap();
 	println!("RES 7: {:?}", res);
 	assert!(res.is_err());
 	assert_eq!(res.unwrap_err().code, -32002);
@@ -164,7 +169,8 @@ fn owner_v3_init_secure() -> Result<(), epic_wallet_controller::Error> {
 		"http://127.0.0.1:33420/v3/owner",
 		&req.to_string(),
 		&shared_key,
-	)?;
+	)
+	.unwrap();
 	println!("RES 8: {:?}", res);
 	assert!(res.is_ok());
 	let value: ECDHPubkey = res.unwrap();
@@ -178,13 +184,14 @@ fn owner_v3_init_secure() -> Result<(), epic_wallet_controller::Error> {
 		"http://127.0.0.1:33420/v3/owner",
 		&req,
 		&shared_key,
-	)?;
+	)
+	.unwrap();
 	println!("RES 9: {:?}", res);
 	assert!(res.is_ok());
 
 	// 10) Call 'init_secure_api' unencrypted (which we can do) and negotiate new shared key
 	let req = include_str!("data/v3_reqs/init_secure_api.req.json");
-	let res = send_request(1, "http://127.0.0.1:33420/v3/owner", req)?;
+	let res = send_request(1, "http://127.0.0.1:33420/v3/owner", req).unwrap();
 	println!("RES 10: {:?}", res);
 
 	assert!(res.is_ok());
@@ -199,7 +206,8 @@ fn owner_v3_init_secure() -> Result<(), epic_wallet_controller::Error> {
 		"http://127.0.0.1:33420/v3/owner",
 		&req,
 		&shared_key,
-	)?;
+	)
+	.unwrap();
 	println!("RES 11: {:?}", res);
 	assert!(res.is_ok());
 
@@ -219,7 +227,8 @@ fn owner_v3_init_secure() -> Result<(), epic_wallet_controller::Error> {
 		"http://127.0.0.1:33420/v3/owner",
 		&req,
 		&shared_key,
-	)?;
+	)
+	.unwrap();
 	println!("RES 12: {:?}", res);
 	assert!(res.is_err());
 	assert_eq!(res.unwrap_err().code, -32601);
@@ -232,7 +241,8 @@ fn owner_v3_init_secure() -> Result<(), epic_wallet_controller::Error> {
 		"http://127.0.0.1:33420/v3/owner",
 		&req,
 		&shared_key,
-	)?;
+	)
+	.unwrap();
 	println!("RES 13: {:?}", res);
 	assert!(res.is_err());
 	assert_eq!(res.unwrap_err().code, -32099);

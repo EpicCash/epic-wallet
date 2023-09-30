@@ -18,15 +18,13 @@ use crate::api::{self, ApiServer, BasicAuthMiddleware, ResponseFuture, Router, T
 use crate::config::{EpicboxConfig, TorConfig};
 use crate::keychain::Keychain;
 use crate::libwallet::{
-	address, Error, ErrorKind, NodeClient, NodeVersionInfo, Slate, WalletInst, WalletLCProvider,
+	address, Error, NodeClient, NodeVersionInfo, Slate, WalletInst, WalletLCProvider,
 	EPIC_BLOCK_HEADER_VERSION,
 };
 use crate::util::secp::key::SecretKey;
 use crate::util::{from_hex, static_secp_instance, to_base64, Mutex};
-use failure::ResultExt;
-use futures::channel::oneshot;
 
-use hyper::body;
+use hyper::body::Buf;
 use hyper::header::HeaderValue;
 use hyper::{Body, Request, Response, StatusCode};
 use serde::{Deserialize, Serialize};
@@ -41,7 +39,7 @@ use crate::impls::tor::process as tor_process;
 
 use crate::apiwallet::{
 	EncryptedRequest, EncryptedResponse, EncryptionErrorResponse, Foreign,
-	ForeignCheckMiddlewareFn, ForeignRpc, Owner, OwnerRpc, RpcId,
+	ForeignCheckMiddlewareFn, ForeignRpc, Owner, OwnerRpc, OwnerRpcS, RpcId,
 };
 use easy_jsonrpc_mw;
 use easy_jsonrpc_mw::{Handler, MaybeReply};
@@ -66,7 +64,7 @@ fn check_middleware(
 			}
 			if let Some(s) = slate {
 				if bhv > 3 && s.version_info.block_header_version < EPIC_BLOCK_HEADER_VERSION {
-					Err(ErrorKind::Compatibility(
+					Err(Error::Compatibility(
 						"Incoming Slate is not compatible with this wallet. \
 						 Please upgrade the node or use a different one."
 							.into(),
@@ -99,15 +97,15 @@ where
 	let parent_key_id = w_inst.parent_key_id();
 	let tor_dir = format!("{}/tor/listener", lc.get_top_level_directory()?);
 	let sec_key = address::address_from_derivation_path(&k, &parent_key_id, 0)
-		.map_err(|e| ErrorKind::TorConfig(format!("{:?}", e).into()))?;
+		.map_err(|e| Error::TorConfig(format!("{:?}", e).into()))?;
 	let onion_address = tor_config::onion_address_from_seckey(&sec_key)
-		.map_err(|e| ErrorKind::TorConfig(format!("{:?}", e).into()))?;
+		.map_err(|e| Error::TorConfig(format!("{:?}", e).into()))?;
 	warn!(
 		"Starting TOR Hidden Service for API listener at address {}, binding to {}",
 		onion_address, addr
 	);
 	tor_config::output_tor_listener_config(&tor_dir, addr, &vec![sec_key])
-		.map_err(|e| ErrorKind::TorConfig(format!("{:?}", e).into()))?;
+		.map_err(|e| Error::TorConfig(format!("{:?}", e).into()))?;
 	// Start TOR process
 	process
 		.torrc_path(&format!("{}/torrc", tor_dir))
@@ -115,7 +113,7 @@ where
 		.timeout(20)
 		.completion_percent(100)
 		.launch()
-		.map_err(|e| ErrorKind::TorProcess(format!("{:?}", e).into()))?;
+		.map_err(|e| Error::TorProcess(format!("{:?}", e).into()))?;
 	Ok(process)
 }
 
@@ -209,11 +207,11 @@ where
 
 	router
 		.add_route("/v2/owner", Arc::new(api_handler_v2))
-		.map_err(|_| ErrorKind::GenericError("Router failed to add route".to_string()))?;
+		.map_err(|_| Error::GenericError("Router failed to add route".to_string()))?;
 
 	router
 		.add_route("/v3/owner", Arc::new(api_handler_v3))
-		.map_err(|_| ErrorKind::GenericError("Router failed to add route".to_string()))?;
+		.map_err(|_| Error::GenericError("Router failed to add route".to_string()))?;
 
 	// If so configured, add the foreign API to the same port
 	if running_foreign {
@@ -221,24 +219,24 @@ where
 		let foreign_api_handler_v2 = ForeignAPIHandlerV2::new(wallet, keychain_mask);
 		router
 			.add_route("/v2/foreign", Arc::new(foreign_api_handler_v2))
-			.map_err(|_| ErrorKind::GenericError("Router failed to add route".to_string()))?;
+			.map_err(|_| Error::GenericError("Router failed to add route".to_string()))?;
 	}
 
 	let mut apis = ApiServer::new();
 	warn!("Starting HTTP Owner API server at {}.", addr);
 	let socket_addr: SocketAddr = addr.parse().expect("unable to parse socket address");
-	let api_chan: &'static mut (oneshot::Sender<()>, oneshot::Receiver<()>) =
-		Box::leak(Box::new(oneshot::channel::<()>()));
+	let api_chan: &'static mut (
+		tokio::sync::oneshot::Sender<()>,
+		tokio::sync::oneshot::Receiver<()>,
+	) = Box::leak(Box::new(tokio::sync::oneshot::channel::<()>()));
 
 	let api_thread = apis
 		.start(socket_addr, router, tls_config, api_chan)
-		.context(ErrorKind::GenericError(
-			"API thread failed to start".to_string(),
-		))?;
+		.map_err(|_| Error::GenericError("API thread failed to start".to_string()))?;
 	warn!("HTTP Owner listener started.");
 	api_thread
 		.join()
-		.map_err(|e| ErrorKind::GenericError(format!("API thread panicked :{:?}", e)).into())
+		.map_err(|e| Error::GenericError(format!("API thread panicked :{:?}", e)).into())
 }
 
 /// Listener version, providing same API but listening for requests on a
@@ -274,26 +272,26 @@ where
 
 	router
 		.add_route("/v2/foreign", Arc::new(api_handler_v2))
-		.map_err(|_| ErrorKind::GenericError("Router failed to add route".to_string()))?;
+		.map_err(|_| Error::GenericError("Router failed to add route".to_string()))?;
 
 	let mut apis = ApiServer::new();
 	warn!("Starting HTTP Foreign listener API server at {}.", addr);
 	let socket_addr: SocketAddr = addr.parse().expect("unable to parse socket address");
 
-	let api_chan: &'static mut (oneshot::Sender<()>, oneshot::Receiver<()>) =
-		Box::leak(Box::new(oneshot::channel::<()>()));
+	let api_chan: &'static mut (
+		tokio::sync::oneshot::Sender<()>,
+		tokio::sync::oneshot::Receiver<()>,
+	) = Box::leak(Box::new(tokio::sync::oneshot::channel::<()>()));
 
 	let api_thread = apis
 		.start(socket_addr, router, tls_config, api_chan)
-		.context(ErrorKind::GenericError(
-			"API thread failed to start".to_string(),
-		))?;
+		.map_err(|_| Error::GenericError("API thread failed to start".to_string()))?;
 
 	warn!("HTTP Foreign listener started.");
 
 	api_thread
 		.join()
-		.map_err(|e| ErrorKind::GenericError(format!("API thread panicked :{:?}", e)).into())
+		.map_err(|e| Error::GenericError(format!("API thread panicked :{:?}", e)).into())
 }
 
 /// V2 API Handler/Wrapper for owner functions
@@ -373,7 +371,7 @@ where
 	C: NodeClient + 'static,
 	K: Keychain + 'static,
 {
-	fn post(&self, req: Request<Body>) -> ResponseFuture {
+	fn post(&self, req: hyper::Request<Body>) -> ResponseFuture {
 		let api = self.owner_api.clone();
 
 		Box::pin(async move {
@@ -529,7 +527,7 @@ impl OwnerV3Helpers {
 			EncryptionErrorResponse::new(
 				RpcId::Integer(1),
 				-32002,
-				&format!("Decryption error: {}", e.kind()),
+				&format!("Decryption error: {}", e),
 			)
 			.as_json_value()
 		})?;
@@ -548,7 +546,7 @@ impl OwnerV3Helpers {
 			EncryptionErrorResponse::new(
 				RpcId::Integer(1),
 				-32003,
-				&format!("EncryptionError: {}", e.kind()),
+				&format!("EncryptionError: {}", e),
 			)
 			.as_json_value()
 		})?;
@@ -688,7 +686,7 @@ where
 		is_init_secure_api = OwnerV3Helpers::is_init_secure_api(&val);
 		// also need to intercept open/close wallet requests
 		let is_open_wallet = OwnerV3Helpers::is_open_wallet(&val);
-		match <dyn OwnerRpc>::handle_request(&*api, val) {
+		match <dyn OwnerRpcS>::handle_request(&*api, val) {
 			MaybeReply::Reply(mut r) => {
 				let (_was_error, unencrypted_intercept) =
 					OwnerV3Helpers::check_error_response(&r.clone());
@@ -872,7 +870,7 @@ where
 }
 
 fn create_error_response(e: Error) -> Response<Body> {
-	Response::builder()
+	hyper::Response::builder()
 		.status(StatusCode::INTERNAL_SERVER_ERROR)
 		.header("access-control-allow-origin", "*")
 		.header(
@@ -884,7 +882,7 @@ fn create_error_response(e: Error) -> Response<Body> {
 }
 
 fn create_ok_response(json: &str) -> Response<Body> {
-	Response::builder()
+	hyper::Response::builder()
 		.status(StatusCode::OK)
 		.header("access-control-allow-origin", "*")
 		.header(
@@ -920,10 +918,12 @@ async fn parse_body<T>(req: Request<Body>) -> Result<T, Error>
 where
 	for<'de> T: Deserialize<'de> + Send + 'static,
 {
-	let body = body::to_bytes(req.into_body())
+	// Aggregate the body...
+	let whole_body = hyper::body::aggregate(req)
 		.await
-		.map_err(|_| ErrorKind::GenericError("Failed to read request".to_string()))?;
+		.map_err(|e| Error::RequestError(format!("Failed to read request: {}", e)))?;
 
-	serde_json::from_reader(&body[..])
-		.map_err(|e| ErrorKind::GenericError(format!("Invalid request body: {}", e)).into())
+	// Decode as JSON...
+	serde_json::from_reader(whole_body.reader())
+		.map_err(|e| Error::RequestError(format!("Invalid request body: {}", e)))
 }

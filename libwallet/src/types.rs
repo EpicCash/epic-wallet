@@ -25,13 +25,12 @@ use crate::epic_util::logger::LoggingConfig;
 use crate::epic_util::secp::key::{PublicKey, SecretKey};
 use crate::epic_util::secp::{self, pedersen, Secp256k1};
 use crate::epic_util::ZeroingString;
-use crate::error::{Error, ErrorKind};
+use crate::error::Error;
 use crate::slate::ParticipantMessages;
 use crate::slate_versions::ser as dalek_ser;
 use chrono::prelude::*;
 use ed25519_dalek::PublicKey as DalekPublicKey;
 use ed25519_dalek::Signature as DalekSignature;
-use failure::ResultExt;
 use serde;
 use serde_json;
 use std::collections::HashMap;
@@ -348,7 +347,7 @@ pub trait NodeClient: Send + Sync + Clone {
 	fn set_node_api_secret(&mut self, node_api_secret: Option<String>);
 
 	/// Posts a transaction to a epic node
-	fn post_tx(&self, tx: &TxWrapper, fluff: bool) -> Result<(), Error>;
+	fn post_tx(&self, tx: &Transaction, fluff: bool) -> Result<(), Error>;
 
 	/// Returns the api version string and block header version as reported
 	/// by the node. Result can be cached for later use
@@ -667,7 +666,7 @@ impl BlockIdentifier {
 	/// convert to hex string
 	pub fn from_hex(hex: &str) -> Result<BlockIdentifier, Error> {
 		let hash =
-			Hash::from_hex(hex).context(ErrorKind::GenericError("Invalid hex".to_owned()))?;
+			Hash::from_hex(hex).map_err(|_e| Error::GenericError("Invalid hex".to_owned()))?;
 		Ok(BlockIdentifier(hash))
 	}
 }

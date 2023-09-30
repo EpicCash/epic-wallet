@@ -28,7 +28,6 @@ use crate::libwallet::{
 use crate::libwallet::{NodeClient, WalletInst, WalletLCProvider};
 
 use crate::Error;
-use crate::ErrorKind;
 
 use crate::libwallet::{Slate, SlateVersion, VersionedSlate};
 use crate::util::secp::key::SecretKey;
@@ -37,7 +36,6 @@ use crate::util::Mutex;
 use std::collections::HashMap;
 use std::fmt::{self, Debug};
 
-use crate::error::ErrorKind as ErrorKind2;
 use std::sync::Arc;
 use std::thread::JoinHandle;
 
@@ -134,12 +132,12 @@ impl EpicboxListenChannel {
 			let a_wallet = wallet.clone();
 			let mask = a_keychain.lock();
 			let mut w_lock = a_wallet.lock();
-			let lc = w_lock.lc_provider()?;
-			let w_inst = lc.wallet_inst()?;
-			let k = w_inst.keychain((&mask).as_ref())?;
+			let lc = w_lock.lc_provider().unwrap();
+			let w_inst = lc.wallet_inst().unwrap();
+			let k = w_inst.keychain((&mask).as_ref()).unwrap();
 			let parent_key_id = w_inst.parent_key_id();
 			let sec_key = address::address_from_derivation_path(&k, &parent_key_id, 0)
-				.map_err(|e| ErrorKind2::ArgumentError(format!("{:?}", e).into()))
+				.map_err(|e| Error::ArgumentError(format!("{:?}", e).into()))
 				.unwrap();
 			let pub_key = PublicKey::from_secret_key(k.secp(), &sec_key).unwrap();
 
@@ -170,9 +168,9 @@ impl EpicboxListenChannel {
 
 		debug!("Connecting to the epicbox server at {} ..", url.clone());
 		let (socket, _response) = connect(url.clone()).map_err(|e| {
-			warn!("{}", ErrorKind::EpicboxTungstenite(format!("{}", e).into()));
+			warn!("{}", Error::EpicboxTungstenite(format!("{}", e).into()));
 			*reconnections += 1;
-			ErrorKind::EpicboxTungstenite(format!("{}", e).into())
+			Error::EpicboxTungstenite(format!("{}", e).into())
 		})?;
 
 		let start_subscribe = true;
@@ -274,12 +272,12 @@ where
 	let (address, sec_key) = {
 		let a_wallet = wallet.clone();
 		let mut w_lock = a_wallet.lock();
-		let lc = w_lock.lc_provider()?;
-		let w_inst = lc.wallet_inst()?;
-		let k = w_inst.keychain(keychain_mask.as_ref())?;
+		let lc = w_lock.lc_provider().unwrap();
+		let w_inst = lc.wallet_inst().unwrap();
+		let k = w_inst.keychain(keychain_mask.as_ref()).unwrap();
 		let parent_key_id = w_inst.parent_key_id();
 		let sec_key = address::address_from_derivation_path(&k, &parent_key_id, 0)
-			.map_err(|e| ErrorKind2::ArgumentError(format!("{:?}", e).into()))
+			.map_err(|e| Error::ArgumentError(format!("{:?}", e).into()))
 			.unwrap();
 		let pub_key = PublicKey::from_secret_key(k.secp(), &sec_key).unwrap();
 
@@ -352,7 +350,7 @@ impl Listener for EpicboxListener {
 	}
 	/// post slate
 	fn publish(&self, slate: &VersionedSlate, to: &String) -> Result<(), Error> {
-		let address = EpicboxAddress::from_str(to)?;
+		let address = EpicboxAddress::from_str(to).unwrap();
 		self.publisher.post_slate(slate, &address, true)
 	}
 
@@ -436,10 +434,10 @@ impl Container {
 		Arc::new(Mutex::new(container))
 	}
 
-	pub fn listener(&self, interface: ListenerInterface) -> Result<&Box<dyn Listener>, ErrorKind> {
+	pub fn listener(&self, interface: ListenerInterface) -> Result<&Box<dyn Listener>, Error> {
 		self.listeners
 			.get(&interface)
-			.ok_or(ErrorKind::NoListener(format!("{}", interface)))
+			.ok_or(Error::NoListener(format!("{}", interface)))
 	}
 }
 
@@ -481,7 +479,7 @@ where
 			publisher,
 			wallet,
 			keychain_mask,
-			reconnections: reconnections,
+			reconnections,
 		})
 	}
 
@@ -515,10 +513,10 @@ where
 			Ok(false)
 		} else {
 			info!("Finalize transaction (owner::finalize_tx)");
-			let slate = owner::finalize_tx(&mut **w, self.keychain_mask.as_ref(), slate)?;
+			let slate = owner::finalize_tx(&mut **w, self.keychain_mask.as_ref(), slate).unwrap();
 
 			info!("Post transaction to the network (owner::post_tx)");
-			owner::post_tx(w.w2n_client(), &slate.tx, false)?;
+			owner::post_tx(w.w2n_client(), &slate.tx, false).unwrap();
 			Ok(true)
 		}
 	}
@@ -648,7 +646,7 @@ impl EpicboxBroker {
 	) -> Result<Self, Error> {
 		Ok(Self {
 			inner: Arc::new(Mutex::new(inner)),
-			start_subscribe: start_subscribe,
+			start_subscribe,
 			tx,
 		})
 	}
@@ -698,14 +696,14 @@ impl EpicboxBroker {
 					*handler.lock().reconnections += 1;
 					error!("Error reading message {:?}", e);
 					handler.lock().on_close(CloseReason::Abnormal(
-						ErrorKind::EpicboxWebsocketAbnormalTermination.into(),
+						Error::EpicboxWebsocketAbnormalTermination,
 					));
 					match client.sender.lock().close(None) {
 						Ok(_) => error!("Client closed connection"),
 						Err(e) => error!("Client closed connection {:?}", e),
 					}
 
-					break Err(ErrorKind::EpicboxWebsocketAbnormalTermination.into());
+					break Err(Error::EpicboxWebsocketAbnormalTermination);
 				}
 				Ok(message) => match message {
 					Message::Text(_) | Message::Binary(_) => {
@@ -767,8 +765,9 @@ impl EpicboxBroker {
 											.unwrap();
 									} else {
 										debug!("Starting epicbox subscription...");
-										let signature =
-											sign_challenge(&subscribe, &secret_key)?.to_hex();
+										let signature = sign_challenge(&subscribe, &secret_key)
+											.unwrap()
+											.to_hex();
 										let request_sub = ProtocolRequestV2::Subscribe {
 											address: client.address.public_key.to_string(),
 											ver: ver.to_string(),
@@ -868,7 +867,7 @@ impl EpicboxBroker {
 		from: &EpicboxAddress,
 		secret_key: &SecretKey,
 	) -> Result<(), Error> {
-		let pkey = to.public_key()?;
+		let pkey = to.public_key().unwrap();
 
 		let skey = secret_key.clone();
 
@@ -881,7 +880,7 @@ impl EpicboxBroker {
 		let mut challenge = String::new();
 		challenge.push_str(&message_ser);
 
-		let signature = sign_challenge(&challenge, secret_key)?.to_hex();
+		let signature = sign_challenge(&challenge, secret_key).unwrap().to_hex();
 		let request = ProtocolRequest::PostSlate {
 			from: from.stripped(),
 			to: to.stripped(),
@@ -943,7 +942,7 @@ where
 			Some(c) => c.to_string(),
 		};
 
-		let signature = sign_challenge(&chell, &self.secret_key)?.to_hex();
+		let signature = sign_challenge(&chell, &self.secret_key).unwrap().to_hex();
 
 		let request = ProtocolRequestV2::Made {
 			address: self.address.public_key.to_string(),

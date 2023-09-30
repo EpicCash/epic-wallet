@@ -23,7 +23,7 @@ use crate::epic_core::libtx::{
 };
 use crate::epic_keychain::{Identifier, Keychain};
 use crate::epic_util::secp::key::SecretKey;
-use crate::error::{Error, ErrorKind};
+use crate::error::Error;
 use crate::internal::keys;
 use crate::slate::Slate;
 use crate::types::*;
@@ -66,7 +66,9 @@ where
 	// Update the fee on the slate so we account for this when building the tx.
 	slate.fee = fee;
 
-	let blinding = slate.add_transaction_elements(keychain, &ProofBuilder::new(keychain), elems)?;
+	let blinding = slate
+		.add_transaction_elements(keychain, &ProofBuilder::new(keychain), elems)
+		.unwrap();
 
 	// Create our own private context
 	let mut context = Context::new(
@@ -167,7 +169,7 @@ where
 			let sender_address_path = match context.payment_proof_derivation_index {
 				Some(p) => p,
 				None => {
-					return Err(ErrorKind::PaymentProof(
+					return Err(Error::PaymentProof(
 						"Payment proof derivation index required".to_owned(),
 					))?;
 				}
@@ -196,11 +198,11 @@ where
 				root_key_id: parent_key_id.clone(),
 				key_id: id.clone(),
 				n_child: id.to_path().last_path_index(),
-				commit: commit,
+				commit,
 				mmr_index: None,
 				value: change_amount.clone(),
 				status: OutputStatus::Unconfirmed,
-				height: height,
+				height,
 				lock_height: 0,
 				is_coinbase: false,
 				tx_log_entry: Some(log_id),
@@ -237,11 +239,13 @@ where
 	let height = slate.height;
 
 	let slate_id = slate.id.clone();
-	let blinding = slate.add_transaction_elements(
-		&keychain,
-		&ProofBuilder::new(&keychain),
-		vec![build::output(amount, key_id.clone())],
-	)?;
+	let blinding = slate
+		.add_transaction_elements(
+			&keychain,
+			&ProofBuilder::new(&keychain),
+			vec![build::output(amount, key_id.clone())],
+		)
+		.unwrap();
 
 	// Add blinding sum to our context
 	let mut context = Context::new(
@@ -276,10 +280,10 @@ where
 		key_id: key_id_inner.clone(),
 		mmr_index: None,
 		n_child: key_id_inner.to_path().last_path_index(),
-		commit: commit,
+		commit,
 		value: amount,
 		status: OutputStatus::Unconfirmed,
-		height: height,
+		height,
 		lock_height: 0,
 		is_coinbase: false,
 		tx_log_entry: Some(log_id),
@@ -384,7 +388,7 @@ where
 	let mut amount_with_fee = amount + fee;
 
 	if total == 0 {
-		return Err(ErrorKind::NotEnoughFunds {
+		return Err(Error::NotEnoughFunds {
 			available: 0,
 			available_disp: amount_to_hr_string(0, false),
 			needed: amount_with_fee as u64,
@@ -394,7 +398,7 @@ where
 
 	// The amount with fee is more than the total values of our max outputs
 	if total < amount_with_fee && coins.len() == max_outputs {
-		return Err(ErrorKind::NotEnoughFunds {
+		return Err(Error::NotEnoughFunds {
 			available: total,
 			available_disp: amount_to_hr_string(total, false),
 			needed: amount_with_fee as u64,
@@ -414,7 +418,7 @@ where
 		while total < amount_with_fee {
 			// End the loop if we have selected all the outputs and still not enough funds
 			if coins.len() == max_outputs {
-				return Err(ErrorKind::NotEnoughFunds {
+				return Err(Error::NotEnoughFunds {
 					available: total as u64,
 					available_disp: amount_to_hr_string(total, false),
 					needed: amount_with_fee as u64,

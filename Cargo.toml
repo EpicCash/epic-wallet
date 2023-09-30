@@ -20,11 +20,10 @@ members = ["api", "config", "controller", "impls", "libwallet", "util"]
 exclude = ["integration"]
 
 [dependencies]
+thiserror = "1"
 clap = { version = "2.31", features = ["yaml"] }
 rpassword = "5.0"
 ctrlc = { version = "3.1", features = ["termination"] }
-failure = "0.1"
-failure_derive = "0.1"
 prettytable-rs = "0.10"
 log = "0.4"
 linefeed = "0.6"

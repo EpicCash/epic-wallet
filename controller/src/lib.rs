@@ -29,11 +29,10 @@ use epic_wallet_util::epic_api as api;
 use epic_wallet_util::epic_core as core;
 use epic_wallet_util::epic_keychain as keychain;
 use epic_wallet_util::epic_util as util;
-use failure;
 
 pub mod command;
 pub mod controller;
 pub mod display;
 mod error;
 
-pub use crate::error::{Error, ErrorKind};
+pub use crate::error::Error;

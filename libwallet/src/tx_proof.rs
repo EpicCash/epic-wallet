@@ -21,28 +21,27 @@ use crate::epic_util::secp::Signature;
 use crate::message::EncryptedMessage;
 
 use crate::{Address, EpicboxAddress};
-use failure::Fail;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Fail)]
-pub enum ErrorKind {
-	#[fail(display = "Unable to parse address")]
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+	#[error("Unable to parse address")]
 	ParseAddress,
-	#[fail(display = "Unable to parse public key")]
+	#[error("Unable to parse public key")]
 	ParsePublicKey,
-	#[fail(display = "Unable to parse signature")]
+	#[error("Unable to parse signature")]
 	ParseSignature,
-	#[fail(display = "Unable to verify signature")]
+	#[error("Unable to verify signature")]
 	VerifySignature,
-	#[fail(display = "Unable to parse encrypted message")]
+	#[error("Unable to parse encrypted message")]
 	ParseEncryptedMessage,
-	#[fail(display = "Unable to verify destination")]
+	#[error("Unable to verify destination")]
 	VerifyDestination,
-	#[fail(display = "Unable to determine decryption key")]
+	#[error("Unable to determine decryption key")]
 	DecryptionKey,
-	#[fail(display = "Unable to decrypt message")]
+	#[error("Unable to decrypt message")]
 	DecryptMessage,
-	#[fail(display = "Unable to parse slate")]
+	#[error("Unable to parse slate")]
 	ParseSlate,
 }
 
@@ -63,7 +62,7 @@ impl TxProof {
 	pub fn verify_extract(
 		&self,
 		expected_destination: Option<&EpicboxAddress>,
-	) -> Result<(EpicboxAddress, VersionedSlate), ErrorKind> {
+	) -> Result<(EpicboxAddress, VersionedSlate), Error> {
 		let mut challenge = String::new();
 		challenge.push_str(self.message.as_str());
 		challenge.push_str(self.challenge.as_str());
@@ -71,29 +70,29 @@ impl TxProof {
 		let public_key = self
 			.address
 			.public_key()
-			.map_err(|_| ErrorKind::ParsePublicKey)?;
+			.map_err(|_| Error::ParsePublicKey)?;
 
 		verify_signature(&challenge, &self.signature, &public_key)
-			.map_err(|_| ErrorKind::VerifySignature)?;
+			.map_err(|_| Error::VerifySignature)?;
 
 		let encrypted_message: EncryptedMessage =
-			serde_json::from_str(&self.message).map_err(|_| ErrorKind::ParseEncryptedMessage)?;
+			serde_json::from_str(&self.message).map_err(|_| Error::ParseEncryptedMessage)?;
 
 		let destination = encrypted_message.destination.clone();
 		if expected_destination.is_some()
 			&& destination.public_key != expected_destination.unwrap().public_key
 		{
-			return Err(ErrorKind::VerifyDestination);
+			return Err(Error::VerifyDestination);
 		}
 
 		let decrypted_message = encrypted_message
 			.decrypt_with_key(&self.key)
-			.map_err(|_| ErrorKind::DecryptMessage)?;
+			.map_err(|_| Error::DecryptMessage)?;
 
 		let slate: VersionedSlate =
-			serde_json::from_str(&decrypted_message).map_err(|_| ErrorKind::ParseSlate)?;
+			serde_json::from_str(&decrypted_message).map_err(|_| Error::ParseSlate)?;
 		//let slate = Slate::deserialize_upgrade(&decrypted_message)
-		//	.map_err(|_| ErrorKind::DecryptMessage)?;
+		//	.map_err(|_| Error::DecryptMessage)?;
 
 		Ok((destination, slate))
 	}
@@ -105,19 +104,16 @@ impl TxProof {
 		signature: String,
 		secret_key: &SecretKey,
 		expected_destination: Option<&EpicboxAddress>,
-	) -> Result<(VersionedSlate, TxProof), ErrorKind> {
-		let address =
-			EpicboxAddress::from_str(from.as_str()).map_err(|_| ErrorKind::ParseAddress)?;
+	) -> Result<(VersionedSlate, TxProof), Error> {
+		let address = EpicboxAddress::from_str(from.as_str()).map_err(|_| Error::ParseAddress)?;
 		let signature =
-			Signature::from_hex(signature.as_str()).map_err(|_| ErrorKind::ParseSignature)?;
-		let public_key = address
-			.public_key()
-			.map_err(|_| ErrorKind::ParsePublicKey)?;
+			Signature::from_hex(signature.as_str()).map_err(|_| Error::ParseSignature)?;
+		let public_key = address.public_key().map_err(|_| Error::ParsePublicKey)?;
 		let encrypted_message: EncryptedMessage =
-			serde_json::from_str(&message).map_err(|_| ErrorKind::ParseEncryptedMessage)?;
+			serde_json::from_str(&message).map_err(|_| Error::ParseEncryptedMessage)?;
 		let key = encrypted_message
 			.key(&public_key, secret_key)
-			.map_err(|_| ErrorKind::DecryptionKey)?;
+			.map_err(|_| Error::DecryptionKey)?;
 
 		let proof = TxProof {
 			address,

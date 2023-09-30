@@ -300,9 +300,10 @@ where
 							{
 								let secp = static_secp_instance();
 								let secp = secp.lock();
-								let over_commit = secp.commit_value(output.value)?;
-								let excess =
-									secp.commit_sum(vec![commit.clone()], vec![over_commit])?;
+								let over_commit = secp.commit_value(output.value).unwrap();
+								let excess = secp
+									.commit_sum(vec![commit.clone()], vec![over_commit])
+									.unwrap();
 								t.kernel_excess = Some(excess);
 								t.kernel_lookup_min_height = Some(height);
 							}
@@ -559,11 +560,11 @@ where
 			key_id: key_id.clone(),
 			n_child: key_id.to_path().last_path_index(),
 			mmr_index: None,
-			commit: commit,
+			commit,
 			value: amount,
 			status: OutputStatus::Unconfirmed,
-			height: height,
-			lock_height: lock_height,
+			height,
+			lock_height,
 			is_coinbase: true,
 			tx_log_entry: None,
 		})?;
@@ -589,7 +590,8 @@ where
 		block_fees.fees,
 		test_mode,
 		height,
-	)?;
+	)
+	.unwrap();
 	Ok((out, kern, block_fees))
 }
 
@@ -629,11 +631,11 @@ where
 			key_id: key_id.clone(),
 			n_child: key_id.to_path().last_path_index(),
 			mmr_index: None,
-			commit: commit,
+			commit,
 			value: amount,
 			status: OutputStatus::Unconfirmed,
-			height: height,
-			lock_height: lock_height,
+			height,
+			lock_height,
 			is_coinbase: true,
 			tx_log_entry: None,
 		})?;
@@ -651,9 +653,10 @@ where
 
 	debug!("receive_coinbase: {:?}", block_fees);
 
-	let keychain = wallet.keychain(keychain_mask)?;
+	let keychain = wallet.keychain(keychain_mask).unwrap();
 
-	let (out, kern) = reward::output_foundation_proof(&keychain, &key_id, test_mode, height)?;
+	let (out, kern) =
+		reward::output_foundation_proof(&keychain, &key_id, test_mode, height).unwrap();
 
 	Ok((out, kern, block_fees))
 }

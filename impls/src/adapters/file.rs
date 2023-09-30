@@ -16,7 +16,7 @@
 use std::fs::File;
 use std::io::{Read, Write};
 
-use crate::libwallet::{Error, ErrorKind, Slate, SlateVersion, VersionedSlate};
+use crate::libwallet::{Error, Slate, SlateVersion, VersionedSlate};
 use crate::{SlateGetter, SlatePutter};
 use std::path::PathBuf;
 
@@ -25,7 +25,7 @@ pub struct PathToSlate(pub PathBuf);
 
 impl SlatePutter for PathToSlate {
 	fn put_tx(&self, slate: &Slate) -> Result<(), Error> {
-		let mut pub_tx = File::create(&self.0)?;
+		let mut pub_tx = File::create(&self.0).unwrap();
 		let out_slate = {
 			if slate.payment_proof.is_some() || slate.ttl_cutoff_height.is_some() {
 				warn!("Transaction contains features that require epic-wallet 3.0.0 or later");
@@ -38,21 +38,23 @@ impl SlatePutter for PathToSlate {
 				VersionedSlate::into_version(s, SlateVersion::V2)
 			}
 		};
-		pub_tx.write_all(
-			serde_json::to_string(&out_slate)
-				.map_err(|_| ErrorKind::SlateSer)?
-				.as_bytes(),
-		)?;
-		pub_tx.sync_all()?;
+		pub_tx
+			.write_all(
+				serde_json::to_string(&out_slate)
+					.map_err(|_| Error::SlateSer)?
+					.as_bytes(),
+			)
+			.unwrap();
+		pub_tx.sync_all().unwrap();
 		Ok(())
 	}
 }
 
 impl SlateGetter for PathToSlate {
 	fn get_tx(&self) -> Result<Slate, Error> {
-		let mut pub_tx_f = File::open(&self.0)?;
+		let mut pub_tx_f = File::open(&self.0).unwrap();
 		let mut content = String::new();
-		pub_tx_f.read_to_string(&mut content)?;
+		pub_tx_f.read_to_string(&mut content).unwrap();
 		Ok(Slate::deserialize_upgrade(&content)?)
 	}
 }
