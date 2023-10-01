@@ -1874,8 +1874,8 @@ pub trait OwnerRpcS {
 		"jsonrpc": "2.0",
 		"result": {
 			"Ok":  {
-				"domain": "",
-				"port": 0,
+				"domain": "epicbox.epic.tech",
+				"port": 443,
 				"public_key": "esWVpwMwUyYoxta4EpGPQQEBYdm3wBqCcggVswNyquoLHaLjFdwq"
 			}
 		}
