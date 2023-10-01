@@ -71,9 +71,7 @@ fn private_ctx_xor_keys<K>(
 where
 	K: Keychain,
 {
-	let root_key = keychain
-		.derive_key(0, &K::root_key_id(), &SwitchCommitmentType::Regular)
-		.unwrap();
+	let root_key = keychain.derive_key(0, &K::root_key_id(), &SwitchCommitmentType::Regular)?;
 
 	// derive XOR values for storing secret values in DB
 	// h(root_key|slate_id|"blind")
@@ -129,7 +127,7 @@ where
 		fs::create_dir_all(&stored_tx_path)
 			.expect("Couldn't create wallet backend tx storage directory!");
 
-		let store = db::Store::new(db_path).unwrap();
+		let store = db::Store::new(db_path)?;
 
 		// Make sure default wallet derivation path always exists
 		// as well as path (so it can be retrieved by batches to know where to store
@@ -190,9 +188,7 @@ where
 		use_test_rng: bool,
 	) -> Result<Option<SecretKey>, Error> {
 		// store hash of master key, so it can be verified later after unmasking
-		let root_key = k
-			.derive_key(0, &K::root_key_id(), &SwitchCommitmentType::Regular)
-			.unwrap();
+		let root_key = k.derive_key(0, &K::root_key_id(), &SwitchCommitmentType::Regular)?;
 		let mut hasher = Blake2b::new(SECRET_KEY_SIZE);
 		hasher.update(&root_key.0[..]);
 		self.master_checksum = Box::new(Some(hasher.finalize()));
@@ -209,7 +205,7 @@ where
 						}
 						false => secp::key::SecretKey::new(&k.secp(), &mut thread_rng()),
 					};
-					k.mask_master_key(&mask_value).unwrap();
+					k.mask_master_key(&mask_value)?;
 					Some(mask_value)
 				}
 				false => None,
@@ -233,12 +229,11 @@ where
 			Some(k) => {
 				let mut k_masked = k.clone();
 				if let Some(m) = mask {
-					k_masked.mask_master_key(m).unwrap();
+					k_masked.mask_master_key(m)?;
 				}
 				// Check if master seed is what is expected (especially if it's been xored)
-				let root_key = k_masked
-					.derive_key(0, &K::root_key_id(), &SwitchCommitmentType::Regular)
-					.unwrap();
+				let root_key =
+					k_masked.derive_key(0, &K::root_key_id(), &SwitchCommitmentType::Regular)?;
 				let mut hasher = Blake2b::new(SECRET_KEY_SIZE);
 				hasher.update(&root_key.0[..]);
 				if *self.master_checksum != Some(hasher.finalize()) {
@@ -270,8 +265,7 @@ where
 		} else {*/
 		Ok(Some(util::to_hex(
 			self.keychain(keychain_mask)?
-				.commit(amount, &id, &SwitchCommitmentType::Regular)
-				.unwrap()
+				.commit(amount, &id, &SwitchCommitmentType::Regular)?
 				.0
 				.to_vec(), // TODO: proper support for different switch commitment schemes
 		)))
@@ -416,10 +410,10 @@ where
 			.join(TX_SAVE_DIR)
 			.join(filename);
 		let path_buf = Path::new(&path).to_path_buf();
-		let mut stored_tx = File::create(path_buf).unwrap();
+		let mut stored_tx = File::create(path_buf)?;
 		let tx_hex = util::to_hex(ser::ser_vec(tx, ser::ProtocolVersion(1)).unwrap());
-		stored_tx.write_all(&tx_hex.as_bytes()).unwrap();
-		stored_tx.sync_all().unwrap();
+		stored_tx.write_all(&tx_hex.as_bytes())?;
+		stored_tx.sync_all()?;
 		Ok(())
 	}
 
@@ -432,7 +426,7 @@ where
 			.join(TX_SAVE_DIR)
 			.join(filename);
 		let tx_file = Path::new(&path).to_path_buf();
-		let mut tx_f = File::open(tx_file).unwrap();
+		let mut tx_f = File::open(tx_file)?;
 		let mut content = String::new();
 		tx_f.read_to_string(&mut content).unwrap();
 		let tx_bin = util::from_hex(content).unwrap();

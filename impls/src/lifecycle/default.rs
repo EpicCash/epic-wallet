@@ -123,7 +123,7 @@ where
 		let dd = PathBuf::from(self.data_dir.clone());
 		if !dd.exists() {
 			// try create
-			fs::create_dir_all(dd).unwrap();
+			fs::create_dir_all(dd)?;
 		}
 
 		let mut data_dir_name = PathBuf::from(self.data_dir.clone());
@@ -143,7 +143,7 @@ where
 			return Ok(());
 		}
 
-		let mut abs_path = std::env::current_dir().unwrap();
+		let mut abs_path = std::env::current_dir()?;
 		abs_path.push(self.data_dir.clone());
 
 		default_config.update_paths(&PathBuf::from(abs_path));

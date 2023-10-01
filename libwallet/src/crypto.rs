@@ -120,7 +120,7 @@ impl Hex<Commitment> for Commitment {
 pub fn sign_challenge(challenge: &str, secret_key: &SecretKey) -> Result<Signature, Error> {
 	let mut hasher = Sha256::new();
 	hasher.update(challenge.as_bytes());
-	let message = Message::from_slice(hasher.finalize().as_slice()).unwrap();
+	let message = Message::from_slice(hasher.finalize().as_slice())?;
 	let secp = Secp256k1::new();
 	secp.sign(&message, secret_key)
 		.map_err(|e| Err(Error::Secp(e)).unwrap())
@@ -133,7 +133,7 @@ pub fn verify_signature(
 ) -> Result<(), Error> {
 	let mut hasher = Sha256::new();
 	hasher.update(challenge.as_bytes());
-	let message = Message::from_slice(hasher.finalize().as_slice()).unwrap();
+	let message = Message::from_slice(hasher.finalize().as_slice())?;
 	let secp = Secp256k1::new();
 	secp.verify(&message, signature, public_key)
 		.map_err(|e| Err(Error::Secp(e)).unwrap())

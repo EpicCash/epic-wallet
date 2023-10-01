@@ -15,6 +15,7 @@
 //! Error types for libwallet
 
 use crate::epic_core::core::{committed, transaction};
+
 use crate::epic_keychain;
 use crate::epic_util::secp;
 use std::io;
@@ -236,7 +237,7 @@ pub enum Error {
 	#[error("Transaction Expired")]
 	TransactionExpired,
 
-	#[error("SQLite Error")]
+	#[error("SQLite Error: {}", _0)]
 	SQLiteError(String),
 
 	#[error("Invalid base58 character!")]
@@ -313,5 +314,21 @@ impl From<crate::epic_core::ser::Error> for Error {
 impl From<secp::Error> for Error {
 	fn from(error: secp::Error) -> Error {
 		Error::Secp(error)
+	}
+}
+
+impl From<sqlite::Error> for Error {
+	fn from(error: sqlite::Error) -> Error {
+		Error::SQLiteError(format!("{}", error))
+	}
+}
+impl From<crate::epic_core::libtx::Error> for Error {
+	fn from(error: crate::epic_core::libtx::Error) -> Error {
+		Error::LibTX(format!("{}", error))
+	}
+}
+impl From<committed::Error> for Error {
+	fn from(error: committed::Error) -> Error {
+		Error::Committed(error)
 	}
 }

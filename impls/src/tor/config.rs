@@ -92,8 +92,8 @@ impl TorRcConfig {
 
 /// helper to get address
 pub fn onion_address_from_seckey(sec_key: &SecretKey) -> Result<String, Error> {
-	let (_, d_pub_key) = address::ed25519_keypair(sec_key).unwrap();
-	Ok(address::onion_v3_from_pubkey(&d_pub_key).unwrap())
+	let (_, d_pub_key) = address::ed25519_keypair(sec_key)?;
+	Ok(address::onion_v3_from_pubkey(&d_pub_key)?)
 }
 
 pub fn create_onion_service_sec_key_file(
@@ -142,8 +142,8 @@ pub fn output_onion_service_config(
 	tor_config_directory: &str,
 	sec_key: &SecretKey,
 ) -> Result<String, Error> {
-	let (_, d_pub_key) = address::ed25519_keypair(&sec_key).unwrap();
-	let address = address::onion_v3_from_pubkey(&d_pub_key).unwrap();
+	let (_, d_pub_key) = address::ed25519_keypair(&sec_key)?;
+	let address = address::onion_v3_from_pubkey(&d_pub_key)?;
 	let hs_dir_file_path = format!(
 		"{}{}{}{}{}",
 		tor_config_directory, MAIN_SEPARATOR, HIDDEN_SERVICES_DIR, MAIN_SEPARATOR, address
@@ -157,8 +157,8 @@ pub fn output_onion_service_config(
 	// create directory if it doesn't exist
 	fs::create_dir_all(&hs_dir_file_path).map_err(|_| Error::IO)?;
 
-	let (d_sec_key, d_pub_key) = address::ed25519_keypair(&sec_key).unwrap();
-	create_onion_service_sec_key_file(&hs_dir_file_path, &d_sec_key).unwrap();
+	let (d_sec_key, d_pub_key) = address::ed25519_keypair(&sec_key)?;
+	create_onion_service_sec_key_file(&hs_dir_file_path, &d_sec_key)?;
 	create_onion_service_pub_key_file(&hs_dir_file_path, &d_pub_key)?;
 	create_onion_service_hostname_file(&hs_dir_file_path, &address)?;
 	create_onion_auth_clients_dir(&hs_dir_file_path)?;
@@ -283,12 +283,12 @@ mod tests {
 		let mut test_rng = StepRng::new(1234567890u64, 1);
 		let sec_key = secp::key::SecretKey::new(&secp, &mut test_rng);
 		println!("{:?}", sec_key);
-		let (_, d_pub_key) = address::ed25519_keypair(&sec_key).unwrap();
+		let (_, d_pub_key) = address::ed25519_keypair(&sec_key)?;
 		println!("{:?}", d_pub_key);
 		// some randoms
 		for _ in 0..1000 {
 			let sec_key = secp::key::SecretKey::new(&secp, &mut thread_rng());
-			let (_, _) = address::ed25519_keypair(&sec_key).unwrap();
+			let (_, _) = address::ed25519_keypair(&sec_key)?;
 		}
 		Ok(())
 	}
@@ -300,8 +300,8 @@ mod tests {
 		let mut test_rng = StepRng::new(1234567890u64, 1);
 		let sec_key = secp::key::SecretKey::new(&secp, &mut test_rng);
 		println!("{:?}", sec_key);
-		let (_, d_pub_key) = address::ed25519_keypair(&sec_key).unwrap();
-		let address = address::onion_v3_from_pubkey(&d_pub_key).unwrap();
+		let (_, d_pub_key) = address::ed25519_keypair(&sec_key)?;
+		let address = address::onion_v3_from_pubkey(&d_pub_key)?;
 		assert_eq!(
 			"kcgiy5g6m76nzlzz4vyqmgdv34f6yokdqwfhdhaafanpo5p4fceibyid",
 			address

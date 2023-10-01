@@ -132,9 +132,9 @@ impl EpicboxListenChannel {
 			let a_wallet = wallet.clone();
 			let mask = a_keychain.lock();
 			let mut w_lock = a_wallet.lock();
-			let lc = w_lock.lc_provider().unwrap();
-			let w_inst = lc.wallet_inst().unwrap();
-			let k = w_inst.keychain((&mask).as_ref()).unwrap();
+			let lc = w_lock.lc_provider()?;
+			let w_inst = lc.wallet_inst()?;
+			let k = w_inst.keychain((&mask).as_ref())?;
 			let parent_key_id = w_inst.parent_key_id();
 			let sec_key = address::address_from_derivation_path(&k, &parent_key_id, 0)
 				.map_err(|e| Error::ArgumentError(format!("{:?}", e).into()))
@@ -272,9 +272,9 @@ where
 	let (address, sec_key) = {
 		let a_wallet = wallet.clone();
 		let mut w_lock = a_wallet.lock();
-		let lc = w_lock.lc_provider().unwrap();
-		let w_inst = lc.wallet_inst().unwrap();
-		let k = w_inst.keychain(keychain_mask.as_ref()).unwrap();
+		let lc = w_lock.lc_provider()?;
+		let w_inst = lc.wallet_inst()?;
+		let k = w_inst.keychain(keychain_mask.as_ref())?;
 		let parent_key_id = w_inst.parent_key_id();
 		let sec_key = address::address_from_derivation_path(&k, &parent_key_id, 0)
 			.map_err(|e| Error::ArgumentError(format!("{:?}", e).into()))
@@ -350,7 +350,7 @@ impl Listener for EpicboxListener {
 	}
 	/// post slate
 	fn publish(&self, slate: &VersionedSlate, to: &String) -> Result<(), Error> {
-		let address = EpicboxAddress::from_str(to).unwrap();
+		let address = EpicboxAddress::from_str(to)?;
 		self.publisher.post_slate(slate, &address, true)
 	}
 
@@ -513,10 +513,10 @@ where
 			Ok(false)
 		} else {
 			info!("Finalize transaction (owner::finalize_tx)");
-			let slate = owner::finalize_tx(&mut **w, self.keychain_mask.as_ref(), slate).unwrap();
+			let slate = owner::finalize_tx(&mut **w, self.keychain_mask.as_ref(), slate)?;
 
 			info!("Post transaction to the network (owner::post_tx)");
-			owner::post_tx(w.w2n_client(), &slate.tx, false).unwrap();
+			owner::post_tx(w.w2n_client(), &slate.tx, false)?;
 			Ok(true)
 		}
 	}
@@ -765,9 +765,8 @@ impl EpicboxBroker {
 											.unwrap();
 									} else {
 										debug!("Starting epicbox subscription...");
-										let signature = sign_challenge(&subscribe, &secret_key)
-											.unwrap()
-											.to_hex();
+										let signature =
+											sign_challenge(&subscribe, &secret_key)?.to_hex();
 										let request_sub = ProtocolRequestV2::Subscribe {
 											address: client.address.public_key.to_string(),
 											ver: ver.to_string(),
@@ -867,7 +866,7 @@ impl EpicboxBroker {
 		from: &EpicboxAddress,
 		secret_key: &SecretKey,
 	) -> Result<(), Error> {
-		let pkey = to.public_key().unwrap();
+		let pkey = to.public_key()?;
 
 		let skey = secret_key.clone();
 
@@ -880,7 +879,7 @@ impl EpicboxBroker {
 		let mut challenge = String::new();
 		challenge.push_str(&message_ser);
 
-		let signature = sign_challenge(&challenge, secret_key).unwrap().to_hex();
+		let signature = sign_challenge(&challenge, secret_key)?.to_hex();
 		let request = ProtocolRequest::PostSlate {
 			from: from.stripped(),
 			to: to.stripped(),
@@ -942,7 +941,7 @@ where
 			Some(c) => c.to_string(),
 		};
 
-		let signature = sign_challenge(&chell, &self.secret_key).unwrap().to_hex();
+		let signature = sign_challenge(&chell, &self.secret_key)?.to_hex();
 
 		let request = ProtocolRequestV2::Made {
 			address: self.address.public_key.to_string(),

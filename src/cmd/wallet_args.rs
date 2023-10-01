@@ -118,12 +118,12 @@ where
 }
 
 fn prompt_pay_invoice(slate: &Slate, method: &str, dest: &str) -> Result<bool, LibwalletError> {
-	let interface = Arc::new(Interface::new("pay").unwrap());
+	let interface = Arc::new(Interface::new("pay")?);
 	let amount = amount_to_hr_string(slate.amount, false);
 	interface.set_report_signal(Signal::Interrupt, true);
 	interface.set_prompt(
 		"To proceed, type the exact amount of the invoice as displayed above (or Q/q to quit) > ",
-	).unwrap();
+	)?;
 	println!();
 	println!(
 		"This command will pay the amount specified in the invoice using your wallet's funds."
@@ -152,7 +152,7 @@ fn prompt_pay_invoice(slate: &Slate, method: &str, dest: &str) -> Result<bool, L
 			ReadResult::Eof => return Ok(false),
 			ReadResult::Signal(sig) => {
 				if sig == Signal::Interrupt {
-					interface.cancel_read_line().unwrap();
+					interface.cancel_read_line()?;
 					return Err(LibwalletError::CancelledError);
 				}
 			}
@@ -931,17 +931,15 @@ where
 		true => {
 			let mut wallet_lock = wallet.lock();
 			let lc = wallet_lock.lc_provider().unwrap();
-			let mask = lc
-				.open_wallet(
-					None,
-					prompt_password(&global_wallet_args.password),
-					false,
-					false,
-				)
-				.unwrap();
+			let mask = lc.open_wallet(
+				None,
+				prompt_password(&global_wallet_args.password),
+				false,
+				false,
+			)?;
 			if let Some(account) = wallet_args.value_of("account") {
-				let wallet_inst = lc.wallet_inst().unwrap();
-				wallet_inst.set_parent_key_id_by_name(account).unwrap();
+				let wallet_inst = lc.wallet_inst()?;
+				wallet_inst.set_parent_key_id_by_name(account)?;
 			}
 			mask
 		}

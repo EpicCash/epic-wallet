@@ -357,7 +357,7 @@ where
 		};
 		let keychain = wallet.keychain(keychain_mask)?;
 		let parent_key_id = wallet.parent_key_id();
-		let excess = slate.calc_excess(&keychain).unwrap();
+		let excess = slate.calc_excess(&keychain)?;
 		let sender_key =
 			address::address_from_derivation_path(&keychain, &parent_key_id, derivation_index)?;
 		let sender_address = address::ed25519_keypair(&sender_key)?.1;
@@ -409,7 +409,7 @@ pub fn payment_proof_message(
 	sender_address: DalekPublicKey,
 ) -> Result<Vec<u8>, Error> {
 	let mut msg = Vec::new();
-	msg.write_u64::<BigEndian>(amount).unwrap();
+	msg.write_u64::<BigEndian>(amount)?;
 	msg.append(&mut kernel_commitment.0.to_vec());
 	msg.append(&mut sender_address.to_bytes().to_vec());
 	Ok(msg)
@@ -419,14 +419,14 @@ pub fn _decode_payment_proof_message(
 	msg: &Vec<u8>,
 ) -> Result<(u64, pedersen::Commitment, DalekPublicKey), Error> {
 	let mut rdr = Cursor::new(msg);
-	let amount = rdr.read_u64::<BigEndian>().unwrap();
+	let amount = rdr.read_u64::<BigEndian>()?;
 	let mut commit_bytes = [0u8; 33];
 	for i in 0..33 {
-		commit_bytes[i] = rdr.read_u8().unwrap();
+		commit_bytes[i] = rdr.read_u8()?;
 	}
 	let mut sender_address_bytes = [0u8; 32];
 	for i in 0..32 {
-		sender_address_bytes[i] = rdr.read_u8().unwrap();
+		sender_address_bytes[i] = rdr.read_u8()?;
 	}
 
 	Ok((

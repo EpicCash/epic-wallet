@@ -49,10 +49,12 @@ where
 	let key_id = Identifier::from_path(&key_path);
 	let sec_key = keychain
 		.derive_key(0, &key_id, &SwitchCommitmentType::None)
-		.map_err(|e| Error::Keychain(e).to_owned())
-		.unwrap();
+		.map_err(|e| Error::Keychain(e).to_owned())?;
 	let hashed = blake2b(32, &[], &sec_key.0[..]);
-	Ok(SecretKey::from_slice(&keychain.secp(), &hashed.as_bytes()[..]).unwrap())
+	Ok(SecretKey::from_slice(
+		&keychain.secp(),
+		&hashed.as_bytes()[..],
+	)?)
 }
 
 /// Output ed25519 keypair given an rust_secp256k1 SecretKey
@@ -69,9 +71,8 @@ pub fn ed25519_keypair(sec_key: &SecretKey) -> Result<(DalekSecretKey, DalekPubl
 
 /// Output ed25519 pubkey represented by string
 pub fn ed25519_parse_pubkey(pub_key: &str) -> Result<DalekPublicKey, Error> {
-	let bytes = from_hex(pub_key.to_owned())
-		.map_err(|e| Error::AddressDecoding(format!("{}", e)))
-		.unwrap();
+	let bytes =
+		from_hex(pub_key.to_owned()).map_err(|e| Error::AddressDecoding(format!("{}", e)))?;
 	match DalekPublicKey::from_bytes(&bytes) {
 		Ok(k) => Ok(k),
 		Err(_) => {

@@ -66,9 +66,7 @@ where
 	// Update the fee on the slate so we account for this when building the tx.
 	slate.fee = fee;
 
-	let blinding = slate
-		.add_transaction_elements(keychain, &ProofBuilder::new(keychain), elems)
-		.unwrap();
+	let blinding = slate.add_transaction_elements(keychain, &ProofBuilder::new(keychain), elems)?;
 
 	// Create our own private context
 	let mut context = Context::new(
@@ -239,13 +237,11 @@ where
 	let height = slate.height;
 
 	let slate_id = slate.id.clone();
-	let blinding = slate
-		.add_transaction_elements(
-			&keychain,
-			&ProofBuilder::new(&keychain),
-			vec![build::output(amount, key_id.clone())],
-		)
-		.unwrap();
+	let blinding = slate.add_transaction_elements(
+		&keychain,
+		&ProofBuilder::new(&keychain),
+		vec![build::output(amount, key_id.clone())],
+	)?;
 
 	// Add blinding sum to our context
 	let mut context = Context::new(

@@ -81,11 +81,11 @@ where
 		// will fail if it's not ours
 		let info = {
 			// Try new rewind first
-			let info_new = proof::rewind(keychain.secp(), &builder, *commit, None, *proof).unwrap();
+			let info_new = proof::rewind(keychain.secp(), &builder, *commit, None, *proof)?;
 
 			// If new didn't work, try legacy rewind
 			if info_new.is_none() {
-				proof::rewind(keychain.secp(), &legacy_builder, *commit, None, *proof).unwrap()
+				proof::rewind(keychain.secp(), &legacy_builder, *commit, None, *proof)?
 			} else {
 				info_new
 			}

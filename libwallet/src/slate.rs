@@ -364,11 +364,10 @@ impl Slate {
 			keychain.secp(),
 			sec_key,
 			sec_nonce,
-			&self.pub_nonce_sum(keychain.secp()).unwrap(),
+			&self.pub_nonce_sum(keychain.secp())?,
 			Some(&self.pub_blind_sum(keychain.secp())?),
-			&self.msg_to_sign().unwrap(),
-		)
-		.unwrap();
+			&self.msg_to_sign()?,
+		)?;
 		for i in 0..self.num_participants {
 			if self.participant_data[i].id == participant_id as u64 {
 				self.participant_data[i].part_sig = Some(sig_part);
@@ -451,8 +450,8 @@ impl Slate {
 		K: Keychain,
 	{
 		// Add our public key and nonce to the slate
-		let pub_key = PublicKey::from_secret_key(keychain.secp(), &sec_key).unwrap();
-		let pub_nonce = PublicKey::from_secret_key(keychain.secp(), &sec_nonce).unwrap();
+		let pub_key = PublicKey::from_secret_key(keychain.secp(), &sec_key)?;
+		let pub_nonce = PublicKey::from_secret_key(keychain.secp(), &sec_nonce)?;
 
 		let test_message_nonce = SecretKey::from_slice(&keychain.secp(), &[1; 32]).unwrap();
 		let message_nonce = match use_test_rng {
@@ -464,15 +463,14 @@ impl Slate {
 		let message_sig = {
 			if let Some(m) = message.clone() {
 				let hashed = blake2b(secp::constants::MESSAGE_SIZE, &[], &m.as_bytes()[..]);
-				let m = secp::Message::from_slice(&hashed.as_bytes()).unwrap();
+				let m = secp::Message::from_slice(&hashed.as_bytes())?;
 				let res = aggsig::sign_single(
 					&keychain.secp(),
 					&m,
 					&sec_key,
 					message_nonce,
 					Some(&pub_key),
-				)
-				.unwrap();
+				)?;
 				Some(res)
 			} else {
 				None
@@ -533,7 +531,7 @@ impl Slate {
 					.sub_blinding_factor(self.tx.offset.clone()),
 			)
 			.unwrap();
-		*sec_key = blind_offset.secret_key(&keychain.secp()).unwrap();
+		*sec_key = blind_offset.secret_key(&keychain.secp())?;
 		Ok(())
 	}
 
@@ -593,7 +591,7 @@ impl Slate {
 		for p in self.participant_data.iter() {
 			if let Some(msg) = &p.message {
 				let hashed = blake2b(secp::constants::MESSAGE_SIZE, &[], &msg.as_bytes()[..]);
-				let m = secp::Message::from_slice(&hashed.as_bytes()).unwrap();
+				let m = secp::Message::from_slice(&hashed.as_bytes())?;
 				let signature = match p.message_sig {
 					None => {
 						error!("verify_messages - participant message doesn't have signature. Message: \"{}\"",
@@ -656,8 +654,7 @@ impl Slate {
 		let pub_nonce_sum = self.pub_nonce_sum(keychain.secp())?;
 		let final_pubkey = self.pub_blind_sum(keychain.secp())?;
 		// get the final signature
-		let final_sig =
-			aggsig::add_signatures(&keychain.secp(), part_sigs, &pub_nonce_sum).unwrap();
+		let final_sig = aggsig::add_signatures(&keychain.secp(), part_sigs, &pub_nonce_sum)?;
 
 		// Calculate the final public key (for our own sanity check)
 
@@ -667,32 +664,29 @@ impl Slate {
 			&final_sig,
 			&final_pubkey,
 			Some(&final_pubkey),
-			&self.msg_to_sign().unwrap(),
-		)
-		.unwrap();
+			&self.msg_to_sign()?,
+		)?;
 
 		Ok(final_sig)
 	}
 
 	/// return the final excess
-	pub fn calc_excess<K>(&self, keychain: &K) -> Result<Commitment, std::io::Error>
+	pub fn calc_excess<K>(&self, keychain: &K) -> Result<Commitment, Error>
 	where
 		K: Keychain,
 	{
 		let kernel_offset = &self.tx.offset;
 		let tx = self.tx.clone();
 		let overage = tx.fee() as i64;
-		let tx_excess = tx.sum_commitments(overage).unwrap();
+		let tx_excess = tx.sum_commitments(overage)?;
 
 		// subtract the kernel_excess (built from kernel_offset)
 		let offset_excess = keychain
 			.secp()
-			.commit(0, kernel_offset.secret_key(&keychain.secp()).unwrap())
-			.unwrap();
+			.commit(0, kernel_offset.secret_key(&keychain.secp())?)?;
 		Ok(keychain
 			.secp()
-			.commit_sum(vec![tx_excess], vec![offset_excess])
-			.unwrap())
+			.commit_sum(vec![tx_excess], vec![offset_excess])?)
 	}
 
 	/// builds a final transaction after the aggregated sig exchange
@@ -706,7 +700,7 @@ impl Slate {
 	{
 		self.check_fees()?;
 		// build the final excess based on final tx and offset
-		let final_excess = self.calc_excess(keychain).unwrap();
+		let final_excess = self.calc_excess(keychain)?;
 
 		debug!("Final Tx excess: {:?}", final_excess);
 
@@ -718,7 +712,7 @@ impl Slate {
 		final_tx.kernels_mut()[0].excess_sig = final_sig.clone();
 
 		// confirm the kernel verifies successfully before proceeding
-		debug!("!Validating final transaction");
+		debug!("Validating final transaction");
 		let _ = final_tx.kernels()[0].verify()?;
 
 		// confirm the overall transaction is valid (including the updated kernel)
