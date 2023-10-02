@@ -81,7 +81,7 @@ fn payment_proofs_test_impl(test_dir: &'static str) -> Result<(), libwallet::Err
 
 	let address = address.unwrap();
 	println!("Public address is: {:?}", address);
-	let amount = 60_000_000_000;
+	let amount = 60_000_000;
 	let mut slate = Slate::blank(1);
 	wallet::controller::owner_single_use(wallet1.clone(), mask1, |sender_api, m| {
 		// note this will increment the block count as part of the transaction "Posting"

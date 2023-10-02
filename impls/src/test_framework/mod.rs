@@ -16,8 +16,19 @@ use crate::api;
 use crate::chain;
 use crate::chain::Chain;
 use crate::core;
+
 use crate::core::core::foundation::load_foundation_output;
 use crate::core::core::{Output, OutputFeatures, OutputIdentifier, Transaction, TxKernel};
+use crate::core::global::{
+	add_allowed_policy, get_emitted_policy, get_policies, set_policy_config, ChainTypes,
+};
+
+use crate::core::core::block::feijoada::PoWType as FType;
+use crate::core::core::block::feijoada::{
+	count_beans, get_bottles_default, next_block_bottles, Deterministic, Feijoada, Policy,
+	PolicyConfig,
+};
+
 use crate::core::{consensus, global, pow};
 use crate::keychain;
 use crate::libwallet;
@@ -122,13 +133,6 @@ pub fn add_block_with_reward(
 		(&prev.pow.proof).into(),
 		chain.difficulty_iter().unwrap(),
 	);
-	/*let mut b = core::core::Block::new(
-		&prev,
-		txs.into_iter().cloned().collect(),
-		next_header_info.clone().difficulty,
-		(reward_output, reward_kernel),
-	)
-	.unwrap();*/
 
 	let mut b = if consensus::is_foundation_height(prev.height + 1) {
 		let foundation = load_foundation_output(prev.height + 1);
@@ -172,8 +176,38 @@ pub fn add_block_with_reward(
 		global::min_edge_bits(),
 	)
 	.unwrap();
+
+	// Mining
+	let height = prev.height + 1;
+	let emitted_policy = get_emitted_policy(height);
+	let policy = get_policies(emitted_policy).unwrap();
+	let algo = Deterministic::choose_algo(&policy, &prev.bottles);
+	b.header.bottles = next_block_bottles(algo, &prev.bottles);
+	b.header.pow.proof = get_pow_type(&algo, prev.height);
+	b.header.policy = emitted_policy;
+
 	chain.process_block(b, chain::Options::SKIP_POW).unwrap();
 	chain.validate(false).unwrap();
+}
+
+fn get_pow_type(ftype: &FType, seed: u64) -> pow::Proof {
+	match ftype {
+		FType::Cuckaroo => pow::Proof::CuckooProof {
+			edge_bits: 29,
+			nonces: vec![seed; 3],
+		},
+		FType::RandomX => pow::Proof::RandomXProof {
+			hash: [seed as u8; 32],
+		},
+		FType::Cuckatoo => pow::Proof::CuckooProof {
+			edge_bits: 31,
+			nonces: vec![seed; 3],
+		},
+		FType::ProgPow => pow::Proof::ProgPowProof {
+			mix: [seed as u8; 32],
+		},
+		_ => panic!("algorithm not supported"),
+	}
 }
 
 /// adds a reward output to a wallet, includes that reward in a block, mines

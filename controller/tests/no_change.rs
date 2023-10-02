@@ -17,9 +17,9 @@ extern crate log;
 extern crate epic_wallet_controller as wallet;
 extern crate epic_wallet_impls as impls;
 
-use epic_wallet_util::epic_core as core;
-
 use epic_wallet_libwallet as libwallet;
+use epic_wallet_util::epic_core as core;
+use epic_wallet_util::epic_core::consensus;
 use impls::test_framework::{self, LocalWalletClient};
 use libwallet::{InitTxArgs, IssueInvoiceTxArgs, Slate};
 use std::thread;
@@ -67,7 +67,7 @@ fn no_change_test_impl(test_dir: &'static str) -> Result<(), libwallet::Error> {
 	});
 
 	// few values to keep things shorter
-	let reward = core::consensus::BLOCK_TIME_SEC * core::consensus::EPIC_BASE;
+	let reward = consensus::reward_at_height(1);
 
 	// Mine into wallet 1
 	let _ = test_framework::award_blocks_to_wallet(&chain, wallet1.clone(), mask1, 4, false);

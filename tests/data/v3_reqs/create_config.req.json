@@ -6,7 +6,7 @@
 		"wallet_config": null,
 		"logging_config": null,
 		"tor_config": null,
-    "epicbox_config": null,
+    "epicbox_config": null
 	},
 	"id": 1
 }

@@ -35,7 +35,7 @@ use common::{clean_output_dir, execute_command, initial_setup_wallet, instantiat
 /// command line tests
 fn command_line_test_impl(test_dir: &str) -> Result<(), epic_wallet_controller::Error> {
 	setup(test_dir);
-	println!("TESTDIR ############ {:?}", test_dir.clone());
+
 	// Create a new proxy to simulate server and wallet responses
 	let mut wallet_proxy: WalletProxy<
 		DefaultLCProvider<LocalWalletClient, ExtKeychain>,

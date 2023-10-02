@@ -18,7 +18,7 @@ extern crate epic_wallet_controller as wallet;
 extern crate epic_wallet_impls as impls;
 extern crate epic_wallet_libwallet as libwallet;
 
-use epic_wallet_util::epic_core as core;
+use epic_wallet_util::epic_core::consensus;
 
 use self::libwallet::{InitTxArgs, Slate};
 use impls::test_framework::{self, LocalWalletClient};
@@ -69,7 +69,7 @@ fn file_repost_test_impl(test_dir: &'static str) -> Result<(), libwallet::Error>
 	});
 
 	// few values to keep things shorter
-	let reward = core::consensus::BLOCK_TIME_SEC * core::consensus::EPIC_BASE;
+	let reward = consensus::reward_at_height(1);
 
 	// add some accounts
 	wallet::controller::owner_single_use(wallet1.clone(), mask1, |api, m| {
@@ -195,7 +195,7 @@ fn file_repost_test_impl(test_dir: &'static str) -> Result<(), libwallet::Error>
 	}
 
 	let mut slate = Slate::blank(2);
-	let amount = 60_000_000_000;
+	let amount = 1_457_920_000;
 
 	wallet::controller::owner_single_use(wallet1.clone(), mask1, |sender_api, m| {
 		// note this will increment the block count as part of the transaction "Posting"

@@ -176,17 +176,10 @@ where
 	fn post_tx(&mut self, m: WalletProxyMessage) -> Result<WalletProxyMessage, libwallet::Error> {
 		let dest_wallet = self.wallets.get_mut(&m.sender_id).unwrap().1.clone();
 		let dest_wallet_mask = self.wallets.get_mut(&m.sender_id).unwrap().2.clone();
-		let wrapper: TxWrapper = serde_json::from_str(&m.body)
-			.map_err(|_| libwallet::Error::ClientCallback(format!("Error parsing TxWrapper")))?;
 
-		let tx_bin = util::from_hex(wrapper.tx_hex).map_err(|_| {
-			libwallet::Error::ClientCallback(format!("Error parsing TxWrapper: tx_bin"))
+		let tx: Transaction = serde_json::from_str(&m.body).map_err(|_| {
+			libwallet::Error::ClientCallback("Error parsing Transaction".to_owned())
 		})?;
-
-		let tx: Transaction =
-			ser::deserialize(&mut &tx_bin[..], ser::ProtocolVersion(1)).map_err(|_| {
-				libwallet::Error::ClientCallback(format!("Error parsing TxWrapper: tx"))
-			})?;
 
 		super::award_block_to_wallet(
 			&self.chain,
@@ -419,11 +412,10 @@ impl LocalWalletClient {
 		let r = self.rx.lock();
 		let m = r.recv().unwrap();
 		trace!("Received send_tx_slate response: {:?}", m.clone());
-		let slate: SlateV3 = serde_json::from_str(&m.body)
-			.map_err(|_| {
-				libwallet::Error::ClientCallback("Parsing send_tx_slate response".to_owned())
-			})
-			.unwrap();
+
+		let slate: SlateV3 = serde_json::from_str(&m.body).map_err(|_| {
+			libwallet::Error::ClientCallback("Parsing send_tx_slate response".to_owned())
+		})?;
 		Ok(Slate::from(slate))
 	}
 }
@@ -449,11 +441,13 @@ impl NodeClient for LocalWalletClient {
 			method: "post_tx".to_owned(),
 			body: serde_json::to_string(tx).unwrap(),
 		};
+
 		{
 			let p = self.proxy_tx.lock();
 			p.send(m)
 				.map_err(|_| libwallet::Error::ClientCallback("post_tx send".to_owned()))?;
 		}
+
 		let r = self.rx.lock();
 		let m = r.recv().unwrap();
 		trace!("Received post_tx response: {:?}", m.clone());
