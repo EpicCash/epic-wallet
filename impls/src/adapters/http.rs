@@ -26,6 +26,7 @@ use crate::tor::config as tor_config;
 use crate::tor::process as tor_process;
 
 const TOR_CONFIG_PATH: &'static str = "tor/sender";
+const SEND_TX_READ_TIMEOUT_SECONDS: u64 = 5 * 60;
 
 #[derive(Clone)]
 pub struct HttpSlateSender {
@@ -73,7 +74,7 @@ impl HttpSlateSender {
 			"params": []
 		});
 
-		let res: String = self.post(url, None, req).map_err(|e| {
+		let res: String = self.post(url, None, req, None).map_err(|e| {
 			let mut report = format!("Performing version check (is recipient listening?): {}", e);
 			let err_string = format!("{}", e);
 			if err_string.contains("404") {
@@ -129,6 +130,7 @@ impl HttpSlateSender {
 		url: &str,
 		api_secret: Option<String>,
 		input: IN,
+		read_timeout: Option<u64>,
 	) -> Result<String, ClientError>
 	where
 		IN: Serialize,
@@ -138,6 +140,7 @@ impl HttpSlateSender {
 			client.use_socks = true;
 			client.socks_proxy_addr = self.socks_proxy_addr.clone();
 		}
+		client.read_timeout = read_timeout;
 		let req = client.create_post_request(url, api_secret, &input)?;
 		let res = client.send_request(req)?;
 		Ok(res)
@@ -205,11 +208,13 @@ impl SlateSender for HttpSlateSender {
 		});
 		trace!("Sending receive_tx request: {}", req);
 
-		let res: String = self.post(&url_str, None, req).map_err(|e| {
-			let report = format!("Posting transaction slate (is recipient listening?): {}", e);
-			error!("{}", report);
-			ErrorKind::ClientCallback(report)
-		})?;
+		let res: String = self
+			.post(&url_str, None, req, Some(SEND_TX_READ_TIMEOUT_SECONDS))
+			.map_err(|e| {
+				let report = format!("Posting transaction slate (is recipient listening?): {}", e);
+				error!("{}", report);
+				ErrorKind::ClientCallback(report)
+			})?;
 
 		let res: Value = serde_json::from_str(&res).unwrap();
 		trace!("Response: {}", res);
