@@ -17,22 +17,22 @@ toml = "0.4"
 dirs = "1.0.3"
 
 # For Release
-#epic_core     = { git = "https://github.com/EpicCash/epic", branch = "update-deps" }
-#epic_keychain = { git = "https://github.com/EpicCash/epic", branch = "update-deps" }
-#epic_chain    = { git = "https://github.com/EpicCash/epic", branch = "update-deps" }
-#epic_util     = { git = "https://github.com/EpicCash/epic", branch = "update-deps" }
-#epic_api      = { git = "https://github.com/EpicCash/epic", branch = "update-deps" }
-#epic_store    = { git = "https://github.com/EpicCash/epic", branch = "update-deps" }
+epic_core     = { git = "https://github.com/EpicCash/epic", branch = "update-deps-rebase" }
+epic_keychain = { git = "https://github.com/EpicCash/epic", branch = "update-deps-rebase" }
+epic_chain    = { git = "https://github.com/EpicCash/epic", branch = "update-deps-rebase" }
+epic_util     = { git = "https://github.com/EpicCash/epic", branch = "update-deps-rebase" }
+epic_api      = { git = "https://github.com/EpicCash/epic", branch = "update-deps-rebase" }
+epic_store    = { git = "https://github.com/EpicCash/epic", branch = "update-deps-rebase" }
 
 # For Local use
 # epic/
 # epic-wallet/
-epic_core     = { path="../../epic/core" }
-epic_keychain = { path="../../epic/keychain" }
-epic_chain    = { path="../../epic/chain" }
-epic_util     = { path="../../epic/util" }
-epic_api      = { path="../../epic/api" }
-epic_store    = { path="../../epic/store" }
+#epic_core     = { path="../../epic/core" }
+#epic_keychain = { path="../../epic/keychain" }
+#epic_chain    = { path="../../epic/chain" }
+#epic_util     = { path="../../epic/util" }
+#epic_api      = { path="../../epic/api" }
+#epic_store    = { path="../../epic/store" }
 
 [dev-dependencies]
 pretty_assertions = "0.5.1"
