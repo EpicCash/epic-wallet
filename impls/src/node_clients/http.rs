@@ -265,8 +265,6 @@ impl NodeClient for HTTPNodeClient {
 			}
 
 			let task: FuturesUnordered<_> = tasks.into_iter().collect();
-			//task.try_collect().await
-			//let task = stream::futures_unordered(tasks).collect();
 			task.try_collect().await
 		};
 

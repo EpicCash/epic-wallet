@@ -637,7 +637,7 @@ where
 
 /// get stored tx
 pub fn get_stored_tx<'a, T: ?Sized, C, K>(
-	w: &mut T,
+	w: &T,
 	entry: &TxLogEntry,
 ) -> Result<Option<Transaction>, Error>
 where
