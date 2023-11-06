@@ -18,6 +18,7 @@ use crate::core::libtx;
 use crate::keychain;
 use crate::libwallet;
 use crate::util::secp;
+use epic_wallet_libwallet::Error::LibWallet;
 
 /// Wallet errors, mostly wrappers around underlying crypto or I/O errors.
 #[derive(Clone, thiserror::Error, Eq, PartialEq, Debug)]
@@ -99,5 +100,17 @@ pub enum Error {
 impl From<libwallet::Error> for Error {
 	fn from(error: libwallet::Error) -> Error {
 		Error::LibWallet(error)
+	}
+}
+
+impl From<sqlite::Error> for Error {
+	fn from(error: sqlite::Error) -> Error {
+		Error::SQLiteError(error.to_string())
+	}
+}
+
+impl From<Error> for epic_wallet_libwallet::Error {
+	fn from(error: Error) -> epic_wallet_libwallet::Error {
+		LibWallet(error.to_string())
 	}
 }

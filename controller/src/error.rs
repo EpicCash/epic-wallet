@@ -20,6 +20,8 @@ use crate::impls;
 use crate::keychain;
 use crate::libwallet;
 
+use epic_wallet_libwallet::Error::LibWallet;
+
 /// Wallet errors, mostly wrappers around underlying crypto or I/O errors.
 #[derive(Clone, Eq, PartialEq, Debug, thiserror::Error)]
 pub enum Error {
@@ -101,4 +103,10 @@ pub enum Error {
 
 	#[error("Too many unsuccessful attempts at reconnection")]
 	EpicboxReconnectLimit,
+}
+
+impl From<Error> for epic_wallet_libwallet::Error {
+	fn from(error: Error) -> epic_wallet_libwallet::Error {
+		LibWallet(error.to_string())
+	}
 }
