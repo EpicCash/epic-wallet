@@ -69,7 +69,7 @@ impl WalletSeed {
 	}
 
 	pub fn derive_keychain<K: Keychain>(&self, is_floonet: bool) -> Result<K, Error> {
-		let result = K::from_seed(&self.0, is_floonet).unwrap();
+		let result = K::from_seed(&self.0, is_floonet)?;
 		Ok(result)
 	}
 

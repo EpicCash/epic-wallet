@@ -132,7 +132,7 @@ where
 	tx::update_message(&mut *w, keychain_mask, &mut ret_slate)?;
 
 	let keychain = w.keychain(keychain_mask)?;
-	let excess = ret_slate.calc_excess(&keychain).unwrap();
+	let excess = ret_slate.calc_excess(&keychain)?;
 
 	if let Some(ref mut p) = ret_slate.payment_proof {
 		let sig = tx::create_payment_proof_signature(

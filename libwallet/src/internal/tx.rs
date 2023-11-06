@@ -520,7 +520,7 @@ where
 		}
 		let msg = payment_proof_message(
 			slate.amount,
-			&slate.calc_excess(&keychain).unwrap(),
+			&slate.calc_excess(&keychain)?,
 			orig_sender_address,
 		)?;
 		let sig = match p.receiver_signature {

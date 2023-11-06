@@ -114,3 +114,9 @@ impl From<Error> for epic_wallet_libwallet::Error {
 		LibWallet(error.to_string())
 	}
 }
+
+impl From<epic_wallet_util::epic_keychain::Error> for Error {
+	fn from(error: epic_wallet_util::epic_keychain::Error) -> Error {
+		Error::Keychain(error)
+	}
+}

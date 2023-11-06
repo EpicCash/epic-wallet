@@ -524,13 +524,11 @@ impl Slate {
 			}
 		};
 
-		let blind_offset = keychain
-			.blind_sum(
-				&BlindSum::new()
-					.add_blinding_factor(BlindingFactor::from_secret_key(sec_key.clone()))
-					.sub_blinding_factor(self.tx.offset.clone()),
-			)
-			.unwrap();
+		let blind_offset = keychain.blind_sum(
+			&BlindSum::new()
+				.add_blinding_factor(BlindingFactor::from_secret_key(sec_key.clone()))
+				.sub_blinding_factor(self.tx.offset.clone()),
+		)?;
 		*sec_key = blind_offset.secret_key(&keychain.secp())?;
 		Ok(())
 	}
@@ -578,8 +576,7 @@ impl Slate {
 					&p.public_blind_excess,
 					Some(&self.pub_blind_sum(secp)?),
 					&self.msg_to_sign().unwrap(),
-				)
-				.unwrap();
+				)?;
 			}
 		}
 		Ok(())

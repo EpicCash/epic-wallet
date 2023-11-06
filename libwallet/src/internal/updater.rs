@@ -300,7 +300,7 @@ where
 							{
 								let secp = static_secp_instance();
 								let secp = secp.lock();
-								let over_commit = secp.commit_value(output.value).unwrap();
+								let over_commit = secp.commit_value(output.value)?;
 								let excess =
 									secp.commit_sum(vec![commit.clone()], vec![over_commit])?;
 								t.kernel_excess = Some(excess);
@@ -651,7 +651,7 @@ where
 
 	debug!("receive_coinbase: {:?}", block_fees);
 
-	let keychain = wallet.keychain(keychain_mask).unwrap();
+	let keychain = wallet.keychain(keychain_mask)?;
 
 	let (out, kern) = reward::output_foundation_proof(&keychain, &key_id, test_mode, height)?;
 
