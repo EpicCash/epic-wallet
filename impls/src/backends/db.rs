@@ -301,7 +301,7 @@ impl<'a> Batch<'_> {
 		"#,
 			key
 		);
-		self.store.execute(statement).unwrap();
+		self.store.execute(statement)?;
 		Ok(())
 	}
 

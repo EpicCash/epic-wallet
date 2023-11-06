@@ -695,8 +695,8 @@ where
 						None => None,
 						Some(&m) => Some(m.to_owned()),
 					};
-					slate = epicbox_channel.send(wallet, km, &slate).unwrap();
-					self.tx_lock_outputs(keychain_mask, &slate, 0).unwrap();
+					slate = epicbox_channel.send(wallet, km, &slate)?;
+					self.tx_lock_outputs(keychain_mask, &slate, 0)?;
 					return Ok(slate);
 				} else {
 					let comm_adapter = create_sender(&sa.method, &sa.dest, tor_config_lock.clone())

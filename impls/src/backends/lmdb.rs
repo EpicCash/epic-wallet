@@ -143,9 +143,7 @@ where
 
 		{
 			let batch = store.batch();
-			batch
-				.put(&acct_key, Serializable::AcctPathMapping(default_account))
-				.unwrap();
+			batch.put(&acct_key, Serializable::AcctPathMapping(default_account))?;
 		}
 
 		let res = LMDBBackend {
@@ -428,7 +426,7 @@ where
 		let tx_file = Path::new(&path).to_path_buf();
 		let mut tx_f = File::open(tx_file)?;
 		let mut content = String::new();
-		tx_f.read_to_string(&mut content).unwrap();
+		tx_f.read_to_string(&mut content)?;
 		let tx_bin = util::from_hex(content).unwrap();
 		Ok(Some(
 			ser::deserialize::<Transaction>(&mut &tx_bin[..], ser::ProtocolVersion(1)).unwrap(),
@@ -622,8 +620,7 @@ where
 					.borrow()
 					.as_ref()
 					.unwrap()
-					.put_ser(&output_history_key, Serializable::OutputData(out))
-					.unwrap();
+					.put_ser(&output_history_key, Serializable::OutputData(out))?;
 			}
 		}
 
@@ -717,15 +714,10 @@ where
 			},
 			None => 0,
 		};
-		self.db
-			.borrow()
-			.as_ref()
-			.unwrap()
-			.put_ser(
-				&output_history_key_id,
-				Serializable::Numeric((last_output_history_id + 1).into()),
-			)
-			.unwrap();
+		self.db.borrow().as_ref().unwrap().put_ser(
+			&output_history_key_id,
+			Serializable::Numeric((last_output_history_id + 1).into()),
+		)?;
 		Ok(last_output_history_id)
 	}
 
@@ -738,15 +730,10 @@ where
 			},
 			None => 0,
 		};
-		self.db
-			.borrow()
-			.as_ref()
-			.unwrap()
-			.put_ser(
-				&tx_id_key,
-				Serializable::Numeric((last_tx_log_id + 1).into()),
-			)
-			.unwrap();
+		self.db.borrow().as_ref().unwrap().put_ser(
+			&tx_id_key,
+			Serializable::Numeric((last_tx_log_id + 1).into()),
+		)?;
 		Ok(last_tx_log_id)
 	}
 
@@ -777,8 +764,7 @@ where
 			.borrow()
 			.as_ref()
 			.unwrap()
-			.put_ser(&height_key, Serializable::Numeric(height))
-			.unwrap();
+			.put_ser(&height_key, Serializable::Numeric(height))?;
 		Ok(())
 	}
 
@@ -791,8 +777,7 @@ where
 			.borrow()
 			.as_ref()
 			.unwrap()
-			.put_ser(&pmmr_index_key, Serializable::ScannedBlockInfo(block_info))
-			.unwrap();
+			.put_ser(&pmmr_index_key, Serializable::ScannedBlockInfo(block_info))?;
 		Ok(())
 	}
 
@@ -805,8 +790,7 @@ where
 			.borrow()
 			.as_ref()
 			.unwrap()
-			.put_ser(&init_status_key, Serializable::WalletInitStatus(value))
-			.unwrap();
+			.put_ser(&init_status_key, Serializable::WalletInitStatus(value))?;
 		Ok(())
 	}
 
@@ -816,8 +800,7 @@ where
 			.borrow()
 			.as_ref()
 			.unwrap()
-			.put_ser(&deriv_key, Serializable::Numeric(child_n.into()))
-			.unwrap();
+			.put_ser(&deriv_key, Serializable::Numeric(child_n.into()))?;
 		Ok(())
 	}
 
@@ -849,8 +832,7 @@ where
 			.borrow()
 			.as_ref()
 			.unwrap()
-			.put_ser(&acct_key, Serializable::AcctPathMapping(mapping))
-			.unwrap();
+			.put_ser(&acct_key, Serializable::AcctPathMapping(mapping))?;
 		Ok(())
 	}
 
@@ -896,8 +878,7 @@ where
 			.borrow()
 			.as_ref()
 			.unwrap()
-			.put_ser(&ctx_key, Serializable::Context(s_ctx))
-			.unwrap();
+			.put_ser(&ctx_key, Serializable::Context(s_ctx))?;
 		Ok(())
 	}
 

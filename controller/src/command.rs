@@ -162,7 +162,7 @@ where
 		"epicbox" => {
 			let mut reconnections = 0;
 			loop {
-				let listener = EpicboxListenChannel::new().unwrap().listen(
+				let listener = EpicboxListenChannel::new()?.listen(
 					wallet.clone(),
 					keychain_mask.clone(),
 					epicbox_config.clone(),
@@ -391,7 +391,7 @@ where
 						None => None,
 						Some(&m) => Some(m.to_owned()),
 					};
-					slate = epicbox_channel.send(wallet, km, &slate).unwrap();
+					slate = epicbox_channel.send(wallet, km, &slate)?;
 
 					api.tx_lock_outputs(m, &slate, 0)?;
 
@@ -450,7 +450,7 @@ where
 	if method == "emoji" {
 		slate = EmojiSlate().decode(&args.input.as_str()).unwrap();
 	} else {
-		slate = PathToSlate((&args.input).into()).get_tx().unwrap();
+		slate = PathToSlate((&args.input).into()).get_tx()?;
 	}
 
 	let km = match keychain_mask.as_ref() {
@@ -518,8 +518,7 @@ where
 				error!("Expected slate participant data missing");
 				return Err(Error::ArgumentError(format!(
 					"Expected Slate participant data missing"
-				)))
-				.unwrap();
+				)))?;
 			}
 			Some(p) => !p.is_complete(),
 		}
@@ -891,10 +890,8 @@ where
 			}
 			Some(f) => {
 				let mut tx_file = File::create(f.clone()).unwrap();
-				tx_file
-					.write_all(json::to_string(&stored_tx).unwrap().as_bytes())
-					.unwrap();
-				tx_file.sync_all().unwrap();
+				tx_file.write_all(json::to_string(&stored_tx).unwrap().as_bytes())?;
+				tx_file.sync_all()?;
 				info!("Dumped transaction data for tx {} to {}", args.id, f);
 				return Ok(());
 			}
@@ -1042,10 +1039,8 @@ where
 			Ok(p) => {
 				// actually export proof
 				let mut proof_file = File::create(args.output_file.clone()).unwrap();
-				proof_file
-					.write_all(json::to_string_pretty(&p).unwrap().as_bytes())
-					.unwrap();
-				proof_file.sync_all().unwrap();
+				proof_file.write_all(json::to_string_pretty(&p).unwrap().as_bytes())?;
+				proof_file.sync_all()?;
 				warn!("Payment proof exported to {}", args.output_file);
 				Ok(())
 			}
@@ -1086,7 +1081,7 @@ where
 			}
 		};
 		let mut proof = String::new();
-		proof_f.read_to_string(&mut proof).unwrap();
+		proof_f.read_to_string(&mut proof)?;
 		// read
 		let proof: PaymentProof = match json::from_str(&proof) {
 			Ok(p) => p,
@@ -1118,7 +1113,6 @@ where
 				Err(e)
 			}
 		}
-	})
-	.unwrap();
+	})?;
 	Ok(())
 }
