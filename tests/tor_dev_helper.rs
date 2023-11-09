@@ -102,7 +102,7 @@ fn socks_tor() -> Result<(), epic_wallet_controller::Error> {
 		onion_address,
 		"10",
 	];
-	execute_command(&app, test_dir, "wallet1", &client1, arg_vec)?;
+	execute_command(&app, test_dir, "wallet1", &client1, arg_vec).unwrap();
 
 	Ok(())
 }

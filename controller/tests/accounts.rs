@@ -18,6 +18,7 @@ extern crate epic_wallet_controller as wallet;
 extern crate epic_wallet_impls as impls;
 
 use epic_wallet_util::epic_core as core;
+use epic_wallet_util::epic_core::consensus;
 use epic_wallet_util::epic_keychain as keychain;
 
 use self::core::global;
@@ -72,7 +73,7 @@ fn accounts_test_impl(test_dir: &'static str) -> Result<(), libwallet::Error> {
 	});
 
 	// few values to keep things shorter
-	let reward = core::consensus::BLOCK_TIME_SEC * core::consensus::EPIC_BASE;
+	let reward = consensus::reward_at_height(1); //consensus::reward_foundation_at_height(1);
 	let cm = global::coinbase_maturity(); // assume all testing precedes soft fork height
 
 	// test default accounts exist
@@ -140,9 +141,6 @@ fn accounts_test_impl(test_dir: &'static str) -> Result<(), libwallet::Error> {
 
 	// now check second account
 	{
-		// let mut w_lock = wallet1.lock();
-		// let lc = w_lock.lc_provider()?;
-		// let w = lc.wallet_inst()?;
 		wallet_inst!(wallet1, w);
 		w.set_parent_key_id_by_name("account1")?;
 	}
@@ -199,7 +197,9 @@ fn accounts_test_impl(test_dir: &'static str) -> Result<(), libwallet::Error> {
 		let mut slate = api.init_send_tx(m, args)?;
 		slate = client1.send_tx_slate_direct("wallet2", &slate)?;
 		api.tx_lock_outputs(m, &slate, 0)?;
+
 		slate = api.finalize_tx(m, &slate)?;
+
 		api.post_tx(m, &slate.tx, false)?;
 		Ok(())
 	})?;
@@ -258,6 +258,7 @@ fn accounts_test_impl(test_dir: &'static str) -> Result<(), libwallet::Error> {
 	})?;
 
 	// let logging finish
+
 	thread::sleep(Duration::from_millis(200));
 	Ok(())
 }
@@ -267,7 +268,7 @@ fn accounts() {
 	let test_dir = "test_output/accounts";
 	setup(test_dir);
 	if let Err(e) = accounts_test_impl(test_dir) {
-		panic!("Libwallet Error: {} - {}", e, e.backtrace().unwrap());
+		panic!("Libwallet Error: {}", e);
 	}
 	clean_output_dir(test_dir);
 }

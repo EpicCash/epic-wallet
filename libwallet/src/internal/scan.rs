@@ -126,7 +126,7 @@ where
 			n_child: key_id.to_path().last_path_index(),
 			value: amount,
 			height: *height,
-			lock_height: lock_height,
+			lock_height,
 			is_coinbase: *is_coinbase,
 			mmr_index: *mmr_index,
 		});
@@ -252,7 +252,7 @@ where
 		key_id: output.key_id,
 		n_child: output.n_child,
 		mmr_index: Some(output.mmr_index),
-		commit: commit,
+		commit,
 		value: output.value,
 		status: OutputStatus::Unspent,
 		height: output.height,
@@ -362,7 +362,7 @@ where
 		wallet_lock!(wallet_inst, w);
 		updater::retrieve_outputs(&mut **w, keychain_mask, true, false, None, None)?
 	};
-	
+
 	let mut missing_outs = vec![];
 	let mut accidental_spend_outs = vec![];
 	let mut locked_outs = vec![];

@@ -15,7 +15,7 @@
 use bitvec::prelude::*;
 use emoji::{self, Emoji};
 
-use crate::libwallet::{Error, ErrorKind, Slate, SlateVersion, VersionedSlate};
+use crate::libwallet::{Error, Slate, SlateVersion, VersionedSlate};
 
 #[derive(Clone)]
 pub struct EmojiSlate();
@@ -1160,7 +1160,7 @@ impl EmojiSlate {
 			}
 		};
 
-		let slate_str = match serde_json::to_string(&out_slate).map_err(|_| ErrorKind::SlateSer) {
+		let slate_str = match serde_json::to_string(&out_slate).map_err(|_| Error::SlateSer) {
 			Ok(s) => s,
 			Err(_) => "ERROR - Slate JSON generation".to_string(),
 		}

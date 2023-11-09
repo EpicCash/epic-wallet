@@ -68,7 +68,7 @@ macro_rules! setup_proxy {
 		let target = std::path::PathBuf::from(format!("{}/wallet1/epic-wallet.toml", $test_dir));
 		println!("{:?}", target);
 		if !target.exists() {
-			execute_command(&app, $test_dir, "wallet1", &$client1, arg_vec.clone())?;
+			execute_command(&app, $test_dir, "wallet1", &$client1, arg_vec.clone()).unwrap();
 		}
 
 		// add wallet to proxy
@@ -94,7 +94,7 @@ macro_rules! setup_proxy {
 
 		let target = std::path::PathBuf::from(format!("{}/wallet2/epic-wallet.toml", $test_dir));
 		if !target.exists() {
-			execute_command(&app, $test_dir, "wallet2", &$client2, arg_vec.clone())?;
+			execute_command(&app, $test_dir, "wallet2", &$client2, arg_vec.clone()).unwrap();
 		}
 
 		let config2 = initial_setup_wallet($test_dir, "wallet2");
@@ -159,7 +159,7 @@ pub fn config_command_wallet(
 	let mut config_file_name = current_dir.clone();
 	config_file_name.push("epic-wallet.toml");
 	if config_file_name.exists() {
-		return Err(epic_wallet_controller::ErrorKind::ArgumentError(
+		return Err(epic_wallet_controller::Error::ArgumentError(
 			"epic-wallet.toml already exists in the target directory. Please remove it first"
 				.to_owned(),
 		))?;
@@ -258,8 +258,8 @@ pub fn instantiate_wallet(
 	let keychain_mask = lc
 		.open_wallet(None, ZeroingString::from(passphrase), true, false)
 		.unwrap();
-	let wallet_inst = lc.wallet_inst()?;
-	wallet_inst.set_parent_key_id_by_name(account)?;
+	let wallet_inst = lc.wallet_inst().unwrap();
+	wallet_inst.set_parent_key_id_by_name(account).unwrap();
 	Ok((Arc::new(Mutex::new(wallet)), keychain_mask))
 }
 
@@ -270,7 +270,7 @@ pub fn execute_command(
 	wallet_name: &str,
 	client: &LocalWalletClient,
 	arg_vec: Vec<&str>,
-) -> Result<String, epic_wallet_controller::Error> {
+) -> Result<String, epic_wallet_libwallet::Error> {
 	let args = app.clone().get_matches_from(arg_vec);
 	let _ = get_wallet_subcommand(test_dir, wallet_name, args.clone());
 	let config = initial_setup_wallet(test_dir, wallet_name);
@@ -299,7 +299,7 @@ pub fn execute_command_no_setup<C, F>(
 	client: &C,
 	arg_vec: Vec<&str>,
 	f: F,
-) -> Result<String, epic_wallet_controller::Error>
+) -> Result<String, epic_wallet_libwallet::Error>
 where
 	C: NodeClient + 'static + Clone,
 	F: FnOnce(
@@ -343,7 +343,7 @@ where
 {
 	// TODO: change create_post_request to accept a url instead of a &str
 	let req = api::client::create_post_request(url.as_str(), api_secret, input)?;
-	let res = api::client::send_request(req)?;
+	let res = api::client::send_request(req, api::client::TimeOut::default())?;
 	Ok(res)
 }
 
@@ -487,6 +487,19 @@ pub struct WalletAPIReturnError {
 	pub message: String,
 	pub code: i32,
 }
+impl std::fmt::Display for WalletAPIReturnError {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		write!(f, "{} - {}", self.code, &self.message)
+	}
+}
 
+impl From<epic_wallet_controller::Error> for WalletAPIReturnError {
+	fn from(error: epic_wallet_controller::Error) -> WalletAPIReturnError {
+		WalletAPIReturnError {
+			message: error.to_string(),
+			code: -1,
+		}
+	}
+}
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RetrieveSummaryInfoResp(pub bool, pub WalletInfo);

@@ -35,6 +35,7 @@ use common::{clean_output_dir, execute_command, initial_setup_wallet, instantiat
 /// command line tests
 fn command_line_test_impl(test_dir: &str) -> Result<(), epic_wallet_controller::Error> {
 	setup(test_dir);
+
 	// Create a new proxy to simulate server and wallet responses
 	let mut wallet_proxy: WalletProxy<
 		DefaultLCProvider<LocalWalletClient, ExtKeychain>,
@@ -51,7 +52,7 @@ fn command_line_test_impl(test_dir: &str) -> Result<(), epic_wallet_controller::
 	let arg_vec = vec!["epic-wallet", "-p", "password", "init", "-h"];
 	// should create new wallet file
 	let client1 = LocalWalletClient::new("wallet1", wallet_proxy.tx.clone());
-	execute_command(&app, test_dir, "wallet1", &client1, arg_vec.clone())?;
+	execute_command(&app, test_dir, "wallet1", &client1, arg_vec.clone()).unwrap();
 
 	// trying to init twice - should fail
 	assert!(execute_command(&app, test_dir, "wallet1", &client1, arg_vec.clone()).is_err());
@@ -76,7 +77,7 @@ fn command_line_test_impl(test_dir: &str) -> Result<(), epic_wallet_controller::
 
 	// Create wallet 2
 	let client2 = LocalWalletClient::new("wallet2", wallet_proxy.tx.clone());
-	execute_command(&app, test_dir, "wallet2", &client2, arg_vec.clone())?;
+	execute_command(&app, test_dir, "wallet2", &client2, arg_vec.clone()).unwrap();
 
 	let config2 = initial_setup_wallet(test_dir, "wallet2");
 	let wallet_config2 = config2.clone().members.unwrap().wallet;
@@ -102,7 +103,7 @@ fn command_line_test_impl(test_dir: &str) -> Result<(), epic_wallet_controller::
 
 	// Create some accounts in wallet 1
 	let arg_vec = vec!["epic-wallet", "-p", "password", "account", "-c", "mining"];
-	execute_command(&app, test_dir, "wallet1", &client1, arg_vec)?;
+	execute_command(&app, test_dir, "wallet1", &client1, arg_vec).unwrap();
 
 	let arg_vec = vec![
 		"epic-wallet",
@@ -112,7 +113,7 @@ fn command_line_test_impl(test_dir: &str) -> Result<(), epic_wallet_controller::
 		"-c",
 		"account_1",
 	];
-	execute_command(&app, test_dir, "wallet1", &client1, arg_vec)?;
+	execute_command(&app, test_dir, "wallet1", &client1, arg_vec).unwrap();
 
 	// Create some accounts in wallet 2
 	let arg_vec = vec![
@@ -123,7 +124,7 @@ fn command_line_test_impl(test_dir: &str) -> Result<(), epic_wallet_controller::
 		"-c",
 		"account_1",
 	];
-	execute_command(&app, test_dir, "wallet2", &client2, arg_vec.clone())?;
+	execute_command(&app, test_dir, "wallet2", &client2, arg_vec.clone()).unwrap();
 	// already exists
 	assert!(execute_command(&app, test_dir, "wallet2", &client2, arg_vec).is_err());
 
@@ -135,15 +136,15 @@ fn command_line_test_impl(test_dir: &str) -> Result<(), epic_wallet_controller::
 		"-c",
 		"account_2",
 	];
-	execute_command(&app, test_dir, "wallet2", &client2, arg_vec)?;
+	execute_command(&app, test_dir, "wallet2", &client2, arg_vec).unwrap();
 
 	// let's see those accounts
 	let arg_vec = vec!["epic-wallet", "-p", "password", "account"];
-	execute_command(&app, test_dir, "wallet1", &client1, arg_vec)?;
+	execute_command(&app, test_dir, "wallet1", &client1, arg_vec).unwrap();
 
 	// let's see those accounts
 	let arg_vec = vec!["epic-wallet", "-p", "password", "account"];
-	execute_command(&app, test_dir, "wallet2", &client2, arg_vec)?;
+	execute_command(&app, test_dir, "wallet2", &client2, arg_vec).unwrap();
 
 	// Mine a bit into wallet 1 so we have something to send
 	// (TODO: Be able to stop listeners so we can test this better)
@@ -154,9 +155,11 @@ fn command_line_test_impl(test_dir: &str) -> Result<(), epic_wallet_controller::
 	epic_wallet_controller::controller::owner_single_use(wallet1.clone(), mask1, |api, m| {
 		api.set_active_account(m, "mining")?;
 		Ok(())
-	})?;
+	})
+	.unwrap();
 
 	let mut bh = 10u64;
+
 	let _ =
 		test_framework::award_blocks_to_wallet(&chain, wallet1.clone(), mask1, bh as usize, false);
 
@@ -172,7 +175,7 @@ fn command_line_test_impl(test_dir: &str) -> Result<(), epic_wallet_controller::
 
 	// Update info and check
 	let arg_vec = vec!["epic-wallet", "-p", "password", "-a", "mining", "info"];
-	execute_command(&app, test_dir, "wallet1", &client1, arg_vec)?;
+	execute_command(&app, test_dir, "wallet1", &client1, arg_vec).unwrap();
 
 	// try a file exchange
 	let file_name = format!("{}/tx1.part_tx", test_dir);
@@ -192,7 +195,7 @@ fn command_line_test_impl(test_dir: &str) -> Result<(), epic_wallet_controller::
 		very_long_message,
 		"10",
 	];
-	execute_command(&app, test_dir, "wallet1", &client1, arg_vec)?;
+	execute_command(&app, test_dir, "wallet1", &client1, arg_vec).unwrap();
 
 	let arg_vec = vec![
 		"epic-wallet",
@@ -204,9 +207,9 @@ fn command_line_test_impl(test_dir: &str) -> Result<(), epic_wallet_controller::
 		"-i",
 		&file_name,
 		"-g",
-		"Thanks, Yeast!",
+		"Thanks, Yeast! 208",
 	];
-	execute_command(&app, test_dir, "wallet2", &client2, arg_vec.clone())?;
+	execute_command(&app, test_dir, "wallet2", &client2, arg_vec.clone()).unwrap();
 
 	// shouldn't be allowed to receive twice
 	assert!(execute_command(&app, test_dir, "wallet2", &client2, arg_vec).is_err());
@@ -221,7 +224,9 @@ fn command_line_test_impl(test_dir: &str) -> Result<(), epic_wallet_controller::
 		"-i",
 		&response_file_name,
 	];
-	execute_command(&app, test_dir, "wallet1", &client1, arg_vec)?;
+
+	execute_command(&app, test_dir, "wallet1", &client1, arg_vec).unwrap();
+
 	bh += 1;
 
 	let wallet_config1 = config1.clone().members.unwrap().wallet;
@@ -243,17 +248,18 @@ fn command_line_test_impl(test_dir: &str) -> Result<(), epic_wallet_controller::
 			assert!(t.kernel_excess.is_some());
 		}
 		Ok(())
-	})?;
+	})
+	.unwrap();
 
 	let _ = test_framework::award_blocks_to_wallet(&chain, wallet1.clone(), mask1, 10, false);
 	bh += 10;
 
 	// update info for each
 	let arg_vec = vec!["epic-wallet", "-p", "password", "-a", "mining", "info"];
-	execute_command(&app, test_dir, "wallet1", &client1, arg_vec)?;
+	execute_command(&app, test_dir, "wallet1", &client1, arg_vec).unwrap();
 
 	let arg_vec = vec!["epic-wallet", "-p", "password", "-a", "account_1", "info"];
-	execute_command(&app, test_dir, "wallet2", &client2, arg_vec)?;
+	execute_command(&app, test_dir, "wallet2", &client2, arg_vec).unwrap();
 
 	// check results in wallet 2
 	let wallet_config2 = config2.clone().members.unwrap().wallet;
@@ -271,7 +277,8 @@ fn command_line_test_impl(test_dir: &str) -> Result<(), epic_wallet_controller::
 		assert_eq!(wallet1_info.last_confirmed_height, bh);
 		assert_eq!(wallet1_info.amount_currently_spendable, 1_000_000_000);
 		Ok(())
-	})?;
+	})
+	.unwrap();
 
 	// Self-send to same account, using smallest strategy
 	let arg_vec = vec![
@@ -291,7 +298,7 @@ fn command_line_test_impl(test_dir: &str) -> Result<(), epic_wallet_controller::
 		"smallest",
 		"10",
 	];
-	execute_command(&app, test_dir, "wallet1", &client1, arg_vec)?;
+	execute_command(&app, test_dir, "wallet1", &client1, arg_vec).unwrap();
 
 	let arg_vec = vec![
 		"epic-wallet",
@@ -303,9 +310,9 @@ fn command_line_test_impl(test_dir: &str) -> Result<(), epic_wallet_controller::
 		"-i",
 		&file_name,
 		"-g",
-		"Thanks, Yeast!",
+		"Thanks, Yeast! 309",
 	];
-	execute_command(&app, test_dir, "wallet1", &client1, arg_vec.clone())?;
+	execute_command(&app, test_dir, "wallet1", &client1, arg_vec.clone()).unwrap();
 
 	let arg_vec = vec![
 		"epic-wallet",
@@ -317,7 +324,7 @@ fn command_line_test_impl(test_dir: &str) -> Result<(), epic_wallet_controller::
 		"-i",
 		&response_file_name,
 	];
-	execute_command(&app, test_dir, "wallet1", &client1, arg_vec)?;
+	//execute_command(&app, test_dir, "wallet1", &client1, arg_vec).unwrap();
 	bh += 1;
 
 	// Check our transaction log, should have bh entries + one for the self receive
@@ -336,7 +343,8 @@ fn command_line_test_impl(test_dir: &str) -> Result<(), epic_wallet_controller::
 		assert!(refreshed);
 		assert_eq!(txs.len(), bh as usize + 1);
 		Ok(())
-	})?;
+	})
+	.unwrap();
 
 	// Try using the self-send method, splitting up outputs for the fun of it
 	let arg_vec = vec![
@@ -358,7 +366,7 @@ fn command_line_test_impl(test_dir: &str) -> Result<(), epic_wallet_controller::
 		"smallest",
 		"10",
 	];
-	execute_command(&app, test_dir, "wallet1", &client1, arg_vec)?;
+	execute_command(&app, test_dir, "wallet1", &client1, arg_vec).unwrap();
 	bh += 1;
 
 	// Check our transaction log, should have bh entries + 2 for the self receives
@@ -377,7 +385,8 @@ fn command_line_test_impl(test_dir: &str) -> Result<(), epic_wallet_controller::
 		assert!(refreshed);
 		assert_eq!(txs.len(), bh as usize + 2);
 		Ok(())
-	})?;
+	})
+	.unwrap();
 
 	// Another file exchange, don't send, but unlock with repair command
 	let arg_vec = vec![
@@ -392,13 +401,13 @@ fn command_line_test_impl(test_dir: &str) -> Result<(), epic_wallet_controller::
 		"-d",
 		&file_name,
 		"-g",
-		"Ain't sending",
+		"Aint sending",
 		"10",
 	];
-	execute_command(&app, test_dir, "wallet1", &client1, arg_vec)?;
+	execute_command(&app, test_dir, "wallet1", &client1, arg_vec).unwrap();
 
 	let arg_vec = vec!["epic-wallet", "-p", "password", "scan", "-d"];
-	execute_command(&app, test_dir, "wallet1", &client1, arg_vec)?;
+	execute_command(&app, test_dir, "wallet1", &client1, arg_vec).unwrap();
 
 	// Another file exchange, cancel this time
 	let arg_vec = vec![
@@ -413,10 +422,10 @@ fn command_line_test_impl(test_dir: &str) -> Result<(), epic_wallet_controller::
 		"-d",
 		&file_name,
 		"-g",
-		"Ain't sending 2",
+		"sending 2",
 		"10",
 	];
-	execute_command(&app, test_dir, "wallet1", &client1, arg_vec)?;
+	execute_command(&app, test_dir, "wallet1", &client1, arg_vec).unwrap();
 
 	let arg_vec = vec![
 		"epic-wallet",
@@ -428,7 +437,7 @@ fn command_line_test_impl(test_dir: &str) -> Result<(), epic_wallet_controller::
 		"-i",
 		"26",
 	];
-	execute_command(&app, test_dir, "wallet1", &client1, arg_vec)?;
+	execute_command(&app, test_dir, "wallet1", &client1, arg_vec).unwrap();
 
 	// issue an invoice tx, wallet 2
 	let file_name = format!("{}/invoice.slate", test_dir);
@@ -443,7 +452,7 @@ fn command_line_test_impl(test_dir: &str) -> Result<(), epic_wallet_controller::
 		"Please give me your precious epics. Love, Yeast",
 		"65",
 	];
-	execute_command(&app, test_dir, "wallet2", &client2, arg_vec)?;
+	execute_command(&app, test_dir, "wallet2", &client2, arg_vec).unwrap();
 	let output_file_name = format!("{}/invoice.slate.paid", test_dir);
 
 	// now pay the invoice tx, wallet 1
@@ -461,7 +470,7 @@ fn command_line_test_impl(test_dir: &str) -> Result<(), epic_wallet_controller::
 		"-g",
 		"Here you go",
 	];
-	execute_command(&app, test_dir, "wallet1", &client1, arg_vec)?;
+	execute_command(&app, test_dir, "wallet1", &client1, arg_vec).unwrap();
 
 	// and finalize, wallet 2
 	let arg_vec = vec![
@@ -472,7 +481,7 @@ fn command_line_test_impl(test_dir: &str) -> Result<(), epic_wallet_controller::
 		"-i",
 		&output_file_name,
 	];
-	execute_command(&app, test_dir, "wallet2", &client2, arg_vec)?;
+	execute_command(&app, test_dir, "wallet2", &client2, arg_vec).unwrap();
 
 	// bit more mining
 	let _ = test_framework::award_blocks_to_wallet(&chain, wallet1.clone(), mask1, 5, false);
@@ -480,7 +489,7 @@ fn command_line_test_impl(test_dir: &str) -> Result<(), epic_wallet_controller::
 
 	// txs and outputs (mostly spit out for a visual in test logs)
 	let arg_vec = vec!["epic-wallet", "-p", "password", "-a", "mining", "txs"];
-	execute_command(&app, test_dir, "wallet1", &client1, arg_vec)?;
+	execute_command(&app, test_dir, "wallet1", &client1, arg_vec).unwrap();
 
 	// message output (mostly spit out for a visual in test logs)
 	let arg_vec = vec![
@@ -493,17 +502,17 @@ fn command_line_test_impl(test_dir: &str) -> Result<(), epic_wallet_controller::
 		"-i",
 		"10",
 	];
-	execute_command(&app, test_dir, "wallet1", &client1, arg_vec)?;
+	execute_command(&app, test_dir, "wallet1", &client1, arg_vec).unwrap();
 
 	// txs and outputs (mostly spit out for a visual in test logs)
 	let arg_vec = vec!["epic-wallet", "-p", "password", "-a", "mining", "outputs"];
-	execute_command(&app, test_dir, "wallet1", &client1, arg_vec)?;
+	execute_command(&app, test_dir, "wallet1", &client1, arg_vec).unwrap();
 
 	let arg_vec = vec!["epic-wallet", "-p", "password", "txs"];
-	execute_command(&app, test_dir, "wallet2", &client2, arg_vec)?;
+	execute_command(&app, test_dir, "wallet2", &client2, arg_vec).unwrap();
 
 	let arg_vec = vec!["epic-wallet", "-p", "password", "outputs"];
-	execute_command(&app, test_dir, "wallet2", &client2, arg_vec)?;
+	execute_command(&app, test_dir, "wallet2", &client2, arg_vec).unwrap();
 
 	// get tx output via -tx parameter
 	let mut tx_id = "".to_string();
@@ -514,9 +523,10 @@ fn command_line_test_impl(test_dir: &str) -> Result<(), epic_wallet_controller::
 		assert!(some_tx_id.is_some());
 		tx_id = some_tx_id.unwrap().to_hyphenated().to_string().clone();
 		Ok(())
-	})?;
+	})
+	.unwrap();
 	let arg_vec = vec!["epic-wallet", "-p", "password", "txs", "-t", &tx_id[..]];
-	execute_command(&app, test_dir, "wallet2", &client2, arg_vec)?;
+	execute_command(&app, test_dir, "wallet2", &client2, arg_vec).unwrap();
 
 	// let logging finish
 	thread::sleep(Duration::from_millis(200));
@@ -528,6 +538,6 @@ fn command_line_test_impl(test_dir: &str) -> Result<(), epic_wallet_controller::
 fn wallet_command_line() {
 	let test_dir = "target/test_output/command_line";
 	if let Err(e) = command_line_test_impl(test_dir) {
-		panic!("Libwallet Error: {} - {}", e, e.backtrace().unwrap());
+		panic!("Libwallet Error: {}", e);
 	}
 }

@@ -16,7 +16,7 @@ use crate::base58::{FromBase58, ToBase58};
 use crate::epic_core::global::is_floonet;
 use crate::epic_util::secp::key::PublicKey;
 use crate::epic_util::secp::Secp256k1;
-use crate::error::{Error, ErrorKind};
+use crate::error::Error;
 use regex::Regex;
 use std::fmt::{self, Debug, Display};
 const EPICBOX_ADDRESS_VERSION_MAINNET: [u8; 2] = [1, 0];
@@ -73,7 +73,7 @@ impl Address for EpicboxAddress {
 
 		let captures = re.captures(s);
 		if captures.is_none() {
-			Err(ErrorKind::EpicboxAddressParsingError(s.to_string()))?;
+			Err(Error::EpicboxAddressParsingError(s.to_string()))?;
 		}
 
 		let captures = captures.unwrap();
@@ -120,7 +120,7 @@ impl Base58<PublicKey> for PublicKey {
 	fn from_base58(str: &str) -> Result<PublicKey, Error> {
 		let secp = Secp256k1::new();
 		let str = str::from_base58(str)?;
-		PublicKey::from_slice(&secp, &str).map_err(|_| ErrorKind::InvalidBase58Key.into())
+		PublicKey::from_slice(&secp, &str).map_err(|_| Error::InvalidBase58Key.into())
 	}
 
 	fn to_base58(&self) -> String {
@@ -132,9 +132,9 @@ impl Base58<PublicKey> for PublicKey {
 		let n_version = version_expect.len();
 		let (version_actual, key_bytes) = str::from_base58_check(str, n_version)?;
 		if version_actual != version_expect {
-			return Err(ErrorKind::InvalidBase58Version.into());
+			return Err(Error::InvalidBase58Version.into());
 		}
-		PublicKey::from_slice(&secp, &key_bytes).map_err(|_| ErrorKind::InvalidBase58Key.into())
+		PublicKey::from_slice(&secp, &key_bytes).map_err(|_| Error::InvalidBase58Key.into())
 	}
 
 	fn to_base58_check(&self, version: Vec<u8>) -> String {

@@ -74,7 +74,7 @@ fn ttl_cutoff_test_impl(test_dir: &'static str) -> Result<(), libwallet::Error> 
 	let _ =
 		test_framework::award_blocks_to_wallet(&chain, wallet1.clone(), mask1, bh as usize, false);
 
-	let amount = 60_000_000_000;
+	let amount = 1457720000;
 	let mut slate = Slate::blank(1);
 	wallet::controller::owner_single_use(wallet1.clone(), mask1, |sender_api, m| {
 		// note this will increment the block count as part of the transaction "Posting"
@@ -176,7 +176,7 @@ fn ttl_cutoff() {
 	let test_dir = "test_output/ttl_cutoff";
 	setup(test_dir);
 	if let Err(e) = ttl_cutoff_test_impl(test_dir) {
-		panic!("Libwallet Error: {} - {}", e, e.backtrace().unwrap());
+		panic!("Libwallet Error: {}", e);
 	}
 	clean_output_dir(test_dir);
 }

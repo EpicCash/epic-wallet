@@ -78,7 +78,7 @@ fn owner_v2_sanity() -> Result<(), epic_wallet_controller::Error> {
 
 	// 1) Send simple retrieve_info request to owner listener
 	let req = include_str!("data/v2_reqs/retrieve_info.req.json");
-	let res = send_request(1, "http://127.0.0.1:23420/v2/owner", req)?;
+	let res = send_request(1, "http://127.0.0.1:23420/v2/owner", req).unwrap();
 	assert!(res.is_ok());
 	let value: RetrieveSummaryInfoResp = res.unwrap();
 	assert_eq!(value.1.amount_currently_spendable, 10205440000);

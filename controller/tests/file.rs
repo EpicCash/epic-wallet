@@ -18,14 +18,13 @@ extern crate epic_wallet_controller as wallet;
 extern crate epic_wallet_impls as impls;
 
 use epic_wallet_libwallet as libwallet;
-use epic_wallet_util::epic_core as core;
 
+use epic_wallet_libwallet::InitTxArgs;
+use epic_wallet_util::epic_core::consensus;
 use impls::test_framework::{self, LocalWalletClient};
 use impls::{PathToSlate, SlateGetter as _, SlatePutter as _};
 use std::thread;
 use std::time::Duration;
-
-use epic_wallet_libwallet::InitTxArgs;
 
 use serde_json;
 
@@ -72,7 +71,7 @@ fn file_exchange_test_impl(test_dir: &'static str) -> Result<(), libwallet::Erro
 	});
 
 	// few values to keep things shorter
-	let reward = core::consensus::BLOCK_TIME_SEC * core::consensus::EPIC_BASE;
+	let reward = consensus::reward_at_height(1);
 
 	// add some accounts
 	wallet::controller::owner_single_use(wallet1.clone(), mask1, |api, m| {
@@ -144,7 +143,7 @@ fn file_exchange_test_impl(test_dir: &'static str) -> Result<(), libwallet::Erro
 		Ok(())
 	})?;
 
-	let sender2_message = "And this is sender 2's message".to_owned();
+	let sender2_message = "And this is sender 2s message".to_owned();
 
 	// wallet 2 receives file, completes, sends file back
 	wallet::controller::foreign_single_use(wallet2.clone(), mask2_i.clone(), |api| {
@@ -224,7 +223,7 @@ fn wallet_file_exchange() {
 	let test_dir = "test_output/file_exchange";
 	setup(test_dir);
 	if let Err(e) = file_exchange_test_impl(test_dir) {
-		panic!("Libwallet Error: {} - {}", e, e.backtrace().unwrap());
+		panic!("Libwallet Error: {}", e);
 	}
 	clean_output_dir(test_dir);
 }

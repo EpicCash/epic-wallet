@@ -85,7 +85,7 @@ fn scan_impl(test_dir: &'static str) -> Result<(), libwallet::Error> {
 	});
 
 	// few values to keep things shorter
-	let reward = core::consensus::BLOCK_TIME_SEC * core::consensus::EPIC_BASE;
+	let reward = consensus::reward_at_height(1); //consensus::reward_foundation_at_height(1);
 	let cm = global::coinbase_maturity() as u64; // assume all testing precedes soft fork height
 
 	// add some accounts
@@ -789,13 +789,14 @@ fn output_scanning_impl(test_dir: &'static str) -> Result<(), libwallet::Error> 
 	{
 		// Entire range should be correct
 		let ranges = client1.height_range_to_pmmr_indices(1, None)?;
-		assert_eq!(ranges, (1, 38));
+
+		assert_eq!(ranges, (1, 46));
 		let outputs = client1.get_outputs_by_pmmr_index(ranges.0, Some(ranges.1), 1000)?;
-		assert_eq!(outputs.2.len(), 20);
+		assert_eq!(outputs.2.len(), 24);
 
 		// Basic range should be correct
 		let ranges = client1.height_range_to_pmmr_indices(1, Some(14))?;
-		assert_eq!(ranges, (1, 25));
+		assert_eq!(ranges, (1, 31));
 		let outputs = client1.get_outputs_by_pmmr_index(ranges.0, Some(ranges.1), 1000)?;
 		println!(
 			"Last Index: {}, Max: {}, Outputs.len: {}",
@@ -803,11 +804,11 @@ fn output_scanning_impl(test_dir: &'static str) -> Result<(), libwallet::Error> 
 			outputs.1,
 			outputs.2.len()
 		);
-		assert_eq!(outputs.2.len(), 14);
+		assert_eq!(outputs.2.len(), 16);
 
 		// mid range
 		let ranges = client1.height_range_to_pmmr_indices(5, Some(14))?;
-		assert_eq!(ranges, (8, 25));
+		assert_eq!(ranges, (8, 31));
 		let outputs = client1.get_outputs_by_pmmr_index(ranges.0, Some(ranges.1), 1000)?;
 		println!(
 			"Last Index: {}, Max: {}, Outputs.len: {}",
@@ -818,11 +819,12 @@ fn output_scanning_impl(test_dir: &'static str) -> Result<(), libwallet::Error> 
 		for o in outputs.2.clone() {
 			println!("height: {}, mmr_index: {}", o.3, o.4);
 		}
-		assert_eq!(outputs.2.len(), 10);
+		assert_eq!(outputs.2.len(), 12);
 
 		// end
 		let ranges = client1.height_range_to_pmmr_indices(5, None)?;
-		assert_eq!(ranges, (8, 38));
+
+		assert_eq!(ranges, (8, 46));
 		let outputs = client1.get_outputs_by_pmmr_index(ranges.0, Some(ranges.1), 1000)?;
 		println!(
 			"Last Index: {}, Max: {}, Outputs.len: {}",
@@ -833,7 +835,7 @@ fn output_scanning_impl(test_dir: &'static str) -> Result<(), libwallet::Error> 
 		for o in outputs.2.clone() {
 			println!("height: {}, mmr_index: {}", o.3, o.4);
 		}
-		assert_eq!(outputs.2.len(), 16);
+		assert_eq!(outputs.2.len(), 20);
 	}
 
 	Ok(())
@@ -844,7 +846,7 @@ fn scan() {
 	let test_dir = "test_output/scan";
 	setup(test_dir);
 	if let Err(e) = scan_impl(test_dir) {
-		panic!("Libwallet Error: {} - {}", e, e.backtrace().unwrap());
+		panic!("Libwallet Error: {}", e);
 	}
 	clean_output_dir(test_dir);
 }
@@ -854,7 +856,7 @@ fn two_wallets_one_seed() {
 	let test_dir = "test_output/two_wallets_one_seed";
 	setup(test_dir);
 	if let Err(e) = two_wallets_one_seed_impl(test_dir) {
-		panic!("Libwallet Error: {} - {}", e, e.backtrace().unwrap());
+		panic!("Libwallet Error: {}", e);
 	}
 	clean_output_dir(test_dir);
 }
@@ -864,7 +866,7 @@ fn output_scanning() {
 	let test_dir = "test_output/output_scanning";
 	setup(test_dir);
 	if let Err(e) = output_scanning_impl(test_dir) {
-		panic!("Libwallet Error: {} - {}", e, e.backtrace().unwrap());
+		panic!("Libwallet Error: {}", e);
 	}
 	clean_output_dir(test_dir);
 }

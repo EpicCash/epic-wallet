@@ -48,12 +48,12 @@ impl Store {
 		CREATE TABLE IF NOT EXISTS data (
 			id INTEGER PRIMARY KEY,
 			key BLOB NOT NULL UNIQUE,
-			prefix TEXT, 
+			prefix TEXT,
 			data TEXT NOT NULL,
 			q_tx_id INTEGER,
 			q_confirmed INTEGER,
 			q_tx_status TEXT);
-			
+
 		-- Create indexes for queriable columns
 		CREATE INDEX IF NOT EXISTS prefix_index ON data (prefix);
 		CREATE INDEX IF NOT EXISTS q_tx_id_index ON data (q_tx_id);
@@ -74,12 +74,12 @@ impl Store {
 	pub fn get(&self, key: &[u8]) -> Option<Serializable> {
 		let query = format!(
 			r#"
-			SELECT 
-				data 
-			FROM 
-				data 
-			WHERE 
-				key = "{:?}" 
+			SELECT
+				data
+			FROM
+				data
+			WHERE
+				key = "{:?}"
 			LIMIT 1;
 			"#,
 			key
@@ -103,12 +103,12 @@ impl Store {
 	pub fn exists(&self, key: &[u8]) -> Result<bool, Error> {
 		let query = format!(
 			r#"
-			SELECT 
-				* 
-			FROM 
-				data 
-			WHERE 
-				key = "{:?}" 
+			SELECT
+				*
+			FROM
+				data
+			WHERE
+				key = "{:?}"
 			LIMIT 1;
 			"#,
 			key
@@ -121,11 +121,11 @@ impl Store {
 	pub fn iter(&self, from: &[u8]) -> Vec<Serializable> {
 		let query = format!(
 			r#"
-			SELECT 
-				data 
-			FROM 
-				data 
-			WHERE 
+			SELECT
+				data
+			FROM
+				data
+			WHERE
 				prefix = "{}";
 			"#,
 			String::from_utf8(from.to_vec()).unwrap()
@@ -192,17 +192,17 @@ impl<'a> Batch<'_> {
 		// TxLogEntry and OutputData make use of queriable columns
 		let mut query = match &value {
 			Serializable::TxLogEntry(t) => format!(
-				r#"INSERT INTO data 
-						(key, data, prefix, q_tx_id, q_confirmed, q_tx_status) 
-					VALUES 
+				r#"INSERT INTO data
+						(key, data, prefix, q_tx_id, q_confirmed, q_tx_status)
+					VALUES
 						("{:?}", '{}', "{}", {}, {}, "{}");
 				"#,
 				key, value_s, prefix, t.id, t.confirmed, t.tx_type
 			),
 			Serializable::OutputData(o) => format!(
-				r#"INSERT INTO data 
-						(key, data, prefix, q_tx_id, q_tx_status) 
-					VALUES 
+				r#"INSERT INTO data
+						(key, data, prefix, q_tx_id, q_tx_status)
+					VALUES
 						("{:?}", '{}', "{}", "{}", "{}")
 				"#,
 				key,
@@ -215,9 +215,9 @@ impl<'a> Batch<'_> {
 				o.status
 			),
 			_ => format!(
-				r#"INSERT INTO data 
-						(key, data, prefix) 
-					VALUES 
+				r#"INSERT INTO data
+						(key, data, prefix)
+					VALUES
 						("{:?}", '{}', "{}");
 				"#,
 				key, value_s, prefix
@@ -230,23 +230,23 @@ impl<'a> Batch<'_> {
 			query = match &value {
 				Serializable::TxLogEntry(t) => format!(
 					r#"UPDATE data
-						SET 
-							data = '{}', 
-							q_tx_id = {}, 
-							q_confirmed = {}, 
+						SET
+							data = '{}',
+							q_tx_id = {},
+							q_confirmed = {},
 							q_tx_status = "{}"
-						WHERE 
+						WHERE
 							key = "{:?}";
 					"#,
 					value_s, t.id, t.confirmed, t.tx_type, key
 				),
 				Serializable::OutputData(o) => format!(
-					r#"UPDATE data 
-						SET 
+					r#"UPDATE data
+						SET
 							data = '{}',
 							q_tx_id = "{}",
 							q_tx_status = "{}"
-						WHERE 
+						WHERE
 							key = "{:?}";
 					"#,
 					value_s,
@@ -258,10 +258,10 @@ impl<'a> Batch<'_> {
 					key
 				),
 				_ => format!(
-					r#"UPDATE data 
-						SET 
-							data = '{}' 
-						WHERE 
+					r#"UPDATE data
+						SET
+							data = '{}'
+						WHERE
 							key = "{:?}";
 					"#,
 					value_s, key
@@ -293,10 +293,10 @@ impl<'a> Batch<'_> {
 	pub fn delete(&self, key: &[u8]) -> Result<(), Error> {
 		let statement = format!(
 			r#"
-		DELETE 
-		FROM 
-			data 
-		WHERE 
+		DELETE
+		FROM
+			data
+		WHERE
 			key = "{:?}"
 		"#,
 			key

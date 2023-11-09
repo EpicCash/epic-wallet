@@ -14,7 +14,6 @@
 
 use super::base58::{FromBase58, ToBase58};
 use super::Error;
-use super::ErrorKind;
 pub use crate::epic_util::secp::key::{PublicKey, SecretKey};
 use crate::epic_util::secp::pedersen::Commitment;
 pub use crate::epic_util::secp::{Message, Secp256k1, Signature};
@@ -47,7 +46,7 @@ impl Hex<PublicKey> for PublicKey {
 	fn from_hex(str: &str) -> Result<PublicKey, Error> {
 		let secp = Secp256k1::new();
 		let hex = from_hex(str.to_string())?;
-		PublicKey::from_slice(&secp, &hex).map_err(|_| ErrorKind::InvalidBase58Key.into())
+		PublicKey::from_slice(&secp, &hex).map_err(|_| Error::InvalidBase58Key.into())
 	}
 
 	fn to_hex(&self) -> String {
@@ -59,7 +58,7 @@ impl Base58<PublicKey> for PublicKey {
 	fn from_base58(str: &str) -> Result<PublicKey, Error> {
 		let secp = Secp256k1::new();
 		let str = str::from_base58(str)?;
-		PublicKey::from_slice(&secp, &str).map_err(|_| ErrorKind::InvalidBase58Key.into())
+		PublicKey::from_slice(&secp, &str).map_err(|_| Error::InvalidBase58Key.into())
 	}
 
 	fn to_base58(&self) -> String {
@@ -71,9 +70,9 @@ impl Base58<PublicKey> for PublicKey {
 		let n_version = version_expect.len();
 		let (version_actual, key_bytes) = str::from_base58_check(str, n_version)?;
 		if version_actual != version_expect {
-			return Err(ErrorKind::InvalidBase58Version.into());
+			return Err(Error::InvalidBase58Version.into());
 		}
-		PublicKey::from_slice(&secp, &key_bytes).map_err(|_| ErrorKind::InvalidBase58Key.into())
+		PublicKey::from_slice(&secp, &key_bytes).map_err(|_| Error::InvalidBase58Key.into())
 	}
 
 	fn to_base58_check(&self, version: Vec<u8>) -> String {
@@ -85,7 +84,7 @@ impl Hex<Signature> for Signature {
 	fn from_hex(str: &str) -> Result<Signature, Error> {
 		let secp = Secp256k1::new();
 		let hex = from_hex(str.to_string())?;
-		Signature::from_der(&secp, &hex).map_err(|e| Err(ErrorKind::Secp(e)).unwrap())
+		Signature::from_der(&secp, &hex).map_err(|e| Err(Error::Secp(e)).unwrap())
 	}
 
 	fn to_hex(&self) -> String {
@@ -99,7 +98,7 @@ impl Hex<SecretKey> for SecretKey {
 	fn from_hex(str: &str) -> Result<SecretKey, Error> {
 		let secp = Secp256k1::new();
 		let data = from_hex(str.to_string())?;
-		SecretKey::from_slice(&secp, &data).map_err(|e| Err(ErrorKind::Secp(e)).unwrap())
+		SecretKey::from_slice(&secp, &data).map_err(|e| Err(Error::Secp(e)).unwrap())
 	}
 
 	fn to_hex(&self) -> String {
@@ -124,7 +123,7 @@ pub fn sign_challenge(challenge: &str, secret_key: &SecretKey) -> Result<Signatu
 	let message = Message::from_slice(hasher.finalize().as_slice())?;
 	let secp = Secp256k1::new();
 	secp.sign(&message, secret_key)
-		.map_err(|e| Err(ErrorKind::Secp(e)).unwrap())
+		.map_err(|e| Err(Error::Secp(e)).unwrap())
 }
 
 pub fn verify_signature(
@@ -137,7 +136,7 @@ pub fn verify_signature(
 	let message = Message::from_slice(hasher.finalize().as_slice())?;
 	let secp = Secp256k1::new();
 	secp.verify(&message, signature, public_key)
-		.map_err(|e| Err(ErrorKind::Secp(e)).unwrap())
+		.map_err(|e| Err(Error::Secp(e)).unwrap())
 }
 
 /// Encode the provided bytes into a hex string
@@ -152,7 +151,7 @@ pub fn to_hex(bytes: Vec<u8>) -> String {
 /// Decode a hex string into bytes.
 pub fn from_hex(hex_str: String) -> Result<Vec<u8>, Error> {
 	if hex_str.len() % 2 == 1 {
-		Err(ErrorKind::NumberParsingError)?
+		Err(Error::NumberParsingError)?
 	}
 	let hex_trim = if &hex_str[..2] == "0x" {
 		hex_str[2..].to_owned()
@@ -161,7 +160,7 @@ pub fn from_hex(hex_str: String) -> Result<Vec<u8>, Error> {
 	};
 	let vec = split_n(&hex_trim.trim()[..], 2)
 		.iter()
-		.map(|b| u8::from_str_radix(b, 16).map_err(|_| ErrorKind::NumberParsingError.into()))
+		.map(|b| u8::from_str_radix(b, 16).map_err(|_| Error::NumberParsingError.into()))
 		.collect::<Result<Vec<u8>, Error>>()?;
 	Ok(vec)
 }

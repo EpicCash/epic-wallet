@@ -10,9 +10,9 @@ workspace = ".."
 edition = "2018"
 
 [dependencies]
-hyper = "0.12"
-futures = "0.1"
-http = "0.1"
+hyper = { version = "0.14.27", features = ["full"]}
+futures = "0.3"
+http = "0.2"
 itertools = "0.7"
 rand = "0.5"
 serde = "1"

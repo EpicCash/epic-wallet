@@ -16,7 +16,7 @@
 use std::fs::File;
 use std::io::{Read, Write};
 
-use crate::libwallet::{Error, ErrorKind, Slate, SlateVersion, VersionedSlate};
+use crate::libwallet::{Error, Slate, SlateVersion, VersionedSlate};
 use crate::{SlateGetter, SlatePutter};
 use std::path::PathBuf;
 
@@ -40,7 +40,7 @@ impl SlatePutter for PathToSlate {
 		};
 		pub_tx.write_all(
 			serde_json::to_string(&out_slate)
-				.map_err(|_| ErrorKind::SlateSer)?
+				.map_err(|_| Error::SlateSer)?
 				.as_bytes(),
 		)?;
 		pub_tx.sync_all()?;

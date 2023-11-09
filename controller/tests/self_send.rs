@@ -17,9 +17,8 @@ extern crate log;
 extern crate epic_wallet_controller as wallet;
 extern crate epic_wallet_impls as impls;
 
-use epic_wallet_util::epic_core as core;
-
 use epic_wallet_libwallet as libwallet;
+use epic_wallet_util::epic_core::consensus;
 use impls::test_framework::{self, LocalWalletClient};
 use libwallet::InitTxArgs;
 use std::thread;
@@ -57,7 +56,7 @@ fn self_send_test_impl(test_dir: &'static str) -> Result<(), libwallet::Error> {
 	});
 
 	// few values to keep things shorter
-	let reward = core::consensus::BLOCK_TIME_SEC * core::consensus::EPIC_BASE;
+	let reward = consensus::reward_at_height(1);
 
 	// add some accounts
 	wallet::controller::owner_single_use(wallet1.clone(), mask1, |api, m| {
@@ -139,7 +138,7 @@ fn wallet_self_send() {
 	let test_dir = "test_output/self_send";
 	setup(test_dir);
 	if let Err(e) = self_send_test_impl(test_dir) {
-		panic!("Libwallet Error: {} - {}", e, e.backtrace().unwrap());
+		panic!("Libwallet Error: {}", e);
 	}
 	clean_output_dir(test_dir);
 }

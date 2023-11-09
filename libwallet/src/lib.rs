@@ -25,13 +25,10 @@
 use epic_wallet_config as config;
 use epic_wallet_util::epic_core;
 use epic_wallet_util::epic_keychain;
-use epic_wallet_util::epic_store;
+
 use epic_wallet_util::epic_util;
 
 use blake2_rfc as blake2;
-
-use failure;
-extern crate failure_derive;
 
 #[macro_use]
 extern crate serde_derive;
@@ -57,7 +54,7 @@ pub mod slate_versions;
 mod tx_proof;
 mod types;
 
-pub use crate::error::{Error, ErrorKind};
+pub use crate::error::Error;
 pub use crate::slate::{ParticipantData, ParticipantMessageData, Slate};
 pub use crate::slate_versions::{
 	SlateVersion, VersionedCoinbase, VersionedSlate, CURRENT_SLATE_VERSION,

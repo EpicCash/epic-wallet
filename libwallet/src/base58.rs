@@ -1,4 +1,4 @@
-use crate::error::{Error, ErrorKind};
+use crate::error::Error;
 use sha2::{Digest, Sha256};
 
 const ALPHABET: &'static [u8] = b"123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
@@ -94,12 +94,12 @@ impl FromBase58 for str {
 		while i < self.len() {
 			if (b58[i] & 0x80) != 0 {
 				// High-bit set on invalid digit
-				Err(ErrorKind::InvalidBase58Character(b58[i] as char, i))?;
+				Err(Error::InvalidBase58Character(b58[i] as char, i))?;
 			}
 
 			if B58_DIGITS_MAP[b58[i] as usize] == -1 {
 				// // Invalid base58 digit
-				Err(ErrorKind::InvalidBase58Character(b58[i] as char, i))?;
+				Err(Error::InvalidBase58Character(b58[i] as char, i))?;
 			}
 
 			let mut c = B58_DIGITS_MAP[b58[i] as usize] as u64;
@@ -113,12 +113,12 @@ impl FromBase58 for str {
 
 			if c != 0 {
 				// Output number too big (carry to the next int32)
-				Err(ErrorKind::InvalidBase58Length)?;
+				Err(Error::InvalidBase58Length)?;
 			}
 
 			if (out[0] & zeromask) != 0 {
 				// Output number too big (last int32 filled too far)
-				Err(ErrorKind::InvalidBase58Length)?;
+				Err(Error::InvalidBase58Length)?;
 			}
 
 			i += 1;
@@ -156,13 +156,13 @@ impl FromBase58 for str {
 	fn from_base58_check(&self, version_bytes: usize) -> Result<(Vec<u8>, Vec<u8>), Error> {
 		let mut payload: Vec<u8> = self.from_base58()?;
 		if payload.len() < 5 {
-			Err(ErrorKind::InvalidBase58Checksum)?;
+			Err(Error::InvalidBase58Checksum)?;
 		}
 		let checksum_index = payload.len() - 4;
 		let provided_checksum = payload.split_off(checksum_index);
 		let checksum = double_sha256(&payload)[..4].to_vec();
 		if checksum != provided_checksum {
-			Err(ErrorKind::InvalidBase58Checksum)?;
+			Err(Error::InvalidBase58Checksum)?;
 		}
 		Ok((
 			payload[..version_bytes].to_vec(),

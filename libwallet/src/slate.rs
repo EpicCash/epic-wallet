@@ -29,11 +29,11 @@ use crate::epic_util::secp::key::{PublicKey, SecretKey};
 use crate::epic_util::secp::pedersen::Commitment;
 use crate::epic_util::secp::Signature;
 use crate::epic_util::{self, secp};
-use crate::error::{Error, ErrorKind};
+use crate::error::Error;
 use crate::slate_versions::ser as dalek_ser;
 use ed25519_dalek::PublicKey as DalekPublicKey;
 use ed25519_dalek::Signature as DalekSignature;
-use failure::ResultExt;
+
 use rand::rngs::mock::StepRng;
 use rand::thread_rng;
 use serde::ser::{Serialize, Serializer};
@@ -227,7 +227,7 @@ impl Slate {
 	/// Attempt to find slate version
 	pub fn parse_slate_version(slate_json: &str) -> Result<u16, Error> {
 		let probe: SlateVersionProbe =
-			serde_json::from_str(slate_json).map_err(|_| ErrorKind::SlateVersionParse)?;
+			serde_json::from_str(slate_json).map_err(|_| Error::SlateVersionParse)?;
 		Ok(probe.version())
 	}
 
@@ -235,13 +235,13 @@ impl Slate {
 	pub fn deserialize_upgrade(slate_json: &str) -> Result<Slate, Error> {
 		let version = Slate::parse_slate_version(slate_json)?;
 		let v3: SlateV3 = match version {
-			3 => serde_json::from_str(slate_json).context(ErrorKind::SlateDeser)?,
+			3 => serde_json::from_str(slate_json).map_err(|_| Error::SlateDeser)?,
 			2 => {
 				let v2: SlateV2 =
-					serde_json::from_str(slate_json).context(ErrorKind::SlateDeser)?;
+					serde_json::from_str(slate_json).map_err(|_| Error::SlateDeser)?;
 				SlateV3::from(v2)
 			}
-			_ => return Err(ErrorKind::SlateVersion(version).into()),
+			_ => return Err(Error::SlateVersion(version).into()),
 		};
 		Ok(v3.into())
 	}
@@ -274,7 +274,7 @@ impl Slate {
 		keychain: &K,
 		builder: &B,
 		elems: Vec<Box<build::Append<K, B>>>,
-	) -> Result<BlindingFactor, Error>
+	) -> Result<BlindingFactor, epic_wallet_util::epic_core::libtx::Error>
 	where
 		K: Keychain,
 		B: ProofBuild,
@@ -339,7 +339,9 @@ impl Slate {
 
 	// This is the msg that we will sign as part of the tx kernel.
 	// If lock_height is 0 then build a plain kernel, otherwise build a height locked kernel.
-	fn msg_to_sign(&self) -> Result<secp::Message, Error> {
+	fn msg_to_sign(
+		&self,
+	) -> Result<secp::Message, epic_wallet_util::epic_core::core::transaction::Error> {
 		let msg = self.kernel_features().kernel_sig_msg()?;
 		Ok(msg)
 	}
@@ -382,6 +384,7 @@ impl Slate {
 		K: Keychain,
 	{
 		let final_sig = self.finalize_signature(keychain)?;
+
 		self.finalize_transaction(keychain, &final_sig)
 	}
 
@@ -404,7 +407,7 @@ impl Slate {
 			.collect();
 		match PublicKey::from_combination(secp, pub_nonces) {
 			Ok(k) => Ok(k),
-			Err(e) => Err(ErrorKind::Secp(e))?,
+			Err(e) => Err(Error::Secp(e))?,
 		}
 	}
 
@@ -417,7 +420,7 @@ impl Slate {
 			.collect();
 		match PublicKey::from_combination(secp, pub_blinds) {
 			Ok(k) => Ok(k),
-			Err(e) => Err(ErrorKind::Secp(e))?,
+			Err(e) => Err(Error::Secp(e))?,
 		}
 	}
 
@@ -543,7 +546,7 @@ impl Slate {
 		);
 
 		if fee > self.tx.fee() {
-			return Err(ErrorKind::Fee(
+			return Err(Error::Fee(
 				format!("Fee Dispute Error: {}, {}", self.tx.fee(), fee,).to_string(),
 			))?;
 		}
@@ -555,7 +558,7 @@ impl Slate {
 				amount_to_hr_string(self.amount + self.fee, false)
 			);
 			info!("{}", reason);
-			return Err(ErrorKind::Fee(reason.to_string()))?;
+			return Err(Error::Fee(reason.to_string()))?;
 		}
 
 		Ok(())
@@ -572,7 +575,7 @@ impl Slate {
 					&self.pub_nonce_sum(secp)?,
 					&p.public_blind_excess,
 					Some(&self.pub_blind_sum(secp)?),
-					&self.msg_to_sign()?,
+					&self.msg_to_sign().unwrap(),
 				)?;
 			}
 		}
@@ -590,7 +593,7 @@ impl Slate {
 					None => {
 						error!("verify_messages - participant message doesn't have signature. Message: \"{}\"",
 						   String::from_utf8_lossy(&msg.as_bytes()[..]));
-						return Err(ErrorKind::Signature(
+						return Err(Error::Signature(
 							"Optional participant messages doesn't have signature".to_owned(),
 						))?;
 					}
@@ -607,7 +610,7 @@ impl Slate {
 				) {
 					error!("verify_messages - participant message doesn't match signature. Message: \"{}\"",
 						   String::from_utf8_lossy(&msg.as_bytes()[..]));
-					return Err(ErrorKind::Signature(
+					return Err(Error::Signature(
 						"Optional participant messages do not match signatures".to_owned(),
 					))?;
 				} else {
@@ -707,7 +710,7 @@ impl Slate {
 
 		// confirm the kernel verifies successfully before proceeding
 		debug!("Validating final transaction");
-		final_tx.kernels()[0].verify()?;
+		let _ = final_tx.kernels()[0].verify()?;
 
 		// confirm the overall transaction is valid (including the updated kernel)
 		// accounting for tx weight limits

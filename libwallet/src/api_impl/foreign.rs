@@ -21,7 +21,7 @@ use crate::epic_util::secp::key::SecretKey;
 use crate::internal::{tx, updater};
 use crate::slate_versions::SlateVersion;
 use crate::{
-	address, BlockFees, CbData, Error, ErrorKind, NodeClient, Slate, TxLogEntryType, VersionInfo,
+	address, BlockFees, CbData, Error, NodeClient, Slate, TxLogEntryType, VersionInfo,
 	WalletBackend,
 };
 
@@ -107,7 +107,7 @@ where
 	)?;
 	for t in &tx {
 		if t.tx_type == TxLogEntryType::TxReceived {
-			return Err(ErrorKind::TransactionAlreadyReceived(ret_slate.id.to_string()).into());
+			return Err(Error::TransactionAlreadyReceived(ret_slate.id.to_string()).into());
 		}
 	}
 

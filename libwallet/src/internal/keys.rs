@@ -15,7 +15,7 @@
 //! Wallet key management functions
 use crate::epic_keychain::{ChildNumber, ExtKeychain, Identifier, Keychain};
 use crate::epic_util::secp::key::SecretKey;
-use crate::error::{Error, ErrorKind};
+use crate::error::Error;
 use crate::types::{AcctPathMapping, NodeClient, WalletBackend};
 
 /// Get next available key in the wallet for a given parent
@@ -72,7 +72,7 @@ where
 {
 	let label = label.to_owned();
 	if let Some(_) = wallet.acct_path_iter().find(|l| l.label == label) {
-		return Err(ErrorKind::AccountLabelAlreadyExists(label.clone()).into());
+		return Err(Error::AccountLabelAlreadyExists(label.clone()).into());
 	}
 
 	// We're always using paths at m/k/0 for parent keys for output derivations

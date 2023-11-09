@@ -5,9 +5,9 @@
  *
  */
 
-let password = ""; // your wallet pass
+let password = "!n1b#Iam7F"; // your wallet pass
 let port = "3420"; // :13420 = default floonet port, :3420 default mainnet port
-let api_secret = ""; //`cat ~/.epic/main/.api_secret` or `cat ~/.epic/floo/.api_secret`
+let api_secret = "Tt8gYcIoElXMaOoApih5"; //`cat ~/.epic/main/.owner_api_secret` or `cat ~/.epic/floo/.owner_api_secret`
 
 const jayson = require('jayson/promise');
 const crypto = require('crypto');
@@ -91,7 +91,7 @@ async function initSecure() {
 	if (response.err) {
 		throw response.err
 	}
-
+  console.log(response);
 	return ecdh.computeSecret(response.result.Ok, 'hex', 'hex')
 }
 
