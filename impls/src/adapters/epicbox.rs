@@ -73,6 +73,7 @@ const CONNECTION_ERR_MSG: &str = "\nCan't connect to the epicbox server!\n\
 	Check your epic-wallet.toml settings and make sure epicbox domain is correct.\n";
 const DEFAULT_CHALLENGE_RAW: &str = "7WUDtkSaKyGRUnQ22rE3QUXChV8DmA6NnunDYP4vheTpc";
 const EPICBOX_PROTOCOL_VERSION: &str = "2.0.0";
+const EPICBOX_SUBSCRIPTION_INTERVAL: u64 = 60;
 
 /// Epicbox 'plugin' implementation
 pub enum CloseReason {
@@ -573,7 +574,7 @@ where
 						})
 						.expect("failed posting slate!");
 				} else {
-					warn!("Slate [{}] finalized successfully", slate.id.to_string());
+					info!("Slate [{}] finalized successfully", slate.id.to_string());
 				}
 				Ok(())
 			});
@@ -587,7 +588,7 @@ where
 	fn on_close(&self, reason: CloseReason) {
 		match reason {
 			CloseReason::Normal => {
-				debug!("Listener for stopped, normal exit")
+				debug!("Listener stopped, normal exit.")
 			}
 			CloseReason::Abnormal(error) => {
 				error!("{:?}", error.to_string())
@@ -595,16 +596,8 @@ where
 		}
 	}
 }
-pub trait Subscriber {
-	fn start<P, L, C, K>(&mut self, handler: EpicboxController<P, L, C, K>) -> Result<(), Error>
-	where
-		P: Publisher,
-		L: WalletLCProvider<'static, C, K> + 'static,
-		C: NodeClient + 'static,
-		K: Keychain + 'static;
-	fn stop(&self);
-}
-impl Subscriber for EpicboxSubscriber {
+
+impl EpicboxSubscriber {
 	fn start<P, L, C, K>(&mut self, handler: EpicboxController<P, L, C, K>) -> Result<(), Error>
 	where
 		P: Publisher,
@@ -712,7 +705,7 @@ impl EpicboxBroker {
 						) {
 							Ok(x) => x,
 							Err(_) => {
-								error!("Could not parse response");
+								error!("Could not parse response.");
 								return Ok(());
 							}
 						};
@@ -765,6 +758,7 @@ impl EpicboxBroker {
 											.unwrap();
 									} else {
 										debug!("Starting epicbox subscription...");
+
 										let signature =
 											sign_challenge(&subscribe, &secret_key)?.to_hex();
 										let request_sub = ProtocolRequestV2::Subscribe {
@@ -775,7 +769,10 @@ impl EpicboxBroker {
 
 										client
 											.sendv2(&request_sub)
-											.expect("Could not send Subscribe request!");
+											.map_err(|_| {
+												error!("Error attempting to send Subscribe")
+											})
+											.unwrap();
 									}
 								}
 							}
@@ -790,7 +787,7 @@ impl EpicboxBroker {
 								client
 									.made_send(epicboxmsgid.clone())
 									.map_err(|_| {
-										error!("Error attempting to send Made message!");
+										error!("Error attempting to send 'made' message!");
 									})
 									.unwrap();
 
@@ -818,6 +815,18 @@ impl EpicboxBroker {
 										&slate,
 										Some(&mut tx_proof),
 									);
+
+									let signature =
+										sign_challenge(&subscribe, &secret_key)?.to_hex();
+									let request_sub = ProtocolRequestV2::Subscribe {
+										address: client.address.public_key.to_string(),
+										ver: ver.to_string(),
+										signature,
+									};
+
+									client
+										.sendv2(&request_sub)
+										.expect("Could not send subscribe request!");
 								}
 							}
 							ProtocolResponseV2::GetVersion { str } => {
@@ -840,6 +849,23 @@ impl EpicboxBroker {
 									error!("ProtocolResponse::Error {}", response);
 								}
 							},
+							ProtocolResponseV2::Ok {} => {
+								info!("Subscription Ok.");
+								let duration =
+									std::time::Duration::from_secs(EPICBOX_SUBSCRIPTION_INTERVAL);
+								std::thread::sleep(duration);
+								info!("New subscription...");
+								let signature = sign_challenge(&subscribe, &secret_key)?.to_hex();
+								let request_sub = ProtocolRequestV2::Subscribe {
+									address: client.address.public_key.to_string(),
+									ver: ver.to_string(),
+									signature,
+								};
+
+								client
+									.sendv2(&request_sub)
+									.expect("Could not send subscribe request!");
+							}
 							_ => {}
 						}
 					}
@@ -872,7 +898,7 @@ impl EpicboxBroker {
 
 		let message =
 			EncryptedMessage::new(serde_json::to_string(&slate).unwrap(), &to, &pkey, &skey)
-				.map_err(|_| error!("could not encrypt slate!"))
+				.map_err(|_| error!("Could not encrypt slate!"))
 				.unwrap();
 
 		let message_ser = serde_json::to_string(&message).unwrap();
@@ -930,7 +956,7 @@ where
 	fn challenge_send(&self) -> Result<(), Error> {
 		let request = ProtocolRequest::Challenge;
 		self.send(&request)
-			.expect("could not send Challenge request!");
+			.expect("Could not send 'Challenge' request!");
 		self.tx.send(true).unwrap();
 		Ok(())
 	}
@@ -950,10 +976,9 @@ where
 			ver: EPICBOX_PROTOCOL_VERSION.to_string(),
 		};
 
-		self.sendv2(&request).expect("could not send Made request!");
+		self.sendv2(&request)
+			.expect("Could not send 'Made' request!");
 		self.tx.send(true).unwrap();
-
-		//debug!(">>> (made_send) called!");
 
 		Ok(())
 	}
@@ -962,9 +987,7 @@ where
 		let request = ProtocolRequestV2::GetVersion;
 
 		self.sendv2(&request)
-			.expect("Could not send GetVersion request!");
-
-		//debug!(">>> (get_version) called!");
+			.expect("Could not send 'GetVersion' request!");
 
 		Ok(())
 	}
@@ -974,8 +997,6 @@ where
 
 		self.sendv2(&request)
 			.expect("Could not send FastSend request!");
-
-		//debug!(">>> (get_fastsend) called!");
 
 		Ok(())
 	}

@@ -21,7 +21,7 @@ mod keybase;
 pub use self::emoji::EmojiSlate;
 pub use self::epicbox::{
 	Container, EpicboxBroker, EpicboxController, EpicboxListener, EpicboxPublisher,
-	EpicboxSubscriber, Listener, ListenerInterface, Subscriber,
+	EpicboxSubscriber, Listener, ListenerInterface,
 };
 pub use self::epicbox::{EpicboxChannel, EpicboxListenChannel};
 pub use self::file::PathToSlate;
