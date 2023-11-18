@@ -75,6 +75,7 @@ const CONNECTION_ERR_MSG: &str = "\nCan't connect to the epicbox server!\n\
 	Check your epic-wallet.toml settings and make sure epicbox domain is correct.\n";
 const DEFAULT_CHALLENGE_RAW: &str = "7WUDtkSaKyGRUnQ22rE3QUXChV8DmA6NnunDYP4vheTpc";
 const EPICBOX_PROTOCOL_VERSION: &str = "2.0.0";
+const EPICBOX_SUBSCRIPTION_INTERVAL: u64 = 60;
 
 /// Epicbox 'plugin' implementation
 pub enum CloseReason {
@@ -820,6 +821,18 @@ impl EpicboxBroker {
 										&slate,
 										Some(&mut tx_proof),
 									);
+
+									let signature =
+										sign_challenge(&subscribe, &secret_key)?.to_hex();
+									let request_sub = ProtocolRequestV2::Subscribe {
+										address: client.address.public_key.to_string(),
+										ver: ver.to_string(),
+										signature,
+									};
+
+									client
+										.sendv2(&request_sub)
+										.expect("Could not send subscribe request!");
 								}
 							}
 							ProtocolResponseV2::GetVersion { str } => {
@@ -842,6 +855,23 @@ impl EpicboxBroker {
 									error!("ProtocolResponse::Error {}", response);
 								}
 							},
+							ProtocolResponseV2::Ok {} => {
+								info!("Subscription Ok.");
+								let duration =
+									std::time::Duration::from_secs(EPICBOX_SUBSCRIPTION_INTERVAL);
+								std::thread::sleep(duration);
+								info!("New subscription...");
+								let signature = sign_challenge(&subscribe, &secret_key)?.to_hex();
+								let request_sub = ProtocolRequestV2::Subscribe {
+									address: client.address.public_key.to_string(),
+									ver: ver.to_string(),
+									signature,
+								};
+
+								client
+									.sendv2(&request_sub)
+									.expect("Could not send subscribe request!");
+							}
 							_ => {}
 						}
 					}
