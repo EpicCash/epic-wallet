@@ -171,7 +171,11 @@ impl NodeClient for HTTPNodeClient {
 		max_height: Option<u64>,
 	) -> Result<Option<(TxKernel, u64, u64)>, Error> {
 		let method = "get_kernel";
-		let params = json!([excess.0.as_ref().to_vec(), min_height, max_height]);
+		let params = json!([
+			util::to_hex(excess.0.as_ref().to_vec()),
+			min_height,
+			max_height
+		]);
 		// have to handle this manually since the error needs to be parsed
 		let url = format!("{}{}", self.node_url(), ENDPOINT);
 		let req = build_request(method, &params);
