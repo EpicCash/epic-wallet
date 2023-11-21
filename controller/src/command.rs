@@ -168,7 +168,7 @@ where
 					epicbox_config.clone(),
 					&mut reconnections,
 				);
-				warn!("try to reconnect to epicbox");
+				info!("Reconnect to epicbox");
 				match listener {
 					Err(e) => {
 						error!("Error in listener loop ({})", e);

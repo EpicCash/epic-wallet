@@ -47,7 +47,7 @@ pub use crate::adapters::{
 	create_sender, Container, EmojiSlate, EpicboxBroker, EpicboxChannel, EpicboxController,
 	EpicboxListenChannel, EpicboxListener, EpicboxPublisher, EpicboxSubscriber, HttpSlateSender,
 	KeybaseAllChannels, KeybaseChannel, Listener, ListenerInterface, PathToSlate, SlateGetter,
-	SlatePutter, SlateReceiver, SlateSender, Subscriber,
+	SlatePutter, SlateReceiver, SlateSender,
 };
 pub use crate::backends::{wallet_db_exists, LMDBBackend};
 pub use crate::error::Error;
