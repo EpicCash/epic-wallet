@@ -1,6 +1,6 @@
 [package]
 name = "epic_wallet_config"
-version = "3.4.0"
+version = "3.5.0"
 authors = ["Epic Developers <epiccash@brickabode.com>"]
 description = "Configuration for epic wallet, a simple, private and scalable cryptocurrency implementation based on the MimbleWimble chain format."
 license = "Apache-2.0"
@@ -16,7 +16,7 @@ serde_derive = "1"
 toml = "0.4"
 dirs = "1.0.3"
 
-epic_wallet_util = { path = "../util", version = "3.4.0" }
+epic_wallet_util = { path = "../util", version = "3.5.0" }
 
 [dev-dependencies]
 pretty_assertions = "0.5.1"

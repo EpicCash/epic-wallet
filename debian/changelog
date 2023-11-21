@@ -1,4 +1,4 @@
-epic-wallet (3.4.0) focal; urgency=high
+epic-wallet (3.5.0) focal; urgency=high
 
   [ Epic Team ]
   * New Transaction method "epicbox" with public epic address
