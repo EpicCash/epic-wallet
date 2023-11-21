@@ -862,9 +862,12 @@ impl EpicboxBroker {
 									signature,
 								};
 
-								client
-									.sendv2(&request_sub)
-									.expect("Could not send subscribe request!");
+								match client.sendv2(&request_sub) {
+									Ok(()) => { /* do nothing */ },
+									Err(e) => {
+										 error!("Could not send subscribe request: {}", e.to_string());
+									}
+								};
 							}
 							_ => {}
 						}
