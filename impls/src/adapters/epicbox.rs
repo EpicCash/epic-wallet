@@ -682,7 +682,7 @@ impl EpicboxBroker {
 		let now = Instant::now();
 
 		let res = loop {
-			let err = client.sender.lock().read_message();
+			let err = client.sender.lock().read();
 
 			match err {
 				Err(e) => {
@@ -863,9 +863,12 @@ impl EpicboxBroker {
 								};
 
 								match client.sendv2(&request_sub) {
-									Ok(()) => { /* do nothing */ },
+									Ok(()) => { /* do nothing */ }
 									Err(e) => {
-										 error!("Could not send subscribe request: {}", e.to_string());
+										error!(
+											"Could not send subscribe request: {}",
+											e.to_string()
+										);
 									}
 								};
 							}
@@ -921,7 +924,7 @@ impl EpicboxBroker {
 
 		self.inner
 			.lock()
-			.write_message(Message::Text(serde_json::to_string(&request).unwrap()))
+			.write(Message::Text(serde_json::to_string(&request).unwrap()))
 			.unwrap();
 
 		debug!("Slate sent successfully!");
@@ -1007,16 +1010,12 @@ where
 	fn send(&self, request: &ProtocolRequest) -> Result<(), ErrorTungstenite> {
 		let request = serde_json::to_string(&request).unwrap();
 
-		self.sender
-			.lock()
-			.write_message(Message::Text(request.into()))
+		self.sender.lock().write(Message::Text(request.into()))
 	}
 
 	fn sendv2(&self, request: &ProtocolRequestV2) -> Result<(), ErrorTungstenite> {
 		let request = serde_json::to_string(&request).unwrap();
 
-		self.sender
-			.lock()
-			.write_message(Message::Text(request.into()))
+		self.sender.lock().write(Message::Text(request.into()))
 	}
 }

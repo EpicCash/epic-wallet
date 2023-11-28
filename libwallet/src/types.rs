@@ -15,7 +15,7 @@
 //! Types and traits that should be provided by a wallet
 //! implementation
 
-use crate::config::{EpicboxConfig, TorConfig, WalletConfig};
+use crate::config::{EpicboxConfig, ImapConfig, SmtpConfig, TorConfig, WalletConfig};
 use crate::epic_core::core::hash::Hash;
 use crate::epic_core::core::{Output, Transaction, TxKernel};
 use crate::epic_core::libtx::{aggsig, secp_ser};
@@ -72,6 +72,8 @@ where
 		logging_config: Option<LoggingConfig>,
 		tor_config: Option<TorConfig>,
 		epicbox_config: Option<EpicboxConfig>,
+		imap_config: Option<ImapConfig>,
+		smtp_config: Option<SmtpConfig>,
 	) -> Result<(), Error>;
 
 	///

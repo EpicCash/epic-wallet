@@ -15,7 +15,7 @@
 //! JSON-RPC Stub generation for the Owner API
 use uuid::Uuid;
 
-use crate::config::{EpicboxConfig, TorConfig, WalletConfig};
+use crate::config::{EpicboxConfig, ImapConfig, SmtpConfig, TorConfig, WalletConfig};
 use crate::core::core::Transaction;
 use crate::core::global;
 use crate::keychain::{Identifier, Keychain};
@@ -1541,6 +1541,8 @@ pub trait OwnerRpcS {
 		logging_config: Option<LoggingConfig>,
 		tor_config: Option<TorConfig>,
 		epicbox_config: Option<EpicboxConfig>,
+		imap_config: Option<ImapConfig>,
+		smtp_config: Option<SmtpConfig>,
 	) -> Result<(), Error>;
 
 	/**
@@ -2125,6 +2127,79 @@ pub trait OwnerRpcS {
 	```
 	*/
 	fn set_epicbox_config(&self, epicbox_config: Option<EpicboxConfig>) -> Result<(), Error>;
+	/**
+	Networked version of [Owner::set_imap_config](struct.Owner.html#method.set_imap_config).
+
+	# Json rpc example
+
+	```
+	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
+	# r#"
+	{
+		"jsonrpc": "2.0",
+		"method": "set_imap_config",
+		"params": {
+			"imap_config": {
+				"server": "domain.com",
+				"username": "",
+				"password": "",
+				"port": 0
+			}
+		},
+		"id": 1
+	}
+	# "#
+	# ,
+	# r#"
+	{
+		"id": 1,
+		"jsonrpc": "2.0",
+		"result": {
+			"Ok": null
+		}
+	}
+	# "#
+	# , true, 0, false, false, false, false);
+	```
+	*/
+	fn set_imap_config(&self, imap_config: Option<ImapConfig>) -> Result<(), Error>;
+
+	/**
+	Networked version of [Owner::set_smtp_config](struct.Owner.html#method.set_smtp_config).
+
+	# Json rpc example
+
+	```
+	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
+	# r#"
+	{
+		"jsonrpc": "2.0",
+		"method": "set_smtp_config",
+		"params": {
+			"smtp_config": {
+				"server": "domain.com",
+				"username": "",
+				"password": "",
+				"port": 0
+			}
+		},
+		"id": 1
+	}
+	# "#
+	# ,
+	# r#"
+	{
+		"id": 1,
+		"jsonrpc": "2.0",
+		"result": {
+			"Ok": null
+		}
+	}
+	# "#
+	# , true, 0, false, false, false, false);
+	```
+	*/
+	fn set_smtp_config(&self, smtp_config: Option<SmtpConfig>) -> Result<(), Error>;
 }
 
 impl<L, C, K> OwnerRpcS for Owner<L, C, K>
@@ -2332,6 +2407,8 @@ where
 		logging_config: Option<LoggingConfig>,
 		tor_config: Option<TorConfig>,
 		epicbox_config: Option<EpicboxConfig>,
+		imap_config: Option<ImapConfig>,
+		smtp_config: Option<SmtpConfig>,
 	) -> Result<(), Error> {
 		Owner::create_config(
 			self,
@@ -2340,6 +2417,8 @@ where
 			logging_config,
 			tor_config,
 			epicbox_config,
+			imap_config,
+			smtp_config,
 		)
 	}
 
@@ -2458,6 +2537,14 @@ where
 	}
 	fn set_epicbox_config(&self, epicbox_config: Option<EpicboxConfig>) -> Result<(), Error> {
 		Owner::set_epicbox_config(self, epicbox_config);
+		Ok(())
+	}
+	fn set_imap_config(&self, imap_config: Option<ImapConfig>) -> Result<(), Error> {
+		Owner::set_imap_config(self, imap_config);
+		Ok(())
+	}
+	fn set_smtp_config(&self, smtp_config: Option<SmtpConfig>) -> Result<(), Error> {
+		Owner::set_smtp_config(self, smtp_config);
 		Ok(())
 	}
 }

@@ -28,7 +28,7 @@ use toml;
 use crate::comments::insert_comments;
 use crate::core::global;
 use crate::types::{ConfigError, GlobalWalletConfig, GlobalWalletConfigMembers};
-use crate::types::{EpicboxConfig, TorConfig, WalletConfig};
+use crate::types::{EpicboxConfig, ImapConfig, SmtpConfig, TorConfig, WalletConfig};
 use crate::util::logger::LoggingConfig;
 
 /// Wallet configuration file name
@@ -157,6 +157,8 @@ impl Default for GlobalWalletConfigMembers {
 			tor: Some(TorConfig::default()),
 			epicbox: Some(EpicboxConfig::default()),
 			wallet: WalletConfig::default(),
+			imap: Some(ImapConfig::default()),
+			smtp: Some(SmtpConfig::default()),
 		}
 	}
 }

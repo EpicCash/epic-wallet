@@ -15,13 +15,15 @@
 //! Epic wallet command-line function implementations
 
 use crate::api::TLSConfig;
-use crate::config::{EpicboxConfig, TorConfig, WalletConfig, WALLET_CONFIG_FILE_NAME};
+use crate::config::{
+	EpicboxConfig, ImapConfig, SmtpConfig, TorConfig, WalletConfig, WALLET_CONFIG_FILE_NAME,
+};
 use crate::core::{core, global};
 use crate::error::Error;
 
 use crate::impls::{
 	create_sender, EpicboxChannel, EpicboxListenChannel, KeybaseAllChannels, SlateGetter as _,
-	SlateReceiver as _,
+	SlateReceiver as _, SmtpSlateReceiver,
 };
 use crate::impls::{EmojiSlate, PathToSlate, SlatePutter};
 use crate::keychain;
@@ -92,6 +94,8 @@ where
 		None,
 		None,
 		None,
+		None,
+		None,
 	)?;
 	p.create_wallet(
 		None,
@@ -138,6 +142,8 @@ pub fn listen<L, C, K>(
 	config: &WalletConfig,
 	tor_config: &TorConfig,
 	epicbox_config: &EpicboxConfig,
+	imap_config: &ImapConfig,
+	smtp_config: &SmtpConfig,
 	args: &ListenArgs,
 	g_args: &GlobalArgs,
 ) -> Result<(), LibwalletError>
@@ -158,6 +164,12 @@ where
 			wallet.clone(),
 			keychain_mask.clone(),
 			config.clone(),
+		),
+		"smtp" => SmtpSlateReceiver::new().unwrap().listen(
+			wallet.clone(),
+			keychain_mask.clone(),
+			imap_config.clone(),
+			smtp_config.clone(),
 		),
 		"epicbox" => {
 			let mut reconnections = 0;
