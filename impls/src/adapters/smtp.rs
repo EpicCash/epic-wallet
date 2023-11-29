@@ -16,10 +16,10 @@ use crate::adapters::{SlateReceiver, SlateSender};
 use crate::config::{ImapConfig, SmtpConfig};
 use crate::keychain::Keychain;
 use crate::libwallet::api_impl::foreign;
+use crate::libwallet::api_impl::owner;
 /// SMTP Wallet 'plugin' implementation
 use crate::libwallet::slate_versions::{SlateVersion, VersionedSlate};
 use crate::libwallet::{Error, NodeClient, Slate, WalletInst, WalletLCProvider};
-
 use crate::util::secp::key::SecretKey;
 use crate::util::Mutex;
 
@@ -181,53 +181,62 @@ impl SmtpSlateReceiver {
 						error!("Error validating participant messages: {}", e);
 						return Err(e);
 					}
-					match foreign::receive_tx(
-						&mut **w_inst,
-						(mask).as_ref(),
-						&slate,
-						None,
-						None,
-						false,
-					) {
-						Ok(slate) => {
-							//info!("res receive tx: {:?}", slate);
-							info!("slate id: {:?}", slate.id);
-							let filename = slate.id.to_string() + ".tx.response";
-							let content_type =
-								ContentType::parse("application/octet-stream").unwrap();
 
-							let email = Message::builder()
-								.from(mailbox_from)
-								.to(mailbox_to)
-								.subject(subject)
-								.multipart(
-									MultiPart::mixed().multipart(
-										MultiPart::related()
-											.singlepart(SinglePart::html(String::from(
-												newbody.to_string(),
-											)))
-											.singlepart(
-												Attachment::new(filename)
-													.body(to_string(&slate).unwrap(), content_type),
-											),
-									),
-								)
-								.unwrap();
+					if slate.num_participants > slate.participant_data.len() {
+						match foreign::receive_tx(
+							&mut **w_inst,
+							(mask).as_ref(),
+							&slate,
+							None,
+							None,
+							false,
+						) {
+							Ok(slate) => {
+								//info!("res receive tx: {:?}", slate);
+								info!("slate id: {:?}", slate.id);
+								let filename = slate.id.to_string() + ".tx.response";
+								let content_type =
+									ContentType::parse("application/octet-stream").unwrap();
 
-							//	.body(attachment.to_string())
-							//	.unwrap();
+								let email = Message::builder()
+									.from(mailbox_from)
+									.to(mailbox_to)
+									.subject(subject)
+									.multipart(
+										MultiPart::mixed().multipart(
+											MultiPart::related()
+												.singlepart(SinglePart::html(String::from(
+													newbody.to_string(),
+												)))
+												.singlepart(Attachment::new(filename).body(
+													to_string(&slate).unwrap(),
+													content_type,
+												)),
+										),
+									)
+									.unwrap();
 
-							let rt = Runtime::new().unwrap();
+								//	.body(attachment.to_string())
+								//	.unwrap();
 
-							let _ = rt.block_on(async {
-								let test = mailer.send(email).await;
-								debug!("send mail {:?}", test);
-							});
-						}
-						Err(e) => {
-							error!("Incoming tx failed with error: {}", e);
-						}
-					};
+								let rt = Runtime::new().unwrap();
+
+								let _ = rt.block_on(async {
+									let test = mailer.send(email).await;
+									debug!("send mail {:?}", test);
+								});
+							}
+							Err(e) => {
+								error!("Incoming tx failed with error: {}", e);
+							}
+						};
+					} else {
+						info!("Finalize transaction (owner::finalize_tx)");
+						let slate = owner::finalize_tx(&mut **w_inst, (mask).as_ref(), &slate)?;
+
+						info!("Post transaction to the network (owner::post_tx)");
+						owner::post_tx(w_inst.w2n_client(), &slate.tx, false)?;
+					}
 				} else {
 					info!("No new messages found");
 				}
