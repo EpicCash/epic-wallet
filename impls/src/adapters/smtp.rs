@@ -15,6 +15,7 @@
 use crate::adapters::{SlateReceiver, SlateSender};
 use crate::config::{ImapConfig, SmtpConfig};
 use crate::keychain::Keychain;
+use crate::libwallet::api_impl::foreign;
 /// SMTP Wallet 'plugin' implementation
 use crate::libwallet::slate_versions::{SlateVersion, VersionedSlate};
 use crate::libwallet::{Error, NodeClient, Slate, WalletInst, WalletLCProvider};
@@ -24,14 +25,15 @@ use crate::util::Mutex;
 
 extern crate imap;
 extern crate native_tls;
+use lettre::message::{header::ContentType, Attachment, MultiPart, SinglePart};
 use lettre::{
 	transport::smtp::authentication::Credentials, AsyncSmtpTransport, AsyncTransport, Message,
 	Tokio1Executor,
 };
 
-use serde_json::json;
-
 use mail_parser::*;
+use serde_json::{json, to_string};
+
 use std::str;
 use std::sync::Arc;
 use std::thread::sleep;
@@ -69,8 +71,24 @@ impl SmtpSlateReceiver {
 		let password = imap_config.password.unwrap();
 		let port = imap_config.port.unwrap();
 		let inbox = imap_config.inbox.unwrap();
+		let smtp_username = smtp_config.username.unwrap();
+		let smtp_password = smtp_config.password.unwrap();
+		let smtp_server = smtp_config.server.unwrap();
+
+		let mut w_lock = wallet.lock();
+		let lc = w_lock.lc_provider()?;
+		let w_inst = lc.wallet_inst()?;
+		let mask = keychain_mask.lock();
 
 		let tls = native_tls::TlsConnector::builder().build().unwrap();
+
+		let smtp_credentials = Credentials::new(smtp_username, smtp_password);
+
+		let mailer: AsyncSmtpTransport<Tokio1Executor> =
+			AsyncSmtpTransport::<Tokio1Executor>::relay(&smtp_server)
+				.unwrap()
+				.credentials(smtp_credentials)
+				.build();
 
 		// we pass in the domain twice to check that the server's TLS
 		// certificate is valid for the domain we're connecting to.
@@ -103,7 +121,9 @@ impl SmtpSlateReceiver {
 			if let Some(uid) = mailbox.unseen {
 				// fetch message number 1 in this mailbox, along with its RFC822 field.
 				// RFC 822 dictates the format of the body of e-mails
-				let messages = match imap_session.fetch(uid.to_string(), "RFC822") {
+				let messages = match imap_session
+					.fetch(uid.to_string(), "(RFC822 ENVELOPE INTERNALDATE UID)")
+				{
 					Ok(ms) => ms,
 					Err(e) => {
 						error!("{:?}", e);
@@ -113,17 +133,42 @@ impl SmtpSlateReceiver {
 				if let Some(message) = messages.iter().next() {
 					// extract the message's body
 					let body = message.body().expect("message did not have a body!");
-					/*let body = std::str::from_utf8(body)
-					.expect("message was not valid utf-8")
-					.to_string();*/
+					let envelope = message.envelope().unwrap();
+					let from = &envelope.from.as_ref().unwrap()[0];
+					let to = &envelope.to.as_ref().unwrap()[0];
+					debug!(
+						"envelope from: {:?}, {:?}",
+						std::str::from_utf8(from.mailbox.unwrap()),
+						std::str::from_utf8(from.host.unwrap())
+					);
+					debug!(
+						"envelope to: {:?}, {:?}",
+						std::str::from_utf8(to.mailbox.unwrap()),
+						std::str::from_utf8(to.host.unwrap())
+					);
+
+					let address_to = lettre::Address::new(
+						std::str::from_utf8(from.mailbox.unwrap()).unwrap(),
+						std::str::from_utf8(from.host.unwrap()).unwrap(),
+					);
+
+					let address_from = lettre::Address::new(
+						std::str::from_utf8(to.mailbox.unwrap()).unwrap(),
+						std::str::from_utf8(to.host.unwrap()).unwrap(),
+					);
+
+					let mailbox_to = lettre::message::Mailbox::new(None, address_to.unwrap());
+					let mailbox_from = lettre::message::Mailbox::new(None, address_from.unwrap());
+
+					let subject = "signed tx";
+					let newbody =
+						"<h1>Here is the singed tx to finalize the tx now.</h1>".to_string();
+
 					let message = MessageParser::default().parse(body).unwrap();
 					let attachment = message.attachment(0).unwrap();
 
-					//info!("mail parsed nested_attachment {:?}", attachment.body);
-					//info!("{:?}", body);
-
 					let content = str::from_utf8(attachment.contents()).unwrap();
-					info!("parsed string content {:?}", content);
+					//info!("parsed string content {:?}", content);
 					let slate = match Slate::deserialize_upgrade(&content) {
 						Ok(ms) => ms,
 						Err(e) => {
@@ -131,7 +176,58 @@ impl SmtpSlateReceiver {
 							break;
 						}
 					};
-					info!("received slate: {:?}", slate);
+					//info!("received slate: {:?}", slate);
+					if let Err(e) = slate.verify_messages() {
+						error!("Error validating participant messages: {}", e);
+						return Err(e);
+					}
+					match foreign::receive_tx(
+						&mut **w_inst,
+						(mask).as_ref(),
+						&slate,
+						None,
+						None,
+						false,
+					) {
+						Ok(slate) => {
+							//info!("res receive tx: {:?}", slate);
+							info!("slate id: {:?}", slate.id);
+							let filename = slate.id.to_string() + ".tx.response";
+							let content_type =
+								ContentType::parse("application/octet-stream").unwrap();
+
+							let email = Message::builder()
+								.from(mailbox_from)
+								.to(mailbox_to)
+								.subject(subject)
+								.multipart(
+									MultiPart::mixed().multipart(
+										MultiPart::related()
+											.singlepart(SinglePart::html(String::from(
+												newbody.to_string(),
+											)))
+											.singlepart(
+												Attachment::new(filename)
+													.body(to_string(&slate).unwrap(), content_type),
+											),
+									),
+								)
+								.unwrap();
+
+							//	.body(attachment.to_string())
+							//	.unwrap();
+
+							let rt = Runtime::new().unwrap();
+
+							let _ = rt.block_on(async {
+								let test = mailer.send(email).await;
+								debug!("send mail {:?}", test);
+							});
+						}
+						Err(e) => {
+							error!("Incoming tx failed with error: {}", e);
+						}
+					};
 				} else {
 					info!("No new messages found");
 				}
@@ -201,7 +297,7 @@ impl SlateSender for SmtpSlateSender {
 					]
 		});
 		trace!("Sending receive_tx request: {}", req);
-		let mut rt = Runtime::new().unwrap();
+		let rt = Runtime::new().unwrap();
 
 		let future = self.send_email_smtp(from, to, subject, body);
 		let _ = rt.block_on(future);

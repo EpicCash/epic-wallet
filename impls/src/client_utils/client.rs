@@ -31,13 +31,8 @@ use tokio::runtime::{Builder, Handle, Runtime};
 // updates before we can upgrade.
 // See: https://github.com/seanmonstar/reqwest/pull/1076
 lazy_static! {
-	pub static ref RUNTIME: Arc<Mutex<Runtime>> = Arc::new(Mutex::new(
-		Builder::new()
-			.threaded_scheduler()
-			.enable_all()
-			.build()
-			.unwrap()
-	));
+	pub static ref RUNTIME: Arc<Runtime> =
+		Arc::new(Builder::new_multi_thread().enable_all().build().unwrap());
 }
 
 #[derive(Clone, Eq, thiserror::Error, PartialEq, Debug)]
@@ -272,18 +267,11 @@ impl Client {
 		if Handle::try_current().is_ok() {
 			let rt = RUNTIME.clone();
 			let client = self.clone();
-			std::thread::spawn(move || {
-				rt.lock()
-					.unwrap()
-					.block_on(async { client.send_request_async(req).await })
-			})
-			.join()
-			.unwrap()
-		} else {
-			RUNTIME
-				.lock()
+			std::thread::spawn(move || rt.block_on(async { client.send_request_async(req).await }))
+				.join()
 				.unwrap()
-				.block_on(self.send_request_async(req))
+		} else {
+			RUNTIME.block_on(self.send_request_async(req))
 		}
 	}
 }
