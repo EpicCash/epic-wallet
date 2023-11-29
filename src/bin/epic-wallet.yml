@@ -72,7 +72,7 @@ subcommands:
               - http
               - keybase
               - epicbox
-              - smtp
+              - imap
             default_value: http
             takes_value: true
         - no_tor:
@@ -143,6 +143,7 @@ subcommands:
               - keybase
               - emoji
               - epicbox
+              - mail
             default_value: http
             takes_value: true
         - dest:

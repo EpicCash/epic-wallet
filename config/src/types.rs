@@ -221,6 +221,8 @@ pub struct SmtpConfig {
 	pub password: Option<String>,
 	/// smtp port defaults to 993 tls
 	pub port: Option<u16>,
+	/// smtp from address
+	pub from_address: Option<String>,
 }
 
 impl Default for SmtpConfig {
@@ -230,6 +232,7 @@ impl Default for SmtpConfig {
 			username: Some("".to_string()),
 			password: Some("".to_string()),
 			port: Some(993),
+			from_address: Some("".to_string()),
 		}
 	}
 }

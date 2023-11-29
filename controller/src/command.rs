@@ -23,7 +23,7 @@ use crate::error::Error;
 
 use crate::impls::{
 	create_sender, EpicboxChannel, EpicboxListenChannel, KeybaseAllChannels, SlateGetter as _,
-	SlateReceiver as _, SmtpSlateReceiver,
+	SlateReceiver as _, SlateSender, SmtpSlateReceiver, SmtpSlateSender,
 };
 use crate::impls::{EmojiSlate, PathToSlate, SlatePutter};
 use crate::keychain;
@@ -165,7 +165,7 @@ where
 			keychain_mask.clone(),
 			config.clone(),
 		),
-		"smtp" => SmtpSlateReceiver::new().unwrap().listen(
+		"imap" => SmtpSlateReceiver::new().unwrap().listen(
 			wallet.clone(),
 			keychain_mask.clone(),
 			imap_config.clone(),
@@ -309,6 +309,7 @@ pub fn send<L, C, K>(
 	keychain_mask: Option<&SecretKey>,
 	tor_config: Option<TorConfig>,
 	epicbox_config: Option<EpicboxConfig>,
+	smtp_config: Option<SmtpConfig>,
 	args: SendArgs,
 	dark_scheme: bool,
 ) -> Result<(), LibwalletError>
@@ -409,6 +410,15 @@ where
 
 					return Ok(());
 				}
+				"mail" => {
+					let sender: Box<dyn SlateSender> =
+						Box::new(SmtpSlateSender::new(args.dest, smtp_config).unwrap());
+					slate = sender.send_tx(&slate)?;
+					api.tx_lock_outputs(m, &slate, 0)?;
+
+					return Ok(());
+				}
+
 				method => {
 					let sender = create_sender(method, &args.dest, tor_config)?;
 

@@ -1021,6 +1021,7 @@ where
 				km,
 				Some(tor_config),
 				Some(epicbox_config),
+				Some(smtp_config),
 				a,
 				wallet_config.dark_background_color_scheme.unwrap_or(true),
 			)

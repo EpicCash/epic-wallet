@@ -64,8 +64,6 @@ impl SmtpSlateReceiver {
 		C: NodeClient + 'static,
 		K: Keychain + 'static,
 	{
-		//info!("imap config {:?}", imap_config);
-		//info!("smtp config: {:?}", smtp_config);
 		let server = imap_config.server.unwrap();
 		let username = imap_config.username.unwrap();
 		let password = imap_config.password.unwrap();
@@ -136,39 +134,12 @@ impl SmtpSlateReceiver {
 					let envelope = message.envelope().unwrap();
 					let from = &envelope.from.as_ref().unwrap()[0];
 					let to = &envelope.to.as_ref().unwrap()[0];
-					debug!(
-						"envelope from: {:?}, {:?}",
-						std::str::from_utf8(from.mailbox.unwrap()),
-						std::str::from_utf8(from.host.unwrap())
-					);
-					debug!(
-						"envelope to: {:?}, {:?}",
-						std::str::from_utf8(to.mailbox.unwrap()),
-						std::str::from_utf8(to.host.unwrap())
-					);
-
-					let address_to = lettre::Address::new(
-						std::str::from_utf8(from.mailbox.unwrap()).unwrap(),
-						std::str::from_utf8(from.host.unwrap()).unwrap(),
-					);
-
-					let address_from = lettre::Address::new(
-						std::str::from_utf8(to.mailbox.unwrap()).unwrap(),
-						std::str::from_utf8(to.host.unwrap()).unwrap(),
-					);
-
-					let mailbox_to = lettre::message::Mailbox::new(None, address_to.unwrap());
-					let mailbox_from = lettre::message::Mailbox::new(None, address_from.unwrap());
-
-					let subject = "signed tx";
-					let newbody =
-						"<h1>Here is the singed tx to finalize the tx now.</h1>".to_string();
 
 					let message = MessageParser::default().parse(body).unwrap();
 					let attachment = message.attachment(0).unwrap();
 
 					let content = str::from_utf8(attachment.contents()).unwrap();
-					//info!("parsed string content {:?}", content);
+
 					let slate = match Slate::deserialize_upgrade(&content) {
 						Ok(ms) => ms,
 						Err(e) => {
@@ -176,7 +147,7 @@ impl SmtpSlateReceiver {
 							break;
 						}
 					};
-					//info!("received slate: {:?}", slate);
+
 					if let Err(e) = slate.verify_messages() {
 						error!("Error validating participant messages: {}", e);
 						return Err(e);
@@ -192,7 +163,26 @@ impl SmtpSlateReceiver {
 							false,
 						) {
 							Ok(slate) => {
-								//info!("res receive tx: {:?}", slate);
+								let address_to = lettre::Address::new(
+									std::str::from_utf8(from.mailbox.unwrap()).unwrap(),
+									std::str::from_utf8(from.host.unwrap()).unwrap(),
+								);
+
+								let address_from = lettre::Address::new(
+									std::str::from_utf8(to.mailbox.unwrap()).unwrap(),
+									std::str::from_utf8(to.host.unwrap()).unwrap(),
+								);
+
+								let mailbox_to =
+									lettre::message::Mailbox::new(None, address_to.unwrap());
+								let mailbox_from =
+									lettre::message::Mailbox::new(None, address_from.unwrap());
+
+								let subject = "tx response";
+								let newbody =
+									"<h1>Here is the singed tx to finalize the tx now.</h1>"
+										.to_string();
+
 								info!("slate id: {:?}", slate.id);
 								let filename = slate.id.to_string() + ".tx.response";
 								let content_type =
@@ -216,14 +206,10 @@ impl SmtpSlateReceiver {
 									)
 									.unwrap();
 
-								//	.body(attachment.to_string())
-								//	.unwrap();
-
 								let rt = Runtime::new().unwrap();
-
 								let _ = rt.block_on(async {
 									let test = mailer.send(email).await;
-									debug!("send mail {:?}", test);
+									info!("send mail {:?}", test);
 								});
 							}
 							Err(e) => {
@@ -256,60 +242,67 @@ impl SmtpSlateReceiver {
 #[derive(Clone)]
 pub struct SmtpSlateSender {
 	mailer: AsyncSmtpTransport<Tokio1Executor>,
+	to: String,
+	from: String,
 }
 
 impl SmtpSlateSender {
 	/// Create, return Err if scheme is not "smtp"
 	pub fn new(
-		smtp_username: String,
-		smtp_password: String,
+		to: String,
+		smtp_config: Option<SmtpConfig>,
 	) -> Result<SmtpSlateSender, Box<dyn std::error::Error>> {
+		let config = smtp_config.unwrap();
+		let smtp_username = config.username.unwrap();
+		let smtp_password = config.password.unwrap();
+		let smtp_server = config.server.unwrap();
+
 		let smtp_credentials = Credentials::new(smtp_username, smtp_password);
 
-		let mailer = AsyncSmtpTransport::<Tokio1Executor>::relay("")?
+		let mailer = AsyncSmtpTransport::<Tokio1Executor>::relay(&smtp_server)?
 			.credentials(smtp_credentials)
 			.build();
 
-		Ok(SmtpSlateSender { mailer })
-	}
-	async fn send_email_smtp(&self, from: &str, to: &str, subject: &str, body: String) -> bool {
-		let email = Message::builder()
-			.from(from.parse().unwrap())
-			.to(to.parse().unwrap())
-			.subject(subject)
-			.body(body.to_string())
-			.unwrap();
+		let from = config.from_address.unwrap();
 
-		let _ = self.mailer.send(email).await;
-
-		true
+		Ok(SmtpSlateSender { mailer, to, from })
 	}
 }
 impl SlateSender for SmtpSlateSender {
 	fn send_tx(&self, slate: &Slate) -> Result<Slate, Error> {
 		// set up tor send process if needed
-		let from = "Hello World <hello@world.com>";
-		let to = "42 <42@42.com>";
-		let subject = "Hello World";
-		let body = "<h1>Hello World</h1>".to_string();
+		let from = self.from.clone();
+		let to = self.to.clone();
 
-		let slate_send = VersionedSlate::into_version(slate.clone(), SlateVersion::V3);
-		// Note: not using easy-jsonrpc as don't want the dependencies in this crate
-		let req = json!({
-			"jsonrpc": "2.0",
-			"method": "receive_tx",
-			"id": 1,
-			"params": [
-						slate_send,
-						null,
-						null
-					]
-		});
-		trace!("Sending receive_tx request: {}", req);
+		let body = "<h1>Here is a new tx</h1>".to_string();
+		let subject = "tx";
+
+		info!("slate id: {:?}", slate.id);
+		let filename = slate.id.to_string() + ".tx";
+
+		let content_type = ContentType::parse("application/octet-stream").unwrap();
+		let email = Message::builder()
+			.from(from.parse().unwrap())
+			.to(to.parse().unwrap())
+			.subject(subject)
+			.multipart(
+				MultiPart::mixed().multipart(
+					MultiPart::related()
+						.singlepart(SinglePart::html(String::from(body.to_string())))
+						.singlepart(
+							Attachment::new(filename)
+								.body(to_string(&slate).unwrap(), content_type),
+						),
+				),
+			)
+			.unwrap();
+
 		let rt = Runtime::new().unwrap();
 
-		let future = self.send_email_smtp(from, to, subject, body);
-		let _ = rt.block_on(future);
+		let _ = rt.block_on(async {
+			let test = self.mailer.send(email).await;
+			info!("send mail {:?}", test);
+		});
 
 		Ok(slate.clone())
 	}
