@@ -72,6 +72,7 @@ subcommands:
               - http
               - keybase
               - epicbox
+              - imap
             default_value: http
             takes_value: true
         - no_tor:
@@ -79,6 +80,15 @@ subcommands:
             short: n
             long: no_tor
             takes_value: false
+        - smtp_pass:
+            help: Smtp passphrase
+            long: smtp_pass
+            takes_value: true
+        - imap_pass:
+            help: Imap passphrase
+            short: p
+            long: imap_pass
+            takes_value: true
   - owner_api:
       about: Runs the wallet's local web API
       args:
@@ -133,6 +143,7 @@ subcommands:
               - keybase
               - emoji
               - epicbox
+              - mail
             default_value: http
             takes_value: true
         - dest:

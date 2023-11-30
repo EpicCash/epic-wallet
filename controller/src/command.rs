@@ -15,13 +15,15 @@
 //! Epic wallet command-line function implementations
 
 use crate::api::TLSConfig;
-use crate::config::{EpicboxConfig, TorConfig, WalletConfig, WALLET_CONFIG_FILE_NAME};
+use crate::config::{
+	EpicboxConfig, ImapConfig, SmtpConfig, TorConfig, WalletConfig, WALLET_CONFIG_FILE_NAME,
+};
 use crate::core::{core, global};
 use crate::error::Error;
 
 use crate::impls::{
 	create_sender, EpicboxChannel, EpicboxListenChannel, KeybaseAllChannels, SlateGetter as _,
-	SlateReceiver as _,
+	SlateReceiver as _, SlateSender, SmtpSlateReceiver, SmtpSlateSender,
 };
 use crate::impls::{EmojiSlate, PathToSlate, SlatePutter};
 use crate::keychain;
@@ -92,6 +94,8 @@ where
 		None,
 		None,
 		None,
+		None,
+		None,
 	)?;
 	p.create_wallet(
 		None,
@@ -138,6 +142,8 @@ pub fn listen<L, C, K>(
 	config: &WalletConfig,
 	tor_config: &TorConfig,
 	epicbox_config: &EpicboxConfig,
+	imap_config: &ImapConfig,
+	smtp_config: &SmtpConfig,
 	args: &ListenArgs,
 	g_args: &GlobalArgs,
 ) -> Result<(), LibwalletError>
@@ -158,6 +164,12 @@ where
 			wallet.clone(),
 			keychain_mask.clone(),
 			config.clone(),
+		),
+		"imap" => SmtpSlateReceiver::new().unwrap().listen(
+			wallet.clone(),
+			keychain_mask.clone(),
+			imap_config.clone(),
+			smtp_config.clone(),
 		),
 		"epicbox" => {
 			let mut reconnections = 0;
@@ -297,6 +309,7 @@ pub fn send<L, C, K>(
 	keychain_mask: Option<&SecretKey>,
 	tor_config: Option<TorConfig>,
 	epicbox_config: Option<EpicboxConfig>,
+	smtp_config: Option<SmtpConfig>,
 	args: SendArgs,
 	dark_scheme: bool,
 ) -> Result<(), LibwalletError>
@@ -397,6 +410,15 @@ where
 
 					return Ok(());
 				}
+				"mail" => {
+					let sender: Box<dyn SlateSender> =
+						Box::new(SmtpSlateSender::new(args.dest, smtp_config).unwrap());
+					slate = sender.send_tx(&slate)?;
+					api.tx_lock_outputs(m, &slate, 0)?;
+
+					return Ok(());
+				}
+
 				method => {
 					let sender = create_sender(method, &args.dest, tor_config)?;
 

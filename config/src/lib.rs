@@ -32,6 +32,6 @@ pub mod types;
 
 pub use crate::config::{initial_setup_wallet, EPIC_WALLET_DIR, WALLET_CONFIG_FILE_NAME};
 pub use crate::types::{
-	ConfigError, EpicboxConfig, GlobalWalletConfig, GlobalWalletConfigMembers, TorConfig,
-	WalletConfig,
+	ConfigError, EpicboxConfig, GlobalWalletConfig, GlobalWalletConfigMembers, ImapConfig,
+	SmtpConfig, TorConfig, WalletConfig,
 };

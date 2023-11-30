@@ -22,13 +22,15 @@ use semver::Version;
 use std::thread;
 use std::time::Duration;
 
-const MIN_COMPAT_NODE_VERSION: &str = "3.0.0";
+const MIN_COMPAT_NODE_VERSION: &str = "3.5.0";
 
 pub fn wallet_command(wallet_args: &ArgMatches<'_>, config: GlobalWalletConfig) -> i32 {
 	// Get defaults from the global config
 	let wallet_config = config.members.clone().unwrap().wallet;
 	let tor_config = config.members.clone().unwrap().tor;
-	let epicbox_config = config.members.unwrap().epicbox;
+	let epicbox_config = config.members.clone().unwrap().epicbox;
+	let imap_config = config.members.clone().unwrap().imap;
+	let smtp_config = config.members.unwrap().smtp;
 
 	// Setup node client, check for provided node URL, else use default
 	let mut node_client = match wallet_args.value_of("api_server_address") {
@@ -55,7 +57,10 @@ pub fn wallet_command(wallet_args: &ArgMatches<'_>, config: GlobalWalletConfig) 
 				&v.node_version
 			};
 			println!("The Epic Node in use (version {}) is outdated and incompatible with this wallet version.", version);
-			println!("Please update the node to version 3.0.0 or later and try again.");
+			println!(
+				"Please update the node to version {} or later and try again.",
+				MIN_COMPAT_NODE_VERSION
+			);
 			return 1;
 		}
 	}
@@ -66,6 +71,8 @@ pub fn wallet_command(wallet_args: &ArgMatches<'_>, config: GlobalWalletConfig) 
 		wallet_config,
 		tor_config,
 		epicbox_config,
+		imap_config,
+		smtp_config,
 		node_client,
 		false,
 		|_| {},

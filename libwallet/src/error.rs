@@ -285,6 +285,9 @@ pub enum Error {
 
 	#[error("NotFoundErr Error: {}", _0)]
 	NotFoundErr(String),
+
+	#[error("{}", _0)]
+	ImapError(String),
 }
 
 impl From<io::Error> for Error {

@@ -18,7 +18,7 @@ use chrono::prelude::*;
 use ed25519_dalek::PublicKey as DalekPublicKey;
 use uuid::Uuid;
 
-use crate::config::{EpicboxConfig, TorConfig, WalletConfig};
+use crate::config::{EpicboxConfig, ImapConfig, SmtpConfig, TorConfig, WalletConfig};
 use crate::core::core::Transaction;
 use crate::core::global;
 use crate::impls::create_sender;
@@ -81,6 +81,10 @@ where
 	tor_config: Mutex<Option<TorConfig>>,
 	/// epicbox configuration, holding epicbox relay server settings
 	epicbox_config: Mutex<Option<EpicboxConfig>>,
+	/// imap configuration, holding imap settings
+	imap_config: Mutex<Option<ImapConfig>>,
+	/// smtp configuration, holding smtp settings
+	smtp_config: Mutex<Option<SmtpConfig>>,
 }
 
 impl<L, C, K> Owner<L, C, K>
@@ -194,6 +198,8 @@ where
 			updater_messages,
 			tor_config: Mutex::new(None),
 			epicbox_config: Mutex::new(None),
+			imap_config: Mutex::new(None),
+			smtp_config: Mutex::new(None),
 		}
 	}
 
@@ -221,6 +227,30 @@ where
 	pub fn set_epicbox_config(&self, epicbox_config: Option<EpicboxConfig>) {
 		let mut lock = self.epicbox_config.lock();
 		*lock = epicbox_config;
+	}
+
+	/// Set the Imap configuration for this instance of the OwnerAPI
+	///
+	/// # Arguments
+	/// * `imap_config` - The optional [ImapConfig](#) to use
+	/// # Returns
+	/// * Nothing
+
+	pub fn set_imap_config(&self, imap_config: Option<ImapConfig>) {
+		let mut lock = self.imap_config.lock();
+		*lock = imap_config;
+	}
+
+	/// Set the Smtp configuration for this instance of the OwnerAPI
+	///
+	/// # Arguments
+	/// * `smtp_config` - The optional [SmtpConfig](#) to use
+	/// # Returns
+	/// * Nothing
+
+	pub fn set_smtp_config(&self, smtp_config: Option<SmtpConfig>) {
+		let mut lock = self.smtp_config.lock();
+		*lock = smtp_config;
 	}
 
 	/// Returns a list of accounts stored in the wallet (i.e. mappings between
@@ -1485,6 +1515,8 @@ where
 		logging_config: Option<LoggingConfig>,
 		tor_config: Option<TorConfig>,
 		epicbox_config: Option<EpicboxConfig>,
+		imap_config: Option<ImapConfig>,
+		smtp_config: Option<SmtpConfig>,
 	) -> Result<(), Error> {
 		let mut w_lock = self.wallet_inst.lock();
 		let lc = w_lock.lc_provider()?;
@@ -1495,6 +1527,8 @@ where
 			logging_config,
 			tor_config,
 			epicbox_config,
+			imap_config,
+			smtp_config,
 		)
 	}
 

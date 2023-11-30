@@ -183,6 +183,69 @@ impl Default for EpicboxConfig {
 	}
 }
 
+/// imap configuration
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ImapConfig {
+	/// imap Domain/Server
+	pub server: Option<String>,
+	/// imap account / username
+	pub username: Option<String>,
+	/// imap password
+	pub password: Option<String>,
+	/// imap port defaults to 993 tls
+	pub port: Option<u16>,
+	/// imap INBOX
+	pub inbox: Option<String>,
+	/// subject response mail
+	pub reply_subject: Option<String>,
+	/// body response mail
+	pub reply_body: Option<String>,
+}
+
+impl Default for ImapConfig {
+	fn default() -> ImapConfig {
+		ImapConfig {
+			server: Some("".to_string()),
+			username: Some("".to_string()),
+			password: Some("".to_string()),
+			port: Some(993),
+			inbox: Some("INBOX.EPICCASH".to_string()),
+			reply_subject: Some("".to_string()),
+			reply_body: Some("".to_string()),
+		}
+	}
+}
+
+/// smtp configuration
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SmtpConfig {
+	/// smtp Domain/Server
+	pub server: Option<String>,
+	/// smtp account / username
+	pub username: Option<String>,
+	/// smtp password
+	pub password: Option<String>,
+	/// smtp from address
+	pub from_address: Option<String>,
+	/// subject send mail
+	pub subject: Option<String>,
+	/// body send mail
+	pub body: Option<String>,
+}
+
+impl Default for SmtpConfig {
+	fn default() -> SmtpConfig {
+		SmtpConfig {
+			server: Some("".to_string()),
+			username: Some("".to_string()),
+			password: Some("".to_string()),
+			from_address: Some("".to_string()),
+			subject: Some("".to_string()),
+			body: Some("".to_string()),
+		}
+	}
+}
+
 impl From<io::Error> for ConfigError {
 	fn from(error: io::Error) -> ConfigError {
 		ConfigError::FileIOError(
@@ -211,6 +274,10 @@ pub struct GlobalWalletConfigMembers {
 	pub tor: Option<TorConfig>,
 	/// Epicbox config
 	pub epicbox: Option<EpicboxConfig>,
+	/// imap config
+	pub imap: Option<ImapConfig>,
+	/// smtp config
+	pub smtp: Option<SmtpConfig>,
 	/// Logging config
 	pub logging: Option<LoggingConfig>,
 }

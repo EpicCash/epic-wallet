@@ -18,7 +18,7 @@ use crate::util::file::get_first_line;
 use crate::util::{to_hex, Mutex, ZeroingString};
 /// Argument parsing and error handling for wallet commands
 use clap::ArgMatches;
-use epic_wallet_config::{EpicboxConfig, TorConfig, WalletConfig};
+use epic_wallet_config::{EpicboxConfig, ImapConfig, SmtpConfig, TorConfig, WalletConfig};
 use epic_wallet_controller::command;
 
 use epic_wallet_impls::tor::config::is_tor_address;
@@ -832,6 +832,8 @@ pub fn wallet_command<C, F>(
 	mut wallet_config: WalletConfig,
 	tor_config: Option<TorConfig>,
 	epicbox_config: Option<EpicboxConfig>,
+	imap_config: Option<ImapConfig>,
+	smtp_config: Option<SmtpConfig>,
 	node_client: C,
 	test_mode: bool,
 	wallet_inst_cb: F,
@@ -891,6 +893,18 @@ where
 	let epicbox_config = match epicbox_config {
 		Some(epicbox_config) => epicbox_config,
 		None => EpicboxConfig::default(),
+	};
+
+	// for backwards compatibility: If imap config doesn't exist in the file
+	let imap_config = match imap_config {
+		Some(imap_config) => imap_config,
+		None => ImapConfig::default(),
+	};
+
+	// for backwards compatibility: If smtp config doesn't exist in the file
+	let smtp_config = match smtp_config {
+		Some(smtp_config) => smtp_config,
+		None => SmtpConfig::default(),
 	};
 
 	// Instantiate wallet (doesn't open the wallet)
@@ -966,6 +980,8 @@ where
 			let mut c = wallet_config.clone();
 			let mut t = tor_config.clone();
 			let e = epicbox_config.clone();
+			let imap = imap_config.clone();
+			let smtp = smtp_config.clone();
 			let a = arg_parse!(parse_listen_args(&mut c, &mut t, &args));
 			command::listen(
 				wallet,
@@ -973,6 +989,8 @@ where
 				&c,
 				&t,
 				&e,
+				&imap,
+				&smtp,
 				&a,
 				&global_wallet_args.clone(),
 			)
@@ -1003,6 +1021,7 @@ where
 				km,
 				Some(tor_config),
 				Some(epicbox_config),
+				Some(smtp_config),
 				a,
 				wallet_config.dark_background_color_scheme.unwrap_or(true),
 			)

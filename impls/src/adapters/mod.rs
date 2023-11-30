@@ -17,6 +17,7 @@ mod epicbox;
 mod file;
 pub mod http;
 mod keybase;
+mod smtp;
 
 pub use self::emoji::EmojiSlate;
 pub use self::epicbox::{
@@ -27,6 +28,7 @@ pub use self::epicbox::{EpicboxChannel, EpicboxListenChannel};
 pub use self::file::PathToSlate;
 pub use self::http::{HttpSlateSender, SchemeNotHttp};
 pub use self::keybase::{KeybaseAllChannels, KeybaseChannel};
+pub use self::smtp::{SmtpSlateReceiver, SmtpSlateSender};
 use crate::config::{TorConfig, WalletConfig};
 use crate::libwallet::{Error, NodeClient, Slate, WalletInst, WalletLCProvider};
 use crate::tor::config::complete_tor_address;
