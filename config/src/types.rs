@@ -196,6 +196,10 @@ pub struct ImapConfig {
 	pub port: Option<u16>,
 	/// imap INBOX
 	pub inbox: Option<String>,
+	/// subject response mail
+	pub reply_subject: Option<String>,
+	/// body response mail
+	pub reply_body: Option<String>,
 }
 
 impl Default for ImapConfig {
@@ -206,6 +210,8 @@ impl Default for ImapConfig {
 			password: Some("".to_string()),
 			port: Some(993),
 			inbox: Some("INBOX.EPICCASH".to_string()),
+			reply_subject: Some("".to_string()),
+			reply_body: Some("".to_string()),
 		}
 	}
 }
@@ -219,10 +225,12 @@ pub struct SmtpConfig {
 	pub username: Option<String>,
 	/// smtp password
 	pub password: Option<String>,
-	/// smtp port defaults to 993 tls
-	pub port: Option<u16>,
 	/// smtp from address
 	pub from_address: Option<String>,
+	/// subject send mail
+	pub subject: Option<String>,
+	/// body send mail
+	pub body: Option<String>,
 }
 
 impl Default for SmtpConfig {
@@ -231,8 +239,9 @@ impl Default for SmtpConfig {
 			server: Some("".to_string()),
 			username: Some("".to_string()),
 			password: Some("".to_string()),
-			port: Some(993),
 			from_address: Some("".to_string()),
+			subject: Some("".to_string()),
+			body: Some("".to_string()),
 		}
 	}
 }

@@ -12,13 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::adapters::{SlateReceiver, SlateSender};
+use crate::adapters::SlateSender;
 use crate::config::{ImapConfig, SmtpConfig};
 use crate::keychain::Keychain;
 use crate::libwallet::api_impl::foreign;
 use crate::libwallet::api_impl::owner;
-/// SMTP Wallet 'plugin' implementation
-use crate::libwallet::slate_versions::{SlateVersion, VersionedSlate};
+
 use crate::libwallet::{Error, NodeClient, Slate, WalletInst, WalletLCProvider};
 use crate::util::secp::key::SecretKey;
 use crate::util::Mutex;
@@ -32,7 +31,7 @@ use lettre::{
 };
 
 use mail_parser::*;
-use serde_json::{json, to_string};
+use serde_json::to_string;
 
 use std::str;
 use std::sync::Arc;
@@ -40,17 +39,17 @@ use std::thread::sleep;
 use std::time::Duration;
 use tokio::runtime::Runtime;
 
-const LISTEN_SLEEP_DURATION: Duration = Duration::from_millis(10000);
+const LISTEN_SLEEP_DURATION: Duration = Duration::from_millis(60000);
 
 /// Receives slates on all channels with topic SLATE_NEW
 pub struct SmtpSlateReceiver {}
 
 impl SmtpSlateReceiver {
-	/// Create a KeybaseAllChannels, return error if keybase executable is not present
 	pub fn new() -> Result<SmtpSlateReceiver, Box<dyn std::error::Error>> {
 		Ok(SmtpSlateReceiver {})
 	}
 }
+
 impl SmtpSlateReceiver {
 	pub fn listen<L, C, K>(
 		&self,
@@ -72,6 +71,8 @@ impl SmtpSlateReceiver {
 		let smtp_username = smtp_config.username.unwrap();
 		let smtp_password = smtp_config.password.unwrap();
 		let smtp_server = smtp_config.server.unwrap();
+		let reply_subject = imap_config.reply_subject.unwrap();
+		let reply_body = imap_config.reply_body.unwrap();
 
 		let mut w_lock = wallet.lock();
 		let lc = w_lock.lc_provider()?;
@@ -79,34 +80,32 @@ impl SmtpSlateReceiver {
 		let mask = keychain_mask.lock();
 
 		let tls = native_tls::TlsConnector::builder().build().unwrap();
-
 		let smtp_credentials = Credentials::new(smtp_username, smtp_password);
-
 		let mailer: AsyncSmtpTransport<Tokio1Executor> =
 			AsyncSmtpTransport::<Tokio1Executor>::relay(&smtp_server)
 				.unwrap()
 				.credentials(smtp_credentials)
 				.build();
 
+		// +> connect to imap and listen on mailbox "INBOX.EPICASH" for transactions
 		// we pass in the domain twice to check that the server's TLS
 		// certificate is valid for the domain we're connecting to.
 		let client = imap::connect((server.clone(), port), server, &tls).unwrap();
-
-		// the client we have here is unauthenticated.
-		// to do anything useful with the e-mails, we need to log in
 		let mut imap_session = client.login(username, password).map_err(|e| e.0).unwrap();
 
+		//start listen
 		loop {
-			// we want to fetch the first email in the INBOX mailbox
+			// fetch every unread message in INBOX.EPICCASH
+			// if the inbox does not exist, create it
 			let mailbox = match imap_session.select(inbox.clone()) {
 				Ok(mailbox) => {
-					info!("select epiccash mailbox");
+					info!("Get unread messages from mailbox {:?}", inbox);
 					mailbox
 				}
 				Err(_) => match imap_session.create(inbox.clone()) {
 					Ok(created) => {
 						let mailbox = imap_session.select(inbox.clone()).expect("no mailbox");
-						info!("created epiccash mailbox: {:?}", created);
+						info!("Created epiccash mailbox: {:?}", created);
 						mailbox
 					}
 					Err(e) => {
@@ -130,8 +129,22 @@ impl SmtpSlateReceiver {
 				};
 				if let Some(message) = messages.iter().next() {
 					// extract the message's body
-					let body = message.body().expect("message did not have a body!");
-					let envelope = message.envelope().unwrap();
+					let body = match message.body() {
+						Some(body) => body,
+						None => {
+							error!("No message body found.");
+							break;
+						}
+					};
+
+					let envelope = match message.envelope() {
+						Some(envelope) => envelope,
+						None => {
+							error!("No envelope in message found.");
+							break;
+						}
+					};
+
 					let from = &envelope.from.as_ref().unwrap()[0];
 					let to = &envelope.to.as_ref().unwrap()[0];
 
@@ -150,7 +163,7 @@ impl SmtpSlateReceiver {
 
 					if let Err(e) = slate.verify_messages() {
 						error!("Error validating participant messages: {}", e);
-						return Err(e);
+						break;
 					}
 
 					if slate.num_participants > slate.participant_data.len() {
@@ -163,6 +176,7 @@ impl SmtpSlateReceiver {
 							false,
 						) {
 							Ok(slate) => {
+								//reply with tx response
 								let address_to = lettre::Address::new(
 									std::str::from_utf8(from.mailbox.unwrap()).unwrap(),
 									std::str::from_utf8(from.host.unwrap()).unwrap(),
@@ -178,12 +192,7 @@ impl SmtpSlateReceiver {
 								let mailbox_from =
 									lettre::message::Mailbox::new(None, address_from.unwrap());
 
-								let subject = "tx response";
-								let newbody =
-									"<h1>Here is the singed tx to finalize the tx now.</h1>"
-										.to_string();
-
-								info!("slate id: {:?}", slate.id);
+								debug!("slate id: {:?}", slate.id);
 								let filename = slate.id.to_string() + ".tx.response";
 								let content_type =
 									ContentType::parse("application/octet-stream").unwrap();
@@ -191,12 +200,12 @@ impl SmtpSlateReceiver {
 								let email = Message::builder()
 									.from(mailbox_from)
 									.to(mailbox_to)
-									.subject(subject)
+									.subject(reply_subject.clone())
 									.multipart(
 										MultiPart::mixed().multipart(
 											MultiPart::related()
 												.singlepart(SinglePart::html(String::from(
-													newbody.to_string(),
+													reply_body.to_string(),
 												)))
 												.singlepart(Attachment::new(filename).body(
 													to_string(&slate).unwrap(),
@@ -209,7 +218,7 @@ impl SmtpSlateReceiver {
 								let rt = Runtime::new().unwrap();
 								let _ = rt.block_on(async {
 									let test = mailer.send(email).await;
-									info!("send mail {:?}", test);
+									debug!("send mail {:?}", test);
 								});
 							}
 							Err(e) => {
@@ -224,17 +233,17 @@ impl SmtpSlateReceiver {
 						owner::post_tx(w_inst.w2n_client(), &slate.tx, false)?;
 					}
 				} else {
-					info!("No new messages found");
+					info!("No new messages found.");
 				}
 			} else {
-				info!("No new messages found");
+				info!("No new messages found.");
 			}
 
 			sleep(LISTEN_SLEEP_DURATION);
 		}
 
-		// be nice to the server and log out
 		imap_session.logout().unwrap();
+		//close listener
 		Ok(())
 	}
 }
@@ -244,10 +253,11 @@ pub struct SmtpSlateSender {
 	mailer: AsyncSmtpTransport<Tokio1Executor>,
 	to: String,
 	from: String,
+	subject: String,
+	body: String,
 }
 
 impl SmtpSlateSender {
-	/// Create, return Err if scheme is not "smtp"
 	pub fn new(
 		to: String,
 		smtp_config: Option<SmtpConfig>,
@@ -256,6 +266,8 @@ impl SmtpSlateSender {
 		let smtp_username = config.username.unwrap();
 		let smtp_password = config.password.unwrap();
 		let smtp_server = config.server.unwrap();
+		let subject = config.subject.unwrap();
+		let body = config.body.unwrap();
 
 		let smtp_credentials = Credentials::new(smtp_username, smtp_password);
 
@@ -265,19 +277,23 @@ impl SmtpSlateSender {
 
 		let from = config.from_address.unwrap();
 
-		Ok(SmtpSlateSender { mailer, to, from })
+		Ok(SmtpSlateSender {
+			mailer,
+			to,
+			from,
+			subject,
+			body,
+		})
 	}
 }
 impl SlateSender for SmtpSlateSender {
 	fn send_tx(&self, slate: &Slate) -> Result<Slate, Error> {
-		// set up tor send process if needed
 		let from = self.from.clone();
 		let to = self.to.clone();
+		let subject = self.subject.clone();
+		let body = self.body.clone();
 
-		let body = "<h1>Here is a new tx</h1>".to_string();
-		let subject = "tx";
-
-		info!("slate id: {:?}", slate.id);
+		debug!("slate id: {:?}", slate.id);
 		let filename = slate.id.to_string() + ".tx";
 
 		let content_type = ContentType::parse("application/octet-stream").unwrap();
@@ -298,10 +314,9 @@ impl SlateSender for SmtpSlateSender {
 			.unwrap();
 
 		let rt = Runtime::new().unwrap();
-
 		let _ = rt.block_on(async {
-			let test = self.mailer.send(email).await;
-			info!("send mail {:?}", test);
+			let mailsend = self.mailer.send(email).await;
+			info!("Mail send: {:?}", mailsend);
 		});
 
 		Ok(slate.clone())
