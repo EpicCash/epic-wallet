@@ -79,7 +79,6 @@ impl SmtpSlateReceiver {
 		let w_inst = lc.wallet_inst()?;
 		let mask = keychain_mask.lock();
 
-		let tls = native_tls::TlsConnector::builder().build().unwrap();
 		let smtp_credentials = Credentials::new(smtp_username, smtp_password);
 		let mailer: AsyncSmtpTransport<Tokio1Executor> =
 			AsyncSmtpTransport::<Tokio1Executor>::relay(&smtp_server)
@@ -90,8 +89,19 @@ impl SmtpSlateReceiver {
 		// +> connect to imap and listen on mailbox "INBOX.EPICASH" for transactions
 		// we pass in the domain twice to check that the server's TLS
 		// certificate is valid for the domain we're connecting to.
-		let client = imap::connect((server.clone(), port), server, &tls).unwrap();
-		let mut imap_session = client.login(username, password).map_err(|e| e.0).unwrap();
+		let tls = native_tls::TlsConnector::builder().build().unwrap();
+		let client = match imap::connect((server.clone(), port), server, &tls) {
+			Ok(client) => client,
+			Err(e) => {
+				return Err(Error::ImapError(format!("{}", e)).into());
+			}
+		};
+		let mut imap_session = match client.login(username, password).map_err(|e| e.0) {
+			Ok(client) => client,
+			Err(e) => {
+				return Err(Error::ImapError(format!("{}", e)).into());
+			}
+		};
 
 		//start listen
 		loop {
@@ -145,6 +155,8 @@ impl SmtpSlateReceiver {
 						}
 					};
 
+					info!("Found unread message in mailbox with id: {:?}", uid);
+
 					let from = &envelope.from.as_ref().unwrap()[0];
 					let to = &envelope.to.as_ref().unwrap()[0];
 
@@ -160,6 +172,10 @@ impl SmtpSlateReceiver {
 							break;
 						}
 					};
+					info!(
+						"Found attachment in mail with transaction {:?}. Going to process...",
+						slate.id
+					);
 
 					if let Err(e) = slate.verify_messages() {
 						error!("Error validating participant messages: {}", e);
@@ -199,7 +215,7 @@ impl SmtpSlateReceiver {
 
 								let email = Message::builder()
 									.from(mailbox_from)
-									.to(mailbox_to)
+									.to(mailbox_to.clone())
 									.subject(reply_subject.clone())
 									.multipart(
 										MultiPart::mixed().multipart(
@@ -217,8 +233,20 @@ impl SmtpSlateReceiver {
 
 								let rt = Runtime::new().unwrap();
 								let _ = rt.block_on(async {
-									let test = mailer.send(email).await;
-									debug!("send mail {:?}", test);
+									match mailer.send(email).await {
+										Ok(message) => {
+											info!(
+												"Send response mail to: {:?}, message: {:?}",
+												mailbox_to, message
+											);
+										}
+										Err(e) => {
+											error!(
+												"Error send response to: {}, error: {}",
+												mailbox_to, e
+											);
+										}
+									};
 								});
 							}
 							Err(e) => {
@@ -315,8 +343,14 @@ impl SlateSender for SmtpSlateSender {
 
 		let rt = Runtime::new().unwrap();
 		let _ = rt.block_on(async {
-			let mailsend = self.mailer.send(email).await;
-			info!("Mail send: {:?}", mailsend);
+			match self.mailer.send(email).await {
+				Ok(message) => {
+					info!("Send mail {:?}", message);
+				}
+				Err(e) => {
+					error!("Error send mail {}", e);
+				}
+			};
 		});
 
 		Ok(slate.clone())
