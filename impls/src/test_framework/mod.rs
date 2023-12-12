@@ -19,15 +19,10 @@ use crate::core;
 
 use crate::core::core::foundation::load_foundation_output;
 use crate::core::core::{Output, OutputFeatures, OutputIdentifier, Transaction, TxKernel};
-use crate::core::global::{
-	add_allowed_policy, get_emitted_policy, get_policies, set_policy_config, ChainTypes,
-};
+use crate::core::global::{get_emitted_policy, get_policies};
 
 use crate::core::core::block::feijoada::PoWType as FType;
-use crate::core::core::block::feijoada::{
-	count_beans, get_bottles_default, next_block_bottles, Deterministic, Feijoada, Policy,
-	PolicyConfig,
-};
+use crate::core::core::block::feijoada::{next_block_bottles, Deterministic, Feijoada};
 
 use crate::core::{consensus, global, pow};
 use crate::keychain;
@@ -206,7 +201,7 @@ fn get_pow_type(ftype: &FType, seed: u64) -> pow::Proof {
 		FType::ProgPow => pow::Proof::ProgPowProof {
 			mix: [seed as u8; 32],
 		},
-		_ => panic!("algorithm not supported"),
+		
 	}
 }
 

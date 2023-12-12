@@ -186,7 +186,7 @@ where
 		method => {
 			return Err(LibwalletError::ArgumentError(format!(
 				"No listener for method {}",
-				method.clone()
+				method
 			)));
 		}
 	};

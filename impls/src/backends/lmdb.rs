@@ -22,7 +22,6 @@ use crate::libwallet::{
 	TxLogEntry, WalletBackend, WalletInitStatus, WalletOutputBatch,
 };
 use crate::serialization::Serializable;
-use crate::store::Error as StoreError;
 use crate::store::{to_key, to_key_u64};
 use crate::util::secp::constants::SECRET_KEY_SIZE;
 use crate::util::secp::key::SecretKey;
