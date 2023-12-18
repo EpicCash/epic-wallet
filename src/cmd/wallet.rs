@@ -22,7 +22,7 @@ use semver::Version;
 use std::thread;
 use std::time::Duration;
 
-const MIN_COMPAT_NODE_VERSION: &str = "3.0.0";
+const MIN_COMPAT_NODE_VERSION: &str = "3.5.0";
 
 pub fn wallet_command(wallet_args: &ArgMatches<'_>, config: GlobalWalletConfig) -> i32 {
 	// Get defaults from the global config
@@ -55,7 +55,7 @@ pub fn wallet_command(wallet_args: &ArgMatches<'_>, config: GlobalWalletConfig) 
 				&v.node_version
 			};
 			println!("The Epic Node in use (version {}) is outdated and incompatible with this wallet version.", version);
-			println!("Please update the node to version 3.0.0 or later and try again.");
+			println!("Please update the node to version 3.5.0 or later and try again.");
 			return 1;
 		}
 	}
