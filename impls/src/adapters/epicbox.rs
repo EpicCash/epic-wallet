@@ -429,7 +429,7 @@ impl Container {
 		let container = Self {
 			config,
 			account: String::from("default"),
-			///TODO: reduce listeners
+			//TODO: reduce listeners
 			listeners: HashMap::with_capacity(4),
 		};
 		Arc::new(Mutex::new(container))
@@ -541,7 +541,7 @@ where
 		tx_proof: Option<&mut TxProof>,
 	) {
 		let version = slate.version();
-		let mut slate: Slate = slate.clone().into();
+		let mut slate: Slate = slate.into();
 
 		if slate.num_participants > slate.participant_data.len() {
 			debug!(
@@ -682,7 +682,7 @@ impl EpicboxBroker {
 		let now = Instant::now();
 
 		let res = loop {
-			let err = client.sender.lock().read_message();
+			let err = client.sender.lock().read();
 
 			match err {
 				Err(e) => {
@@ -768,7 +768,7 @@ impl EpicboxBroker {
 										};
 
 										client
-											.sendv2(&request_sub)
+											.send(&request_sub)
 											.map_err(|_| {
 												error!("Error attempting to send Subscribe")
 											})
@@ -824,9 +824,15 @@ impl EpicboxBroker {
 										signature,
 									};
 
-									client
-										.sendv2(&request_sub)
-										.expect("Could not send subscribe request!");
+									match client.send(&request_sub) {
+										Ok(()) => { /* do nothing */ }
+										Err(e) => {
+											error!(
+												"Could not send subscribe request: {}",
+												e.to_string()
+											);
+										}
+									};
 								}
 							}
 							ProtocolResponseV2::GetVersion { str } => {
@@ -862,14 +868,16 @@ impl EpicboxBroker {
 									signature,
 								};
 
-								match client.sendv2(&request_sub) {
-									Ok(()) => { /* do nothing */ },
+								match client.send(&request_sub) {
+									Ok(()) => { /* do nothing */ }
 									Err(e) => {
-										 error!("Could not send subscribe request: {}", e.to_string());
+										error!(
+											"Could not send subscribe request: {}",
+											e.to_string()
+										);
 									}
 								};
 							}
-							_ => {}
 						}
 					}
 					Message::Ping(_) => {}
@@ -916,12 +924,12 @@ impl EpicboxBroker {
 			signature,
 		};
 
-		let slate: Slate = slate.clone().into();
+		let slate: Slate = slate.into();
 		debug!("Starting to send slate with id [{}]", slate.id.to_string());
 
 		self.inner
 			.lock()
-			.write_message(Message::Text(serde_json::to_string(&request).unwrap()))
+			.send(Message::Text(serde_json::to_string(&request).unwrap()))
 			.unwrap();
 
 		debug!("Slate sent successfully!");
@@ -957,11 +965,17 @@ where
 	K: Keychain + 'static,
 {
 	fn challenge_send(&self) -> Result<(), Error> {
-		let request = ProtocolRequest::Challenge;
-		self.send(&request)
-			.expect("Could not send 'Challenge' request!");
-		self.tx.send(true).unwrap();
-		Ok(())
+		let request = ProtocolRequestV2::Challenge;
+
+		match self.send(&request) {
+			Ok(_) => {
+				self.tx.send(true).unwrap();
+				Ok(())
+			}
+			Err(e) => Err(Error::EpicboxTungstenite(
+				format!("Could not send 'Challenge' request! {}", e).into(),
+			)),
+		}
 	}
 
 	fn made_send(&self, epicboxmsgid: String) -> Result<(), Error> {
@@ -979,44 +993,40 @@ where
 			ver: EPICBOX_PROTOCOL_VERSION.to_string(),
 		};
 
-		self.sendv2(&request)
-			.expect("Could not send 'Made' request!");
-		self.tx.send(true).unwrap();
-
-		Ok(())
+		match self.send(&request) {
+			Ok(_) => {
+				self.tx.send(true).unwrap();
+				Ok(())
+			}
+			Err(e) => Err(Error::EpicboxTungstenite(
+				format!("Could not send 'Made' request! {}", e).into(),
+			)),
+		}
 	}
 
 	fn get_version(&self) -> Result<(), Error> {
 		let request = ProtocolRequestV2::GetVersion;
-
-		self.sendv2(&request)
-			.expect("Could not send 'GetVersion' request!");
-
-		Ok(())
+		match self.send(&request) {
+			Ok(_) => Ok(()),
+			Err(e) => Err(Error::EpicboxTungstenite(
+				format!("Could not send 'GetVersion' request! {}", e).into(),
+			)),
+		}
 	}
 
 	fn get_fastsend(&self) -> Result<(), Error> {
 		let request = ProtocolRequestV2::FastSend;
-
-		self.sendv2(&request)
-			.expect("Could not send FastSend request!");
-
-		Ok(())
+		match self.send(&request) {
+			Ok(_) => Ok(()),
+			Err(e) => Err(Error::EpicboxTungstenite(
+				format!("Could not send FastSend request! {}", e).into(),
+			)),
+		}
 	}
 
-	fn send(&self, request: &ProtocolRequest) -> Result<(), ErrorTungstenite> {
+	fn send(&self, request: &ProtocolRequestV2) -> Result<(), ErrorTungstenite> {
 		let request = serde_json::to_string(&request).unwrap();
 
-		self.sender
-			.lock()
-			.write_message(Message::Text(request.into()))
-	}
-
-	fn sendv2(&self, request: &ProtocolRequestV2) -> Result<(), ErrorTungstenite> {
-		let request = serde_json::to_string(&request).unwrap();
-
-		self.sender
-			.lock()
-			.write_message(Message::Text(request.into()))
+		self.sender.lock().send(Message::Text(request.into()))
 	}
 }

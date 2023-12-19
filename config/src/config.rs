@@ -224,14 +224,7 @@ impl GlobalWalletConfig {
 			}
 			Err(e) => {
 				return Err(ConfigError::ParseError(
-					String::from(
-						self.config_file_path
-							.as_mut()
-							.unwrap()
-							.to_str()
-							.unwrap()
-							.clone(),
-					),
+					String::from(self.config_file_path.as_mut().unwrap().to_str().unwrap()),
 					String::from(format!("{}", e)),
 				));
 			}

@@ -22,13 +22,13 @@ use crate::chain::Chain;
 
 use crate::core::core::{Transaction, TxKernel};
 use crate::core::global::{set_mining_mode, ChainTypes};
-use crate::core::{pow, ser};
+use crate::core::pow;
 use crate::keychain::Keychain;
 use crate::libwallet;
 use crate::libwallet::api_impl::foreign;
 use crate::libwallet::slate_versions::v3::SlateV3;
 use crate::libwallet::{
-	NodeClient, NodeVersionInfo, Slate, TxWrapper, WalletInst, WalletLCProvider,
+	NodeClient, NodeVersionInfo, Slate,  WalletInst, WalletLCProvider,
 };
 use crate::util;
 use crate::util::secp::key::SecretKey;
