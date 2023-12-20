@@ -448,7 +448,7 @@ where
 	let method = args.method.as_str();
 	let mut slate;
 	if method == "emoji" {
-		slate = EmojiSlate().decode(&args.input.as_str()).unwrap();
+		slate = EmojiSlate().decode(&args.input.as_str())?;
 	} else {
 		slate = PathToSlate((&args.input).into()).get_tx()?;
 	}
@@ -889,7 +889,7 @@ where
 				return Ok(());
 			}
 			Some(f) => {
-				let mut tx_file = File::create(f.clone()).unwrap();
+				let mut tx_file = File::create(f.clone())?;
 				tx_file.write_all(json::to_string(&stored_tx).unwrap().as_bytes())?;
 				tx_file.sync_all()?;
 				info!("Dumped transaction data for tx {} to {}", args.id, f);
@@ -1038,7 +1038,7 @@ where
 		match result {
 			Ok(p) => {
 				// actually export proof
-				let mut proof_file = File::create(args.output_file.clone()).unwrap();
+				let mut proof_file = File::create(args.output_file.clone())?;
 				proof_file.write_all(json::to_string_pretty(&p).unwrap().as_bytes())?;
 				proof_file.sync_all()?;
 				warn!("Payment proof exported to {}", args.output_file);
