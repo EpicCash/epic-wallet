@@ -588,8 +588,7 @@ where
 				.borrow()
 				.as_ref()
 				.unwrap()
-				.put_ser(&key, Serializable::OutputData(out))
-				.unwrap();
+				.put_ser(&key, Serializable::OutputData(out))?;
 		}
 
 		Ok(())
@@ -817,8 +816,7 @@ where
 			.borrow()
 			.as_ref()
 			.unwrap()
-			.put_ser(&tx_log_key, Serializable::TxLogEntry(tx_in))
-			.unwrap();
+			.put_ser(&tx_log_key, Serializable::TxLogEntry(tx_in))?;
 		Ok(())
 	}
 
