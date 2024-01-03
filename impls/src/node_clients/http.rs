@@ -391,11 +391,11 @@ impl NodeClient for HTTPNodeClient {
 
 #[cfg(test)]
 mod tests {
-	use super::*;
-	use crate::core::core::{KernelFeatures, OutputFeatures, OutputIdentifier};
-	use crate::core::libtx::build;
-	use crate::core::libtx::ProofBuilder;
-	use crate::keychain::{ExtKeychain, Keychain};
+	//use super::*;
+	//use crate::core::core::{KernelFeatures, OutputFeatures, OutputIdentifier};
+	//use crate::core::libtx::build;
+	//use crate::core::libtx::ProofBuilder;
+	//use crate::keychain::{ExtKeychain, Keychain};
 
 	// JSON api for "push_transaction" between wallet->node currently only supports "feature and commit" inputs.
 	// We will need to revisit this if we decide to support "commit only" inputs (no features) at wallet level.

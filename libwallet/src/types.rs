@@ -819,6 +819,8 @@ pub struct TxLogEntry {
 	/// Additional info needed to stored payment proof
 	#[serde(default)]
 	pub payment_proof: Option<StoredProofInfo>,
+	/// From or To Address tx was send/received
+	pub public_addr: Option<String>,
 }
 
 impl ser::Writeable for TxLogEntry {
@@ -856,6 +858,7 @@ impl TxLogEntry {
 			kernel_excess: None,
 			kernel_lookup_min_height: None,
 			payment_proof: None,
+			public_addr: None,
 		}
 	}
 

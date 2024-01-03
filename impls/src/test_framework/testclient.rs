@@ -27,9 +27,7 @@ use crate::keychain::Keychain;
 use crate::libwallet;
 use crate::libwallet::api_impl::foreign;
 use crate::libwallet::slate_versions::v3::SlateV3;
-use crate::libwallet::{
-	NodeClient, NodeVersionInfo, Slate,  WalletInst, WalletLCProvider,
-};
+use crate::libwallet::{NodeClient, NodeVersionInfo, Slate, WalletInst, WalletLCProvider};
 use crate::util;
 use crate::util::secp::key::SecretKey;
 use crate::util::secp::pedersen;
@@ -220,6 +218,7 @@ where
 				&mut **w,
 				(&mask).as_ref(),
 				&Slate::from(slate),
+				None,
 				None,
 				None,
 				false,

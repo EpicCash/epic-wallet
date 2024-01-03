@@ -105,6 +105,7 @@ pub fn lock_tx_context<'a, T: ?Sized, C, K>(
 	keychain_mask: Option<&SecretKey>,
 	slate: &Slate,
 	context: &Context,
+	addr_to: Option<String>,
 ) -> Result<(), Error>
 where
 	T: WalletBackend<'a, C, K>,
@@ -161,6 +162,7 @@ where
 
 		t.amount_debited = amount_debited;
 		t.messages = messages;
+		t.public_addr = addr_to;
 
 		// store extra payment proof info, if required
 		if let Some(ref p) = slate.payment_proof {

@@ -364,22 +364,27 @@ where
 			match args.method.as_str() {
 				"emoji" => {
 					println!("{}", EmojiSlate().encode(&slate));
-					api.tx_lock_outputs(m, &slate, 0)?;
+					api.tx_lock_outputs(m, &slate, 0, Some(args.dest))?;
 					return Ok(());
 				}
 				"file" => {
 					PathToSlate((&args.dest).into()).put_tx(&slate)?;
-					api.tx_lock_outputs(m, &slate, 0)?;
+					api.tx_lock_outputs(m, &slate, 0, Some(args.dest))?;
 					return Ok(());
 				}
 				"self" => {
-					api.tx_lock_outputs(m, &slate, 0)?;
+					api.tx_lock_outputs(m, &slate, 0, Some(args.dest.clone()))?;
 					let km = match keychain_mask.as_ref() {
 						None => None,
 						Some(&m) => Some(m.to_owned()),
 					};
 					controller::foreign_single_use(wallet, km, |api| {
-						slate = api.receive_tx(&slate, Some(&args.dest), None)?;
+						slate = api.receive_tx(
+							&slate,
+							Some(&args.dest),
+							None,
+							Some("Self".to_string()),
+						)?;
 						Ok(())
 					})?;
 				}
@@ -393,7 +398,7 @@ where
 					};
 					slate = epicbox_channel.send(wallet, km, &slate)?;
 
-					api.tx_lock_outputs(m, &slate, 0)?;
+					api.tx_lock_outputs(m, &slate, 0, Some(args.dest))?;
 
 					return Ok(());
 				}
@@ -401,7 +406,7 @@ where
 					let sender = create_sender(method, &args.dest, tor_config)?;
 
 					slate = sender.send_tx(&slate)?;
-					api.tx_lock_outputs(m, &slate, 0)?;
+					api.tx_lock_outputs(m, &slate, 0, Some(args.dest))?;
 				}
 			}
 
@@ -462,7 +467,7 @@ where
 			error!("Error validating participant messages: {}", e);
 			return Err(e);
 		}
-		slate = api.receive_tx(&slate, Some(&g_args.account), args.message.clone())?;
+		slate = api.receive_tx(&slate, Some(&g_args.account), args.message.clone(), None)?;
 		Ok(())
 	})?;
 	if method == "emoji" {
@@ -684,10 +689,10 @@ where
 				"file" => {
 					let slate_putter = PathToSlate((&args.dest).into());
 					slate_putter.put_tx(&slate)?;
-					api.tx_lock_outputs(m, &slate, 0)?;
+					api.tx_lock_outputs(m, &slate, 0, Some(args.dest))?;
 				}
 				"self" => {
-					api.tx_lock_outputs(m, &slate, 0)?;
+					api.tx_lock_outputs(m, &slate, 0, Some(args.dest))?;
 					let km = match keychain_mask.as_ref() {
 						None => None,
 						Some(&m) => Some(m.to_owned()),
@@ -700,7 +705,7 @@ where
 				method => {
 					let sender = create_sender(method, &args.dest, tor_config)?;
 					slate = sender.send_tx(&slate)?;
-					api.tx_lock_outputs(m, &slate, 0)?;
+					api.tx_lock_outputs(m, &slate, 0, Some(args.dest))?;
 				}
 			}
 		}

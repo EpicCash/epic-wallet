@@ -270,7 +270,8 @@ pub trait ForeignRpc {
 			]
 		},
 		null,
-		"Thanks, Yeastplume"
+		"Thanks, Yeastplume",
+		"From Address String"
 		]
 	}
 	# "#
@@ -360,6 +361,7 @@ pub trait ForeignRpc {
 		slate: VersionedSlate,
 		dest_acct_name: Option<String>,
 		message: Option<String>,
+		addr_from: Option<String>,
 	) -> Result<VersionedSlate, Error>;
 
 	/**
@@ -559,6 +561,7 @@ where
 		in_slate: VersionedSlate,
 		dest_acct_name: Option<String>,
 		message: Option<String>,
+		addr_from: Option<String>,
 	) -> Result<VersionedSlate, Error> {
 		let version = in_slate.version();
 		let slate_from = Slate::from(in_slate);
@@ -567,6 +570,7 @@ where
 			&slate_from,
 			dest_acct_name.as_ref().map(String::as_str),
 			message,
+			addr_from,
 		)?;
 		Ok(VersionedSlate::into_version(out_slate, version))
 	}

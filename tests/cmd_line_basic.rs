@@ -314,7 +314,7 @@ fn command_line_test_impl(test_dir: &str) -> Result<(), epic_wallet_controller::
 	];
 	execute_command(&app, test_dir, "wallet1", &client1, arg_vec.clone()).unwrap();
 
-	let arg_vec = vec![
+	let _arg_vec = vec![
 		"epic-wallet",
 		"-a",
 		"mining",

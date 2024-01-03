@@ -481,7 +481,7 @@ where
 
 	fn process_incoming_slate(
 		&self,
-		_address: Option<String>,
+		address: Option<String>,
 		slate: &mut Slate,
 		_tx_proof: Option<&mut TxProof>,
 	) -> Result<bool, Error> {
@@ -501,6 +501,7 @@ where
 					&slate,
 					None,
 					None,
+					address,
 					false,
 				);
 				*slate = ret_slate.unwrap();

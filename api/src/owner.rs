@@ -696,7 +696,7 @@ where
 						Some(&m) => Some(m.to_owned()),
 					};
 					slate = epicbox_channel.send(wallet, km, &slate)?;
-					self.tx_lock_outputs(keychain_mask, &slate, 0)?;
+					self.tx_lock_outputs(keychain_mask, &slate, 0, Some(sa.dest))?;
 					return Ok(slate);
 				} else {
 					let comm_adapter = create_sender(&sa.method, &sa.dest, tor_config_lock.clone())
@@ -704,7 +704,7 @@ where
 					slate = comm_adapter.send_tx(&slate)?;
 				}
 
-				self.tx_lock_outputs(keychain_mask, &slate, 0)?;
+				self.tx_lock_outputs(keychain_mask, &slate, 0, Some(sa.dest))?;
 				let slate = match sa.finalize {
 					true => self.finalize_tx(keychain_mask, &slate)?,
 					false => slate,
@@ -849,6 +849,7 @@ where
 	/// * `slate` - The transaction [`Slate`](../epic_wallet_libwallet/slate/struct.Slate.html). All
 	/// * `participant_id` - The participant id, generally 0 for the party putting in funds, 1 for the
 	/// party receiving.
+	/// * `addr_to` - An optional receiver address
 	/// elements in the `input` vector of the `tx` field that are found in the wallet's currently
 	/// active account will be set to status `Locked`
 	///
@@ -881,7 +882,7 @@ where
 	///		// Send slate somehow
 	///		// ...
 	///		// Lock our outputs if we're happy the slate was (or is being) sent
-	///		api_owner.tx_lock_outputs(None, &slate, 0);
+	///		api_owner.tx_lock_outputs(None, &slate, 0, None);
 	/// }
 	/// ```
 
@@ -890,10 +891,11 @@ where
 		keychain_mask: Option<&SecretKey>,
 		slate: &Slate,
 		participant_id: usize,
+		addr_to: Option<String>,
 	) -> Result<(), Error> {
 		let mut w_lock = self.wallet_inst.lock();
 		let w = w_lock.lc_provider()?.wallet_inst()?;
-		owner::tx_lock_outputs(&mut **w, keychain_mask, slate, participant_id)
+		owner::tx_lock_outputs(&mut **w, keychain_mask, slate, participant_id, addr_to)
 	}
 
 	/// Finalizes a transaction, after all parties

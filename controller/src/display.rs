@@ -152,6 +152,7 @@ pub fn txs(
 		bMG->"Type",
 		bMG->"Shared Transaction Id",
 		bMG->"Creation Time",
+		bMG->"From/To Address",
 		bMG->"TTL Cutoff Height",
 		bMG->"Confirmed?",
 		bMG->"Confirmation Time",
@@ -211,12 +212,19 @@ pub fn txs(
 			Some(_) => "Yes".to_owned(),
 			None => "None".to_owned(),
 		};
+
+		let public_addr = match t.public_addr.clone() {
+			Some(addr) => addr,
+			None => "None".to_owned(),
+		};
+
 		if dark_background_color_scheme {
 			table.add_row(row![
 				bFC->id,
 				bFC->entry_type,
 				bFC->slate_id,
 				bFB->creation_ts,
+				bFB->public_addr,
 				bFB->ttl_cutoff_height,
 				bFC->confirmed,
 				bFB->confirmation_ts,
@@ -237,6 +245,7 @@ pub fn txs(
 					bFb->entry_type,
 					bFD->slate_id,
 					bFB->creation_ts,
+					bFB->public_addr,
 					bFg->confirmed,
 					bFB->confirmation_ts,
 					bFD->num_inputs,
@@ -255,6 +264,7 @@ pub fn txs(
 					bFb->entry_type,
 					bFD->slate_id,
 					bFB->creation_ts,
+					bFB->public_addr,
 					bFR->confirmed,
 					bFB->confirmation_ts,
 					bFD->num_inputs,
