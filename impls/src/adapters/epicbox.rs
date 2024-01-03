@@ -218,23 +218,13 @@ impl EpicboxChannel {
 
 		let container = Container::new(config.clone());
 
-		let (tx, rx): (Sender<bool>, Receiver<bool>) = channel();
+		let (tx, _rx): (Sender<bool>, Receiver<bool>) = channel();
 		let listener = start_epicbox(container.clone(), wallet, keychain_mask, config, tx).unwrap();
 
 		container
 			.lock()
 			.listeners
 			.insert(ListenerInterface::Epicbox, listener);
-		//warn!("Waitng for rx");
-
-		loop {
-			std::thread::sleep(std::time::Duration::from_secs(1));
-			if rx.recv().unwrap() {
-				break;
-			}
-		}
-
-		//warn!("After rx");
 
 		let vslate = VersionedSlate::into_version(slate.clone(), SlateVersion::V2);
 
