@@ -338,7 +338,7 @@ where
 		foreign::verify_slate_messages(slate)
 	}
 
-	/// Recieve a tranaction created by another party, returning the modified
+	/// Receive a transaction created by another party, returning the modified
 	/// [`Slate`](../epic_wallet_libwallet/slate/struct.Slate.html) object, modified with
 	/// the recipient's output for the transaction amount, and public signature data. This slate can
 	/// then be sent back to the sender to finalize the transaction via the
@@ -360,7 +360,6 @@ where
 	/// * `dest_acct_name` - The name of the account into which the slate should be received. If
 	/// `None`, the default account is used.
 	/// * `message` - An optional participant message to include alongside the recipient's public
-	/// * `addr_from` - An optional field to store the sender address
 	/// ParticipantData within the slate. This message will include a signature created with the
 	/// recipient's private excess value, and will be publically verifiable. Note this message is for
 	/// the convenience of the participants during the exchange; it is not included in the final
@@ -387,7 +386,7 @@ where
 	///
 	/// // . . .
 	/// // Obtain a sent slate somehow
-	/// let result = api_foreign.receive_tx(&slate, None, None, None);
+	/// let result = api_foreign.receive_tx(&slate, None, None);
 	///
 	/// if let Ok(slate) = result {
 	///		// Send back to recipient somehow
@@ -400,7 +399,6 @@ where
 		slate: &Slate,
 		dest_acct_name: Option<&str>,
 		message: Option<String>,
-		addr_from: Option<String>,
 	) -> Result<Slate, Error> {
 		let mut w_lock = self.wallet_inst.lock();
 		let w = w_lock.lc_provider()?.wallet_inst()?;
@@ -411,13 +409,14 @@ where
 				Some(slate),
 			)?;
 		}
+
 		foreign::receive_tx(
 			&mut **w,
 			(&self.keychain_mask).as_ref(),
 			slate,
 			dest_acct_name,
 			message,
-			addr_from,
+			None,
 			self.doctest_mode,
 		)
 	}

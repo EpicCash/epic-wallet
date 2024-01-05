@@ -147,7 +147,7 @@ fn file_exchange_test_impl(test_dir: &'static str) -> Result<(), libwallet::Erro
 
 	// wallet 2 receives file, completes, sends file back
 	wallet::controller::foreign_single_use(wallet2.clone(), mask2_i.clone(), |api| {
-		slate = api.receive_tx(&slate, None, Some(sender2_message.clone()), None)?;
+		slate = api.receive_tx(&slate, None, Some(sender2_message.clone()))?;
 		PathToSlate((&receive_file).into()).put_tx(&slate)?;
 		Ok(())
 	})?;

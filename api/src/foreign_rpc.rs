@@ -214,14 +214,14 @@ pub trait ForeignRpc {
 		"id": 1,
 		"params": [
 			{
-			"version_info": {
-				"version": 2,
-				"orig_version": 2,
-				"block_header_version": 6
-			},
-			"num_participants": 2,
-			"id": "0436430c-2b02-624c-2032-570501212b00",
-			"tx": {
+			  "version_info": {
+					"version": 2,
+					"orig_version": 2,
+					"block_header_version": 6
+			  },
+			  "num_participants": 2,
+			  "id": "0436430c-2b02-624c-2032-570501212b00",
+			  "tx": {
 				"offset": "d202964900000000d302964900000000d402964900000000d502964900000000",
 				"body": {
 					"inputs": [
@@ -270,8 +270,8 @@ pub trait ForeignRpc {
 			]
 		},
 		null,
-		"Thanks, Yeastplume",
-		"From Address String"
+		"Thanks, Yeastplume"
+
 		]
 	}
 	# "#
@@ -361,7 +361,6 @@ pub trait ForeignRpc {
 		slate: VersionedSlate,
 		dest_acct_name: Option<String>,
 		message: Option<String>,
-		addr_from: Option<String>,
 	) -> Result<VersionedSlate, Error>;
 
 	/**
@@ -561,7 +560,6 @@ where
 		in_slate: VersionedSlate,
 		dest_acct_name: Option<String>,
 		message: Option<String>,
-		addr_from: Option<String>,
 	) -> Result<VersionedSlate, Error> {
 		let version = in_slate.version();
 		let slate_from = Slate::from(in_slate);
@@ -570,7 +568,6 @@ where
 			&slate_from,
 			dest_acct_name.as_ref().map(String::as_str),
 			message,
-			addr_from,
 		)?;
 		Ok(VersionedSlate::into_version(out_slate, version))
 	}

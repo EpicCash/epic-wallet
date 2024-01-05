@@ -379,12 +379,7 @@ where
 						Some(&m) => Some(m.to_owned()),
 					};
 					controller::foreign_single_use(wallet, km, |api| {
-						slate = api.receive_tx(
-							&slate,
-							Some(&args.dest),
-							None,
-							Some("Self".to_string()),
-						)?;
+						slate = api.receive_tx(&slate, Some(&args.dest), None)?;
 						Ok(())
 					})?;
 				}
@@ -467,7 +462,7 @@ where
 			error!("Error validating participant messages: {}", e);
 			return Err(e);
 		}
-		slate = api.receive_tx(&slate, Some(&g_args.account), args.message.clone(), None)?;
+		slate = api.receive_tx(&slate, Some(&g_args.account), args.message.clone())?;
 		Ok(())
 	})?;
 	if method == "emoji" {
