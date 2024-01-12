@@ -68,7 +68,7 @@ use tungstenite::{Error as ErrorTungstenite, Message};
 const CONNECTION_ERR_MSG: &str = "\nCan't connect to the epicbox server!\n\
 	Check your epic-wallet.toml settings and make sure epicbox domain is correct.\n";
 const DEFAULT_CHALLENGE_RAW: &str = "7WUDtkSaKyGRUnQ22rE3QUXChV8DmA6NnunDYP4vheTpc";
-const EPICBOX_PROTOCOL_VERSION: &str = "2.0.0";
+const EPICBOX_PROTOCOL_VERSION: &str = "3.0.0";
 
 /// Epicbox 'plugin' implementation
 pub enum CloseReason {
@@ -169,10 +169,7 @@ impl EpicboxListenChannel {
 			Error::EpicboxTungstenite(format!("{}", e).into())
 		})?;
 
-		let start_subscribe = true;
-
-		let publisher =
-			EpicboxPublisher::new(address.clone(), sec_key, socket, start_subscribe, tx)?;
+		let publisher = EpicboxPublisher::new(address.clone(), sec_key, socket, tx)?;
 
 		let mut subscriber = EpicboxSubscriber::new(&publisher)?;
 
@@ -292,9 +289,7 @@ where
 	debug!("Connecting to the epicbox server at {} ..", url.clone());
 	let (socket, _) = connect(url.clone()).expect(CONNECTION_ERR_MSG);
 
-	let start_subscribe = false;
-
-	let publisher = EpicboxPublisher::new(address.clone(), sec_key, socket, start_subscribe, tx)?;
+	let publisher = EpicboxPublisher::new(address.clone(), sec_key, socket, tx)?;
 	let subscriber = EpicboxSubscriber::new(&publisher)?;
 
 	let mut csubscriber = subscriber.clone();
@@ -354,12 +349,12 @@ impl EpicboxPublisher {
 		address: EpicboxAddress,
 		secret_key: SecretKey,
 		socket: WebSocket<MaybeTlsStream<TcpStream>>,
-		start_subscribe: bool,
+
 		tx: Sender<bool>,
 	) -> Result<Self, Error> {
 		Ok(Self {
 			address,
-			broker: EpicboxBroker::new(socket, start_subscribe, tx)?,
+			broker: EpicboxBroker::new(socket, tx)?,
 			secret_key,
 		})
 	}
@@ -613,19 +608,19 @@ pub trait Publisher: Send {
 #[derive(Clone)]
 pub struct EpicboxBroker {
 	inner: Arc<Mutex<WebSocket<MaybeTlsStream<TcpStream>>>>,
-	start_subscribe: bool,
+
 	tx: Sender<bool>,
 }
 impl EpicboxBroker {
 	/// Create a EpicboxBroker,
 	pub fn new(
 		inner: WebSocket<MaybeTlsStream<TcpStream>>,
-		start_subscribe: bool,
+
 		tx: Sender<bool>,
 	) -> Result<Self, Error> {
 		Ok(Self {
 			inner: Arc::new(Mutex::new(inner)),
-			start_subscribe,
+
 			tx,
 		})
 	}
@@ -656,7 +651,7 @@ impl EpicboxBroker {
 			tx: self.tx.clone(),
 		};
 
-		let subscribe = DEFAULT_CHALLENGE_RAW;
+		//let subscribe = DEFAULT_CHALLENGE_RAW;
 		let ver = EPICBOX_PROTOCOL_VERSION;
 		let mut last_message_id_v2 = String::from("");
 
@@ -703,19 +698,10 @@ impl EpicboxBroker {
 
 									first_run = false;
 
-									if !self.start_subscribe {
-										client
-											.get_fastsend()
-											.map_err(|_| {
-												error!("Error attempting to send FastSend!");
-											})
-											.unwrap();
-									} else {
-										debug!("Starting epicbox subscription...");
-									}
+									info!("Starting epicbox subscription...");
 								}
 
-								let signature = sign_challenge(&subscribe, &secret_key)?.to_hex();
+								let signature = sign_challenge(&str, &secret_key)?.to_hex();
 								let request_sub = ProtocolRequestV2::Subscribe {
 									address: client.address.public_key.to_string(),
 									ver: ver.to_string(),
@@ -730,28 +716,17 @@ impl EpicboxBroker {
 							ProtocolResponseV2::Slate {
 								from,
 								str,
-								challenge,
+								challenge: _challenge,
 								signature,
 								ver: _, // unused, ignore
 								epicboxmsgid,
 							} => {
-								match client.made_send(epicboxmsgid.clone()) {
-									Ok(()) => { /* do nothing */ }
-									Err(e) => {
-										error!(
-											"Error attempting to send 'made' message!: {}",
-											e.to_string()
-										);
-									}
-								}
-
 								if last_message_id_v2 != epicboxmsgid {
 									last_message_id_v2 = epicboxmsgid.clone();
 
 									let (slate, mut tx_proof) = match TxProof::from_response(
 										from,
 										str,
-										challenge,
 										signature,
 										&client.secret_key,
 										Some(&client.address),
@@ -770,8 +745,11 @@ impl EpicboxBroker {
 										Some(&mut tx_proof),
 									);
 
-									let signature =
-										sign_challenge(&subscribe, &secret_key)?.to_hex();
+									let signature = sign_challenge(
+										&client.challenge.clone().unwrap(),
+										&secret_key,
+									)?
+									.to_hex();
 									let request_sub = ProtocolRequestV2::Subscribe {
 										address: client.address.public_key.to_string(),
 										ver: ver.to_string(),
@@ -779,7 +757,18 @@ impl EpicboxBroker {
 									};
 
 									match client.send(&request_sub) {
-										Ok(()) => { /* do nothing */ }
+										Ok(()) => {
+											//send feedback to epicbox that we successfully finalize
+											match client.made_send(epicboxmsgid.clone()) {
+												Ok(()) => { /* do nothing */ }
+												Err(e) => {
+													error!(
+            											"Error attempting to send 'made' message!: {}",
+            											e.to_string()
+            										);
+												}
+											}
+										}
 										Err(e) => {
 											error!(
 												"Could not send subscribe request: {}",
@@ -792,9 +781,6 @@ impl EpicboxBroker {
 							ProtocolResponseV2::GetVersion { str } => {
 								trace!("ProtocolResponseV2::GetVersion {}", str);
 							}
-							ProtocolResponseV2::FastSend {} => {
-								trace!("FastSend message received");
-							}
 							ProtocolResponseV2::Error {
 								ref kind,
 								description: _,
@@ -802,7 +788,7 @@ impl EpicboxBroker {
 								ProtocolError::InvalidRequest {} => {
 									error!(
 										"Invalid Request! Ensure you are connected to an \
-											epicbox that supports protocol v2.0.0!"
+											epicbox that supports protocol 3.0.0!"
 									);
 								}
 								_ => {
@@ -899,13 +885,7 @@ where
 	K: Keychain + 'static,
 {
 	fn made_send(&self, epicboxmsgid: String) -> Result<(), Error> {
-		let chell = match &self.challenge {
-			None => String::from(""),
-			Some(c) => c.to_string(),
-		};
-
-		let signature = sign_challenge(&chell, &self.secret_key)?.to_hex();
-
+		let signature = sign_challenge(&epicboxmsgid, &self.secret_key)?.to_hex();
 		let request = ProtocolRequestV2::Made {
 			address: self.address.public_key.to_string(),
 			signature,
@@ -930,16 +910,6 @@ where
 			Ok(_) => Ok(()),
 			Err(e) => Err(Error::EpicboxTungstenite(
 				format!("Could not send 'GetVersion' request! {}", e).into(),
-			)),
-		}
-	}
-
-	fn get_fastsend(&self) -> Result<(), Error> {
-		let request = ProtocolRequestV2::FastSend;
-		match self.send(&request) {
-			Ok(_) => Ok(()),
-			Err(e) => Err(Error::EpicboxTungstenite(
-				format!("Could not send FastSend request! {}", e).into(),
 			)),
 		}
 	}

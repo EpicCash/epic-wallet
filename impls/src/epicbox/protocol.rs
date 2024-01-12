@@ -80,7 +80,6 @@ pub enum ProtocolRequestV2 {
 		epicboxmsgid: String,
 	},
 	GetVersion,
-	FastSend,
 }
 
 impl Display for ProtocolRequest {
@@ -129,7 +128,6 @@ impl Display for ProtocolRequestV2 {
 				ver: _,
 			} => write!(f, "{} to {}", "Made for", epicboxmsgid),
 			ProtocolRequestV2::GetVersion {} => write!(f, "{} ", "GetVersion "),
-			ProtocolRequestV2::FastSend {} => write!(f, "{} ", "FastSend "),
 		}
 	}
 }
@@ -175,7 +173,6 @@ pub enum ProtocolResponseV2 {
 	GetVersion {
 		str: String,
 	},
-	FastSend,
 }
 
 impl Display for ProtocolResponse {
@@ -213,7 +210,7 @@ impl Display for ProtocolResponseV2 {
 			ProtocolResponseV2::GetVersion { ref str } => {
 				write!(f, "{} {}", "Version", str)
 			}
-			ProtocolResponseV2::FastSend => write!(f, "{}", "FastSend"),
+
 			ProtocolResponseV2::Slate {
 				ref from,
 				str: _,
