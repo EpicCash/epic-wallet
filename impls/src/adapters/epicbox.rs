@@ -42,6 +42,7 @@ use std::thread::JoinHandle;
 use crate::libwallet::api_impl::foreign;
 use crate::libwallet::api_impl::owner;
 use epic_wallet_util::epic_core::core::amount_to_hr_string;
+use std::env;
 use std::net::TcpStream;
 use std::string::ToString;
 use std::sync::mpsc::{channel, Receiver, Sender};
@@ -67,7 +68,7 @@ use tungstenite::{Error as ErrorTungstenite, Message};
 
 const CONNECTION_ERR_MSG: &str = "\nCan't connect to the epicbox server!\n\
 	Check your epic-wallet.toml settings and make sure epicbox domain is correct.\n";
-const DEFAULT_CHALLENGE_RAW: &str = "7WUDtkSaKyGRUnQ22rE3QUXChV8DmA6NnunDYP4vheTpc";
+
 const EPICBOX_PROTOCOL_VERSION: &str = "3.0.0";
 
 /// Epicbox 'plugin' implementation
@@ -81,12 +82,14 @@ pub struct EpicboxSubscriber {
 	address: EpicboxAddress,
 	broker: EpicboxBroker,
 	secret_key: SecretKey,
+	wallet_mode: String,
 }
 #[derive(Clone)]
 pub struct EpicboxPublisher {
 	address: EpicboxAddress,
 	broker: EpicboxBroker,
 	secret_key: SecretKey,
+	wallet_mode: String,
 }
 
 pub struct EpicboxListener {
@@ -132,9 +135,7 @@ impl EpicboxListenChannel {
 			let w_inst = lc.wallet_inst()?;
 			let k = w_inst.keychain((&mask).as_ref())?;
 			let parent_key_id = w_inst.parent_key_id();
-			let sec_key = address::address_from_derivation_path(&k, &parent_key_id, 0)
-				.map_err(|e| Error::ArgumentError(format!("{:?}", e).into()))
-				.unwrap();
+			let sec_key = address::address_from_derivation_path(&k, &parent_key_id, 0)?;
 			let pub_key = PublicKey::from_secret_key(k.secp(), &sec_key).unwrap();
 
 			let address = EpicboxAddress::new(
@@ -169,7 +170,8 @@ impl EpicboxListenChannel {
 			Error::EpicboxTungstenite(format!("{}", e).into())
 		})?;
 
-		let publisher = EpicboxPublisher::new(address.clone(), sec_key, socket, tx)?;
+		let publisher =
+			EpicboxPublisher::new(address.clone(), sec_key, socket, tx, "listener".to_string())?;
 
 		let mut subscriber = EpicboxSubscriber::new(&publisher)?;
 
@@ -216,7 +218,7 @@ impl EpicboxChannel {
 		let container = Container::new(config.clone());
 
 		let (tx, _rx): (Sender<bool>, Receiver<bool>) = channel();
-		let listener = start_epicbox(container.clone(), wallet, keychain_mask, config, tx).unwrap();
+		let listener = start_epicbox(container.clone(), wallet, keychain_mask, config, tx)?;
 
 		container
 			.lock()
@@ -227,8 +229,7 @@ impl EpicboxChannel {
 
 		let _ = match container
 			.lock()
-			.listener(ListenerInterface::Epicbox)
-			.unwrap()
+			.listener(ListenerInterface::Epicbox)?
 			.publish(&vslate, &self.dest)
 		{
 			Ok(_) => (),
@@ -259,9 +260,7 @@ where
 		let w_inst = lc.wallet_inst()?;
 		let k = w_inst.keychain(keychain_mask.as_ref())?;
 		let parent_key_id = w_inst.parent_key_id();
-		let sec_key = address::address_from_derivation_path(&k, &parent_key_id, 0)
-			.map_err(|e| Error::ArgumentError(format!("{:?}", e).into()))
-			.unwrap();
+		let sec_key = address::address_from_derivation_path(&k, &parent_key_id, 0)?;
 		let pub_key = PublicKey::from_secret_key(k.secp(), &sec_key).unwrap();
 
 		let address = EpicboxAddress::new(
@@ -289,7 +288,8 @@ where
 	debug!("Connecting to the epicbox server at {} ..", url.clone());
 	let (socket, _) = connect(url.clone()).expect(CONNECTION_ERR_MSG);
 
-	let publisher = EpicboxPublisher::new(address.clone(), sec_key, socket, tx)?;
+	let publisher =
+		EpicboxPublisher::new(address.clone(), sec_key, socket, tx, "send".to_string())?;
 	let subscriber = EpicboxSubscriber::new(&publisher)?;
 
 	let mut csubscriber = subscriber.clone();
@@ -349,13 +349,14 @@ impl EpicboxPublisher {
 		address: EpicboxAddress,
 		secret_key: SecretKey,
 		socket: WebSocket<MaybeTlsStream<TcpStream>>,
-
 		tx: Sender<bool>,
+		wallet_mode: String,
 	) -> Result<Self, Error> {
 		Ok(Self {
 			address,
 			broker: EpicboxBroker::new(socket, tx)?,
 			secret_key,
+			wallet_mode,
 		})
 	}
 }
@@ -381,6 +382,7 @@ impl EpicboxSubscriber {
 			address: publisher.address.clone(),
 			broker: publisher.broker.clone(),
 			secret_key: publisher.secret_key.clone(),
+			wallet_mode: publisher.wallet_mode.clone(),
 		})
 	}
 }
@@ -587,7 +589,7 @@ impl EpicboxSubscriber {
 		K: Keychain + 'static,
 	{
 		self.broker
-			.subscribe(&self.address, &self.secret_key, handler)
+			.subscribe(&self.address, &self.secret_key, handler, &self.wallet_mode)
 	}
 
 	fn stop(&self) {
@@ -631,6 +633,7 @@ impl EpicboxBroker {
 		address: &EpicboxAddress,
 		secret_key: &SecretKey,
 		handler: EpicboxController<P, L, C, K>,
+		wallet_mode: &String,
 	) -> Result<(), Error>
 	where
 		P: Publisher,
@@ -653,6 +656,7 @@ impl EpicboxBroker {
 
 		//let subscribe = DEFAULT_CHALLENGE_RAW;
 		let ver = EPICBOX_PROTOCOL_VERSION;
+		let wallet_mode = wallet_mode;
 		let mut last_message_id_v2 = String::from("");
 
 		let res = loop {
@@ -691,10 +695,7 @@ impl EpicboxBroker {
 								client.challenge = Some(str.clone());
 
 								if first_run {
-									client
-										.get_version()
-										.map_err(|_| error!("error attempting GetVersion!"))
-										.unwrap();
+									client.client_details(wallet_mode.clone())?;
 
 									first_run = false;
 
@@ -708,10 +709,9 @@ impl EpicboxBroker {
 									signature,
 								};
 
-								client
+								let _ = client
 									.send(&request_sub)
-									.map_err(|_| error!("Error attempting to send Subscribe"))
-									.unwrap();
+									.map_err(|_| error!("Error attempting to send Subscribe"));
 							}
 							ProtocolResponseV2::Slate {
 								from,
@@ -796,7 +796,7 @@ impl EpicboxBroker {
 								}
 							},
 							ProtocolResponseV2::Ok {} => {
-								info!("Subscription Ok.");
+								debug!("Response Ok.");
 							}
 						}
 					}
@@ -804,7 +804,7 @@ impl EpicboxBroker {
 					Message::Pong(_) => {}
 					Message::Frame(_) => {}
 					Message::Close(_) => {
-						info!("Close {:?}", &message.to_string());
+						info!("Close connection");
 						handler.lock().on_close(CloseReason::Normal);
 						let _ = client.sender.lock().close(None);
 						break Ok(());
@@ -828,9 +828,7 @@ impl EpicboxBroker {
 		let skey = secret_key.clone();
 
 		let message =
-			EncryptedMessage::new(serde_json::to_string(&slate).unwrap(), &to, &pkey, &skey)
-				.map_err(|_| error!("Could not encrypt slate!"))
-				.unwrap();
+			EncryptedMessage::new(serde_json::to_string(&slate).unwrap(), &to, &pkey, &skey)?;
 
 		let message_ser = serde_json::to_string(&message).unwrap();
 		let mut challenge = String::new();
@@ -904,19 +902,25 @@ where
 		}
 	}
 
-	fn get_version(&self) -> Result<(), Error> {
-		let request = ProtocolRequestV2::GetVersion;
+	fn client_details(&self, wallet_mode: String) -> Result<(), Error> {
+		let version = env!("CARGO_PKG_VERSION");
+
+		let request = ProtocolRequestV2::ClientDetails {
+			wallet_version: version.to_string(),
+			wallet_mode,
+			protocol_version: EPICBOX_PROTOCOL_VERSION.to_string(),
+		};
+
 		match self.send(&request) {
 			Ok(_) => Ok(()),
 			Err(e) => Err(Error::EpicboxTungstenite(
-				format!("Could not send 'GetVersion' request! {}", e).into(),
+				format!("Could not send 'ClientDetails' request! {}", e).into(),
 			)),
 		}
 	}
 
 	fn send(&self, request: &ProtocolRequestV2) -> Result<(), ErrorTungstenite> {
 		let request = serde_json::to_string(&request).unwrap();
-
 		self.sender.lock().send(Message::Text(request.into()))
 	}
 }

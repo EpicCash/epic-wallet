@@ -79,7 +79,11 @@ pub enum ProtocolRequestV2 {
 		ver: String,
 		epicboxmsgid: String,
 	},
-	GetVersion,
+	ClientDetails {
+		wallet_version: String,
+		wallet_mode: String,
+		protocol_version: String,
+	},
 }
 
 impl Display for ProtocolRequest {
@@ -127,7 +131,15 @@ impl Display for ProtocolRequestV2 {
 				signature: _,
 				ver: _,
 			} => write!(f, "{} to {}", "Made for", epicboxmsgid),
-			ProtocolRequestV2::GetVersion {} => write!(f, "{} ", "GetVersion "),
+			ProtocolRequestV2::ClientDetails {
+				ref wallet_version,
+				ref wallet_mode,
+				ref protocol_version,
+			} => write!(
+				f,
+				"Wallet Version {}, Wallet Mode {}, Protocol Version {}",
+				wallet_version, wallet_mode, protocol_version
+			),
 		}
 	}
 }
