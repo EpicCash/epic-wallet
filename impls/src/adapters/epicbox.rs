@@ -482,7 +482,7 @@ where
 				// TODO: invoicing
 			} else {
 				info!("Receive new transaction (foreign::receive_tx)");
-				foreign::receive_tx(
+				match foreign::receive_tx(
 					&mut **w,
 					self.keychain_mask.as_ref(),
 					&slate,
@@ -490,7 +490,15 @@ where
 					None,
 					address,
 					false,
-				)?;
+				) {
+					Ok(ret_slate) => {
+						*slate = ret_slate;
+					}
+					Err(e) => {
+						error!("{}", e);
+						()
+					}
+				};
 			}
 
 			Ok(false)
