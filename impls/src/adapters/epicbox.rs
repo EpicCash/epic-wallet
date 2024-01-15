@@ -481,8 +481,8 @@ where
 			if slate.tx.inputs().len() == 0 {
 				// TODO: invoicing
 			} else {
-				info!("Received new transaction (foreign::receive_tx)");
-				let ret_slate = foreign::receive_tx(
+				info!("Receive new transaction (foreign::receive_tx)");
+				foreign::receive_tx(
 					&mut **w,
 					self.keychain_mask.as_ref(),
 					&slate,
@@ -490,8 +490,7 @@ where
 					None,
 					address,
 					false,
-				);
-				*slate = ret_slate.unwrap();
+				)?;
 			}
 
 			Ok(false)
