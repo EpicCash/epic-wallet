@@ -41,6 +41,7 @@ use std::thread::JoinHandle;
 
 use crate::libwallet::api_impl::foreign;
 use crate::libwallet::api_impl::owner;
+
 use epic_wallet_util::epic_core::core::amount_to_hr_string;
 use std::env;
 use std::net::TcpStream;
@@ -494,10 +495,7 @@ where
 					Ok(ret_slate) => {
 						*slate = ret_slate;
 					}
-					Err(e) => {
-						error!("{}", e);
-						()
-					}
+					Err(e) => return Err(Error::EpicboxReceiveTx(format!("{:?}", e)).into()),
 				};
 			}
 

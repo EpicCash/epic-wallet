@@ -18,7 +18,6 @@ use crate::core::libtx;
 use crate::keychain;
 use crate::libwallet;
 use crate::util::secp;
-use epic_wallet_libwallet::Error::LibWallet;
 
 /// Wallet errors, mostly wrappers around underlying crypto or I/O errors.
 #[derive(Clone, thiserror::Error, Eq, PartialEq, Debug)]
@@ -95,6 +94,9 @@ pub enum Error {
 
 	#[error("Epicbox websocket terminated unexpectedly")]
 	EpicboxWebsocketAbnormalTermination,
+
+	#[error("Epicbox ReceiveTx {}", _0)]
+	EpicboxReceiveTx(String),
 }
 
 impl From<libwallet::Error> for Error {
@@ -111,7 +113,7 @@ impl From<sqlite::Error> for Error {
 
 impl From<Error> for epic_wallet_libwallet::Error {
 	fn from(error: Error) -> epic_wallet_libwallet::Error {
-		LibWallet(error.to_string())
+		epic_wallet_libwallet::Error::LibWallet(error.to_string())
 	}
 }
 

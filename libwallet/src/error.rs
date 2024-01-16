@@ -280,7 +280,7 @@ pub enum Error {
 	EpicboxReconnectLimit,
 
 	/// LibWallet Error
-	#[error("LibWallet Error: {}", _0)]
+	#[error("LibWallet Error: {:?}", _0)]
 	LibWallet(String),
 
 	#[error("NotFoundErr Error: {}", _0)]
