@@ -569,7 +569,7 @@ where
 
 		match result {
 			Ok(()) => {}
-			Err(e) => error!("{}", e),
+			Err(e) => error!("Error process incoming slate. {:?}", e),
 		}
 	}
 
@@ -662,7 +662,6 @@ impl EpicboxBroker {
 		//let subscribe = DEFAULT_CHALLENGE_RAW;
 		let ver = EPICBOX_PROTOCOL_VERSION;
 		let wallet_mode = wallet_mode;
-		let mut last_message_id_v2 = String::from("");
 
 		let res = loop {
 			let err = client.sender.lock().read();
@@ -726,62 +725,58 @@ impl EpicboxBroker {
 								ver: _, // unused, ignore
 								epicboxmsgid,
 							} => {
-								if last_message_id_v2 != epicboxmsgid {
-									last_message_id_v2 = epicboxmsgid.clone();
+								let (slate, mut tx_proof) = match TxProof::from_response(
+									from,
+									str,
+									signature,
+									&client.secret_key,
+									Some(&client.address),
+								) {
+									Ok(x) => x,
+									Err(e) => {
+										error!("{}", e.to_string());
+										return Ok(());
+									}
+								};
 
-									let (slate, mut tx_proof) = match TxProof::from_response(
-										from,
-										str,
-										signature,
-										&client.secret_key,
-										Some(&client.address),
-									) {
-										Ok(x) => x,
-										Err(e) => {
-											error!("{}", e.to_string());
-											return Ok(());
-										}
-									};
+								let address = tx_proof.address.clone();
+								client.handler.lock().on_slate(
+									&address,
+									&slate,
+									Some(&mut tx_proof),
+								);
 
-									let address = tx_proof.address.clone();
-									client.handler.lock().on_slate(
-										&address,
-										&slate,
-										Some(&mut tx_proof),
-									);
+								let signature = sign_challenge(
+									&client.challenge.clone().unwrap(),
+									&secret_key,
+								)?
+								.to_hex();
+								let request_sub = ProtocolRequestV2::Subscribe {
+									address: client.address.public_key.to_string(),
+									ver: ver.to_string(),
+									signature,
+								};
 
-									let signature = sign_challenge(
-										&client.challenge.clone().unwrap(),
-										&secret_key,
-									)?
-									.to_hex();
-									let request_sub = ProtocolRequestV2::Subscribe {
-										address: client.address.public_key.to_string(),
-										ver: ver.to_string(),
-										signature,
-									};
-
-									match client.send(&request_sub) {
-										Ok(()) => {
-											//send feedback to epicbox that we successfully finalize
-											match client.made_send(epicboxmsgid.clone()) {
-												Ok(()) => { /* do nothing */ }
-												Err(e) => {
-													error!(
-            											"Error attempting to send 'made' message!: {}",
-            											e.to_string()
-            										);
-												}
+								match client.send(&request_sub) {
+									Ok(()) => {
+										//send feedback to epicbox that we successfully finalize
+										match client.made_send(epicboxmsgid.clone()) {
+											Ok(()) => { /* do nothing */ }
+											Err(e) => {
+												error!(
+													"Error attempting to send 'made' message!: {}",
+													e.to_string()
+												);
 											}
 										}
-										Err(e) => {
-											error!(
-												"Could not send subscribe request: {}",
-												e.to_string()
-											);
-										}
-									};
-								}
+									}
+									Err(e) => {
+										error!(
+											"Could not send subscribe request: {}",
+											e.to_string()
+										);
+									}
+								};
 							}
 							ProtocolResponseV2::GetVersion { str } => {
 								trace!("ProtocolResponseV2::GetVersion {}", str);
