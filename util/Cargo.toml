@@ -1,13 +1,13 @@
 [package]
 name = "epic_wallet_util"
-version = "3.5.0"
+version = "3.5.2"
 authors = ["Epic Developers <epiccash@brickabode.com>"]
 description = "Util, for generic utilities and to re-export epic crates"
 license = "Apache-2.0"
 repository = "https://github.com/EpicCash/epic-wallet"
 keywords = ["crypto", "epic", "mimblewimble"]
 workspace = ".."
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 rand = "0.5"

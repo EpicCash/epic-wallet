@@ -1,13 +1,13 @@
 [package]
 name = "epic_wallet_api"
-version = "3.5.0"
+version = "3.5.2"
 authors = ["Epic Developers <epiccash@brickabode.com>"]
 description = "Epic Wallet API"
 license = "Apache-2.0"
 repository = "https://github.com/EpicCash/epic-wallet"
 keywords = ["crypto", "epic", "mimblewimble"]
 exclude = ["**/*.epic", "**/*.epic2"]
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 failure = "0.1"
@@ -25,10 +25,10 @@ base64 = "0.9"
 ed25519-dalek = "=1.0.0-pre.1"
 
 
-epic_wallet_libwallet = { path = "../libwallet", version = "3.5.0" }
-epic_wallet_config = { path = "../config", version = "3.5.0" }
-epic_wallet_impls = { path = "../impls", version = "3.5.0" }
-epic_wallet_util = { path = "../util", version = "3.5.0" }
+epic_wallet_libwallet = { path = "../libwallet", version = "3.5.2" }
+epic_wallet_config = { path = "../config", version = "3.5.2" }
+epic_wallet_impls = { path = "../impls", version = "3.5.2" }
+epic_wallet_util = { path = "../util", version = "3.5.2" }
 
 [dev-dependencies]
 serde_json = "1"

@@ -1,6 +1,6 @@
 [package]
 name = "epic_wallet"
-version = "3.5.0"
+version = "3.5.2"
 authors = ["Epic Developers <epiccash@brickabode.com>"]
 description = "Simple, private and scalable cryptocurrency implementation based on the MimbleWimble chain format."
 license = "Apache-2.0"
@@ -9,7 +9,7 @@ keywords = ["crypto", "epic", "mimblewimble"]
 readme = "README.md"
 exclude = ["**/*.epic", "**/*.epic2"]
 build = "src/build/build.rs"
-edition = "2018"
+edition = "2021"
 
 [[bin]]
 name = "epic-wallet"
@@ -30,12 +30,12 @@ linefeed = "0.6"
 rustyline = "9.1.2"
 semver = "0.9"
 
-epic_wallet_api = { path = "./api", version = "3.5.0" }
-epic_wallet_impls = { path = "./impls", version = "3.5.0" }
-epic_wallet_libwallet = { path = "./libwallet", version = "3.5.0" }
-epic_wallet_controller = { path = "./controller", version = "3.5.0" }
-epic_wallet_config = { path = "./config", version = "3.5.0" }
-epic_wallet_util = { path = "./util", version = "3.5.0" }
+epic_wallet_api = { path = "./api", version = "3.5.2" }
+epic_wallet_impls = { path = "./impls", version = "3.5.2" }
+epic_wallet_libwallet = { path = "./libwallet", version = "3.5.2" }
+epic_wallet_controller = { path = "./controller", version = "3.5.2" }
+epic_wallet_config = { path = "./config", version = "3.5.2" }
+epic_wallet_util = { path = "./util", version = "3.5.2" }
 
 [build-dependencies]
 built = "0.3"
