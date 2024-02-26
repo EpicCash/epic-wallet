@@ -1,13 +1,13 @@
 [package]
 name = "epic_wallet_impls"
-version = "3.5.0"
-authors = ["Epic Developers <epiccash@brickabode.com>"]
+version = "3.5.2"
+authors = ["Epic Developers <info@epiccash.com>"]
 description = "Concrete types derived from libwallet traits"
 license = "Apache-2.0"
 repository = "https://github.com/EpicCash/epic-wallet"
 keywords = ["crypto", "epic", "mimblewimble"]
 exclude = ["**/*.epic", "**/*.epic2"]
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 blake2-rfc = "0.2"
@@ -48,6 +48,6 @@ tungstenite = {version="*", features = ["native-tls"] }
 tokio = { version = "0.2", features = ["full"] }
 reqwest = { version = "0.10", features = ["rustls-tls", "socks"] }
 
-epic_wallet_util = { path = "../util", version = "3.5.0" }
-epic_wallet_config = { path = "../config", version = "3.5.0" }
-epic_wallet_libwallet = { path = "../libwallet", version = "3.5.0" }
+epic_wallet_util = { path = "../util", version = "3.5.2" }
+epic_wallet_config = { path = "../config", version = "3.5.2" }
+epic_wallet_libwallet = { path = "../libwallet", version = "3.5.2" }

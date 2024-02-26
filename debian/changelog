@@ -1,4 +1,22 @@
+epic-wallet (3.5.2) focal; urgency=medium
+
+  [ Epic Team ]
+  * Epicbox stability improvements
+  * Changes to subscribe interval for epicbox connections
+  * Increase minimum node compat to 3.5.0
+
+ -- Epic Team <admin@epic.tech>  Wed, 22 Feb 2023 12:00:00 +0000
+
 epic-wallet (3.5.0) focal; urgency=high
+
+  [ Epic Team ]
+  * Update dependencies
+  * Fix OwnerV2 api failing to retrieve epicbox config
+  * Fix domain/port discernment for epicbox addresses
+
+ -- Epic Team <admin@epic.tech>  Wed, 23 Nov 2023 12:00:00 +0000
+
+epic-wallet (3.4.0) focal; urgency=high
 
   [ Epic Team ]
   * New Transaction method "epicbox" with public epic address
