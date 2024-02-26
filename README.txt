@@ -18,7 +18,7 @@ I. 	***WARNINGS***
 
 II. 	###DEPENDENCIES###
 
-	Sync'd EPIC Server Node. Download EPIC server node from https://epic.tech/downloads/ and follow instructions to sync the node before proceeding.
+	Sync'd EPIC Server Node. Download EPIC server node from https://epiccash.com/downloads/ and follow instructions to sync the node before proceeding.
 
 	TOR: Not mandatory but preferrable to avoid port forwarding configuration or ngrok account setup/use. Follow steps below to install TOR
 
