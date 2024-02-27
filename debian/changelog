@@ -1,3 +1,12 @@
+epic-wallet (3.6.0) focal; urgency=high
+
+  [ Epic Team ]
+  * Epicbox Protocol v3.0.0 upgrade
+  * Change default epicbox domain to epicbox.epiccash.com
+  * Adds ability to display to/from address in wallet transfers
+
+ -- Epic Team <info@epiccash.com>  Wed, 27 Feb 2024 12:00:00 +0000
+
 epic-wallet (3.5.2) focal; urgency=medium
 
   [ Epic Team ]
@@ -5,7 +14,7 @@ epic-wallet (3.5.2) focal; urgency=medium
   * Changes to subscribe interval for epicbox connections
   * Increase minimum node compat to 3.5.0
 
- -- Epic Team <admin@epic.tech>  Wed, 22 Feb 2023 12:00:00 +0000
+ -- Epic Team <info@epiccash.com>  Wed, 22 Feb 2024 12:00:00 +0000
 
 epic-wallet (3.5.0) focal; urgency=high
 
