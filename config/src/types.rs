@@ -175,7 +175,7 @@ pub struct EpicboxConfig {
 impl Default for EpicboxConfig {
 	fn default() -> EpicboxConfig {
 		EpicboxConfig {
-			epicbox_domain: Some("epicbox.epic.tech".to_owned()),
+			epicbox_domain: Some("epicbox.epiccash.com".to_owned()),
 			epicbox_port: Some(443),
 			epicbox_protocol_unsecure: Some(false),
 			epicbox_address_index: Some(0),
