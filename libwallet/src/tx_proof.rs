@@ -49,7 +49,6 @@ pub enum Error {
 pub struct TxProof {
 	pub address: EpicboxAddress,
 	pub message: String,
-	pub challenge: String,
 	pub signature: Signature,
 	pub key: [u8; 32],
 	pub amount: u64,
@@ -65,7 +64,6 @@ impl TxProof {
 	) -> Result<(EpicboxAddress, VersionedSlate), Error> {
 		let mut challenge = String::new();
 		challenge.push_str(self.message.as_str());
-		challenge.push_str(self.challenge.as_str());
 
 		let public_key = self
 			.address
@@ -91,8 +89,6 @@ impl TxProof {
 
 		let slate: VersionedSlate =
 			serde_json::from_str(&decrypted_message).map_err(|_| Error::ParseSlate)?;
-		//let slate = Slate::deserialize_upgrade(&decrypted_message)
-		//	.map_err(|_| Error::DecryptMessage)?;
 
 		Ok((destination, slate))
 	}
@@ -100,7 +96,6 @@ impl TxProof {
 	pub fn from_response(
 		from: String,
 		message: String,
-		challenge: String,
 		signature: String,
 		secret_key: &SecretKey,
 		expected_destination: Option<&EpicboxAddress>,
@@ -118,7 +113,6 @@ impl TxProof {
 		let proof = TxProof {
 			address,
 			message,
-			challenge,
 			signature,
 			key,
 			amount: 0,

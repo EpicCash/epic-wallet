@@ -410,6 +410,7 @@ impl SlateReceiver for KeybaseAllChannels {
 								&slate,
 								None,
 								None,
+								Some(channel.clone()),
 								false,
 							);
 							r

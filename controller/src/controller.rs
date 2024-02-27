@@ -21,6 +21,7 @@ use crate::libwallet::{
 	address, Error, NodeClient, NodeVersionInfo, Slate, WalletInst, WalletLCProvider,
 	EPIC_BLOCK_HEADER_VERSION,
 };
+
 use crate::util::secp::key::SecretKey;
 use crate::util::{from_hex, static_secp_instance, to_base64, Mutex};
 

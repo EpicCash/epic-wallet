@@ -214,14 +214,14 @@ pub trait ForeignRpc {
 		"id": 1,
 		"params": [
 			{
-			"version_info": {
-				"version": 2,
-				"orig_version": 2,
-				"block_header_version": 6
-			},
-			"num_participants": 2,
-			"id": "0436430c-2b02-624c-2032-570501212b00",
-			"tx": {
+			  "version_info": {
+					"version": 2,
+					"orig_version": 2,
+					"block_header_version": 6
+			  },
+			  "num_participants": 2,
+			  "id": "0436430c-2b02-624c-2032-570501212b00",
+			  "tx": {
 				"offset": "d202964900000000d302964900000000d402964900000000d502964900000000",
 				"body": {
 					"inputs": [
@@ -271,6 +271,7 @@ pub trait ForeignRpc {
 		},
 		null,
 		"Thanks, Yeastplume"
+
 		]
 	}
 	# "#

@@ -733,7 +733,8 @@ pub trait OwnerRpc: Sync + Send {
 					"block_header_version": 6
 				}
 			},
-			0
+			0,
+			""
 		]
 	}
 	# "#
@@ -751,7 +752,12 @@ pub trait OwnerRpc: Sync + Send {
 
 	```
 	 */
-	fn tx_lock_outputs(&self, slate: VersionedSlate, participant_id: usize) -> Result<(), Error>;
+	fn tx_lock_outputs(
+		&self,
+		slate: VersionedSlate,
+		participant_id: usize,
+		addr_to: Option<String>,
+	) -> Result<(), Error>;
 
 	/**
 	Networked version of [Owner::finalize_tx](struct.Owner.html#method.finalize_tx).
@@ -1339,8 +1345,13 @@ where
 		Ok(VersionedSlate::into_version(out_slate, version))
 	}
 
-	fn tx_lock_outputs(&self, slate: VersionedSlate, participant_id: usize) -> Result<(), Error> {
-		Owner::tx_lock_outputs(self, None, &Slate::from(slate), participant_id)
+	fn tx_lock_outputs(
+		&self,
+		slate: VersionedSlate,
+		participant_id: usize,
+		addr_to: Option<String>,
+	) -> Result<(), Error> {
+		Owner::tx_lock_outputs(self, None, &Slate::from(slate), participant_id, addr_to)
 	}
 
 	fn cancel_tx(&self, tx_id: Option<u32>, tx_slate_id: Option<Uuid>) -> Result<(), Error> {
@@ -1551,6 +1562,7 @@ pub fn run_doctest_owner(
 				&slate,
 				None,
 				None,
+				None,
 				true,
 			)
 			.unwrap();
@@ -1558,7 +1570,7 @@ pub fn run_doctest_owner(
 		}
 		// Spit out slate for input to finalize_tx
 		if lock_tx {
-			api_impl::owner::tx_lock_outputs(&mut **w, (&mask2).as_ref(), &slate, 0).unwrap();
+			api_impl::owner::tx_lock_outputs(&mut **w, (&mask2).as_ref(), &slate, 0, None).unwrap();
 		}
 		println!("RECEIPIENT SLATE");
 		println!("{}", serde_json::to_string_pretty(&slate).unwrap());

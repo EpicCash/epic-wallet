@@ -338,7 +338,7 @@ where
 		foreign::verify_slate_messages(slate)
 	}
 
-	/// Recieve a tranaction created by another party, returning the modified
+	/// Receive a transaction created by another party, returning the modified
 	/// [`Slate`](../epic_wallet_libwallet/slate/struct.Slate.html) object, modified with
 	/// the recipient's output for the transaction amount, and public signature data. This slate can
 	/// then be sent back to the sender to finalize the transaction via the
@@ -409,12 +409,14 @@ where
 				Some(slate),
 			)?;
 		}
+
 		foreign::receive_tx(
 			&mut **w,
 			(&self.keychain_mask).as_ref(),
 			slate,
 			dest_acct_name,
 			message,
+			None,
 			self.doctest_mode,
 		)
 	}

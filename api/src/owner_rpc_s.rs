@@ -778,7 +778,8 @@ pub trait OwnerRpcS {
 					"block_header_version": 6
 				}
 			},
-			"participant_id": 0
+			"participant_id": 0,
+			"addr_to": "to dest"
 		}
 	}
 	# "#
@@ -801,6 +802,7 @@ pub trait OwnerRpcS {
 		token: Token,
 		slate: VersionedSlate,
 		participant_id: usize,
+		addr_to: Option<String>,
 	) -> Result<(), Error>;
 
 	/**
@@ -2239,12 +2241,14 @@ where
 		token: Token,
 		in_slate: VersionedSlate,
 		participant_id: usize,
+		addr_to: Option<String>,
 	) -> Result<(), Error> {
 		Owner::tx_lock_outputs(
 			self,
 			(&token.keychain_mask).as_ref(),
 			&Slate::from(in_slate),
 			participant_id,
+			addr_to,
 		)
 	}
 

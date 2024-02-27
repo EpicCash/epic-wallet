@@ -378,6 +378,32 @@ where
 	Ok(())
 }
 
+/// Update the transaction from/to address
+pub fn update_public_addr<'a, T: ?Sized, C, K>(
+	wallet: &mut T,
+	keychain_mask: Option<&SecretKey>,
+	slate: &Slate,
+	public_addr: Option<String>,
+) -> Result<(), Error>
+where
+	T: WalletBackend<'a, C, K>,
+	C: NodeClient + 'a,
+	K: Keychain + 'a,
+{
+	let tx_vec = updater::retrieve_txs(wallet, None, Some(slate.id), None, false)?;
+	if tx_vec.is_empty() {
+		return Err(Error::TransactionDoesntExist(slate.id.to_string()))?;
+	}
+	let mut batch = wallet.batch(keychain_mask)?;
+	for mut tx in tx_vec.into_iter() {
+		tx.public_addr = public_addr.clone();
+		let parent_key = tx.parent_key_id.clone();
+		batch.save_tx_log_entry(tx, &parent_key)?;
+	}
+	batch.commit()?;
+	Ok(())
+}
+
 /// Update the transaction participant messages
 pub fn update_message<'a, T: ?Sized, C, K>(
 	wallet: &mut T,

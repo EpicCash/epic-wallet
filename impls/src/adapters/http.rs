@@ -205,7 +205,7 @@ impl SlateSender for HttpSlateSender {
 						slate_send,
 						null,
 						null
-					]
+			]
 		});
 		trace!("Sending receive_tx request: {}", req);
 

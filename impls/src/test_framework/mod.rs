@@ -201,7 +201,6 @@ fn get_pow_type(ftype: &FType, seed: u64) -> pow::Proof {
 		FType::ProgPow => pow::Proof::ProgPowProof {
 			mix: [seed as u8; 32],
 		},
-		
 	}
 }
 
@@ -287,7 +286,7 @@ where
 		};
 		let slate_i = owner::init_send_tx(&mut **w, keychain_mask, args, test_mode)?;
 		let slate = client.send_tx_slate_direct(dest, &slate_i)?;
-		owner::tx_lock_outputs(&mut **w, keychain_mask, &slate, 0)?;
+		owner::tx_lock_outputs(&mut **w, keychain_mask, &slate, 0, Some(dest.to_string()))?;
 		let slate = owner::finalize_tx(&mut **w, keychain_mask, &slate)?;
 		slate
 	};

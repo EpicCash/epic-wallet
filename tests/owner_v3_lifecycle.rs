@@ -406,7 +406,7 @@ fn owner_v3_lifecycle() -> Result<(), epic_wallet_controller::Error> {
 		let res = api.process_invoice_tx(m, &slate, args);
 		assert!(res.is_ok());
 		slate = res.unwrap();
-		api.tx_lock_outputs(m, &slate, 0)?;
+		api.tx_lock_outputs(m, &slate, 0, None)?;
 
 		Ok(())
 	})

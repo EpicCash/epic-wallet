@@ -78,6 +78,7 @@ pub fn receive_tx<'a, T: ?Sized, C, K>(
 	slate: &Slate,
 	dest_acct_name: Option<&str>,
 	message: Option<String>,
+	addr_from: Option<String>,
 	use_test_rng: bool,
 ) -> Result<Slate, Error>
 where
@@ -130,6 +131,7 @@ where
 		use_test_rng,
 	)?;
 	tx::update_message(&mut *w, keychain_mask, &mut ret_slate)?;
+	tx::update_public_addr(&mut *w, keychain_mask, &mut ret_slate, addr_from)?;
 
 	let keychain = w.keychain(keychain_mask)?;
 	let excess = ret_slate.calc_excess(&keychain)?;
