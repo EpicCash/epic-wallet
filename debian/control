@@ -1,10 +1,10 @@
 Source: epic-wallet
 Section: utils
 Priority: optional
-Maintainer: Epic Team <admin@epic.tech>
+Maintainer: Epic Team <info@epiccash.com>
 Build-Depends: build-essential, debhelper, rustc, cargo, cmake, libclang-dev, libncurses5-dev, clang, libncursesw5-dev, pkg-config, libssl-dev
 Standards-Version: 4.0.0
-Homepage: https://epic.tech
+Homepage: epiccash.com
 
 Package: epic-wallet
 Architecture: amd64
