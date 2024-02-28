@@ -373,9 +373,9 @@ checksum = "a2bd12c1caf447e69cd4528f47f94d203fd2582878ecb9e9465484c4148a8223"
 
 [[package]]
 name = "cc"
-version = "1.0.86"
+version = "1.0.88"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7f9fa1897e4325be0d68d48df6aa1a71ac2ed4d27723887e7754192705350730"
+checksum = "02f341c093d19155a6e41631ce5971aac4e9a868262212153124c15fa22d1cdc"
 dependencies = [
  "libc",
 ]
@@ -437,7 +437,7 @@ dependencies = [
  "num-traits 0.2.18",
  "serde",
  "wasm-bindgen",
- "windows-targets 0.52.3",
+ "windows-targets 0.52.4",
 ]
 
 [[package]]
@@ -914,8 +914,8 @@ dependencies = [
 
 [[package]]
 name = "epic_api"
-version = "3.5.2"
-source = "git+https://github.com/EpicCash/epic?tag=v3.5.2#ee379d2dc4e43a3d1cb0de0b5500b4fea9f2e58a"
+version = "3.6.0"
+source = "git+https://github.com/EpicCash/epic?tag=v3.6.0#c9f9e7399138dad30d523cc9692e9052ebe85d86"
 dependencies = [
  "bigint",
  "bytes 0.5.6",
@@ -949,8 +949,8 @@ dependencies = [
 
 [[package]]
 name = "epic_chain"
-version = "3.5.2"
-source = "git+https://github.com/EpicCash/epic?tag=v3.5.2#ee379d2dc4e43a3d1cb0de0b5500b4fea9f2e58a"
+version = "3.6.0"
+source = "git+https://github.com/EpicCash/epic?tag=v3.6.0#c9f9e7399138dad30d523cc9692e9052ebe85d86"
 dependencies = [
  "bigint",
  "bit-vec",
@@ -974,8 +974,8 @@ dependencies = [
 
 [[package]]
 name = "epic_core"
-version = "3.5.2"
-source = "git+https://github.com/EpicCash/epic?tag=v3.5.2#ee379d2dc4e43a3d1cb0de0b5500b4fea9f2e58a"
+version = "3.6.0"
+source = "git+https://github.com/EpicCash/epic?tag=v3.6.0#c9f9e7399138dad30d523cc9692e9052ebe85d86"
 dependencies = [
  "bigint",
  "blake2-rfc",
@@ -1008,8 +1008,8 @@ dependencies = [
 
 [[package]]
 name = "epic_keychain"
-version = "3.5.2"
-source = "git+https://github.com/EpicCash/epic?tag=v3.5.2#ee379d2dc4e43a3d1cb0de0b5500b4fea9f2e58a"
+version = "3.6.0"
+source = "git+https://github.com/EpicCash/epic?tag=v3.6.0#c9f9e7399138dad30d523cc9692e9052ebe85d86"
 dependencies = [
  "blake2-rfc",
  "byteorder 1.5.0",
@@ -1031,8 +1031,8 @@ dependencies = [
 
 [[package]]
 name = "epic_p2p"
-version = "3.5.2"
-source = "git+https://github.com/EpicCash/epic?tag=v3.5.2#ee379d2dc4e43a3d1cb0de0b5500b4fea9f2e58a"
+version = "3.6.0"
+source = "git+https://github.com/EpicCash/epic?tag=v3.6.0#c9f9e7399138dad30d523cc9692e9052ebe85d86"
 dependencies = [
  "bitflags 1.3.2",
  "bytes 0.4.12",
@@ -1054,8 +1054,8 @@ dependencies = [
 
 [[package]]
 name = "epic_pool"
-version = "3.5.2"
-source = "git+https://github.com/EpicCash/epic?tag=v3.5.2#ee379d2dc4e43a3d1cb0de0b5500b4fea9f2e58a"
+version = "3.6.0"
+source = "git+https://github.com/EpicCash/epic?tag=v3.6.0#c9f9e7399138dad30d523cc9692e9052ebe85d86"
 dependencies = [
  "blake2-rfc",
  "chrono",
@@ -1073,8 +1073,8 @@ dependencies = [
 
 [[package]]
 name = "epic_store"
-version = "3.5.2"
-source = "git+https://github.com/EpicCash/epic?tag=v3.5.2#ee379d2dc4e43a3d1cb0de0b5500b4fea9f2e58a"
+version = "3.6.0"
+source = "git+https://github.com/EpicCash/epic?tag=v3.6.0#c9f9e7399138dad30d523cc9692e9052ebe85d86"
 dependencies = [
  "byteorder 1.5.0",
  "croaring",
@@ -1094,8 +1094,8 @@ dependencies = [
 
 [[package]]
 name = "epic_util"
-version = "3.5.2"
-source = "git+https://github.com/EpicCash/epic?tag=v3.5.2#ee379d2dc4e43a3d1cb0de0b5500b4fea9f2e58a"
+version = "3.6.0"
+source = "git+https://github.com/EpicCash/epic?tag=v3.6.0#c9f9e7399138dad30d523cc9692e9052ebe85d86"
 dependencies = [
  "backtrace",
  "base64 0.9.3",
@@ -1115,7 +1115,7 @@ dependencies = [
 
 [[package]]
 name = "epic_wallet"
-version = "3.5.2"
+version = "3.6.0"
 dependencies = [
  "built",
  "clap",
@@ -1142,7 +1142,7 @@ dependencies = [
 
 [[package]]
 name = "epic_wallet_api"
-version = "3.5.2"
+version = "3.6.0"
 dependencies = [
  "base64 0.9.3",
  "chrono",
@@ -1166,7 +1166,7 @@ dependencies = [
 
 [[package]]
 name = "epic_wallet_config"
-version = "3.5.2"
+version = "3.6.0"
 dependencies = [
  "dirs 1.0.5",
  "epic_wallet_util",
@@ -1179,7 +1179,7 @@ dependencies = [
 
 [[package]]
 name = "epic_wallet_controller"
-version = "3.5.2"
+version = "3.6.0"
 dependencies = [
  "chrono",
  "easy-jsonrpc-mw",
@@ -1208,7 +1208,7 @@ dependencies = [
 
 [[package]]
 name = "epic_wallet_impls"
-version = "3.5.2"
+version = "3.6.0"
 dependencies = [
  "bitvec",
  "blake2-rfc",
@@ -1251,7 +1251,7 @@ dependencies = [
 
 [[package]]
 name = "epic_wallet_libwallet"
-version = "3.5.2"
+version = "3.6.0"
 dependencies = [
  "aead",
  "blake2-rfc",
@@ -1284,7 +1284,7 @@ dependencies = [
 
 [[package]]
 name = "epic_wallet_util"
-version = "3.5.2"
+version = "3.6.0"
 dependencies = [
  "dirs 1.0.5",
  "epic_api",
@@ -1525,7 +1525,7 @@ checksum = "87750cf4b7a4c0625b1529e4c543c2182106e4dedc60a2a6455e00d212c489ac"
 dependencies = [
  "proc-macro2 1.0.78",
  "quote 1.0.35",
- "syn 2.0.50",
+ "syn 2.0.51",
 ]
 
 [[package]]
@@ -1732,9 +1732,9 @@ dependencies = [
 
 [[package]]
 name = "hermit-abi"
-version = "0.3.6"
+version = "0.3.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bd5256b483761cd23699d0da46cc6fd2ee3be420bbe6d020ae4a091e70b7e9fd"
+checksum = "379dada1584ad501b383485dd706b8afb7a70fcbc7f4da7d780638a5a6124a60"
 
 [[package]]
 name = "hmac"
@@ -1857,7 +1857,7 @@ dependencies = [
  "httpdate 1.0.3",
  "itoa 1.0.10",
  "pin-project-lite 0.2.13",
- "socket2 0.5.5",
+ "socket2 0.5.6",
  "tokio 1.36.0",
  "tower-service",
  "tracing",
@@ -2037,7 +2037,7 @@ version = "0.4.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f23ff5ef2b80d608d61efee834934d862cd92461afc0560dedf493e4c033738b"
 dependencies = [
- "hermit-abi 0.3.6",
+ "hermit-abi 0.3.8",
  "libc",
  "windows-sys 0.52.0",
 ]
@@ -2715,7 +2715,7 @@ version = "1.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4161fcb6d602d4d2081af7c3a45852d875a03dd337a6bfdd6e06407b61342a43"
 dependencies = [
- "hermit-abi 0.3.6",
+ "hermit-abi 0.3.8",
  "libc",
 ]
 
@@ -2775,7 +2775,7 @@ checksum = "a948666b637a0f465e8564c73e89d4dde00d72d4d473cc972f390fc3dcee7d9c"
 dependencies = [
  "proc-macro2 1.0.78",
  "quote 1.0.35",
- "syn 2.0.50",
+ "syn 2.0.51",
 ]
 
 [[package]]
@@ -3038,7 +3038,7 @@ checksum = "266c042b60c9c76b8d53061e52b2e0d1116abc57cefc8c5cd671619a56ac3690"
 dependencies = [
  "proc-macro2 1.0.78",
  "quote 1.0.35",
- "syn 2.0.50",
+ "syn 2.0.51",
 ]
 
 [[package]]
@@ -3504,9 +3504,9 @@ dependencies = [
 
 [[package]]
 name = "rayon"
-version = "1.8.1"
+version = "1.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fa7237101a77a10773db45d62004a272517633fbcc3df19d96455ede1122e051"
+checksum = "e4963ed1bc86e4f3ee217022bd855b297cef07fb9eac5dfa1f788b220b49b3bd"
 dependencies = [
  "either",
  "rayon-core",
@@ -3953,7 +3953,7 @@ checksum = "7eb0b34b42edc17f6b7cac84a52a1c5f0e1bb2227e997ca9011ea3dd34e8610b"
 dependencies = [
  "proc-macro2 1.0.78",
  "quote 1.0.35",
- "syn 2.0.50",
+ "syn 2.0.51",
 ]
 
 [[package]]
@@ -4107,12 +4107,12 @@ dependencies = [
 
 [[package]]
 name = "socket2"
-version = "0.5.5"
+version = "0.5.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7b5fac59a5cb5dd637972e5fca70daf0523c9067fcdc4842f053dae04a18f8e9"
+checksum = "05ffd9c0a93b7543e062e759284fcf5f5e3b098501104bfbdde4d404db792871"
 dependencies = [
  "libc",
- "windows-sys 0.48.0",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -4235,9 +4235,9 @@ dependencies = [
 
 [[package]]
 name = "syn"
-version = "2.0.50"
+version = "2.0.51"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "74f1bdc9872430ce9b75da68329d1c1746faf50ffac5f19e02b71e37ff881ffb"
+checksum = "6ab617d94515e94ae53b8406c628598680aa0c9587474ecbe58188f7b345d66c"
 dependencies = [
  "proc-macro2 1.0.78",
  "quote 1.0.35",
@@ -4277,9 +4277,9 @@ checksum = "55937e1799185b12863d447f42597ed69d9928686b8d88a1df17376a097d8369"
 
 [[package]]
 name = "tempfile"
-version = "3.10.0"
+version = "3.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a365e8cd18e44762ef95d87f284f4b5cd04107fec2ff3052bd6a3e6069669e67"
+checksum = "85b77fafb263dd9d05cbeac119526425676db3784113aa9295c88498cbf8bff1"
 dependencies = [
  "cfg-if 1.0.0",
  "fastrand",
@@ -4357,7 +4357,7 @@ checksum = "a953cb265bef375dae3de6663da4d3804eee9682ea80d8e2542529b73c531c81"
 dependencies = [
  "proc-macro2 1.0.78",
  "quote 1.0.35",
- "syn 2.0.50",
+ "syn 2.0.51",
 ]
 
 [[package]]
@@ -4452,7 +4452,7 @@ dependencies = [
  "parking_lot 0.12.1",
  "pin-project-lite 0.2.13",
  "signal-hook-registry",
- "socket2 0.5.5",
+ "socket2 0.5.6",
  "tokio-macros 2.2.0",
  "windows-sys 0.48.0",
 ]
@@ -4486,7 +4486,7 @@ checksum = "5b8a1e28f2deaa14e508979454cb3a223b10b938b45af148bc0986de36f1923b"
 dependencies = [
  "proc-macro2 1.0.78",
  "quote 1.0.35",
- "syn 2.0.50",
+ "syn 2.0.51",
 ]
 
 [[package]]
@@ -4896,7 +4896,7 @@ dependencies = [
  "once_cell",
  "proc-macro2 1.0.78",
  "quote 1.0.35",
- "syn 2.0.50",
+ "syn 2.0.51",
  "wasm-bindgen-shared",
 ]
 
@@ -4930,7 +4930,7 @@ checksum = "642f325be6301eb8107a83d12a8ac6c1e1c54345a7ef1a9261962dfefda09e66"
 dependencies = [
  "proc-macro2 1.0.78",
  "quote 1.0.35",
- "syn 2.0.50",
+ "syn 2.0.51",
  "wasm-bindgen-backend",
  "wasm-bindgen-shared",
 ]
@@ -5028,7 +5028,7 @@ version = "0.52.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "33ab640c8d7e35bf8ba19b884ba838ceb4fba93a4e8c65a9059d08afcfc683d9"
 dependencies = [
- "windows-targets 0.52.3",
+ "windows-targets 0.52.4",
 ]
 
 [[package]]
@@ -5046,7 +5046,7 @@ version = "0.52.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "282be5f36a8ce781fad8c8ae18fa3f9beff57ec1b52cb3de0789201425d9a33d"
 dependencies = [
- "windows-targets 0.52.3",
+ "windows-targets 0.52.4",
 ]
 
 [[package]]
@@ -5066,17 +5066,17 @@ dependencies = [
 
 [[package]]
 name = "windows-targets"
-version = "0.52.3"
+version = "0.52.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d380ba1dc7187569a8a9e91ed34b8ccfc33123bbacb8c0aed2d1ad7f3ef2dc5f"
+checksum = "7dd37b7e5ab9018759f893a1952c9420d060016fc19a472b4bb20d1bdd694d1b"
 dependencies = [
- "windows_aarch64_gnullvm 0.52.3",
- "windows_aarch64_msvc 0.52.3",
- "windows_i686_gnu 0.52.3",
- "windows_i686_msvc 0.52.3",
- "windows_x86_64_gnu 0.52.3",
- "windows_x86_64_gnullvm 0.52.3",
- "windows_x86_64_msvc 0.52.3",
+ "windows_aarch64_gnullvm 0.52.4",
+ "windows_aarch64_msvc 0.52.4",
+ "windows_i686_gnu 0.52.4",
+ "windows_i686_msvc 0.52.4",
+ "windows_x86_64_gnu 0.52.4",
+ "windows_x86_64_gnullvm 0.52.4",
+ "windows_x86_64_msvc 0.52.4",
 ]
 
 [[package]]
@@ -5087,9 +5087,9 @@ checksum = "2b38e32f0abccf9987a4e3079dfb67dcd799fb61361e53e2882c3cbaf0d905d8"
 
 [[package]]
 name = "windows_aarch64_gnullvm"
-version = "0.52.3"
+version = "0.52.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "68e5dcfb9413f53afd9c8f86e56a7b4d86d9a2fa26090ea2dc9e40fba56c6ec6"
+checksum = "bcf46cf4c365c6f2d1cc93ce535f2c8b244591df96ceee75d8e83deb70a9cac9"
 
 [[package]]
 name = "windows_aarch64_msvc"
@@ -5099,9 +5099,9 @@ checksum = "dc35310971f3b2dbbf3f0690a219f40e2d9afcf64f9ab7cc1be722937c26b4bc"
 
 [[package]]
 name = "windows_aarch64_msvc"
-version = "0.52.3"
+version = "0.52.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8dab469ebbc45798319e69eebf92308e541ce46760b49b18c6b3fe5e8965b30f"
+checksum = "da9f259dd3bcf6990b55bffd094c4f7235817ba4ceebde8e6d11cd0c5633b675"
 
 [[package]]
 name = "windows_i686_gnu"
@@ -5111,9 +5111,9 @@ checksum = "a75915e7def60c94dcef72200b9a8e58e5091744960da64ec734a6c6e9b3743e"
 
 [[package]]
 name = "windows_i686_gnu"
-version = "0.52.3"
+version = "0.52.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2a4e9b6a7cac734a8b4138a4e1044eac3404d8326b6c0f939276560687a033fb"
+checksum = "b474d8268f99e0995f25b9f095bc7434632601028cf86590aea5c8a5cb7801d3"
 
 [[package]]
 name = "windows_i686_msvc"
@@ -5123,9 +5123,9 @@ checksum = "8f55c233f70c4b27f66c523580f78f1004e8b5a8b659e05a4eb49d4166cca406"
 
 [[package]]
 name = "windows_i686_msvc"
-version = "0.52.3"
+version = "0.52.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "28b0ec9c422ca95ff34a78755cfa6ad4a51371da2a5ace67500cf7ca5f232c58"
+checksum = "1515e9a29e5bed743cb4415a9ecf5dfca648ce85ee42e15873c3cd8610ff8e02"
 
 [[package]]
 name = "windows_x86_64_gnu"
@@ -5135,9 +5135,9 @@ checksum = "53d40abd2583d23e4718fddf1ebec84dbff8381c07cae67ff7768bbf19c6718e"
 
 [[package]]
 name = "windows_x86_64_gnu"
-version = "0.52.3"
+version = "0.52.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "704131571ba93e89d7cd43482277d6632589b18ecf4468f591fbae0a8b101614"
+checksum = "5eee091590e89cc02ad514ffe3ead9eb6b660aedca2183455434b93546371a03"
 
 [[package]]
 name = "windows_x86_64_gnullvm"
@@ -5147,9 +5147,9 @@ checksum = "0b7b52767868a23d5bab768e390dc5f5c55825b6d30b86c844ff2dc7414044cc"
 
 [[package]]
 name = "windows_x86_64_gnullvm"
-version = "0.52.3"
+version = "0.52.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "42079295511643151e98d61c38c0acc444e52dd42ab456f7ccfd5152e8ecf21c"
+checksum = "77ca79f2451b49fa9e2af39f0747fe999fcda4f5e241b2898624dca97a1f2177"
 
 [[package]]
 name = "windows_x86_64_msvc"
@@ -5159,9 +5159,9 @@ checksum = "ed94fce61571a4006852b7389a063ab983c02eb1bb37b47f8272ce92d06d9538"
 
 [[package]]
 name = "windows_x86_64_msvc"
-version = "0.52.3"
+version = "0.52.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0770833d60a970638e989b3fa9fd2bb1aaadcf88963d1659fd7d9990196ed2d6"
+checksum = "32b752e52a2da0ddfbdbcc6fceadfeede4c939ed16d13e648833a61dfb611ed8"
 
 [[package]]
 name = "winreg"
@@ -5234,7 +5234,7 @@ checksum = "ce36e65b0d2999d2aafac989fb249189a141aee1f53c612c1f37d72631959f69"
 dependencies = [
  "proc-macro2 1.0.78",
  "quote 1.0.35",
- "syn 2.0.50",
+ "syn 2.0.51",
 ]
 
 [[package]]
