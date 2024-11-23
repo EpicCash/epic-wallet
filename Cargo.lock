@@ -1227,7 +1227,6 @@ dependencies = [
  "hyper-rustls 0.24.2",
  "hyper-timeout",
  "lazy_static",
- "libsqlite3-sys",
  "log",
  "parking_lot 0.6.4",
  "rand 0.5.6",
@@ -1264,7 +1263,6 @@ dependencies = [
  "epic_wallet_config",
  "epic_wallet_util",
  "lazy_static",
- "libsqlite3-sys",
  "log",
  "rand 0.5.6",
  "regex",
@@ -2167,17 +2165,6 @@ dependencies = [
  "bitflags 2.4.2",
  "libc",
  "redox_syscall 0.4.1",
-]
-
-[[package]]
-name = "libsqlite3-sys"
-version = "0.9.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0e9eb7b8e152b6a01be6a4a2917248381875758250dc3df5d46caf9250341dda"
-dependencies = [
- "cc",
- "pkg-config",
- "vcpkg",
 ]
 
 [[package]]

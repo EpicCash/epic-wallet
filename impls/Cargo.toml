@@ -28,7 +28,6 @@ chrono = { version = "0.4.4", features = ["serde"] }
 bitvec = "1"
 emoji = "0.2.1"
 sqlite = "0.31.1"
-libsqlite3-sys = { version = ">=0.8.0, <0.13.0", optional = true, features = ["bundled"] }
 lazy_static = "1"
 http = "0.2"
 hyper-timeout = "0.4"
