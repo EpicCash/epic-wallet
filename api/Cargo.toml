@@ -8,6 +8,7 @@ repository = "https://github.com/EpicCash/epic-wallet"
 keywords = ["crypto", "epic", "mimblewimble"]
 exclude = ["**/*.epic", "**/*.epic2"]
 edition = "2021"
+workspace = ".."
 
 [dependencies]
 failure = "0.1"

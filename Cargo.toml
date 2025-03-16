@@ -10,6 +10,7 @@ readme = "README.md"
 exclude = ["**/*.epic", "**/*.epic2"]
 build = "src/build/build.rs"
 edition = "2021"
+resolver = "2"
 
 [[bin]]
 name = "epic-wallet"
@@ -38,7 +39,7 @@ epic_wallet_config = { path = "./config", version = "3.6.0" }
 epic_wallet_util = { path = "./util", version = "3.6.0" }
 
 [build-dependencies]
-built = "0.3"
+built = { version = "0.7.1", features = ["git2", "cargo-lock"] }
 
 [dev-dependencies]
 url = "1.7.2"
