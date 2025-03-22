@@ -357,7 +357,7 @@ checksum = "c06acb4f71407ba205a07cb453211e0e6a67b21904e47f6ba1f9589e38f2e454"
 dependencies = [
  "semver 1.0.26",
  "serde",
- "toml 0.8.20",
+ "toml",
  "url 2.5.0",
 ]
 
@@ -1160,13 +1160,13 @@ dependencies = [
 name = "epic_wallet_config"
 version = "3.6.0"
 dependencies = [
- "dirs 1.0.5",
+ "dirs 6.0.0",
  "epic_wallet_util",
  "pretty_assertions 0.5.1",
  "rand 0.9.0",
  "serde",
  "serde_derive",
- "toml 0.4.10",
+ "toml",
 ]
 
 [[package]]
@@ -1286,7 +1286,7 @@ dependencies = [
  "rand 0.9.0",
  "serde",
  "serde_derive",
- "toml 0.8.20",
+ "toml",
 ]
 
 [[package]]
@@ -4590,15 +4590,6 @@ dependencies = [
  "pin-project-lite",
  "tokio",
  "tracing",
-]
-
-[[package]]
-name = "toml"
-version = "0.4.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "758664fc71a3a69038656bee8b6be6477d2a6c315a6b81f7081f591bffa4111f"
-dependencies = [
- "serde",
 ]
 
 [[package]]
