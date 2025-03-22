@@ -41,6 +41,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use rustyline::error::ReadlineError;
+use rustyline::history::DefaultHistory;
 use rustyline::Editor;
 
 // define what to do on argument error
@@ -56,7 +57,7 @@ macro_rules! arg_parse {
 }
 
 fn prompt_password_stdout(prompt: &str) -> ZeroingString {
-	ZeroingString::from(rpassword::prompt_password_stdout(prompt).unwrap_or("".to_string()))
+	ZeroingString::from(rpassword::prompt_password(prompt).unwrap_or("".to_string()))
 }
 
 pub fn prompt_password(password: &Option<ZeroingString>) -> ZeroingString {
@@ -85,7 +86,7 @@ where
 	C: NodeClient + 'static,
 	K: keychain::Keychain + 'static,
 {
-	let mut rl = Editor::<()>::new();
+	let mut rl = Editor::<(), DefaultHistory>::new().expect("Failed to create editor");
 	println!("Please enter your recovery phrase:");
 	loop {
 		let readline = rl.readline("phrase> ");

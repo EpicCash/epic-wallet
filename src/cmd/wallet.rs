@@ -48,7 +48,9 @@ pub fn wallet_command(wallet_args: &ArgMatches<'_>, config: GlobalWalletConfig) 
 		// Isn't going to happen just yet (as of 2.0.0) but keep this here for
 		// the future. the nodeclient's get_version_info will return 1.0 if
 		// it gets a 404 for the version function
-		if Version::parse(&v.node_version) < Version::parse(MIN_COMPAT_NODE_VERSION) {
+		if Version::parse(&v.node_version).unwrap()
+			< Version::parse(MIN_COMPAT_NODE_VERSION).unwrap()
+		{
 			let version = if v.node_version == "2.0.0" {
 				"2.x.x series"
 			} else {
