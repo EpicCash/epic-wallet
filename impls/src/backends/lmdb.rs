@@ -34,7 +34,6 @@ use std::io::{Read, Write};
 use std::marker::PhantomData;
 use std::path::Path;
 use std::{fs, path};
-use uuid::Uuid;
 
 pub const DB_DIR: &'static str = "db";
 const SQLITE_DIR: &'static str = "sqlite";
@@ -327,7 +326,7 @@ where
 		Box::new(serializables.into_iter().map(|x| x))
 	}
 
-	fn get_tx_log_entry(&self, u: &Uuid) -> Result<Option<TxLogEntry>, Error> {
+	fn get_tx_log_entry(&self, u: &uuid::Uuid) -> Result<Option<TxLogEntry>, Error> {
 		let key = to_key(TX_LOG_ENTRY_PREFIX, &mut u.as_bytes().to_vec());
 
 		Ok(match self.db.get(&key) {

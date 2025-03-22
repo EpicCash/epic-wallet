@@ -136,10 +136,10 @@ pub fn pubkey_from_onion_v3(onion_address: &str) -> Result<DalekPublicKey, Error
 pub fn onion_v3_from_pubkey(pub_key: &DalekPublicKey) -> Result<String, Error> {
 	// calculate checksum
 	let mut hasher = Sha3_256::new();
-	hasher.input(b".onion checksum");
-	hasher.input(pub_key.as_bytes());
-	hasher.input([0x03u8]);
-	let checksum = hasher.result();
+	hasher.update(b".onion checksum");
+	hasher.update(pub_key.as_bytes());
+	hasher.update([0x03u8]);
+	let checksum = hasher.finalize();
 
 	let mut address_bytes = pub_key.as_bytes().to_vec();
 	address_bytes.push(checksum[0]);
