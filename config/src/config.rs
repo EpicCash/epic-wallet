@@ -15,8 +15,8 @@
 //! Configuration file management
 
 use dirs;
-use rand::distributions::{Alphanumeric, Distribution};
-use rand::thread_rng;
+use rand::distr::{Alphanumeric, Distribution};
+use rand::rng;
 use std::env;
 use std::fs::{self, File};
 use std::io::prelude::*;
@@ -77,8 +77,9 @@ fn check_config_current_dir(path: &str) -> Option<PathBuf> {
 pub fn init_api_secret(api_secret_path: &PathBuf) -> Result<(), ConfigError> {
 	let mut api_secret_file = File::create(api_secret_path)?;
 	let api_secret: String = Alphanumeric
-		.sample_iter(&mut thread_rng())
+		.sample_iter(&mut rng())
 		.take(20)
+		.map(char::from)
 		.collect();
 	api_secret_file.write_all(api_secret.as_bytes())?;
 	Ok(())

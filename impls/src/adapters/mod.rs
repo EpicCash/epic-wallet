@@ -25,7 +25,7 @@ pub use self::epicbox::{
 };
 pub use self::epicbox::{EpicboxChannel, EpicboxListenChannel};
 pub use self::file::PathToSlate;
-pub use self::http::{HttpSlateSender, SchemeNotHttp};
+pub use self::http::HttpSlateSender;
 pub use self::keybase::{KeybaseAllChannels, KeybaseChannel};
 use crate::config::{TorConfig, WalletConfig};
 use crate::libwallet::{Error, NodeClient, Slate, WalletInst, WalletLCProvider};

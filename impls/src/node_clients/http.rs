@@ -18,7 +18,6 @@ use crate::api::{self, LocatedTxKernel, OutputListing, OutputPrintable};
 use crate::client_utils::{Client, RUNTIME};
 use crate::core::core::Transaction;
 use crate::core::core::TxKernel;
-use crate::core::pow::PoWType;
 use crate::libwallet::{Error, NodeClient, NodeVersionInfo};
 use crate::util::secp::pedersen;
 
@@ -38,8 +37,6 @@ const ENDPOINT: &str = "/v2/foreign";
 pub struct GetTipResp {
 	pub height: u64,
 	pub last_block_pushed: String,
-	pub prev_block_to_last: String,
-	pub total_difficulty: HashMap<PoWType, u64>,
 }
 
 #[derive(Debug, Deserialize)]

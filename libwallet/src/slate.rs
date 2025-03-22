@@ -34,8 +34,8 @@ use crate::slate_versions::ser as dalek_ser;
 use ed25519_dalek::PublicKey as DalekPublicKey;
 use ed25519_dalek::Signature as DalekSignature;
 
+use rand::rng;
 use rand::rngs::mock::StepRng;
-use rand::thread_rng;
 use serde::ser::{Serialize, Serializer};
 use serde_json;
 use std::fmt;
@@ -514,9 +514,7 @@ impl Slate {
 		// and subtract it from the blind_sum so we create
 		// the aggsig context with the "split" key
 		self.tx.offset = match use_test_rng {
-			false => {
-				BlindingFactor::from_secret_key(SecretKey::new(&keychain.secp(), &mut thread_rng()))
-			}
+			false => BlindingFactor::from_secret_key(SecretKey::new(&keychain.secp(), &mut rng())),
 			true => {
 				// allow for consistent test results
 				let mut test_rng = StepRng::new(1234567890u64, 1);

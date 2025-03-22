@@ -350,7 +350,7 @@
 
 <span class="kw">use</span> <span class="ident">base64</span>;
 <span class="kw">use</span> <span class="ident">ed25519_dalek::PublicKey</span> <span class="kw">as</span> <span class="ident">DalekPublicKey</span>;
-<span class="kw">use</span> <span class="ident">rand</span>::{<span class="ident">thread_rng</span>, <span class="ident">Rng</span>};
+<span class="kw">use</span> <span class="ident">rand</span>::{<span class="ident">rng</span>, <span class="ident">Rng</span>};
 <span class="kw">use</span> <span class="ident">ring::aead</span>;
 <span class="kw">use</span> <span class="ident">serde_json</span>::{<span class="self">self</span>, <span class="ident">Value</span>};
 <span class="kw">use</span> <span class="ident">std::collections::HashMap</span>;
@@ -402,7 +402,7 @@
 		<span class="kw">let</span> <span class="ident">sealing_key</span> <span class="op">=</span> <span class="ident">aead::SealingKey::new</span>(<span class="kw-2">&amp;</span><span class="ident">aead::AES_256_GCM</span>, <span class="kw-2">&amp;</span><span class="ident">enc_key</span>.<span class="number">0</span>).<span class="ident">context</span>(
 			<span class="ident">ErrorKind::APIEncryption</span>(<span class="string">&quot;EncryptedBody Enc: Unable to create key&quot;</span>.<span class="ident">to_owned</span>()),
 		)<span class="question-mark">?</span>;
-		<span class="kw">let</span> <span class="ident">nonce</span>: [<span class="ident">u8</span>; <span class="number">12</span>] <span class="op">=</span> <span class="ident">thread_rng</span>().<span class="ident">gen</span>();
+		<span class="kw">let</span> <span class="ident">nonce</span>: [<span class="ident">u8</span>; <span class="number">12</span>] <span class="op">=</span> <span class="ident">rng</span>().<span class="ident">gen</span>();
 		<span class="kw">let</span> <span class="ident">suffix_len</span> <span class="op">=</span> <span class="ident">aead::AES_256_GCM</span>.<span class="ident">tag_len</span>();
 		<span class="kw">for</span> <span class="kw">_</span> <span class="kw">in</span> <span class="number">0</span>..<span class="ident">suffix_len</span> {
 			<span class="ident">to_encrypt</span>.<span class="ident">push</span>(<span class="number">0</span>);

@@ -18,7 +18,8 @@ use std::path::Path;
 use std::path::MAIN_SEPARATOR;
 
 use crate::blake2;
-use rand::{thread_rng, Rng};
+use rand::rng;
+use rand::Rng;
 use ring::aead;
 use ring::pbkdf2;
 use serde_json;
@@ -75,9 +76,10 @@ impl WalletSeed {
 
 	pub fn init_new(seed_length: usize) -> WalletSeed {
 		let mut seed: Vec<u8> = vec![];
-		let mut rng = thread_rng();
+		let mut rng = rng();
 		for _ in 0..seed_length {
-			seed.push(rng.gen());
+			let val: u8 = rng.random();
+			seed.push(val);
 		}
 		WalletSeed(seed)
 	}
@@ -231,8 +233,8 @@ impl EncryptedWalletSeed {
 		seed: &WalletSeed,
 		password: util::ZeroingString,
 	) -> Result<EncryptedWalletSeed, Error> {
-		let salt: [u8; 8] = thread_rng().gen();
-		let nonce: [u8; 12] = thread_rng().gen();
+		let salt: [u8; 8] = rng().random();
+		let nonce: [u8; 12] = rng().random();
 		let password = password.as_bytes();
 		let mut key = [0; 32];
 		pbkdf2::derive(

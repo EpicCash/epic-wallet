@@ -30,7 +30,7 @@ use crate::util::secp::key::{PublicKey, SecretKey};
 use crate::util::{static_secp_instance, ZeroingString};
 use crate::{ECDHPubkey, Owner, PubAddress, Token};
 use easy_jsonrpc_mw;
-use rand::thread_rng;
+use rand::rng;
 use std::time::Duration;
 
 /// Public definition used to generate Owner jsonrpc api.
@@ -2300,7 +2300,7 @@ where
 	fn init_secure_api(&self, ecdh_pubkey: ECDHPubkey) -> Result<ECDHPubkey, Error> {
 		let secp_inst = static_secp_instance();
 		let secp = secp_inst.lock();
-		let sec_key = SecretKey::new(&secp, &mut thread_rng());
+		let sec_key = SecretKey::new(&secp, &mut rng());
 
 		let mut shared_pubkey = ecdh_pubkey.ecdh_pubkey.clone();
 		shared_pubkey

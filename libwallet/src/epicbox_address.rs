@@ -110,23 +110,10 @@ impl Display for EpicboxAddress {
 }
 
 pub trait Base58<T> {
-	fn from_base58(str: &str) -> Result<T, Error>;
-	fn to_base58(&self) -> String;
-
 	fn from_base58_check(str: &str, version_bytes: Vec<u8>) -> Result<T, Error>;
 	fn to_base58_check(&self, version: Vec<u8>) -> String;
 }
 impl Base58<PublicKey> for PublicKey {
-	fn from_base58(str: &str) -> Result<PublicKey, Error> {
-		let secp = Secp256k1::new();
-		let str = str::from_base58(str)?;
-		PublicKey::from_slice(&secp, &str).map_err(|_| Error::InvalidBase58Key.into())
-	}
-
-	fn to_base58(&self) -> String {
-		serialize_public_key(self).to_base58()
-	}
-
 	fn from_base58_check(str: &str, version_expect: Vec<u8>) -> Result<PublicKey, Error> {
 		let secp = Secp256k1::new();
 		let n_version = version_expect.len();

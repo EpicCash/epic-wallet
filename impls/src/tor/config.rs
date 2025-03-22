@@ -262,8 +262,8 @@ pub fn complete_tor_address(input: &str) -> Result<String, Error> {
 mod tests {
 	use super::*;
 
+	use rand::rng;
 	use rand::rngs::mock::StepRng;
-	use rand::thread_rng;
 
 	use crate::util::{self, secp, static_secp_instance};
 
@@ -287,7 +287,7 @@ mod tests {
 		println!("{:?}", d_pub_key);
 		// some randoms
 		for _ in 0..1000 {
-			let sec_key = secp::key::SecretKey::new(&secp, &mut thread_rng());
+			let sec_key = secp::key::SecretKey::new(&secp, &mut rng());
 			let (_, _) = address::ed25519_keypair(&sec_key)?;
 		}
 		Ok(())

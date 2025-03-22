@@ -26,8 +26,8 @@ use crate::store::{to_key, to_key_u64};
 use crate::util::secp::constants::SECRET_KEY_SIZE;
 use crate::util::secp::key::SecretKey;
 use crate::util::{self, secp};
+use rand::rng;
 use rand::rngs::mock::StepRng;
-use rand::thread_rng;
 use std::cell::RefCell;
 use std::fs::File;
 use std::io::{Read, Write};
@@ -200,7 +200,7 @@ where
 							let mut test_rng = StepRng::new(1234567890u64, 1);
 							secp::key::SecretKey::new(&k.secp(), &mut test_rng)
 						}
-						false => secp::key::SecretKey::new(&k.secp(), &mut thread_rng()),
+						false => secp::key::SecretKey::new(&k.secp(), &mut rng()),
 					};
 					k.mask_master_key(&mask_value)?;
 					Some(mask_value)
