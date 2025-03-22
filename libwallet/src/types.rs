@@ -190,7 +190,7 @@ where
 	fn get(&self, id: &Identifier, mmr_index: &Option<u64>) -> Result<OutputData, Error>;
 
 	/// Get an (Optional) tx log entry by uuid
-	fn get_tx_log_entry(&self, uuid: &Uuid) -> Result<Option<TxLogEntry>, Error>;
+	fn get_tx_log_entry(&self, uuid: &uuid::Uuid) -> Result<Option<TxLogEntry>, Error>;
 
 	/// Retrieves the private context associated with a given slate id
 	fn get_private_context(

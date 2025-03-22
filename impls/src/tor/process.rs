@@ -59,7 +59,7 @@ use std::path::{Path, MAIN_SEPARATOR};
 use std::process::{Child, ChildStdout, Command, Stdio};
 use std::sync::mpsc::channel;
 use std::thread;
-use sysinfo::{Process, ProcessExt, Signal};
+use sysinfo::{Pid, Process};
 
 #[cfg(windows)]
 const TOR_EXE_NAME: &'static str = "tor.exe";
@@ -79,14 +79,20 @@ pub enum Error {
 	Timeout,
 }
 
-#[cfg(windows)]
-fn get_process(pid: i32) -> Process {
-	Process::new(pid as usize, None, 0)
+pub struct ProcessManager {
+	system: sysinfo::System,
 }
 
-#[cfg(not(windows))]
-fn get_process(pid: i32) -> Process {
-	Process::new(pid, None, 0)
+impl ProcessManager {
+	pub fn new() -> Self {
+		let mut system = sysinfo::System::new_all();
+		system.refresh_all();
+		ProcessManager { system }
+	}
+
+	pub fn get_process(&self, pid: i32) -> Option<&Process> {
+		self.system.process(Pid::from(pid as usize))
+	}
 }
 
 pub struct TorProcess {
@@ -98,6 +104,7 @@ pub struct TorProcess {
 	working_dir: Option<String>,
 	pub stdout: Option<BufReader<ChildStdout>>,
 	pub process: Option<Child>,
+	process_manager: ProcessManager,
 }
 
 impl TorProcess {
@@ -111,6 +118,7 @@ impl TorProcess {
 			working_dir: None,
 			stdout: None,
 			process: None,
+			process_manager: ProcessManager::new(),
 		}
 	}
 
@@ -169,23 +177,27 @@ impl TorProcess {
 				let pid = pid
 					.parse::<i32>()
 					.map_err(|err| Error::PID(format!("{:?}", err)))?;
-				let process = get_process(pid);
-				let _ = process.kill(Signal::Kill);
+				if let Some(process) = self.process_manager.get_process(pid) {
+					let _ = process.kill();
+				}
 			}
 		}
 		if let Some(ref torrc_path) = self.torrc_path {
 			tor.args(&vec!["-f", torrc_path]);
 		}
 		let mut tor_process = tor
-			.args(&self.args)
-			.stdin(Stdio::piped())
-			.stdout(Stdio::piped())
-			.stderr(Stdio::piped())
-			.spawn()
-			.map_err(|err| {
-				let msg = format!("TOR executable (`{}`) not found. Please ensure TOR is installed and on the path: {:?}", TOR_EXE_NAME, err);
-				Error::Process(msg)
-			})?;
+            .args(&self.args)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(|err| {
+                let msg = format!(
+                    "TOR executable (`{}`) not found. Please ensure TOR is installed and on the path: {:?}",
+                    TOR_EXE_NAME, err
+                );
+                Error::Process(msg)
+            })?;
 
 		if let Some(ref d) = self.working_dir {
 			// split out the process id, so if we don't exit cleanly
@@ -285,7 +297,8 @@ impl TorProcess {
 		}
 	}
 }
-// This is copied from [here](https://github.com/rust-lang/rust/blob/d3cba254e464303a6495942f3a831c2bbd7f1768/src/libstd/io/mod.rs#L2495),
+
+// This is copied from https://github.com/rust-lang/rust/blob/d3cba254e464303a6495942f3a831c2bbd7f1768/src/libstd/io/mod.rs#L2495,
 // but converted into a "lossy" version
 #[derive(Debug)]
 pub struct LossyLines<B> {
