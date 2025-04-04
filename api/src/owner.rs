@@ -15,7 +15,7 @@
 //! Owner API External Definition
 
 use chrono::prelude::*;
-use ed25519_dalek::PublicKey as DalekPublicKey;
+
 use uuid::Uuid;
 
 use crate::config::{EpicboxConfig, TorConfig, WalletConfig};
@@ -40,6 +40,8 @@ use std::sync::mpsc::{channel, Sender};
 use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
+
+use ed25519_dalek::VerifyingKey as DalekPublicKey;
 
 /// Main interface into all wallet API functions.
 /// Wallet APIs are split into two seperate blocks of functionality

@@ -21,8 +21,8 @@ use crate::Error;
 use epic_wallet_util::epic_keychain::{ChildNumber, Identifier, Keychain, SwitchCommitmentType};
 
 use data_encoding::BASE32;
-use ed25519_dalek::PublicKey as DalekPublicKey;
-use ed25519_dalek::SecretKey as DalekSecretKey;
+use ed25519_dalek::SigningKey as DalekSecretKey;
+use ed25519_dalek::VerifyingKey as DalekPublicKey;
 
 use sha3::{Digest, Sha3_256};
 
@@ -59,12 +59,8 @@ where
 
 /// Output ed25519 keypair given an rust_secp256k1 SecretKey
 pub fn ed25519_keypair(sec_key: &SecretKey) -> Result<(DalekSecretKey, DalekPublicKey), Error> {
-	let d_skey = match DalekSecretKey::from_bytes(&sec_key.0) {
-		Ok(k) => k,
-		Err(e) => {
-			return Err(Error::ED25519Key(format!("{}", e)).to_owned())?;
-		}
-	};
+	let d_skey = DalekSecretKey::from_bytes(&sec_key.0);
+
 	let d_pub_key: DalekPublicKey = (&d_skey).into();
 	Ok((d_skey, d_pub_key))
 }
@@ -73,7 +69,14 @@ pub fn ed25519_keypair(sec_key: &SecretKey) -> Result<(DalekSecretKey, DalekPubl
 pub fn ed25519_parse_pubkey(pub_key: &str) -> Result<DalekPublicKey, Error> {
 	let bytes =
 		from_hex(pub_key.to_owned()).map_err(|e| Error::AddressDecoding(format!("{}", e)))?;
-	match DalekPublicKey::from_bytes(&bytes) {
+
+	// Ensure the bytes vector has exactly 32 bytes
+	let array: &[u8; 32] = bytes
+		.as_slice()
+		.try_into()
+		.map_err(|_| Error::AddressDecoding("Public key must be 32 bytes".to_owned()))?;
+
+	match DalekPublicKey::from_bytes(array) {
 		Ok(k) => Ok(k),
 		Err(_) => {
 			return Err(Error::AddressDecoding("Not a valid public key".to_owned()).to_owned())?;
@@ -98,13 +101,21 @@ pub fn pubkey_from_onion_v3(onion_address: &str) -> Result<DalekPublicKey, Error
 			"Input address is wrong length".into(),
 		))?;
 	}
+
 	let mut address = BASE32
 		.decode(input.as_bytes())
 		.map_err(|_| Error::AddressDecoding("Input address is not base 32".into()))?
 		.to_vec();
 
 	let _ = address.split_off(32);
-	let key = match DalekPublicKey::from_bytes(&address) {
+
+	// Ensure the bytes vector has exactly 32 bytes
+	let array: &[u8; 32] = address
+		.as_slice()
+		.try_into()
+		.map_err(|_| Error::AddressDecoding("Public key must be 32 bytes".to_owned()))?;
+
+	let key = match DalekPublicKey::from_bytes(array) {
 		Ok(k) => k,
 		Err(_) => {
 			return Err(Error::AddressDecoding(

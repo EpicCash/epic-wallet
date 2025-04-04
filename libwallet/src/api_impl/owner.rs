@@ -35,8 +35,9 @@ use crate::{
 };
 
 use crate::Error;
-use ed25519_dalek::PublicKey as DalekPublicKey;
-use ed25519_dalek::SecretKey as DalekSecretKey;
+use ed25519_dalek::SigningKey as DalekSecretKey;
+use ed25519_dalek::Verifier;
+use ed25519_dalek::VerifyingKey as DalekPublicKey;
 
 use std::sync::mpsc::Sender;
 use std::sync::Arc;
@@ -966,12 +967,9 @@ where
 
 	// for now, simple test as to whether one of the addresses belongs to this wallet
 	let sec_key = address::address_from_derivation_path(&keychain, &parent_key_id, 0)?;
-	let d_skey = match DalekSecretKey::from_bytes(&sec_key.0) {
-		Ok(k) => k,
-		Err(e) => {
-			return Err(Error::ED25519Key(format!("{}", e)).to_owned())?;
-		}
-	};
+
+	let d_skey = DalekSecretKey::from_bytes(&sec_key.0);
+
 	let my_address_pubkey: DalekPublicKey = (&d_skey).into();
 
 	let sender_mine = my_address_pubkey == sender_pubkey;

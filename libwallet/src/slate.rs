@@ -31,8 +31,9 @@ use crate::epic_util::secp::Signature;
 use crate::epic_util::{self, secp};
 use crate::error::Error;
 use crate::slate_versions::ser as dalek_ser;
-use ed25519_dalek::PublicKey as DalekPublicKey;
+
 use ed25519_dalek::Signature as DalekSignature;
+use ed25519_dalek::VerifyingKey as DalekPublicKey;
 
 use rand::rng;
 use rand::rngs::mock::StepRng;

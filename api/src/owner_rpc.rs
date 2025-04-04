@@ -1398,7 +1398,7 @@ pub fn run_doctest_owner(
 
 	use crate::core::global::ChainTypes;
 	use crate::core::{core::feijoada, global};
-	use ed25519_dalek::PublicKey as DalekPublicKey;
+	use ed25519_dalek::VerifyingKey as DalekPublicKey;
 	use epic_wallet_util::epic_util as util;
 	use std::fs;
 	use std::thread;

@@ -28,10 +28,12 @@ use crate::internal::{selection, updater};
 use crate::slate::Slate;
 use crate::types::{Context, NodeClient, StoredProofInfo, TxLogEntryType, WalletBackend};
 use crate::{address, Error};
-use ed25519_dalek::Keypair as DalekKeypair;
-use ed25519_dalek::PublicKey as DalekPublicKey;
-use ed25519_dalek::SecretKey as DalekSecretKey;
+
 use ed25519_dalek::Signature as DalekSignature;
+use ed25519_dalek::Signer;
+use ed25519_dalek::SigningKey as DalekSecretKey;
+use ed25519_dalek::Verifier;
+use ed25519_dalek::VerifyingKey as DalekPublicKey;
 
 // static for incrementing test UUIDs
 lazy_static! {
@@ -470,18 +472,8 @@ pub fn create_payment_proof_signature(
 	sec_key: SecretKey,
 ) -> Result<DalekSignature, Error> {
 	let msg = payment_proof_message(amount, kernel_commitment, sender_address)?;
-	let d_skey = match DalekSecretKey::from_bytes(&sec_key.0) {
-		Ok(k) => k,
-		Err(e) => {
-			return Err(Error::ED25519Key(format!("{}", e)).to_owned())?;
-		}
-	};
-	let pub_key: DalekPublicKey = (&d_skey).into();
-	let keypair = DalekKeypair {
-		public: pub_key,
-		secret: d_skey,
-	};
-	Ok(keypair.sign(&msg))
+	let d_skey = DalekSecretKey::from_bytes(&sec_key.0);
+	Ok(d_skey.sign(&msg))
 }
 
 /// Verify all aspects of a completed payment proof on the current slate
@@ -610,7 +602,7 @@ mod test {
 		let secp = secp_inst.lock();
 		let mut test_rng = StepRng::new(1234567890u64, 1);
 		let sec_key = secp::key::SecretKey::new(&secp, &mut test_rng);
-		let d_skey = DalekSecretKey::from_bytes(&sec_key.0).unwrap();
+		let d_skey = DalekSecretKey::from_bytes(&sec_key.0);
 
 		let address: DalekPublicKey = (&d_skey).into();
 

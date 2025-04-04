@@ -29,8 +29,9 @@ use crate::error::Error;
 use crate::slate::ParticipantMessages;
 use crate::slate_versions::ser as dalek_ser;
 use chrono::prelude::*;
-use ed25519_dalek::PublicKey as DalekPublicKey;
+
 use ed25519_dalek::Signature as DalekSignature;
+use ed25519_dalek::VerifyingKey as DalekPublicKey;
 use serde;
 use serde_json;
 use std::collections::HashMap;

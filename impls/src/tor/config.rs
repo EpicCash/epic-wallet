@@ -17,9 +17,8 @@ use crate::util::secp::key::SecretKey;
 use crate::Error;
 use epic_wallet_libwallet::address;
 
-use ed25519_dalek::ExpandedSecretKey;
-use ed25519_dalek::PublicKey as DalekPublicKey;
-use ed25519_dalek::SecretKey as DalekSecretKey;
+use ed25519_dalek::SigningKey as DalekSecretKey;
+use ed25519_dalek::VerifyingKey as DalekPublicKey;
 
 use std::fs::{self, File};
 use std::io::Write;
@@ -105,9 +104,7 @@ pub fn create_onion_service_sec_key_file(
 	// Tag is always 32 bytes, so pad with null zeroes
 	file.write("== ed25519v1-secret: type0 ==\0\0\0".as_bytes())
 		.map_err(|_| Error::IO)?;
-	let expanded_skey: ExpandedSecretKey = ExpandedSecretKey::from(sec_key);
-	file.write_all(&expanded_skey.to_bytes())
-		.map_err(|_| Error::IO)?;
+	file.write_all(&sec_key.to_bytes()).map_err(|_| Error::IO)?;
 	Ok(())
 }
 

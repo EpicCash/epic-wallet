@@ -20,7 +20,7 @@ use crate::util::from_hex;
 use crate::util::to_hex;
 
 use base64::{engine::general_purpose, Engine as _};
-use ed25519_dalek::PublicKey as DalekPublicKey;
+use ed25519_dalek::VerifyingKey as DalekPublicKey;
 
 use serde_json::{self, Value};
 use std::collections::HashMap;

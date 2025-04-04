@@ -27,8 +27,9 @@ use crate::epic_util::secp::pedersen::{Commitment, RangeProof};
 use crate::epic_util::secp::Signature;
 use crate::slate::CompatKernelFeatures;
 use crate::slate_versions::ser as dalek_ser;
-use ed25519_dalek::PublicKey as DalekPublicKey;
+
 use ed25519_dalek::Signature as DalekSignature;
+use ed25519_dalek::VerifyingKey as DalekPublicKey;
 use uuid::Uuid;
 
 use crate::slate_versions::v2::{
