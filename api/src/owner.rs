@@ -655,7 +655,7 @@ where
 	/// 	// Send slate somehow
 	/// 	// ...
 	/// 	// Lock our outputs if we're happy the slate was (or is being) sent
-	/// 	api_owner.tx_lock_outputs(None, &slate, 0);
+	/// 	api_owner.tx_lock_outputs(None, &slate, 0, None);
 	/// }
 	/// ```
 
@@ -949,7 +949,7 @@ where
 	///		// Send slate somehow
 	///		// ...
 	///		// Lock our outputs if we're happy the slate was (or is being) sent
-	///		let res = api_owner.tx_lock_outputs(None, &slate, 0);
+	///		let res = api_owner.tx_lock_outputs(None, &slate, 0, None);
 	///		//
 	///		// Retrieve slate back from recipient
 	///		//
@@ -1009,7 +1009,7 @@ where
 	///		// Send slate somehow
 	///		// ...
 	///		// Lock our outputs if we're happy the slate was (or is being) sent
-	///		let res = api_owner.tx_lock_outputs(None, &slate, 0);
+	///		let res = api_owner.tx_lock_outputs(None, &slate, 0, None);
 	///		//
 	///		// Retrieve slate back from recipient
 	///		//
@@ -1082,7 +1082,7 @@ where
 	///		// Send slate somehow
 	///		// ...
 	///		// Lock our outputs if we're happy the slate was (or is being) sent
-	///		let res = api_owner.tx_lock_outputs(None, &slate, 0);
+	///		let res = api_owner.tx_lock_outputs(None, &slate, 0, None);
 	///		//
 	///		// We didn't get the slate back, or something else went wrong
 	///		//
@@ -1199,7 +1199,7 @@ where
 	///		// Send slate somehow
 	///		// ...
 	///		// Lock our outputs if we're happy the slate was (or is being) sent
-	///		let res = api_owner.tx_lock_outputs(None, &slate, 0);
+	///		let res = api_owner.tx_lock_outputs(None, &slate, 0, None);
 	///		//
 	///		// Retrieve slate back from recipient
 	///		//
@@ -2326,7 +2326,7 @@ macro_rules! doctest_helper_setup_doc_env {
 			DefaultWalletImpl::<'static, HTTPNodeClient>::new(node_client.clone()).unwrap(),
 		)
 			as Box<
-				WalletInst<
+				dyn WalletInst<
 					'static,
 					DefaultLCProvider<HTTPNodeClient, ExtKeychain>,
 					HTTPNodeClient,

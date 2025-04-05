@@ -19,6 +19,7 @@ use epic_wallet_impls::test_framework::LocalWalletClient;
 use epic_wallet_util::epic_util as util;
 
 use clap::{App, ArgMatches};
+use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::{env, fs};
@@ -135,12 +136,32 @@ pub fn setup(test_dir: &str) {
 	global::set_mining_mode(ChainTypes::AutomatedTesting);
 	//path to the foundation in epic/tests/assets/foundation.json - not epic-wallet/
 	global::set_foundation_path("./tests/assets/foundation.json".to_string());
+
 	let mut policies: feijoada::Policy = feijoada::get_bottles_default();
 	policies.insert(feijoada::PoWType::Cuckatoo, 100);
 	global::set_policy_config(feijoada::PolicyConfig {
 		policies: vec![policies.clone()],
 		..Default::default()
 	});
+
+	let source_dir = "./tests/assets";
+	let target_dir = "./target/debian";
+
+	// Ensure the target directory exists
+	fs::create_dir_all(target_dir).unwrap();
+
+	// Copy files
+	fs::copy(
+		Path::new(source_dir).join("foundation_floonet.json"),
+		Path::new(target_dir).join("foundation_floonet.json"),
+	)
+	.unwrap();
+
+	fs::copy(
+		Path::new(source_dir).join("foundation.json"),
+		Path::new(target_dir).join("foundation.json"),
+	)
+	.unwrap();
 }
 
 /// Create a wallet config file in the given current directory

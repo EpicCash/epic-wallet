@@ -520,7 +520,7 @@ macro_rules! doctest_helper_setup_doc_env_foreign {
 			DefaultWalletImpl::<'static, HTTPNodeClient>::new(node_client.clone()).unwrap(),
 		)
 			as Box<
-				WalletInst<
+				dyn WalletInst<
 					'static,
 					DefaultLCProvider<HTTPNodeClient, ExtKeychain>,
 					HTTPNodeClient,
