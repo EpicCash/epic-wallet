@@ -27,7 +27,8 @@ use serde_json;
 use crate::keychain::{mnemonic, Keychain};
 use crate::util;
 use crate::Error;
-
+use rand::rng;
+use rand::Rng;
 pub const SEED_FILE: &'static str = "wallet.seed";
 
 #[derive(Clone, Debug, PartialEq)]
@@ -78,8 +79,7 @@ impl WalletSeed {
 		let mut seed: Vec<u8> = vec![];
 		let mut rng = rng();
 		for _ in 0..seed_length {
-			let val: u8 = rng.random();
-			seed.push(val);
+			seed.push(rng.gen());
 		}
 		WalletSeed(seed)
 	}
