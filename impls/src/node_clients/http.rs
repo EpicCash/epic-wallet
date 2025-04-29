@@ -17,7 +17,9 @@
 use crate::api::{self, LocatedTxKernel, OutputListing, OutputPrintable};
 use crate::client_utils::{Client, RUNTIME};
 use crate::core::core::Transaction;
+
 use crate::core::core::TxKernel;
+
 use crate::libwallet::{Error, NodeClient, NodeVersionInfo};
 use crate::util::secp::pedersen;
 
