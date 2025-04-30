@@ -17,8 +17,9 @@ use crate::config::GlobalWalletConfig;
 use clap::ArgMatches;
 use epic_wallet_impls::HTTPNodeClient;
 use epic_wallet_libwallet::NodeClient;
-use log::debug;
+use log::{error, info, warn};
 use semver::Version;
+use std::fs;
 use std::thread;
 use std::time::Duration;
 
@@ -30,12 +31,70 @@ pub fn wallet_command(wallet_args: &ArgMatches<'_>, config: GlobalWalletConfig) 
 	let tor_config = config.members.clone().unwrap().tor;
 	let epicbox_config = config.members.unwrap().epicbox;
 
+	// Load the node API secret from the configuration or fallback to the default file
+	let node_api_secret = wallet_config
+		.node_api_secret_path
+		.clone()
+		.and_then(|path| fs::read_to_string(path).ok().map(|s| s.trim().to_string()));
+
+	if node_api_secret.is_none() {
+		warn!("Node API secret path is not configured. Proceeding without Node API secret.");
+	}
+
+	// Check if offline mode is enabled
+	let offline_mode = wallet_args.is_present("offline_mode");
+
 	// Setup node client, check for provided node URL, else use default
 	let mut node_client = match wallet_args.value_of("api_server_address") {
-		Some(node_url) => HTTPNodeClient::new(node_url, None).unwrap(),
-		None => HTTPNodeClient::new(wallet_config.check_node_api_http_addr.as_str(), None).unwrap(),
+		Some(node_url) => HTTPNodeClient::new(node_url, node_api_secret.clone()).unwrap(),
+		None => match HTTPNodeClient::new(
+			wallet_config.check_node_api_http_addr.as_str(),
+			node_api_secret.clone(),
+		) {
+			Ok(client) => client,
+			Err(e) => {
+				if offline_mode {
+					warn!(
+						"Failed to create HTTPNodeClient: {}. Proceeding without node sync.",
+						e
+					);
+					return 0; // Allow offline mode to proceed
+				} else {
+					error!("Failed to create HTTPNodeClient: {}", e);
+					return 1; // Exit with error code
+				}
+			}
+		},
 	};
-	debug!("Connecting to the node: {} ..", node_client.node_url);
+
+	info!("Connecting to the node: {} ...", node_client.node_url);
+
+	// Check the node sync status
+	match node_client.get_node_status() {
+		Ok(status) if status.sync_status == "no_sync" => {
+			info!("Node is synced, proceeding...");
+		}
+		Ok(status) => {
+			if offline_mode {
+				warn!(
+					"Node is not synced: {}. Proceeding without synced node.",
+					status.sync_status
+				);
+			} else {
+				error!("Node is not synced: {}", status.sync_status);
+				return 1; // Exit with error code
+			}
+		}
+		Err(_) => {
+			if offline_mode {
+				warn!("Failed to check node sync status. Proceeding without a synced node.");
+			} else {
+				error!("Failed to check node sync status.");
+				warn!("Set --offline_mode to proceed without a synced node, or check your node connection.");
+				return 1; // Exit with error code
+			}
+		}
+	}
 
 	// Check the node version info, and exit with report if we're not compatible
 	let global_wallet_args = wallet_args::parse_global_args(&wallet_config, &wallet_args)
@@ -44,25 +103,24 @@ pub fn wallet_command(wallet_args: &ArgMatches<'_>, config: GlobalWalletConfig) 
 	node_client.set_node_api_secret(global_wallet_args.node_api_secret.clone());
 
 	// This will also cache the node version info for calls to foreign API check middleware
-	if let Some(v) = node_client.clone().get_version_info() {
-		// Isn't going to happen just yet (as of 2.0.0) but keep this here for
-		// the future. the nodeclient's get_version_info will return 1.0 if
-		// it gets a 404 for the version function
-		if Version::parse(&v.node_version).unwrap()
-			< Version::parse(MIN_COMPAT_NODE_VERSION).unwrap()
-		{
-			let version = if v.node_version == "2.0.0" {
-				"2.x.x series"
-			} else {
-				&v.node_version
-			};
-			println!("The Epic Node in use (version {}) is outdated and incompatible with this wallet version.", version);
-			println!("Please update the node to version 3.5.0 or later and try again.");
-			return 1;
+	if !offline_mode {
+		if let Some(v) = node_client.clone().get_version_info() {
+			if Version::parse(&v.node_version).unwrap()
+				< Version::parse(MIN_COMPAT_NODE_VERSION).unwrap()
+			{
+				let version = if v.node_version == "2.0.0" {
+					"2.x.x series"
+				} else {
+					&v.node_version
+				};
+				error!("The Epic Node in use (version {}) is outdated and incompatible with this wallet version.", version);
+				error!("Please update the node to version 3.5.0 or later and try again.");
+				return 1;
+			}
 		}
 	}
-	// ... if node isn't available, allow offline functions
 
+	// Proceed with wallet commands
 	let res = wallet_args::wallet_command(
 		wallet_args,
 		wallet_config,
@@ -77,10 +135,10 @@ pub fn wallet_command(wallet_args: &ArgMatches<'_>, config: GlobalWalletConfig) 
 	thread::sleep(Duration::from_millis(100));
 
 	if let Err(e) = res {
-		eprintln!("Wallet command failed: {}", e);
+		error!("Wallet command failed: {}", e);
 		1
 	} else {
-		println!(
+		info!(
 			"Command '{}' completed successfully",
 			wallet_args.subcommand().0
 		);

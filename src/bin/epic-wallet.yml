@@ -47,6 +47,10 @@ args:
       short: r
       long: api_server_address
       takes_value: true
+  - offline_mode:
+      help: Run the wallet in offline mode, skipping node sync checks
+      long: offline_mode
+      takes_value: false
 subcommands:
   - account:
       about: List wallet accounts or create a new account

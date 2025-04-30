@@ -37,7 +37,34 @@ use serde_json;
 use std::collections::HashMap;
 use std::fmt;
 
+use crate::epic_core::core::feijoada::PoWType;
 use uuid::Uuid;
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Tip {
+	pub height: u64,
+	pub last_block_pushed: String,
+	pub prev_block_to_last: String,
+	pub total_difficulty: HashMap<PoWType, u64>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SyncInfo {
+	pub current_height: u64,
+	pub highest_height: u64,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct NodeStatus {
+	pub protocol_version: u32,
+	pub user_agent: String,
+	pub connections: u32,
+	pub tip: Tip,
+	pub sync_status: String,
+	// Additional sync information
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub sync_info: Option<serde_json::Value>,
+}
 
 /// Combined trait to allow dynamic wallet dispatch
 pub trait WalletInst<'a, L, C, K>: Send + Sync
@@ -372,6 +399,9 @@ pub trait NodeClient: Send + Sync + Clone {
 		&self,
 		wallet_outputs: Vec<pedersen::Commitment>,
 	) -> Result<HashMap<pedersen::Commitment, (String, u64, u64)>, Error>;
+
+	/// Retrieves the status of the node
+	fn get_node_status(&self) -> Result<NodeStatus, Error>;
 
 	/// Get a list of outputs from the node by traversing the UTXO
 	/// set in PMMR index order.

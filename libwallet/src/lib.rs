@@ -73,9 +73,10 @@ pub use epicbox_address::{
 pub use internal::scan::scan;
 pub use slate_versions::ser as dalek_ser;
 pub use types::{
-	AcctPathMapping, BlockIdentifier, CbData, Context, NodeClient, NodeVersionInfo, OutputData,
-	OutputStatus, ScannedBlockInfo, StoredProofInfo, TxLogEntry, TxLogEntryType, TxWrapper,
-	WalletBackend, WalletInfo, WalletInitStatus, WalletInst, WalletLCProvider, WalletOutputBatch,
+	AcctPathMapping, BlockIdentifier, CbData, Context, NodeClient, NodeStatus, NodeVersionInfo,
+	OutputData, OutputStatus, ScannedBlockInfo, StoredProofInfo, TxLogEntry, TxLogEntryType,
+	TxWrapper, WalletBackend, WalletInfo, WalletInitStatus, WalletInst, WalletLCProvider,
+	WalletOutputBatch,
 };
 
 /// Helper for taking a lock on the wallet instance

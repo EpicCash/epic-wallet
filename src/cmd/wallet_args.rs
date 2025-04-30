@@ -267,6 +267,8 @@ pub fn parse_global_args(
 		Some(c) => c,
 	};
 
+	let offline_mode = args.is_present("offline_mode");
+
 	Ok(command::GlobalArgs {
 		account: account.to_owned(),
 		show_spent,
@@ -275,6 +277,7 @@ pub fn parse_global_args(
 		node_api_secret,
 		password,
 		tls_conf,
+		offline_mode,
 	})
 }
 

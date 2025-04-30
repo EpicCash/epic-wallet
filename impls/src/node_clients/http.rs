@@ -20,7 +20,8 @@ use crate::core::core::Transaction;
 
 use crate::core::core::TxKernel;
 
-use crate::libwallet::{Error, NodeClient, NodeVersionInfo};
+use crate::libwallet::{Error, NodeClient, NodeStatus, NodeVersionInfo};
+
 use crate::util::secp::pedersen;
 
 use futures::stream::FuturesUnordered;
@@ -33,7 +34,8 @@ use std::env;
 
 use crate::client_utils::json_rpc::*;
 
-const ENDPOINT: &str = "/v2/foreign";
+const FOREIGN_ENDPOINT: &str = "/v2/foreign";
+const OWNER_ENDPOINT: &str = "/v2/owner";
 
 #[derive(Debug, Deserialize)]
 pub struct GetTipResp {
@@ -73,10 +75,11 @@ impl HTTPNodeClient {
 
 	fn send_json_request<D: serde::de::DeserializeOwned>(
 		&self,
+		endpoint: &str,
 		method: &str,
 		params: &serde_json::Value,
 	) -> Result<D, Error> {
-		let url = format!("{}{}", self.node_url(), ENDPOINT);
+		let url = format!("{}{}", self.node_url(), endpoint);
 		let req = build_request(method, params);
 		let res = self
 			.client
@@ -94,7 +97,7 @@ impl HTTPNodeClient {
 			},
 			Err(e) => {
 				let report = format!("Error calling {}: {}", method, e);
-				error!("{}", report);
+				debug!("{}", report);
 				Err(Error::ClientCallback(report).into())
 			}
 		}
@@ -121,9 +124,11 @@ impl NodeClient for HTTPNodeClient {
 		if let Some(v) = self.node_version_info.as_ref() {
 			return Some(v.clone());
 		}
-		let retval = match self
-			.send_json_request::<GetVersionResp>("get_version", &serde_json::Value::Null)
-		{
+		let retval = match self.send_json_request::<GetVersionResp>(
+			FOREIGN_ENDPOINT,
+			"get_version",
+			&serde_json::Value::Null,
+		) {
 			Ok(n) => NodeVersionInfo {
 				node_version: n.node_version,
 				block_header_version: n.block_header_version,
@@ -140,7 +145,7 @@ impl NodeClient for HTTPNodeClient {
 						verified: Some(false),
 					});
 				} else {
-					error!("Unable to contact Node to get version info: {}", e);
+					error!("Unable to contact Node to get version");
 					return None;
 				}
 			}
@@ -152,14 +157,29 @@ impl NodeClient for HTTPNodeClient {
 	/// Posts a transaction to a epic node
 	fn post_tx(&self, tx: &Transaction, fluff: bool) -> Result<(), Error> {
 		let params = json!([tx, fluff]);
-		self.send_json_request::<serde_json::Value>("push_transaction", &params)?;
+		self.send_json_request::<serde_json::Value>(FOREIGN_ENDPOINT, "push_transaction", &params)?;
 		Ok(())
 	}
 
 	/// Return the chain tip from a given node
 	fn get_chain_tip(&self) -> Result<(u64, String), Error> {
-		let result = self.send_json_request::<GetTipResp>("get_tip", &serde_json::Value::Null)?;
+		let result = self.send_json_request::<GetTipResp>(
+			FOREIGN_ENDPOINT,
+			"get_tip",
+			&serde_json::Value::Null,
+		)?;
 		Ok((result.height, result.last_block_pushed))
+	}
+
+	// Retrieves the status of the node
+	fn get_node_status(&self) -> Result<NodeStatus, Error> {
+		let result = self.send_json_request::<NodeStatus>(
+			OWNER_ENDPOINT,
+			"get_status",
+			&serde_json::Value::Null,
+		)?;
+
+		Ok(result)
 	}
 
 	/// Get kernel implementation
@@ -176,7 +196,7 @@ impl NodeClient for HTTPNodeClient {
 			max_height
 		]);
 		// have to handle this manually since the error needs to be parsed
-		let url = format!("{}{}", self.node_url(), ENDPOINT);
+		let url = format!("{}{}", self.node_url(), FOREIGN_ENDPOINT);
 		let req = build_request(method, &params);
 		let res = self
 			.client
@@ -244,7 +264,7 @@ impl NodeClient for HTTPNodeClient {
 
 		trace!("Output query chunk size is: {}", chunk_size);
 
-		let url = format!("{}{}", self.node_url(), ENDPOINT);
+		let url = format!("{}{}", self.node_url(), FOREIGN_ENDPOINT);
 		let api_secret = self.node_api_secret();
 		let cl = self.client.clone();
 		let task = async move {
@@ -336,7 +356,11 @@ impl NodeClient for HTTPNodeClient {
 			Vec::new();
 
 		let params = json!([start_index, end_index, max_outputs, Some(true)]);
-		let res = self.send_json_request::<OutputListing>("get_unspent_outputs", &params)?;
+		let res = self.send_json_request::<OutputListing>(
+			FOREIGN_ENDPOINT,
+			"get_unspent_outputs",
+			&params,
+		)?;
 		// We asked for unspent outputs via the api but defensively filter out spent outputs just in case.
 		for out in res.outputs.into_iter().filter(|out| out.spent == false) {
 			let is_coinbase = match out.output_type {
@@ -382,7 +406,8 @@ impl NodeClient for HTTPNodeClient {
 		end_height: Option<u64>,
 	) -> Result<(u64, u64), Error> {
 		let params = json!([start_height, end_height]);
-		let res = self.send_json_request::<OutputListing>("get_pmmr_indices", &params)?;
+		let res =
+			self.send_json_request::<OutputListing>(FOREIGN_ENDPOINT, "get_pmmr_indices", &params)?;
 
 		Ok((res.last_retrieved_index, res.highest_index))
 	}
@@ -390,66 +415,31 @@ impl NodeClient for HTTPNodeClient {
 
 #[cfg(test)]
 mod tests {
-	//use super::*;
-	//use crate::core::core::{KernelFeatures, OutputFeatures, OutputIdentifier};
-	//use crate::core::libtx::build;
-	//use crate::core::libtx::ProofBuilder;
-	//use crate::keychain::{ExtKeychain, Keychain};
+	use super::*;
+	use serde_json::json;
 
-	// JSON api for "push_transaction" between wallet->node currently only supports "feature and commit" inputs.
-	// We will need to revisit this if we decide to support "commit only" inputs (no features) at wallet level.
-	/*fn tx1i1o_v2_compatible() -> Transaction {
-		let keychain = ExtKeychain::from_random_seed(false).unwrap();
-		let builder = ProofBuilder::new(&keychain);
-		let key_id1 = ExtKeychain::derive_key_id(1, 1, 0, 0, 0);
-		let key_id2 = ExtKeychain::derive_key_id(1, 2, 0, 0, 0);
-		let tx = build::transaction(
-			KernelFeatures::Plain { fee: 2.into() },
-			[build::input(5, key_id1), build::output(3, key_id2)],
-			&keychain,
-			&builder,
-		)
-		.unwrap();
+	#[test]
+	fn get_node_status() {
+		let mock_response = json!({
+			"protocol_version": "2",
+			"user_agent": "MW/Epic 2.x.x",
+			"connections": "8",
+			"tip": {
+				"height": 371553,
+				"last_block_pushed": "00001d1623db988d7ed10c5b6319360a52f20c89b4710474145806ba0e8455ec",
+				"prev_block_to_last": "0000029f51bacee81c49a27b4bc9c6c446e03183867c922890f90bb17108d89f",
+				"total_difficulty": 1127628411943045i64
+			},
+			"sync_status": "header_sync",
+			"sync_info": {
+				"current_height": 371553,
+				"highest_height": 0
+			}
+		});
 
-		let inputs: Vec<_> = tx.inputs().into();
-		let inputs: Vec<_> = inputs
-			.iter()
-			.map(|input| OutputIdentifier {
-				features: OutputFeatures::Plain,
-				commit: input.commitment(),
-			})
-			.collect();
-		Transaction {
-			body: tx.body.replace_inputs(inputs.as_slice().into()),
-			..tx
-		}
-	}*/
-
-	// Wallet will "push" a transaction to node, serializing the transaction as json.
-	// We are testing the json structure is what we expect here.
-	/*#[test]
-	fn test_transaction_json_ser_deser() {
-		let tx1 = tx1i1o_v2_compatible();
-		let value = serde_json::to_value(&tx1).unwrap();
-
-		assert!(value["offset"].is_string());
-		assert_eq!(value["body"]["inputs"][0]["features"], "Plain");
-		assert!(value["body"]["inputs"][0]["commit"].is_string());
-		assert_eq!(value["body"]["outputs"][0]["features"], "Plain");
-		assert!(value["body"]["outputs"][0]["commit"].is_string());
-		assert!(value["body"]["outputs"][0]["proof"].is_string());
-
-		// Note: Tx kernel "features" serialize in a slightly unexpected way.
-		assert_eq!(value["body"]["kernels"][0]["features"]["Plain"]["fee"], 2);
-		assert!(value["body"]["kernels"][0]["excess"].is_string());
-		assert!(value["body"]["kernels"][0]["excess_sig"].is_string());
-
-		let tx2: Transaction = serde_json::from_value(value).unwrap();
-		assert_eq!(tx1, tx2);
-
-		let str = serde_json::to_string(&tx1).unwrap();
-		println!("{}", str);
-		let tx2: Transaction = serde_json::from_str(&str).unwrap();
-		assert_eq!(tx1, tx2);
-	}*/
+		let status: NodeStatus = serde_json::from_value(mock_response).unwrap();
+		assert_eq!(status.protocol_version, 2);
+		assert_eq!(status.sync_status, "header_sync");
+		assert_eq!(status.tip.height, 371553);
+	}
 }

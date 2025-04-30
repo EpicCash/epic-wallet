@@ -27,7 +27,10 @@ use crate::keychain::Keychain;
 use crate::libwallet;
 use crate::libwallet::api_impl::foreign;
 use crate::libwallet::slate_versions::v3::SlateV3;
-use crate::libwallet::{NodeClient, NodeVersionInfo, Slate, WalletInst, WalletLCProvider};
+use crate::libwallet::{
+	NodeClient, NodeStatus, NodeVersionInfo, Slate, WalletInst, WalletLCProvider,
+};
+
 use crate::util;
 use crate::util::secp::key::SecretKey;
 use crate::util::secp::pedersen;
@@ -430,6 +433,26 @@ impl NodeClient for LocalWalletClient {
 	fn set_node_api_secret(&mut self, _node_api_secret: Option<String>) {}
 	fn get_version_info(&mut self) -> Option<NodeVersionInfo> {
 		None
+	}
+	fn get_node_status(&self) -> Result<NodeStatus, libwallet::Error> {
+		let m = WalletProxyMessage {
+			sender_id: self.id.clone(),
+			dest: self.node_url().to_owned(),
+			method: "get_status".to_owned(),
+			body: "".to_owned(),
+		};
+		{
+			let p = self.proxy_tx.lock();
+			p.send(m)
+				.map_err(|_| libwallet::Error::ClientCallback("Get status send".to_owned()))?;
+		}
+		let r = self.rx.lock();
+		let m = r.recv().unwrap();
+		trace!("Received get_status response: {:?}", m.clone());
+		let res: NodeStatus = serde_json::from_str(&m.body).map_err(|_| {
+			libwallet::Error::ClientCallback("Parsing get_status response".to_owned())
+		})?;
+		Ok(res)
 	}
 	/// Posts a transaction to a epic node
 	/// In this case it will create a new block with award rewarded to

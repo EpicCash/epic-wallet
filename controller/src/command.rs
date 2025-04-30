@@ -61,8 +61,8 @@ pub struct GlobalArgs {
 	pub chain_type: global::ChainTypes,
 	pub password: Option<ZeroingString>,
 	pub tls_conf: Option<TLSConfig>,
+	pub offline_mode: bool,
 }
-
 /// Arguments for init command
 pub struct InitArgs {
 	/// BIP39 recovery phrase length
