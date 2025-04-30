@@ -155,7 +155,20 @@ where
 	C: NodeClient + 'a,
 	K: Keychain + 'a,
 {
+	// Check the node is synced
+	let node_status = wallet.w2n_client().get_node_status()?;
+	if node_status.sync_status != "no_sync" {
+		warn!(
+			"Node is not synced (current status: {}). Skipping chain tip retrieval.",
+			node_status.sync_status
+		);
+		return Err(Error::NodeStatus("Node is not synced".to_string()));
+	}
+
+	// Retrieve the chain tip height
 	let height = wallet.w2n_client().get_chain_tip()?.0;
+
+	// Refresh the output state
 	refresh_output_state(wallet, keychain_mask, height, parent_key_id, update_all)?;
 	Ok(())
 }

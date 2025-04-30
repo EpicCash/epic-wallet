@@ -93,6 +93,10 @@ pub enum Error {
 	#[error("Node API error")]
 	Node,
 
+	/// Error when the node is not in the expected sync status
+	#[error("Node status error: {0}")]
+	NodeStatus(String),
+
 	/// Error contacting wallet API
 	#[error("Wallet Communication Error: {}", _0)]
 	WalletComms(String),
