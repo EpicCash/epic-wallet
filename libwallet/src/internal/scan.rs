@@ -23,6 +23,9 @@ use crate::epic_util::Mutex;
 use crate::internal::{keys, updater};
 use crate::types::*;
 use crate::{wallet_lock, Error, OutputCommitMapping};
+// Adjusted import path for CommitmentWrapper
+use crate::internal::scan::api::CommitmentWrapper;
+use epic_wallet_util::epic_api as api;
 use std::cmp;
 use std::collections::HashMap;
 use std::sync::mpsc::Sender;
@@ -104,9 +107,15 @@ where
 			*height
 		};
 
+		// Use CommitmentWrapper to convert commit to hex
+		let commit_wrapper = CommitmentWrapper(*commit);
+
 		let msg = format!(
-			"Output found: {:?}, amount: {:?}, key_id: {:?}, mmr_index: {},",
-			commit, amount, key_id, mmr_index,
+			"\nOutput found:\ncommit: {},\namount: {},\nkeyid: {},\nmmr index: {}\n",
+			commit_wrapper.to_hex(), // Convert commitment to hex string
+			amount as f64 / 1e8,     // Convert amount to human-readable format with 8 decimals
+			key_id.to_hex(),         // Convert key_id to hex string
+			mmr_index,               // Keep mmr_index as is
 		);
 
 		if let Some(ref s) = status_send_channel {
@@ -353,8 +362,10 @@ where
 		chain_outs.len(),
 	);
 
-	if let Some(ref s) = status_send_channel {
-		let _ = s.send(StatusMessage::Scanning(msg, 99));
+	if chain_outs.len() > 0 {
+		if let Some(ref s) = status_send_channel {
+			let _ = s.send(StatusMessage::Scanning(msg, 99));
+		}
 	}
 
 	// Now, get all outputs owned by this wallet (regardless of account)
