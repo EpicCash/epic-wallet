@@ -81,8 +81,11 @@ pub fn wallet_command(wallet_args: &ArgMatches<'_>, config: GlobalWalletConfig) 
 					status.sync_status
 				);
 			} else {
-				error!("Node is not synced: {}", status.sync_status);
-				return 1; // Exit with error code
+				error!(
+					"Node is currently syncing. Sync status: {}. Please wait until the node is fully synced.",
+					status.sync_status
+				);
+				return 1; // Exit with an error code to indicate the node is not ready
 			}
 		}
 		Err(_) => {

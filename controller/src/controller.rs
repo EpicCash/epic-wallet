@@ -216,7 +216,7 @@ where
 
 	// If so configured, add the foreign API to the same port
 	if running_foreign {
-		warn!("Starting HTTP Foreign API on Owner server at {}.", addr);
+		warn!("Add Foreign API at {}.", addr);
 		let foreign_api_handler_v2 = ForeignAPIHandlerV2::new(wallet, keychain_mask);
 		router
 			.add_route("/v2/foreign", Arc::new(foreign_api_handler_v2))
@@ -224,7 +224,7 @@ where
 	}
 
 	let mut apis = ApiServer::new();
-	warn!("Starting HTTP Owner API server at {}.", addr);
+	warn!("Starting Owner API at {}.", addr);
 	let socket_addr: SocketAddr = addr.parse().expect("unable to parse socket address");
 	let api_chan: &'static mut (
 		tokio::sync::oneshot::Sender<()>,
@@ -234,7 +234,7 @@ where
 	let api_thread = apis
 		.start(socket_addr, router, tls_config, api_chan)
 		.map_err(|_| Error::GenericError("API thread failed to start".to_string()))?;
-	warn!("HTTP Owner listener started.");
+	warn!("Owner API started.");
 	api_thread
 		.join()
 		.map_err(|e| Error::GenericError(format!("API thread panicked :{:?}", e)).into())
