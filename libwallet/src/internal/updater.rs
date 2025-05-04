@@ -43,13 +43,16 @@ pub fn retrieve_outputs<'a, T: ?Sized, C, K>(
 	show_full_history: bool,
 	tx_id: Option<u32>,
 	parent_key_id: Option<&Identifier>,
+	limit: Option<usize>,       // Number of items to return
+	offset: Option<usize>,      // Starting index
+	sort_order: Option<String>, // "asc" or "desc", default is "desc"
 ) -> Result<Vec<OutputCommitMapping>, Error>
 where
 	T: WalletBackend<'a, C, K>,
 	C: NodeClient + 'a,
 	K: Keychain + 'a,
 {
-	// just read the wallet here, no need for a write lock
+	// Just read the wallet here, no need for a write lock
 	let mut outputs = wallet
 		.iter()
 		.filter(|out| show_spent || out.status != OutputStatus::Spent)
@@ -64,7 +67,7 @@ where
 		);
 	}
 
-	// only include outputs with a given tx_id if provided
+	// Only include outputs with a given tx_id if provided
 	if let Some(id) = tx_id {
 		outputs = outputs
 			.into_iter()
@@ -72,6 +75,7 @@ where
 			.collect::<Vec<_>>();
 	}
 
+	// Filter outputs by parent_key_id if provided
 	if let Some(k) = parent_key_id {
 		outputs = outputs
 			.iter()
@@ -80,10 +84,25 @@ where
 			.collect();
 	}
 
-	outputs.sort_by_key(|out| (out.n_child, out.tx_log_entry));
-	let keychain = wallet.keychain(keychain_mask)?;
+	// Sort outputs by block height
+	match sort_order.unwrap_or_else(|| "desc".to_string()).as_str() {
+		"asc" => outputs.sort_by_key(|out| out.height),
+		"desc" => outputs.sort_by_key(|out| std::cmp::Reverse(out.height)),
+		_ => outputs.sort_by_key(|out| std::cmp::Reverse(out.height)), // Default to "desc"
+	}
 
-	let res = outputs
+	// Apply pagination
+	let start = offset.unwrap_or(0);
+	let end = limit.map(|l| start + l).unwrap_or(outputs.len());
+	let paginated_outputs = outputs
+		.into_iter()
+		.skip(start)
+		.take(end - start)
+		.collect::<Vec<_>>();
+
+	// Map outputs to OutputCommitMapping
+	let keychain = wallet.keychain(keychain_mask)?;
+	let res = paginated_outputs
 		.into_iter()
 		.map(|output| {
 			let commit = match output.commit.clone() {
@@ -95,6 +114,7 @@ where
 			OutputCommitMapping { output, commit }
 		})
 		.collect();
+
 	Ok(res)
 }
 

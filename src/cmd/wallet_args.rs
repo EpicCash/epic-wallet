@@ -694,7 +694,36 @@ pub fn parse_info_args(args: &ArgMatches) -> Result<command::InfoArgs, Libwallet
 
 pub fn parse_outputs_args(args: &ArgMatches) -> Result<command::OutputsArgs, LibwalletError> {
 	let show_full_history = args.is_present("show_full_history");
-	Ok(command::OutputsArgs { show_full_history })
+	// Parse limit
+	let limit = match args.value_of("limit") {
+		None => None,
+		Some(l) => Some(parse_u64(l, "limit")? as usize),
+	};
+
+	// Parse offset
+	let offset = match args.value_of("offset") {
+		None => None,
+		Some(o) => Some(parse_u64(o, "offset")? as usize),
+	};
+
+	// Parse sort order
+	let sort_order = match args.value_of("sort_order") {
+		None => None,
+		Some(so) => {
+			let so_lower = so.to_lowercase();
+			if so_lower != "asc" && so_lower != "desc" {
+				let msg = format!("Invalid value for 'sort_order'. Must be 'asc' or 'desc'.");
+				return Err(LibwalletError::ArgumentError(msg));
+			}
+			Some(so_lower)
+		}
+	};
+	Ok(command::OutputsArgs {
+		show_full_history,
+		limit,
+		offset,
+		sort_order,
+	})
 }
 
 pub fn parse_check_args(args: &ArgMatches) -> Result<command::CheckArgs, LibwalletError> {

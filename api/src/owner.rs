@@ -420,6 +420,9 @@ where
 		refresh_from_node: bool,
 		show_full_history: bool,
 		tx_id: Option<u32>,
+		limit: Option<usize>,
+		offset: Option<usize>,
+		sort_order: Option<String>,
 	) -> Result<(bool, Vec<OutputCommitMapping>), Error> {
 		let tx = {
 			let t = self.status_tx.lock();
@@ -437,6 +440,9 @@ where
 			refresh_from_node,
 			show_full_history,
 			tx_id,
+			limit,
+			offset,
+			sort_order,
 		)
 	}
 

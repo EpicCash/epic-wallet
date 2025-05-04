@@ -133,6 +133,9 @@ pub fn retrieve_outputs<'a, L, C, K>(
 	refresh_from_node: bool,
 	show_full_history: bool,
 	tx_id: Option<u32>,
+	limit: Option<usize>,       // Number of items to return
+	offset: Option<usize>,      // Starting index
+	sort_order: Option<String>, // "asc" or "desc", default is "desc"
 ) -> Result<(bool, Vec<OutputCommitMapping>), Error>
 where
 	L: WalletLCProvider<'a, C, K>,
@@ -161,6 +164,9 @@ where
 			show_full_history,
 			tx_id,
 			Some(&parent_key_id),
+			limit,
+			offset,
+			sort_order,
 		)?,
 	))
 }
@@ -762,8 +768,18 @@ where
 			updated_from_node: true,
 		}),
 		Err(_) => {
-			let outputs =
-				retrieve_outputs(wallet_inst, keychain_mask, &None, true, false, false, None)?;
+			let outputs = retrieve_outputs(
+				wallet_inst,
+				keychain_mask,
+				&None,
+				true,
+				false,
+				false,
+				None,
+				None,
+				None,
+				None,
+			)?;
 			let height = match outputs.1.iter().map(|m| m.output.height).max() {
 				Some(height) => height,
 				None => 0,

@@ -141,7 +141,7 @@ pub trait OwnerRpc: Sync + Send {
 	{
 		"jsonrpc": "2.0",
 		"method": "retrieve_outputs",
-		"params": [false, true, null],
+		"params": [false, true, null, 2, 0, "asc"],
 		"id": 1
 	}
 	# "#
@@ -199,6 +199,9 @@ pub trait OwnerRpc: Sync + Send {
 		include_spent: bool,
 		refresh_from_node: bool,
 		tx_id: Option<u32>,
+		limit: Option<usize>,
+		offset: Option<usize>,
+		sort_order: Option<String>,
 	) -> Result<(bool, Vec<OutputCommitMapping>), Error>;
 
 	/**
@@ -1299,8 +1302,21 @@ where
 		include_spent: bool,
 		refresh_from_node: bool,
 		tx_id: Option<u32>,
+		limit: Option<usize>,
+		offset: Option<usize>,
+		sort_order: Option<String>,
 	) -> Result<(bool, Vec<OutputCommitMapping>), Error> {
-		Owner::retrieve_outputs(self, None, include_spent, refresh_from_node, false, tx_id)
+		Owner::retrieve_outputs(
+			self,
+			None,
+			include_spent,
+			refresh_from_node,
+			false,
+			tx_id,
+			limit,
+			offset,
+			sort_order,
+		)
 	}
 
 	fn retrieve_txs(

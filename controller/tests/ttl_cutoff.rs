@@ -116,7 +116,9 @@ fn ttl_cutoff_test_impl(test_dir: &'static str) -> Result<(), libwallet::Error> 
 	wallet::controller::owner_single_use(wallet2.clone(), mask2, |sender_api, m| {
 		let (_, txs) = sender_api.retrieve_txs(m, true, None, Some(slate.id), None, None, None)?;
 		let tx = txs[0].clone();
-		let outputs = sender_api.retrieve_outputs(m, false, true, false, None)?.1;
+		let outputs = sender_api
+			.retrieve_outputs(m, false, true, false, None, None, None, None)?
+			.1;
 		assert_eq!(outputs.len(), 0);
 
 		assert_eq!(tx.ttl_cutoff_height, Some(12));

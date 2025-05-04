@@ -158,7 +158,10 @@ pub trait OwnerRpcS {
 			"token": "d202964900000000d302964900000000d402964900000000d502964900000000",
 			"include_spent": false,
 			"refresh_from_node": true,
-			"tx_id": null
+			"tx_id": null,
+			"limit": null,
+			"offset": null,
+			"sort_order": null
 		},
 		"id": 1
 	}
@@ -218,6 +221,9 @@ pub trait OwnerRpcS {
 		include_spent: bool,
 		refresh_from_node: bool,
 		tx_id: Option<u32>,
+		limit: Option<usize>,
+		offset: Option<usize>,
+		sort_order: Option<String>,
 	) -> Result<(bool, Vec<OutputCommitMapping>), Error>;
 
 	/**
@@ -2156,6 +2162,9 @@ where
 		include_spent: bool,
 		refresh_from_node: bool,
 		tx_id: Option<u32>,
+		limit: Option<usize>,
+		offset: Option<usize>,
+		sort_order: Option<String>,
 	) -> Result<(bool, Vec<OutputCommitMapping>), Error> {
 		Owner::retrieve_outputs(
 			self,
@@ -2164,6 +2173,9 @@ where
 			refresh_from_node,
 			false,
 			tx_id,
+			limit,
+			offset,
+			sort_order,
 		)
 	}
 

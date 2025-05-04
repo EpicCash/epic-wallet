@@ -127,7 +127,9 @@ fn scan_impl(test_dir: &'static str) -> Result<(), libwallet::Error> {
 	// Accidentally delete some outputs
 	let mut w1_outputs_commits = vec![];
 	wallet::controller::owner_single_use(wallet1.clone(), mask1, |api, m| {
-		w1_outputs_commits = api.retrieve_outputs(m, false, true, false, None)?.1;
+		w1_outputs_commits = api
+			.retrieve_outputs(m, false, true, false, None, None, None, None)?
+			.1;
 		Ok(())
 	})?;
 	let w1_outputs: Vec<libwallet::OutputData> =
@@ -465,7 +467,9 @@ fn two_wallets_one_seed_impl(test_dir: &'static str) -> Result<(), libwallet::Er
 
 	wallet::controller::owner_single_use(wallet3.clone(), mask3, |api, m| {
 		let info = wallet_info!(wallet3.clone(), m)?;
-		let outputs = api.retrieve_outputs(m, true, false, false, None)?.1;
+		let outputs = api
+			.retrieve_outputs(m, true, false, false, None, None, None, None)?
+			.1;
 		assert_eq!(outputs.len(), 6);
 		assert_eq!(info.amount_currently_spendable, base_amount * 21);
 		assert_eq!(info.total, base_amount * 21);
@@ -480,7 +484,9 @@ fn two_wallets_one_seed_impl(test_dir: &'static str) -> Result<(), libwallet::Er
 
 	wallet::controller::owner_single_use(wallet1.clone(), mask1, |api, m| {
 		let info = wallet_info!(wallet1.clone(), m)?;
-		let outputs = api.retrieve_outputs(m, true, false, false, None)?.1;
+		let outputs = api
+			.retrieve_outputs(m, true, false, false, None, None, None, None)?
+			.1;
 		assert_eq!(outputs.len(), 6);
 		assert_eq!(info.amount_currently_spendable, base_amount * 21);
 		Ok(())
@@ -518,7 +524,9 @@ fn two_wallets_one_seed_impl(test_dir: &'static str) -> Result<(), libwallet::Er
 
 	wallet::controller::owner_single_use(wallet4.clone(), mask4, |api, m| {
 		let info = wallet_info!(wallet4.clone(), m)?;
-		let outputs = api.retrieve_outputs(m, true, false, false, None)?.1;
+		let outputs = api
+			.retrieve_outputs(m, true, false, false, None, None, None, None)?
+			.1;
 		assert_eq!(outputs.len(), 9);
 		assert_eq!(info.amount_currently_spendable, base_amount * 45);
 		Ok(())
@@ -531,7 +539,9 @@ fn two_wallets_one_seed_impl(test_dir: &'static str) -> Result<(), libwallet::Er
 
 	wallet::controller::owner_single_use(wallet5.clone(), mask5, |api, m| {
 		let info = wallet_info!(wallet5.clone(), m)?;
-		let outputs = api.retrieve_outputs(m, true, false, false, None)?.1;
+		let outputs = api
+			.retrieve_outputs(m, true, false, false, None, None, None, None)?
+			.1;
 		assert_eq!(outputs.len(), 9);
 		assert_eq!(info.amount_currently_spendable, base_amount * (45));
 		Ok(())
@@ -573,7 +583,9 @@ fn two_wallets_one_seed_impl(test_dir: &'static str) -> Result<(), libwallet::Er
 
 	wallet::controller::owner_single_use(wallet6.clone(), mask6, |api, m| {
 		let info = wallet_info!(wallet6.clone(), m)?;
-		let outputs = api.retrieve_outputs(m, true, false, false, None)?.1;
+		let outputs = api
+			.retrieve_outputs(m, true, false, false, None, None, None, None)?
+			.1;
 		assert_eq!(outputs.len(), 12);
 		assert_eq!(info.amount_currently_spendable, base_amount * 78);
 		Ok(())
@@ -586,7 +598,9 @@ fn two_wallets_one_seed_impl(test_dir: &'static str) -> Result<(), libwallet::Er
 
 	wallet::controller::owner_single_use(wallet6.clone(), mask6, |api, m| {
 		let info = wallet_info!(wallet6.clone(), m)?;
-		let outputs = api.retrieve_outputs(m, true, false, false, None)?.1;
+		let outputs = api
+			.retrieve_outputs(m, true, false, false, None, None, None, None)?
+			.1;
 		assert_eq!(outputs.len(), 12);
 		assert_eq!(info.amount_currently_spendable, base_amount * (78));
 		Ok(())
@@ -654,12 +668,16 @@ fn two_wallets_one_seed_impl(test_dir: &'static str) -> Result<(), libwallet::Er
 
 	wallet::controller::owner_single_use(wallet7.clone(), mask7, |api, m| {
 		let info = wallet_info!(wallet7.clone(), m)?;
-		let outputs = api.retrieve_outputs(m, true, false, false, None)?.1;
+		let outputs = api
+			.retrieve_outputs(m, true, false, false, None, None, None, None)?
+			.1;
 		assert_eq!(outputs.len(), 3);
 		assert_eq!(info.amount_currently_spendable, base_amount * 6);
 		api.set_active_account(m, "default")?;
 		let info = wallet_info!(wallet7.clone(), m)?;
-		let outputs = api.retrieve_outputs(m, true, false, false, None)?.1;
+		let outputs = api
+			.retrieve_outputs(m, true, false, false, None, None, None, None)?
+			.1;
 		assert_eq!(outputs.len(), 15);
 		assert_eq!(info.amount_currently_spendable, base_amount * 120);
 		Ok(())
@@ -668,12 +686,16 @@ fn two_wallets_one_seed_impl(test_dir: &'static str) -> Result<(), libwallet::Er
 	wallet::controller::owner_single_use(wallet8.clone(), mask8, |api, m| {
 		api.scan(m, None, false)?;
 		let info = wallet_info!(wallet8.clone(), m)?;
-		let outputs = api.retrieve_outputs(m, true, false, false, None)?.1;
+		let outputs = api
+			.retrieve_outputs(m, true, false, false, None, None, None, None)?
+			.1;
 		assert_eq!(outputs.len(), 15);
 		assert_eq!(info.amount_currently_spendable, base_amount * 120);
 		api.set_active_account(m, "account_1")?;
 		let info = wallet_info!(wallet8.clone(), m)?;
-		let outputs = api.retrieve_outputs(m, true, false, false, None)?.1;
+		let outputs = api
+			.retrieve_outputs(m, true, false, false, None, None, None, None)?
+			.1;
 		assert_eq!(outputs.len(), 3);
 		assert_eq!(info.amount_currently_spendable, base_amount * 6);
 		Ok(())
@@ -715,18 +737,24 @@ fn two_wallets_one_seed_impl(test_dir: &'static str) -> Result<(), libwallet::Er
 
 	wallet::controller::owner_single_use(wallet9.clone(), mask9, |api, m| {
 		let info = wallet_info!(wallet9.clone(), m)?;
-		let outputs = api.retrieve_outputs(m, true, false, false, None)?.1;
+		let outputs = api
+			.retrieve_outputs(m, true, false, false, None, None, None, None)?
+			.1;
 		assert_eq!(outputs.len(), 6);
 		assert_eq!(info.amount_currently_spendable, base_amount * 21);
 		api.scan(m, None, true)?;
 		let info = wallet_info!(wallet9.clone(), m)?;
-		let outputs = api.retrieve_outputs(m, true, false, false, None)?.1;
+		let outputs = api
+			.retrieve_outputs(m, true, false, false, None, None, None, None)?
+			.1;
 		assert_eq!(outputs.len(), 6);
 		assert_eq!(info.amount_currently_spendable, base_amount * 21);
 
 		api.set_active_account(m, "default")?;
 		let info = wallet_info!(wallet9.clone(), m)?;
-		let outputs = api.retrieve_outputs(m, true, false, false, None)?.1;
+		let outputs = api
+			.retrieve_outputs(m, true, false, false, None, None, None, None)?
+			.1;
 		assert_eq!(outputs.len(), 15);
 		assert_eq!(info.amount_currently_spendable, base_amount * 120);
 		Ok(())
@@ -739,13 +767,17 @@ fn two_wallets_one_seed_impl(test_dir: &'static str) -> Result<(), libwallet::Er
 		api.scan(m, None, true)?;
 		api.set_active_account(m, "account_1")?;
 		let info = wallet_info!(wallet10.clone(), m)?;
-		let outputs = api.retrieve_outputs(m, true, false, false, None)?.1;
+		let outputs = api
+			.retrieve_outputs(m, true, false, false, None, None, None, None)?
+			.1;
 		assert_eq!(outputs.len(), 6);
 		assert_eq!(info.amount_currently_spendable, base_amount * 21);
 
 		api.set_active_account(m, "default")?;
 		let info = wallet_info!(wallet10.clone(), m)?;
-		let outputs = api.retrieve_outputs(m, true, false, false, None)?.1;
+		let outputs = api
+			.retrieve_outputs(m, true, false, false, None, None, None, None)?
+			.1;
 		assert_eq!(outputs.len(), 15);
 		assert_eq!(info.amount_currently_spendable, base_amount * 120);
 		Ok(())
