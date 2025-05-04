@@ -133,6 +133,26 @@ pub trait OwnerRpc: Sync + Send {
 	/**
 	Networked version of [Owner::retrieve_outputs](struct.Owner.html#method.retrieve_outputs).
 
+	# Breaking Changes
+	- **Next Version**:
+	  - Added three new parameters: `limit`, `offset`, and `sort_order`.
+	  - These parameters must be explicitly provided in the JSON request as a value or `null`. If they are missing, the JSON-RPC request will return an error.
+
+	# Parameters
+	- `include_spent`: Whether to include spent outputs in the results.
+	- `refresh_from_node`: Whether to refresh outputs from the node. If `true`, the wallet will attempt to contact the node to get the latest output data. If `false`, the results may be outdated.
+	- `tx_id`: Optional transaction ID to filter outputs. If `Some(id)`, only outputs associated with the transaction log entry of ID `id` will be returned.
+	- `limit`: The maximum number of outputs to retrieve. This parameter must be explicitly provided as a value or `null`. If `null`, a default value of `10` will be used.
+	- `offset`: The starting index for pagination. This parameter must be explicitly provided as a value or `null`. If `null`, a default value of `0` will be used.
+	- `sort_order`: The order in which outputs are sorted. This parameter must be explicitly provided as a value or `null`. If `null`, the default value `"desc"` will be used. Accepted values are:
+	  - `"asc"`: Sort outputs in ascending order.
+	  - `"desc"`: Sort outputs in descending order.
+
+	# Returns
+	A tuple containing:
+	- `refreshed`: A boolean indicating whether the data was successfully refreshed from the node.
+	- `outputs`: A vector of `OutputCommitMapping` objects, where each element is a mapping between the wallet's internal `OutputData` and the output commitment as identified in the chain's UTXO set.
+
 	# Json rpc example
 
 	```
@@ -206,6 +226,27 @@ pub trait OwnerRpc: Sync + Send {
 
 	/**
 	Networked version of [Owner::retrieve_txs](struct.Owner.html#method.retrieve_txs).
+
+	# Breaking Changes
+	- **Next Version**:
+	  - Added three new parameters: `limit`, `offset`, and `sort_order`.
+	  - These parameters must be explicitly provided in the JSON request as a value or `null`. If they are missing, the JSON-RPC request will return an error.
+
+	# Parameters
+	- `refresh_from_node`: Whether to refresh transactions from the node. If `true`, the wallet will attempt to contact the node to get the latest transaction data. If `false`, the results may be outdated.
+	- `tx_id`: Optional transaction ID to filter transactions. If `Some(id)`, only the transaction with the specified ID will be returned.
+	- `tx_slate_id`: Optional slate ID to filter transactions. If `Some(id)`, only the transaction with the specified slate ID will be returned.
+	- `limit`: The maximum number of transactions to retrieve. This parameter must be explicitly provided as a value or `null`. If `null`, a default value of `10` will be used.
+	- `offset`: The starting index for pagination. This parameter must be explicitly provided as a value or `null`. If `null`, a default value of `0` will be used.
+	- `sort_order`: The order in which transactions are sorted. This parameter must be explicitly provided as a value or `null`. If `null`, the default value `"desc"` will be used. Accepted values are:
+	  - `"asc"`: Sort transactions in ascending order.
+	  - `"desc"`: Sort transactions in descending order.
+
+	# Returns
+	A tuple containing:
+	- `refreshed`: A boolean indicating whether the data was successfully refreshed from the node.
+	- `transactions`: A vector of `TxLogEntry` objects, where each element represents a transaction log entry.
+
 
 	# Json rpc example
 
