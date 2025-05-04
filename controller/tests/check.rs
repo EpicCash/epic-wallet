@@ -117,7 +117,7 @@ fn scan_impl(test_dir: &'static str) -> Result<(), libwallet::Error> {
 		assert_eq!(wallet1_info.total, bh * reward);
 		assert_eq!(wallet1_info.amount_currently_spendable, (bh - cm) * reward);
 		// check tx log as well
-		let (_, txs) = api.retrieve_txs(m, true, None, None)?;
+		let (_, txs) = api.retrieve_txs(m, true, None, None, None, None, None)?;
 		let (c, _) = libwallet::TxLogEntry::sum_confirmed(&txs);
 		assert_eq!(wallet1_info.total, c);
 		assert_eq!(txs.len(), bh as usize);
@@ -148,7 +148,7 @@ fn scan_impl(test_dir: &'static str) -> Result<(), libwallet::Error> {
 	// check we have a problem now
 	wallet::controller::owner_single_use(wallet1.clone(), mask1, |api, m| {
 		let (_, wallet1_info) = api.retrieve_summary_info(m, true, 1)?;
-		let (_, txs) = api.retrieve_txs(m, true, None, None)?;
+		let (_, txs) = api.retrieve_txs(m, true, None, None, None, None, None)?;
 		let (c, _) = libwallet::TxLogEntry::sum_confirmed(&txs);
 		assert!(wallet1_info.total != c);
 		Ok(())

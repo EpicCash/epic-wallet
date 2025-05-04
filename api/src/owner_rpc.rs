@@ -212,7 +212,7 @@ pub trait OwnerRpc: Sync + Send {
 		{
 			"jsonrpc": "2.0",
 			"method": "retrieve_txs",
-			"params": [true, null, null],
+			"params": [true, null, null, 20, 0, "desc"],
 			"id": 1
 		}
 		# "#
@@ -279,6 +279,9 @@ pub trait OwnerRpc: Sync + Send {
 		refresh_from_node: bool,
 		tx_id: Option<u32>,
 		tx_slate_id: Option<Uuid>,
+		limit: Option<usize>,       // Number of items to return
+		offset: Option<usize>,      // Starting index
+		sort_order: Option<String>, // "asc" or "desc", default is "desc"
 	) -> Result<(bool, Vec<TxLogEntry>), Error>;
 
 	/**
@@ -1305,8 +1308,20 @@ where
 		refresh_from_node: bool,
 		tx_id: Option<u32>,
 		tx_slate_id: Option<Uuid>,
+		limit: Option<usize>,
+		offset: Option<usize>,
+		sort_order: Option<String>,
 	) -> Result<(bool, Vec<TxLogEntry>), Error> {
-		Owner::retrieve_txs(self, None, refresh_from_node, tx_id, tx_slate_id)
+		Owner::retrieve_txs(
+			self,
+			None,
+			refresh_from_node,
+			tx_id,
+			tx_slate_id,
+			limit,
+			offset,
+			sort_order,
+		)
 	}
 
 	fn retrieve_summary_info(

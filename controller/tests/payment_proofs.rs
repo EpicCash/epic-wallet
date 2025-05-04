@@ -114,7 +114,7 @@ fn payment_proofs_test_impl(test_dir: &'static str) -> Result<(), libwallet::Err
 		sender_api.tx_lock_outputs(m, &slate, 0, None)?;
 
 		// Ensure what's stored in TX log for payment proof is correct
-		let (_, txs) = sender_api.retrieve_txs(m, true, None, Some(slate.id))?;
+		let (_, txs) = sender_api.retrieve_txs(m, true, None, Some(slate.id), None, None, None)?;
 		assert!(txs[0].payment_proof.is_some());
 		let pp = txs[0].clone().payment_proof.unwrap();
 		assert_eq!(
@@ -134,7 +134,7 @@ fn payment_proofs_test_impl(test_dir: &'static str) -> Result<(), libwallet::Err
 		sender_api.post_tx(m, &slate.tx, true)?;
 
 		// Check payment proof here
-		let (_, txs) = sender_api.retrieve_txs(m, true, None, Some(slate.id))?;
+		let (_, txs) = sender_api.retrieve_txs(m, true, None, Some(slate.id), None, None, None)?;
 		let tx = txs[0].clone();
 
 		println!("{:?}", tx);
@@ -145,7 +145,7 @@ fn payment_proofs_test_impl(test_dir: &'static str) -> Result<(), libwallet::Err
 	// let logging finish
 	wallet::controller::owner_single_use(wallet1.clone(), mask1, |sender_api, m| {
 		// Check payment proof here
-		let (_, txs) = sender_api.retrieve_txs(m, true, None, Some(slate.id))?;
+		let (_, txs) = sender_api.retrieve_txs(m, true, None, Some(slate.id), None, None, None)?;
 		let tx = txs[0].clone();
 		let mut pp = sender_api.retrieve_payment_proof(m, true, None, Some(slate.id))?;
 

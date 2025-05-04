@@ -457,6 +457,9 @@ where
 	/// the transaction log entry of id `i`.
 	/// * `tx_slate_id` - If `Some(uuid)`, only return transactions associated with
 	/// the given [`Slate`](../epic_wallet_libwallet/slate/struct.Slate.html) uuid.
+	/// * `limit` - Maximum number of transactions to return. If `None`, return all.
+	/// * `offset` - Starting index for transactions. Defaults to `0` if `None`.
+	/// * `sort_order` - Sort order for transactions, either `"asc"` or `"desc"`. Defaults to `"desc"`.
 	///
 	/// # Returns
 	/// * `(bool, Vec<TxLogEntry)` - A tuple:
@@ -465,31 +468,15 @@ where
 	/// argument was set to `true`.
 	/// * The second element contains the set of retrieved
 	/// [TxLogEntries](../epic_wallet_libwallet/types/struct.TxLogEntry.html)
-	///
-	/// # Example
-	/// Set up as in [`new`](struct.Owner.html#method.new) method above.
-	/// ```
-	/// # epic_wallet_api::doctest_helper_setup_doc_env!(wallet, wallet_config);
-	///
-	/// let api_owner = Owner::new(wallet.clone(), None);
-	/// let update_from_node = true;
-	/// let tx_id = None;
-	/// let tx_slate_id = None;
-	///
-	/// // Return all TxLogEntries
-	/// let result = api_owner.retrieve_txs(None, update_from_node, tx_id, tx_slate_id);
-	///
-	/// if let Ok((was_updated, tx_log_entries)) = result {
-	///		//...
-	/// }
-	/// ```
-
 	pub fn retrieve_txs(
 		&self,
 		keychain_mask: Option<&SecretKey>,
 		refresh_from_node: bool,
 		tx_id: Option<u32>,
 		tx_slate_id: Option<Uuid>,
+		limit: Option<usize>,
+		offset: Option<usize>,
+		sort_order: Option<String>,
 	) -> Result<(bool, Vec<TxLogEntry>), Error> {
 		let tx = {
 			let t = self.status_tx.lock();
@@ -499,6 +486,8 @@ where
 			true => false,
 			false => refresh_from_node,
 		};
+
+		// Call the updated `owner::retrieve_txs` with pagination and sorting
 		let mut res = owner::retrieve_txs(
 			self.wallet_inst.clone(),
 			keychain_mask,
@@ -506,7 +495,11 @@ where
 			refresh_from_node,
 			tx_id,
 			tx_slate_id,
+			limit,
+			offset,
+			sort_order,
 		)?;
+
 		if self.doctest_mode {
 			res.1 = res
 				.1
@@ -1134,7 +1127,7 @@ where
 	/// let tx_slate_id = None;
 	///
 	/// // Return all TxLogEntries
-	/// let result = api_owner.retrieve_txs(None, update_from_node, tx_id, tx_slate_id);
+	/// let result = api_owner.retrieve_txs(None, update_from_node, tx_id, tx_slate_id, None, None, None);
 	///
 	/// if let Ok((was_updated, tx_log_entries)) = result {
 	///		let stored_tx = api_owner.get_stored_tx(None, &tx_log_entries[0]).unwrap();

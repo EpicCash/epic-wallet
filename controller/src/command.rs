@@ -765,6 +765,9 @@ where
 pub struct TxsArgs {
 	pub id: Option<u32>,
 	pub tx_slate_id: Option<Uuid>,
+	pub limit: Option<usize>,       // Number of items to return
+	pub offset: Option<usize>,      // Starting index
+	pub sort_order: Option<String>, // "asc" or "desc", default is "desc"
 }
 
 pub fn txs<L, C, K>(
@@ -781,7 +784,15 @@ where
 {
 	controller::owner_single_use(wallet.clone(), keychain_mask, |api, m| {
 		let res = api.node_height(m)?;
-		let (validated, txs) = api.retrieve_txs(m, true, args.id, args.tx_slate_id)?;
+		let (validated, txs) = api.retrieve_txs(
+			m,
+			true,
+			args.id,
+			args.tx_slate_id,
+			args.limit,
+			args.offset,
+			args.sort_order,
+		)?;
 		let include_status = !args.id.is_some() && !args.tx_slate_id.is_some();
 		display::txs(
 			&g_args.account,
@@ -866,7 +877,7 @@ where
 	K: keychain::Keychain + 'static,
 {
 	controller::owner_single_use(wallet.clone(), keychain_mask, |api, m| {
-		let (_, txs) = api.retrieve_txs(m, true, Some(args.id), None)?;
+		let (_, txs) = api.retrieve_txs(m, true, Some(args.id), None, None, None, None)?;
 		let stored_tx = api.get_stored_tx(m, &txs[0])?;
 		if stored_tx.is_none() {
 			error!(

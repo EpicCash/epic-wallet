@@ -106,6 +106,9 @@ pub fn retrieve_txs<'a, T: ?Sized, C, K>(
 	tx_slate_id: Option<Uuid>,
 	parent_key_id: Option<&Identifier>,
 	outstanding_only: bool,
+	limit: Option<usize>,       // Number of items to return
+	offset: Option<usize>,      // Starting index
+	sort_order: Option<String>, // "asc" or "desc", default is "desc"
 ) -> Result<Vec<TxLogEntry>, Error>
 where
 	T: WalletBackend<'a, C, K>,
@@ -138,8 +141,20 @@ where
 			f_pk && f_tx_id && f_txs && f_outstanding
 		})
 		.collect();
-	txs.sort_by_key(|tx| tx.creation_ts);
-	Ok(txs)
+
+	// Sort transactions by creation timestamp
+	match sort_order.unwrap_or_else(|| "desc".to_string()).as_str() {
+		"asc" => txs.sort_by_key(|tx| tx.creation_ts),
+		"desc" => txs.sort_by_key(|tx| std::cmp::Reverse(tx.creation_ts)),
+		_ => txs.sort_by_key(|tx| std::cmp::Reverse(tx.creation_ts)), // Default to "desc"
+	}
+
+	// Apply pagination
+	let start = offset.unwrap_or(0);
+	let end = limit.map(|l| start + l).unwrap_or(txs.len());
+	let paginated_txs = txs.into_iter().skip(start).take(end - start).collect();
+
+	Ok(paginated_txs)
 }
 
 /// Refreshes the outputs in a wallet with the latest information
@@ -194,7 +209,16 @@ where
 		.filter(|x| x.root_key_id == *parent_key_id && x.status != OutputStatus::Spent)
 		.collect();
 
-	let tx_entries = retrieve_txs(wallet, None, None, Some(&parent_key_id), true)?;
+	let tx_entries = retrieve_txs(
+		wallet,
+		None,
+		None,
+		Some(&parent_key_id),
+		true,
+		None,
+		None,
+		None,
+	)?;
 
 	// Only select outputs that are actually involved in an outstanding transaction
 	let unspents: Vec<OutputData> = match update_all {

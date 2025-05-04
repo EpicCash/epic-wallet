@@ -304,6 +304,9 @@ pub trait OwnerRpcS {
 		refresh_from_node: bool,
 		tx_id: Option<u32>,
 		tx_slate_id: Option<Uuid>,
+		limit: Option<usize>,       // Number of items to return
+		offset: Option<usize>,      // Starting index
+		sort_order: Option<String>, // "asc" or "desc", default is "desc"
 	) -> Result<(bool, Vec<TxLogEntry>), Error>;
 
 	/**
@@ -2170,6 +2173,9 @@ where
 		refresh_from_node: bool,
 		tx_id: Option<u32>,
 		tx_slate_id: Option<Uuid>,
+		limit: Option<usize>,  // Number of items to return
+		offset: Option<usize>, // Starting index
+		sort_order: Option<String>,
 	) -> Result<(bool, Vec<TxLogEntry>), Error> {
 		Owner::retrieve_txs(
 			self,
@@ -2177,6 +2183,9 @@ where
 			refresh_from_node,
 			tx_id,
 			tx_slate_id,
+			limit,
+			offset,
+			sort_order,
 		)
 	}
 

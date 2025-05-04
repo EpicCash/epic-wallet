@@ -313,6 +313,24 @@ subcommands:
             short: t
             long: txid
             takes_value: true
+        - limit:
+            help: Limit the number of transactions to display
+            short: l
+            long: limit
+            takes_value: true
+        - offset:
+            help: Skip the first N transactions
+            short: o
+            long: offset
+            takes_value: true
+        - sort_order:
+            help: Sort transactions by creation time, either 'asc' or 'desc' (default is 'desc')
+            short: s
+            long: sort_order
+            takes_value: true
+            possible_values:
+              - asc
+              - desc
   - post:
       about: Posts a finalized transaction to the chain
       args:

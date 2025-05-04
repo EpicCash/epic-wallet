@@ -707,10 +707,13 @@ pub fn parse_check_args(args: &ArgMatches) -> Result<command::CheckArgs, Libwall
 }
 
 pub fn parse_txs_args(args: &ArgMatches) -> Result<command::TxsArgs, LibwalletError> {
+	// Parse transaction ID
 	let tx_id = match args.value_of("id") {
 		None => None,
 		Some(tx) => Some(parse_u64(tx, "id")? as u32),
 	};
+
+	// Parse transaction slate ID
 	let tx_slate_id = match args.value_of("txid") {
 		None => None,
 		Some(tx) => match tx.parse() {
@@ -721,13 +724,45 @@ pub fn parse_txs_args(args: &ArgMatches) -> Result<command::TxsArgs, LibwalletEr
 			}
 		},
 	};
+
+	// Ensure only one of `id` or `txid` is provided
 	if tx_id.is_some() && tx_slate_id.is_some() {
 		let msg = format!("At most one of 'id' (-i) or 'txid' (-t) may be provided.");
 		return Err(LibwalletError::ArgumentError(msg));
 	}
+
+	// Parse limit
+	let limit = match args.value_of("limit") {
+		None => None,
+		Some(l) => Some(parse_u64(l, "limit")? as usize),
+	};
+
+	// Parse offset
+	let offset = match args.value_of("offset") {
+		None => None,
+		Some(o) => Some(parse_u64(o, "offset")? as usize),
+	};
+
+	// Parse sort order
+	let sort_order = match args.value_of("sort_order") {
+		None => None,
+		Some(so) => {
+			let so_lower = so.to_lowercase();
+			if so_lower != "asc" && so_lower != "desc" {
+				let msg = format!("Invalid value for 'sort_order'. Must be 'asc' or 'desc'.");
+				return Err(LibwalletError::ArgumentError(msg));
+			}
+			Some(so_lower)
+		}
+	};
+
+	// Return the parsed arguments
 	Ok(command::TxsArgs {
 		id: tx_id,
 		tx_slate_id,
+		limit,
+		offset,
+		sort_order,
 	})
 }
 

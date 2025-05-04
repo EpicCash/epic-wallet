@@ -173,6 +173,9 @@ pub fn retrieve_txs<'a, L, C, K>(
 	refresh_from_node: bool,
 	tx_id: Option<u32>,
 	tx_slate_id: Option<Uuid>,
+	limit: Option<usize>,       // Number of items to return
+	offset: Option<usize>,      // Starting index
+	sort_order: Option<String>, // "asc" or "desc", default is "desc"
 ) -> Result<(bool, Vec<TxLogEntry>), Error>
 where
 	L: WalletLCProvider<'a, C, K>,
@@ -191,7 +194,18 @@ where
 
 	wallet_lock!(wallet_inst, w);
 	let parent_key_id = w.parent_key_id();
-	let txs = updater::retrieve_txs(&mut **w, tx_id, tx_slate_id, Some(&parent_key_id), false)?;
+
+	// Call the updated `updater::retrieve_txs` with pagination and sorting
+	let txs = updater::retrieve_txs(
+		&mut **w,
+		tx_id,
+		tx_slate_id,
+		Some(&parent_key_id),
+		false,
+		limit,
+		offset,
+		sort_order,
+	)?;
 
 	Ok((validated, txs))
 }
@@ -260,6 +274,9 @@ where
 		refresh_from_node,
 		tx_id,
 		tx_slate_id,
+		None,
+		None,
+		None,
 	)?;
 	if txs.1.len() != 1 {
 		return Err(Error::PaymentProofRetrieval("Transaction doesn't exist".into()).into());
@@ -512,6 +529,9 @@ where
 		Some(ret_slate.id),
 		Some(&parent_key_id),
 		use_test_rng,
+		None,
+		None,
+		None,
 	)?;
 	for t in &tx {
 		if t.tx_type == TxLogEntryType::TxSent {
@@ -803,7 +823,16 @@ where
 	// Step 2: Update outstanding transactions with no change outputs by kernel
 	let mut txs = {
 		wallet_lock!(wallet_inst, w);
-		updater::retrieve_txs(&mut **w, None, None, Some(&parent_key_id), true)?
+		updater::retrieve_txs(
+			&mut **w,
+			None,
+			None,
+			Some(&parent_key_id),
+			true,
+			None,
+			None,
+			None,
+		)?
 	};
 	result = update_txs_via_kernel(wallet_inst.clone(), keychain_mask, &mut txs)?;
 	if !result {
