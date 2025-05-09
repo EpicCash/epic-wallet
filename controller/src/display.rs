@@ -27,10 +27,13 @@ pub fn outputs(
 	account: &str,
 	cur_height: u64,
 	validated: bool,
-	records_read: usize,  // Number of records returned after pagination
-	total_records: usize, // Total number of records available before pagination
 	outputs: Vec<OutputCommitMapping>,
 	dark_background_color_scheme: bool,
+	records_read: usize,  // Number of records returned after pagination
+	total_records: usize, // Total number of records available before pagination
+	limit: usize,         // Limit used for pagination
+	offset: usize,        // Offset used for pagination
+	sort_order: String,
 ) -> Result<(), Error> {
 	let title = format!(
 		"Wallet Outputs - Account '{}' - Block Height: {}",
@@ -47,7 +50,11 @@ pub fn outputs(
 	t.reset().unwrap();
 
 	// Display pagination metadata
-	println!("Displaying {} of {} outputs", records_read, total_records);
+	// Display pagination metadata
+	println!(
+		"Displaying {} of {} transactions (Limit: {}, Offset: {}, Sort Order: {})",
+		records_read, total_records, limit, offset, sort_order
+	);
 
 	let mut table = table!();
 
@@ -127,17 +134,22 @@ pub fn outputs(
 	Ok(())
 }
 
-/// Display transaction log in a pretty way
+/// Display transactions in a pretty way
 pub fn txs(
 	account: &str,
 	cur_height: u64,
 	validated: bool,
-	txs: &Vec<TxLogEntry>,
+	txs: &[TxLogEntry],
 	include_status: bool,
 	dark_background_color_scheme: bool,
+	records_read: usize,  // Number of records returned after pagination
+	total_records: usize, // Total number of records available before pagination
+	limit: usize,         // Limit used for pagination
+	offset: usize,        // Offset used for pagination
+	sort_order: String,   // Sort order used for pagination ("asc" or "desc")
 ) -> Result<(), Error> {
 	let title = format!(
-		"Transaction Log - Account '{}' - Block Height: {}",
+		"Wallet Transactions - Account '{}' - Block Height: {}",
 		account, cur_height
 	);
 	println!();
@@ -149,6 +161,12 @@ pub fn txs(
 	t.fg(term::color::MAGENTA).unwrap();
 	writeln!(t, "{}", title).unwrap();
 	t.reset().unwrap();
+
+	// Display pagination metadata
+	println!(
+		"Displaying {} of {} transactions (Limit: {}, Offset: {}, Sort Order: {})",
+		records_read, total_records, limit, offset, sort_order
+	);
 
 	let mut table = table!();
 
@@ -299,6 +317,7 @@ pub fn txs(
 	}
 	Ok(())
 }
+
 /// Display summary info in a pretty way
 pub fn info(
 	account: &str,

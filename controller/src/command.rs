@@ -756,7 +756,7 @@ where
 {
 	controller::owner_single_use(wallet.clone(), keychain_mask, |api, m| {
 		let res = api.node_height(m)?;
-		let outputs = api.retrieve_outputs(
+		let outputs_result = api.retrieve_outputs(
 			m,
 			g_args.show_spent,
 			true,
@@ -769,11 +769,14 @@ where
 		display::outputs(
 			&g_args.account,
 			res.height,
-			outputs.refresh_from_node,
-			outputs.pager.records_read,
-			outputs.pager.total_records,
-			outputs.outputs,
+			outputs_result.refresh_from_node,
+			outputs_result.outputs,
 			dark_scheme,
+			outputs_result.pager.records_read,
+			outputs_result.pager.total_records,
+			outputs_result.pager.limit,
+			outputs_result.pager.offset,
+			outputs_result.pager.sort_order.clone(),
 		)?;
 		Ok(())
 	})?;
@@ -803,7 +806,7 @@ where
 {
 	controller::owner_single_use(wallet.clone(), keychain_mask, |api, m| {
 		let res = api.node_height(m)?;
-		let txs = api.retrieve_txs(
+		let txs_result = api.retrieve_txs(
 			m,
 			true,
 			args.id,
@@ -816,10 +819,15 @@ where
 		display::txs(
 			&g_args.account,
 			res.height,
-			txs.refresh_from_node,
-			&txs.txs,
+			txs_result.refresh_from_node,
+			&txs_result.txs,
 			include_status,
 			dark_scheme,
+			txs_result.pager.records_read,
+			txs_result.pager.total_records,
+			txs_result.pager.limit,
+			txs_result.pager.offset,
+			txs_result.pager.sort_order.clone(),
 		)?;
 
 		// if given a particular transaction id or uuid, also get and display associated
@@ -827,7 +835,11 @@ where
 		let id = if args.id.is_some() {
 			args.id
 		} else if args.tx_slate_id.is_some() {
-			if let Some(tx) = txs.txs.iter().find(|t| t.tx_slate_id == args.tx_slate_id) {
+			if let Some(tx) = txs_result
+				.txs
+				.iter()
+				.find(|t| t.tx_slate_id == args.tx_slate_id)
+			{
 				Some(tx.id)
 			} else {
 				println!("Could not find a transaction matching given txid.\n");
@@ -838,18 +850,22 @@ where
 		};
 
 		if id.is_some() {
-			let outputs = api.retrieve_outputs(m, true, false, false, id, None, None, None)?;
+			let outputs_result =
+				api.retrieve_outputs(m, true, false, false, id, None, None, None)?;
 			display::outputs(
 				&g_args.account,
 				res.height,
-				outputs.refresh_from_node,
-				outputs.pager.records_read,
-				outputs.pager.total_records,
-				outputs.outputs,
+				outputs_result.refresh_from_node,
+				outputs_result.outputs,
 				dark_scheme,
+				outputs_result.pager.records_read,
+				outputs_result.pager.total_records,
+				outputs_result.pager.limit,
+				outputs_result.pager.offset,
+				outputs_result.pager.sort_order.clone(),
 			)?;
 			// should only be one here, but just in case
-			for tx in txs.txs {
+			for tx in txs_result.txs {
 				display::tx_messages(&tx, dark_scheme)?;
 				display::payment_proof(&tx)?;
 			}
