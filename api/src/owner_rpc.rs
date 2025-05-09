@@ -20,7 +20,7 @@ use crate::keychain::{Identifier, Keychain};
 use crate::libwallet::slate_versions::v3::TransactionV3;
 use crate::libwallet::{
 	AcctPathMapping, Error, InitTxArgs, IssueInvoiceTxArgs, NodeClient, NodeHeightResult,
-	OutputCommitMapping, Slate, SlateVersion, TxLogEntry, VersionedSlate, WalletInfo,
+	RetrieveOutputsResult, Slate, SlateVersion, TxLogEntry, VersionedSlate, WalletInfo,
 	WalletLCProvider,
 };
 use crate::util::{from_hex, Mutex};
@@ -137,6 +137,7 @@ pub trait OwnerRpc: Sync + Send {
 	- **Next Version**:
 	  - Added three new parameters: `limit`, `offset`, and `sort_order`.
 	  - These parameters must be explicitly provided in the JSON request as a value or `null`. If they are missing, the JSON-RPC request will return an error.
+	  - Updated the return type to use the `RetrieveOutputsResult` struct, which includes pagination metadata and outputs.
 
 	# Parameters
 	- `include_spent`: Whether to include spent outputs in the results.
@@ -149,8 +150,14 @@ pub trait OwnerRpc: Sync + Send {
 	  - `"desc"`: Sort outputs in descending order.
 
 	# Returns
-	A tuple containing:
-	- `refreshed`: A boolean indicating whether the data was successfully refreshed from the node.
+	A `RetrieveOutputsResult` struct containing:
+	- `refresh_from_node`: A boolean indicating whether the data was successfully refreshed from the node.
+	- `pager`: A `Pager` struct containing pagination metadata:
+	  - `records_read`: The number of records returned after pagination.
+	  - `total_records`: The total number of records available before pagination.
+	  - `limit`: The limit used for pagination.
+	  - `offset`: The offset used for pagination.
+	  - `sort_order`: The sort order used for pagination.
 	- `outputs`: A vector of `OutputCommitMapping` objects, where each element is a mapping between the wallet's internal `OutputData` and the output commitment as identified in the chain's UTXO set.
 
 	# Json rpc example
@@ -173,6 +180,8 @@ pub trait OwnerRpc: Sync + Send {
 		"result": {
 			"Ok": [
 				true,
+				2,
+				2,
 				[
 					{
 						"commit": "089be87c488db1e7c783b19272a83b23bce56a5263163554b345c6f7ffedac517e",
@@ -222,7 +231,7 @@ pub trait OwnerRpc: Sync + Send {
 		limit: Option<usize>,
 		offset: Option<usize>,
 		sort_order: Option<String>,
-	) -> Result<(bool, Vec<OutputCommitMapping>), Error>;
+	) -> Result<RetrieveOutputsResult, Error>;
 
 	/**
 	Networked version of [Owner::retrieve_txs](struct.Owner.html#method.retrieve_txs).
@@ -1346,7 +1355,7 @@ where
 		limit: Option<usize>,
 		offset: Option<usize>,
 		sort_order: Option<String>,
-	) -> Result<(bool, Vec<OutputCommitMapping>), Error> {
+	) -> Result<RetrieveOutputsResult, Error> {
 		Owner::retrieve_outputs(
 			self,
 			None,

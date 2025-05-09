@@ -43,10 +43,10 @@ pub fn retrieve_outputs<'a, T: ?Sized, C, K>(
 	show_full_history: bool,
 	tx_id: Option<u32>,
 	parent_key_id: Option<&Identifier>,
-	limit: Option<usize>,       // Number of items to return
-	offset: Option<usize>,      // Starting index
+	limit: Option<usize>,
+	offset: Option<usize>,
 	sort_order: Option<String>, // "asc" or "desc", default is "desc"
-) -> Result<Vec<OutputCommitMapping>, Error>
+) -> Result<(usize, usize, Vec<OutputCommitMapping>), Error>
 where
 	T: WalletBackend<'a, C, K>,
 	C: NodeClient + 'a,
@@ -91,6 +91,9 @@ where
 		_ => outputs.sort_by_key(|out| std::cmp::Reverse(out.height)), // Default to "desc"
 	}
 
+	// Total number of records before pagination
+	let total_records = outputs.len();
+
 	// Apply pagination
 	let start = offset.unwrap_or(0);
 	let end = limit.map(|l| start + l).unwrap_or(outputs.len());
@@ -99,6 +102,9 @@ where
 		.skip(start)
 		.take(end - start)
 		.collect::<Vec<_>>();
+
+	// Number of records read after pagination
+	let records_read = paginated_outputs.len();
 
 	// Map outputs to OutputCommitMapping
 	let keychain = wallet.keychain(keychain_mask)?;
@@ -115,7 +121,7 @@ where
 		})
 		.collect();
 
-	Ok(res)
+	Ok((records_read, total_records, res))
 }
 
 /// Retrieve all of the transaction entries, or a particular entry

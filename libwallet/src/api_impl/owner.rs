@@ -30,8 +30,9 @@ use crate::internal::{keys, scan, selection, tx, updater};
 use crate::slate::{PaymentInfo, Slate};
 use crate::types::{AcctPathMapping, NodeClient, TxLogEntry, WalletBackend, WalletInfo};
 use crate::{
-	address, wallet_lock, InitTxArgs, IssueInvoiceTxArgs, NodeHeightResult, OutputCommitMapping,
-	PaymentProof, ScannedBlockInfo, TxLogEntryType, WalletInitStatus, WalletInst, WalletLCProvider,
+	address, wallet_lock, InitTxArgs, IssueInvoiceTxArgs, NodeHeightResult, Pager, PaymentProof,
+	RetrieveOutputsResult, ScannedBlockInfo, TxLogEntryType, WalletInitStatus, WalletInst,
+	WalletLCProvider,
 };
 
 use crate::Error;
@@ -136,7 +137,7 @@ pub fn retrieve_outputs<'a, L, C, K>(
 	limit: Option<usize>,       // Number of items to return
 	offset: Option<usize>,      // Starting index
 	sort_order: Option<String>, // "asc" or "desc", default is "desc"
-) -> Result<(bool, Vec<OutputCommitMapping>), Error>
+) -> Result<RetrieveOutputsResult, Error>
 where
 	L: WalletLCProvider<'a, C, K>,
 	C: NodeClient + 'a,
@@ -155,20 +156,31 @@ where
 	wallet_lock!(wallet_inst, w);
 	let parent_key_id = w.parent_key_id();
 
-	Ok((
-		validated,
-		updater::retrieve_outputs(
-			&mut **w,
-			keychain_mask,
-			include_spent,
-			show_full_history,
-			tx_id,
-			Some(&parent_key_id),
-			limit,
-			offset,
-			sort_order,
-		)?,
-	))
+	// Call `updater::retrieve_outputs` and unpack the new return values
+	let (records_read, total_records, outputs) = updater::retrieve_outputs(
+		&mut **w,
+		keychain_mask,
+		include_spent,
+		show_full_history,
+		tx_id,
+		Some(&parent_key_id),
+		limit,
+		offset,
+		sort_order.clone(),
+	)?;
+
+	// Return the new values along with `validated`
+	Ok(RetrieveOutputsResult {
+		refresh_from_node: validated,
+		pager: Pager {
+			records_read,
+			total_records,
+			limit: limit.unwrap_or(10),  // Default to 10 if not provided
+			offset: offset.unwrap_or(0), // Default to 0 if not provided
+			sort_order: sort_order.unwrap_or_else(|| "desc".to_string()), // Default to "desc"
+		},
+		outputs,
+	})
 }
 
 /// Retrieve txs
@@ -780,7 +792,7 @@ where
 				None,
 				None,
 			)?;
-			let height = match outputs.1.iter().map(|m| m.output.height).max() {
+			let height = match outputs.outputs.iter().map(|m| m.output.height).max() {
 				Some(height) => height,
 				None => 0,
 			};

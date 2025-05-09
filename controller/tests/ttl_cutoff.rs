@@ -118,8 +118,8 @@ fn ttl_cutoff_test_impl(test_dir: &'static str) -> Result<(), libwallet::Error> 
 		let tx = txs[0].clone();
 		let outputs = sender_api
 			.retrieve_outputs(m, false, true, false, None, None, None, None)?
-			.1;
-		assert_eq!(outputs.len(), 0);
+			.outputs;
+		assert_eq!(outputs.len(), 0); // Ensure outputs length is compared directly
 
 		assert_eq!(tx.ttl_cutoff_height, Some(12));
 		assert!(tx.tx_type == TxLogEntryType::TxReceivedCancelled);

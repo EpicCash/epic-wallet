@@ -324,7 +324,7 @@ where
 		None,
 		None,
 	)?;
-	let outputs = res.iter().map(|m| m.output.clone()).collect();
+	let outputs = res.2.iter().map(|m| m.output.clone()).collect();
 	updater::cancel_tx_and_outputs(wallet, keychain_mask, tx, outputs, parent_key_id)?;
 	Ok(())
 }

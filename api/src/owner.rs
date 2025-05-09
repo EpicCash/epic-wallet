@@ -28,8 +28,8 @@ use crate::libwallet::api_impl::owner_updater::{start_updater_log_thread, Status
 use crate::libwallet::api_impl::{owner, owner_updater};
 use crate::libwallet::{
 	address, AcctPathMapping, EpicboxAddress, Error, InitTxArgs, IssueInvoiceTxArgs, NodeClient,
-	NodeHeightResult, OutputCommitMapping, PaymentProof, Slate, TxLogEntry, WalletInfo, WalletInst,
-	WalletLCProvider,
+	NodeHeightResult, PaymentProof, RetrieveOutputsResult, Slate, TxLogEntry, WalletInfo,
+	WalletInst, WalletLCProvider,
 };
 
 use crate::util::logger::LoggingConfig;
@@ -373,29 +373,35 @@ where
 	/// * `keychain_mask` - Wallet secret mask to XOR against the stored wallet seed before using, if
 	/// being used.
 	/// * `include_spent` - If `true`, outputs that have been marked as 'spent'
-	/// in the wallet will be returned. If `false`, spent outputs will omitted
+	/// in the wallet will be returned. If `false`, spent outputs will be omitted
 	/// from the results.
 	/// * `refresh_from_node` - If true, the wallet will attempt to contact
 	/// a node (via the [`NodeClient`](../epic_wallet_libwallet/types/trait.NodeClient.html)
 	/// provided during wallet instantiation). If `false`, the results will
 	/// contain output information that may be out-of-date (from the last time
 	/// the wallet's output set was refreshed against the node).
-	/// Note this setting is ignored if the updater process is running via a call to
-	/// [`start_updater`](struct.Owner.html#method.start_updater)
+	/// * `show_full_history` - If `true`, all outputs will be returned, including those
+	/// that are no longer spendable (e.g., spent or locked outputs).
 	/// * `tx_id` - If `Some(i)`, only return the outputs associated with
 	/// the transaction log entry of id `i`.
+	/// * `limit` - Maximum number of outputs to return. If `None`, return all.
+	/// * `offset` - Starting index for outputs. Defaults to `0` if `None`.
+	/// * `sort_order` - Sort order for outputs, either `"asc"` or `"desc"`. Defaults to `"desc"`.
 	///
 	/// # Returns
-	/// * `(bool, Vec<OutputCommitMapping>)` - A tuple:
-	/// * The first `bool` element indicates whether the data was successfully
-	/// refreshed from the node (note this may be false even if the `refresh_from_node`
-	/// argument was set to `true`.
-	/// * The second element contains a vector of
-	/// [OutputCommitMapping](../epic_wallet_libwallet/types/struct.OutputCommitMapping.html)
-	/// of which each element is a mapping between the wallet's internal
-	/// [OutputData](../epic_wallet_libwallet/types/struct.Output.html)
-	/// and the Output commitment as identified in the chain's UTXO set
-	///
+	/// A `RetrieveOutputsResult` struct containing:
+	/// - `refresh_from_node`: A boolean indicating whether the data was successfully refreshed from the node.
+	/// - `pager`: A `Pager` struct containing pagination metadata:
+	///   - `records_read`: The number of records returned after pagination.
+	///   - `total_records`: The total number of records available before pagination.
+	///   - `limit`: The limit used for pagination.
+	///   - `offset`: The offset used for pagination.
+	///   - `sort_order`: The sort order used for pagination.
+	/// - `outputs`: A vector of [`OutputCommitMapping`](../epic_wallet_libwallet/types/struct.OutputCommitMapping.html)
+	///   objects, where each element is a mapping between the wallet's internal
+	///   [`OutputData`](../epic_wallet_libwallet/types/struct.Output.html)
+	///   and the output commitment as identified in the chain's UTXO set.
+
 	/// # Example
 	/// Set up as in [`new`](struct.Owner.html#method.new) method above.
 	/// ```
@@ -406,10 +412,28 @@ where
 	/// let update_from_node = true;
 	/// let tx_id = None;
 	///
-	/// let result = api_owner.retrieve_outputs(None, show_spent, update_from_node, false, tx_id);
+	/// let result = api_owner.retrieve_outputs(
+	///     None,           // keychain_mask
+	///     show_spent,     // include_spent
+	///     update_from_node, // refresh_from_node
+	///     false,          // show_full_history
+	///     tx_id,          // tx_id
+	///     Some(10),       // limit
+	///     Some(0),        // offset
+	///     Some("desc".to_string()), // sort_order
+	/// );
 	///
-	/// if let Ok((was_updated, output_mappings)) = result {
-	///		//...
+	/// if let Ok(outputs_result) = result {
+	///     println!("Was updated: {}", outputs_result.refresh_from_node);
+	///     println!("Records read: {}", outputs_result.pager.records_read);
+	///     println!("Total records: {}", outputs_result.pager.total_records);
+	///     println!("Limit: {}", outputs_result.pager.limit);
+	///     println!("Offset: {}", outputs_result.pager.offset);
+	///     println!("Sort order: {}", outputs_result.pager.sort_order);
+	///
+	///     for output in outputs_result.outputs {
+	///         println!("{:?}", output);
+	///     }
 	/// }
 	/// ```
 
@@ -423,7 +447,7 @@ where
 		limit: Option<usize>,
 		offset: Option<usize>,
 		sort_order: Option<String>,
-	) -> Result<(bool, Vec<OutputCommitMapping>), Error> {
+	) -> Result<RetrieveOutputsResult, Error> {
 		let tx = {
 			let t = self.status_tx.lock();
 			t.clone()
@@ -1187,7 +1211,7 @@ where
 	/// 	num_change_outputs: 1,
 	/// 	selection_strategy_is_use_all: false,
 	/// 	message: Some("Just verify messages".to_owned()),
-	/// 	..Default::default()
+	/// 		..Default::default()
 	/// };
 	/// let result = api_owner.init_send_tx(
 	/// 	None,

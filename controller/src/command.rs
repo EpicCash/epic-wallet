@@ -756,7 +756,7 @@ where
 {
 	controller::owner_single_use(wallet.clone(), keychain_mask, |api, m| {
 		let res = api.node_height(m)?;
-		let (validated, outputs) = api.retrieve_outputs(
+		let outputs = api.retrieve_outputs(
 			m,
 			g_args.show_spent,
 			true,
@@ -766,7 +766,15 @@ where
 			args.offset,
 			args.sort_order,
 		)?;
-		display::outputs(&g_args.account, res.height, validated, outputs, dark_scheme)?;
+		display::outputs(
+			&g_args.account,
+			res.height,
+			outputs.refresh_from_node,
+			outputs.pager.records_read,
+			outputs.pager.total_records,
+			outputs.outputs,
+			dark_scheme,
+		)?;
 		Ok(())
 	})?;
 	Ok(())
@@ -830,8 +838,16 @@ where
 		};
 
 		if id.is_some() {
-			let (_, outputs) = api.retrieve_outputs(m, true, false, false, id, None, None, None)?;
-			display::outputs(&g_args.account, res.height, validated, outputs, dark_scheme)?;
+			let outputs = api.retrieve_outputs(m, true, false, false, id, None, None, None)?;
+			display::outputs(
+				&g_args.account,
+				res.height,
+				outputs.refresh_from_node,
+				outputs.pager.records_read,
+				outputs.pager.total_records,
+				outputs.outputs,
+				dark_scheme,
+			)?;
 			// should only be one here, but just in case
 			for tx in txs {
 				display::tx_messages(&tx, dark_scheme)?;

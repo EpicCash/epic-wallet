@@ -393,7 +393,7 @@ where
 
 	// check all definitive outputs exist in the wallet outputs
 	for deffo in chain_outs.into_iter() {
-		let matched_out = wallet_outputs.iter().find(|wo| wo.commit == deffo.commit);
+		let matched_out = wallet_outputs.2.iter().find(|wo| wo.commit == deffo.commit);
 		match matched_out {
 			Some(s) => {
 				if s.output.status == OutputStatus::Spent {
@@ -469,6 +469,7 @@ where
 		}
 
 		let unconfirmed_outs: Vec<&OutputCommitMapping> = wallet_outputs
+			.2
 			.iter()
 			.filter(|o| o.output.status == OutputStatus::Unconfirmed)
 			.collect();

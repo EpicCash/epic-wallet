@@ -22,7 +22,7 @@ use crate::keychain::{Identifier, Keychain};
 use crate::libwallet::slate_versions::v3::TransactionV3;
 use crate::libwallet::{
 	AcctPathMapping, EpicboxAddress, Error, InitTxArgs, IssueInvoiceTxArgs, NodeClient,
-	NodeHeightResult, OutputCommitMapping, PaymentProof, Slate, SlateVersion, StatusMessage,
+	NodeHeightResult, PaymentProof, RetrieveOutputsResult, Slate, SlateVersion, StatusMessage,
 	TxLogEntry, VersionedSlate, WalletInfo, WalletLCProvider,
 };
 use crate::util::logger::LoggingConfig;
@@ -146,6 +146,34 @@ pub trait OwnerRpcS {
 	/**
 	Networked version of [Owner::retrieve_outputs](struct.Owner.html#method.retrieve_outputs).
 
+	# Breaking Changes
+	- **Next Version**:
+	  - Added three new parameters: `limit`, `offset`, and `sort_order`.
+	  - These parameters must be explicitly provided in the JSON request as a value or `null`. If they are missing, the JSON-RPC request will return an error.
+	  - Updated the return type to use the `RetrieveOutputsResult` struct, which includes pagination metadata and outputs.
+
+	# Parameters
+	- `token`: The authentication token for the secure API.
+	- `include_spent`: Whether to include spent outputs in the results.
+	- `refresh_from_node`: Whether to refresh outputs from the node. If `true`, the wallet will attempt to contact the node to get the latest output data. If `false`, the results may be outdated.
+	- `tx_id`: Optional transaction ID to filter outputs. If `Some(id)`, only outputs associated with the transaction log entry of ID `id` will be returned.
+	- `limit`: The maximum number of outputs to retrieve. This parameter must be explicitly provided as a value or `null`. If `null`, a default value of `10` will be used.
+	- `offset`: The starting index for pagination. This parameter must be explicitly provided as a value or `null`. If `null`, a default value of `0` will be used.
+	- `sort_order`: The order in which outputs are sorted. This parameter must be explicitly provided as a value or `null`. If `null`, the default value `"desc"` will be used. Accepted values are:
+	  - `"asc"`: Sort outputs in ascending order.
+	  - `"desc"`: Sort outputs in descending order.
+
+	# Returns
+	A `RetrieveOutputsResult` struct containing:
+	- `refresh_from_node`: A boolean indicating whether the data was successfully refreshed from the node.
+	- `pager`: A `Pager` struct containing pagination metadata:
+	  - `records_read`: The number of records returned after pagination.
+	  - `total_records`: The total number of records available before pagination.
+	  - `limit`: The limit used for pagination.
+	  - `offset`: The offset used for pagination.
+	  - `sort_order`: The sort order used for pagination.
+	- `outputs`: A vector of `OutputCommitMapping` objects, where each element is a mapping between the wallet's internal `OutputData` and the output commitment as identified in the chain's UTXO set.
+
 	# Json rpc example
 
 	```
@@ -174,6 +202,8 @@ pub trait OwnerRpcS {
 		"result": {
 			"Ok": [
 				true,
+				2,
+				2,
 				[
 					{
 						"commit": "089be87c488db1e7c783b19272a83b23bce56a5263163554b345c6f7ffedac517e",
@@ -224,7 +254,7 @@ pub trait OwnerRpcS {
 		limit: Option<usize>,
 		offset: Option<usize>,
 		sort_order: Option<String>,
-	) -> Result<(bool, Vec<OutputCommitMapping>), Error>;
+	) -> Result<RetrieveOutputsResult, Error>;
 
 	/**
 	Networked version of [Owner::retrieve_txs](struct.Owner.html#method.retrieve_txs).
@@ -233,6 +263,8 @@ pub trait OwnerRpcS {
 	- **Next Version**:
 	  - Added three new parameters: `limit`, `offset`, and `sort_order`.
 	  - These parameters must be explicitly provided in the JSON request as a value or `null`. If they are missing, the JSON-RPC request will return an error.
+	  - Added two new return values: `records_read` and `total_records`.
+	  - These values provide pagination metadata for the outputs.
 
 	# Parameters
 	- `token`: The authentication token for the secure API.
@@ -2208,7 +2240,7 @@ where
 		limit: Option<usize>,
 		offset: Option<usize>,
 		sort_order: Option<String>,
-	) -> Result<(bool, Vec<OutputCommitMapping>), Error> {
+	) -> Result<RetrieveOutputsResult, Error> {
 		Owner::retrieve_outputs(
 			self,
 			(&token.keychain_mask).as_ref(),

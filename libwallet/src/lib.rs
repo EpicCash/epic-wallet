@@ -64,7 +64,7 @@ pub use crate::tx_proof::TxProof;
 pub use api_impl::owner_updater::StatusMessage;
 pub use api_impl::types::{
 	BlockFees, InitTxArgs, InitTxSendArgs, IssueInvoiceTxArgs, NodeHeightResult,
-	OutputCommitMapping, PaymentProof, SendTXArgs, VersionInfo,
+	OutputCommitMapping, Pager, PaymentProof, RetrieveOutputsResult, SendTXArgs, VersionInfo,
 };
 pub use epicbox_address::{
 	version_bytes, Address, AddressType, EpicboxAddress, DEFAULT_EPICBOX_PORT_443,

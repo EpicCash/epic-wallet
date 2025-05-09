@@ -27,6 +27,8 @@ pub fn outputs(
 	account: &str,
 	cur_height: u64,
 	validated: bool,
+	records_read: usize,  // Number of records returned after pagination
+	total_records: usize, // Total number of records available before pagination
 	outputs: Vec<OutputCommitMapping>,
 	dark_background_color_scheme: bool,
 ) -> Result<(), Error> {
@@ -43,6 +45,9 @@ pub fn outputs(
 	t.fg(term::color::MAGENTA).unwrap();
 	writeln!(t, "{}", title).unwrap();
 	t.reset().unwrap();
+
+	// Display pagination metadata
+	println!("Displaying {} of {} outputs", records_read, total_records);
 
 	let mut table = table!();
 
@@ -115,8 +120,8 @@ pub fn outputs(
 	if !validated {
 		println!(
 			"\nWARNING: Wallet failed to verify data. \
-			 The above is from local cache and possibly invalid! \
-			 (is your `epic server` offline or broken?)"
+             The above is from local cache and possibly invalid! \
+             (is your `epic server` offline or broken?)"
 		);
 	}
 	Ok(())
