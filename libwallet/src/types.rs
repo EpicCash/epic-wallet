@@ -786,11 +786,11 @@ pub enum TxLogEntryType {
 impl fmt::Display for TxLogEntryType {
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 		match *self {
-			TxLogEntryType::ConfirmedCoinbase => write!(f, "Confirmed \nCoinbase"),
-			TxLogEntryType::TxReceived => write!(f, "Received Tx"),
-			TxLogEntryType::TxSent => write!(f, "Sent Tx"),
-			TxLogEntryType::TxReceivedCancelled => write!(f, "Received Tx\n- Cancelled"),
-			TxLogEntryType::TxSentCancelled => write!(f, "Sent Tx\n- Cancelled"),
+			TxLogEntryType::ConfirmedCoinbase => write!(f, "Coinbase Confirmed"),
+			TxLogEntryType::TxReceived => write!(f, "Received"),
+			TxLogEntryType::TxSent => write!(f, "Sent"),
+			TxLogEntryType::TxReceivedCancelled => write!(f, "Received (Cancelled)"),
+			TxLogEntryType::TxSentCancelled => write!(f, "Sent (Cancelled)"),
 		}
 	}
 }

@@ -815,20 +815,8 @@ where
 			args.offset,
 			args.sort_order,
 		)?;
-		let include_status = !args.id.is_some() && !args.tx_slate_id.is_some();
-		display::txs(
-			&g_args.account,
-			res.height,
-			txs_result.refresh_from_node,
-			&txs_result.txs,
-			include_status,
-			dark_scheme,
-			txs_result.pager.records_read,
-			txs_result.pager.total_records,
-			txs_result.pager.limit,
-			txs_result.pager.offset,
-			txs_result.pager.sort_order.clone(),
-		)?;
+
+		let display_details = args.id.is_some() || args.tx_slate_id.is_some();
 
 		// if given a particular transaction id or uuid, also get and display associated
 		// inputs/outputs and messages
@@ -849,9 +837,23 @@ where
 			None
 		};
 
-		if id.is_some() {
+		if id.is_some() && display_details {
 			let outputs_result =
-				api.retrieve_outputs(m, true, false, false, id, None, None, None)?;
+				api.retrieve_outputs(m, true, true, false, id, None, None, None)?;
+
+			display::txs(
+				&g_args.account,
+				res.height,
+				txs_result.refresh_from_node,
+				&txs_result.txs,
+				display_details,
+				txs_result.pager.records_read,
+				txs_result.pager.total_records,
+				txs_result.pager.limit,
+				txs_result.pager.offset,
+				txs_result.pager.sort_order.clone(),
+			)?;
+
 			display::outputs(
 				&g_args.account,
 				res.height,
@@ -867,8 +869,23 @@ where
 			// should only be one here, but just in case
 			for tx in txs_result.txs {
 				display::tx_messages(&tx, dark_scheme)?;
+
 				display::payment_proof(&tx)?;
+				println!();
 			}
+		} else {
+			display::txs(
+				&g_args.account,
+				res.height,
+				txs_result.refresh_from_node,
+				&txs_result.txs,
+				display_details,
+				txs_result.pager.records_read,
+				txs_result.pager.total_records,
+				txs_result.pager.limit,
+				txs_result.pager.offset,
+				txs_result.pager.sort_order.clone(),
+			)?;
 		}
 
 		Ok(())

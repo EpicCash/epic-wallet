@@ -140,8 +140,8 @@ pub fn txs(
 	cur_height: u64,
 	validated: bool,
 	txs: &[TxLogEntry],
-	include_status: bool,
-	dark_background_color_scheme: bool,
+	display_details: bool,
+
 	records_read: usize,  // Number of records returned after pagination
 	total_records: usize, // Total number of records available before pagination
 	limit: usize,         // Limit used for pagination
@@ -167,27 +167,31 @@ pub fn txs(
 		"Displaying {} of {} transactions (Limit: {}, Offset: {}, Sort Order: {})",
 		records_read, total_records, limit, offset, sort_order
 	);
-
+	println!();
+	let mut details_table = table!();
 	let mut table = table!();
 
 	table.set_titles(row![
 		bMG->"Id",
 		bMG->"Type",
-		bMG->"Shared Transaction Id",
-		bMG->"Creation Time",
+		bMG->"Shared Tx Id",
 		bMG->"From/To Address",
-		bMG->"TTL Cutoff Height",
+		bMG->"Creation Time",
 		bMG->"Confirmed?",
 		bMG->"Confirmation Time",
-		bMG->"Num. \nInputs",
-		bMG->"Num. \nOutputs",
-		bMG->"Amount \nCredited",
-		bMG->"Amount \nDebited",
+		bMG->"Amount Credited",
+		bMG->"Amount Debited",
 		bMG->"Fee",
-		bMG->"Net \nDifference",
-		bMG->"Payment \nProof",
+		bMG->"Net Difference",
+	]);
+
+	details_table.set_titles(row![
+		bMG->"Num. Inputs",
+		bMG->"Num. Outputs",
+		bMG->"TTL Cutoff Height",
+		bMG->"Payment Proof",
 		bMG->"Kernel",
-		bMG->"Tx \nData",
+		bMG->"Tx Data"
 	]);
 
 	for t in txs {
@@ -198,17 +202,13 @@ pub fn txs(
 		};
 		let entry_type = format!("{}", t.tx_type);
 		let creation_ts = format!("{}", t.creation_ts.format("%Y-%m-%d %H:%M:%S"));
-		let ttl_cutoff_height = match t.ttl_cutoff_height {
-			Some(b) => format!("{}", b),
-			None => "None".to_owned(),
-		};
+
 		let confirmation_ts = match t.confirmation_ts {
 			Some(m) => format!("{}", m.format("%Y-%m-%d %H:%M:%S")),
 			None => "None".to_owned(),
 		};
 		let confirmed = format!("{}", t.confirmed);
-		let num_inputs = format!("{}", t.num_inputs);
-		let num_outputs = format!("{}", t.num_outputs);
+
 		let amount_debited_str = core::amount_to_hr_string(t.amount_debited, true);
 		let amount_credited_str = core::amount_to_hr_string(t.amount_credited, true);
 		let fee = match t.fee {
@@ -223,98 +223,77 @@ pub fn txs(
 				core::amount_to_hr_string(t.amount_debited - t.amount_credited, true)
 			)
 		};
-		let tx_data = match t.stored_tx {
-			Some(_) => "Yes".to_owned(),
-			None => "None".to_owned(),
-		};
-		let kernel_excess = match t.kernel_excess {
-			Some(e) => util::to_hex(e.0.to_vec()),
-			None => "None".to_owned(),
-		};
-		let payment_proof = match t.payment_proof {
-			Some(_) => "Yes".to_owned(),
-			None => "None".to_owned(),
-		};
 
+		// Add a subrow for the From/To Address
 		let public_addr = match t.public_addr.clone() {
 			Some(addr) => addr,
 			None => "None".to_owned(),
 		};
 
-		if dark_background_color_scheme {
-			table.add_row(row![
-				bFC->id,
-				bFC->entry_type,
-				bFC->slate_id,
-				bFB->creation_ts,
-				bFB->public_addr,
-				bFB->ttl_cutoff_height,
-				bFC->confirmed,
-				bFB->confirmation_ts,
-				bFC->num_inputs,
-				bFC->num_outputs,
-				bFG->amount_credited_str,
-				bFR->amount_debited_str,
-				bFR->fee,
-				bFY->net_diff,
-				bfG->payment_proof,
-				bFB->kernel_excess,
-				bFb->tx_data,
-			]);
-		} else {
-			if t.confirmed {
-				table.add_row(row![
-					bFD->id,
-					bFb->entry_type,
-					bFD->slate_id,
-					bFB->creation_ts,
-					bFB->public_addr,
-					bFg->confirmed,
-					bFB->confirmation_ts,
-					bFD->num_inputs,
-					bFD->num_outputs,
-					bFG->amount_credited_str,
-					bFD->amount_debited_str,
-					bFD->fee,
-					bFG->net_diff,
-					bfG->payment_proof,
-					bFB->kernel_excess,
-					bFB->tx_data,
-				]);
-			} else {
-				table.add_row(row![
-					bFD->id,
-					bFb->entry_type,
-					bFD->slate_id,
-					bFB->creation_ts,
-					bFB->public_addr,
-					bFR->confirmed,
-					bFB->confirmation_ts,
-					bFD->num_inputs,
-					bFD->num_outputs,
-					bFG->amount_credited_str,
-					bFD->amount_debited_str,
-					bFD->fee,
-					bFG->net_diff,
-					bfG->payment_proof,
-					bFB->kernel_excess,
-					bFB->tx_data,
-				]);
-			}
-		}
+		// Add the main row
+		table.add_row(row![
+			bFC->id,
+			bFC->entry_type,
+			bFC->slate_id,
+			bFC->public_addr,
+			bFB->creation_ts,
+			bFC->confirmed,
+			bFB->confirmation_ts,
+			bFG->amount_credited_str,
+			bFR->amount_debited_str,
+			bFR->fee,
+			bFY->net_diff,
+		]);
+
+		let num_inputs = format!("{}", t.num_inputs);
+		let num_outputs = format!("{}", t.num_outputs);
+		let ttl_cutoff_height = match t.ttl_cutoff_height {
+			Some(b) => format!("{}", b),
+			None => "None".to_owned(),
+		};
+
+		let payment_proof = match t.payment_proof {
+			Some(_) => "Yes".to_owned(),
+			None => "None".to_owned(),
+		};
+
+		let kernel_excess = match t.kernel_excess {
+			Some(e) => util::to_hex(e.0.to_vec()),
+			None => "None".to_owned(),
+		};
+
+		let tx_data = match t.stored_tx {
+			Some(_) => "Yes".to_owned(),
+			None => "None".to_owned(),
+		};
+
+		details_table.add_row(row![
+			bFC->num_inputs,
+			bFC->num_outputs,
+			bFB->ttl_cutoff_height,
+			bFB->payment_proof,
+			bFB->kernel_excess,
+			bFB->tx_data,
+		]);
 	}
 
 	table.set_format(*prettytable::format::consts::FORMAT_NO_COLSEP);
 	table.printstd();
 	println!();
+	if display_details {
+		details_table.set_format(*prettytable::format::consts::FORMAT_NO_COLSEP);
+		details_table.printstd();
+		println!();
+	}
 
-	if !validated && include_status {
+	if !validated {
 		println!(
 			"\nWARNING: Wallet failed to verify data. \
-			 The above is from local cache and possibly invalid! \
-			 (is your `epic server` offline or broken?)"
+             The above is from local cache and possibly invalid! \
+             (is your `epic server` offline or broken?)"
 		);
 	}
+
 	Ok(())
 }
 
