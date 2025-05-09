@@ -45,7 +45,7 @@ pub fn retrieve_outputs<'a, T: ?Sized, C, K>(
 	parent_key_id: Option<&Identifier>,
 	limit: Option<usize>,
 	offset: Option<usize>,
-	sort_order: Option<String>, // "asc" or "desc", default is "desc"
+	sort_order: Option<String>, // "asc" or "desc", default is "asc"
 ) -> Result<(usize, usize, Vec<OutputCommitMapping>), Error>
 where
 	T: WalletBackend<'a, C, K>,
@@ -85,10 +85,10 @@ where
 	}
 
 	// Sort outputs by block height
-	match sort_order.unwrap_or_else(|| "desc".to_string()).as_str() {
+	match sort_order.unwrap_or_else(|| "asc".to_string()).as_str() {
 		"asc" => outputs.sort_by_key(|out| out.height),
 		"desc" => outputs.sort_by_key(|out| std::cmp::Reverse(out.height)),
-		_ => outputs.sort_by_key(|out| std::cmp::Reverse(out.height)), // Default to "desc"
+		_ => outputs.sort_by_key(|out| std::cmp::Reverse(out.height)), // Default to "asc"
 	}
 
 	// Total number of records before pagination
@@ -134,7 +134,7 @@ pub fn retrieve_txs<'a, T: ?Sized, C, K>(
 	outstanding_only: bool,
 	limit: Option<usize>,       // Number of items to return
 	offset: Option<usize>,      // Starting index
-	sort_order: Option<String>, // "asc" or "desc", default is "desc"
+	sort_order: Option<String>, // "asc" or "desc", default is "asc"
 ) -> Result<(usize, usize, Vec<TxLogEntry>), Error>
 where
 	T: WalletBackend<'a, C, K>,
@@ -169,10 +169,10 @@ where
 		.collect();
 
 	// Sort transactions by creation timestamp
-	match sort_order.unwrap_or_else(|| "desc".to_string()).as_str() {
+	match sort_order.unwrap_or_else(|| "asc".to_string()).as_str() {
 		"asc" => txs.sort_by_key(|tx| tx.creation_ts),
 		"desc" => txs.sort_by_key(|tx| std::cmp::Reverse(tx.creation_ts)),
-		_ => txs.sort_by_key(|tx| std::cmp::Reverse(tx.creation_ts)), // Default to "desc"
+		_ => txs.sort_by_key(|tx| std::cmp::Reverse(tx.creation_ts)), // Default to "asc"
 	}
 
 	// Total number of records before pagination

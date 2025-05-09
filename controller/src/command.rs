@@ -739,7 +739,7 @@ pub struct OutputsArgs {
 	pub show_full_history: bool,
 	pub limit: Option<usize>,       // Number of items to return
 	pub offset: Option<usize>,      // Starting index
-	pub sort_order: Option<String>, // "asc" or "desc", default is "desc"
+	pub sort_order: Option<String>, // "asc" or "desc", default is "asc"
 }
 
 pub fn outputs<L, C, K>(
@@ -789,7 +789,7 @@ pub struct TxsArgs {
 	pub tx_slate_id: Option<Uuid>,
 	pub limit: Option<usize>,       // Number of items to return
 	pub offset: Option<usize>,      // Starting index
-	pub sort_order: Option<String>, // "asc" or "desc", default is "desc"
+	pub sort_order: Option<String>, // "asc" or "desc", default is "asc"
 }
 
 pub fn txs<L, C, K>(

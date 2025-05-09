@@ -145,7 +145,7 @@ pub trait OwnerRpc: Sync + Send {
 	- `tx_id`: Optional transaction ID to filter outputs. If `Some(id)`, only outputs associated with the transaction log entry of ID `id` will be returned.
 	- `limit`: The maximum number of outputs to retrieve. This parameter must be explicitly provided as a value or `null`. If `null`, a default value of `10` will be used.
 	- `offset`: The starting index for pagination. This parameter must be explicitly provided as a value or `null`. If `null`, a default value of `0` will be used.
-	- `sort_order`: The order in which outputs are sorted. This parameter must be explicitly provided as a value or `null`. If `null`, the default value `"desc"` will be used. Accepted values are:
+	- `sort_order`: The order in which outputs are sorted. This parameter must be explicitly provided as a value or `null`. If `null`, the default value `"asc"` will be used. Accepted values are:
 	  - `"asc"`: Sort outputs in ascending order.
 	  - `"desc"`: Sort outputs in descending order.
 
@@ -248,7 +248,7 @@ pub trait OwnerRpc: Sync + Send {
 	- `tx_slate_id`: Optional slate ID to filter transactions. If `Some(uuid)`, only the transaction log entry associated with the slate ID `uuid` will be returned.
 	- `limit`: The maximum number of transactions to retrieve. This parameter must be explicitly provided as a value or `null`. If `null`, a default value of `10` will be used.
 	- `offset`: The starting index for pagination. This parameter must be explicitly provided as a value or `null`. If `null`, a default value of `0` will be used.
-	- `sort_order`: The order in which transactions are sorted. This parameter must be explicitly provided as a value or `null`. If `null`, the default value `"desc"` will be used. Accepted values are:
+	- `sort_order`: The order in which transactions are sorted. This parameter must be explicitly provided as a value or `null`. If `null`, the default value `"asc"` will be used. Accepted values are:
 	  - `"asc"`: Sort transactions in ascending order.
 	  - `"desc"`: Sort transactions in descending order.
 
@@ -352,7 +352,7 @@ pub trait OwnerRpc: Sync + Send {
 		tx_slate_id: Option<Uuid>,
 		limit: Option<usize>,       // Number of items to return
 		offset: Option<usize>,      // Starting index
-		sort_order: Option<String>, // "asc" or "desc", default is "desc"
+		sort_order: Option<String>, // "asc" or "desc", default is "asc"
 	) -> Result<RetrieveTxsResult, Error>;
 
 	/**

@@ -136,7 +136,7 @@ pub fn retrieve_outputs<'a, L, C, K>(
 	tx_id: Option<u32>,
 	limit: Option<usize>,       // Number of items to return
 	offset: Option<usize>,      // Starting index
-	sort_order: Option<String>, // "asc" or "desc", default is "desc"
+	sort_order: Option<String>, // "asc" or "desc", default is "asc"
 ) -> Result<RetrieveOutputsResult, Error>
 where
 	L: WalletLCProvider<'a, C, K>,
@@ -175,9 +175,9 @@ where
 		pager: Pager {
 			records_read,
 			total_records,
-			limit: limit.unwrap_or(10),  // Default to 10 if not provided
+			limit: limit.unwrap_or(0),   // Default to 0 if not provided
 			offset: offset.unwrap_or(0), // Default to 0 if not provided
-			sort_order: sort_order.unwrap_or_else(|| "desc".to_string()), // Default to "desc"
+			sort_order: sort_order.unwrap_or_else(|| "asc".to_string()), // Default to "asc"
 		},
 		outputs,
 	})
@@ -193,7 +193,7 @@ pub fn retrieve_txs<'a, L, C, K>(
 	tx_slate_id: Option<Uuid>,
 	limit: Option<usize>,       // Number of items to return
 	offset: Option<usize>,      // Starting index
-	sort_order: Option<String>, // "asc" or "desc", default is "desc"
+	sort_order: Option<String>, // "asc" or "desc", default is "asc"
 ) -> Result<RetrieveTxsResult, Error>
 where
 	L: WalletLCProvider<'a, C, K>,
@@ -231,9 +231,9 @@ where
 		pager: Pager {
 			records_read,
 			total_records,
-			limit: limit.unwrap_or(10),  // Default to 10 if not provided
+			limit: limit.unwrap_or(0),   // Default to 0 if not provided
 			offset: offset.unwrap_or(0), // Default to 0 if not provided
-			sort_order: sort_order.unwrap_or_else(|| "desc".to_string()), // Default to "desc"
+			sort_order: sort_order.unwrap_or_else(|| "asc".to_string()), // Default to "asc"
 		},
 		txs,
 	})

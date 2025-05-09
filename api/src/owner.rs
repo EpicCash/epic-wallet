@@ -386,7 +386,7 @@ where
 	/// the transaction log entry of id `i`.
 	/// * `limit` - Maximum number of outputs to return. If `None`, return all.
 	/// * `offset` - Starting index for outputs. Defaults to `0` if `None`.
-	/// * `sort_order` - Sort order for outputs, either `"asc"` or `"desc"`. Defaults to `"desc"`.
+	/// * `sort_order` - Sort order for outputs, either `"asc"` or `"desc"`. Defaults to `"asc"`.
 	///
 	/// # Returns
 	/// A `RetrieveOutputsResult` struct containing:
@@ -485,7 +485,7 @@ where
 	/// the given [`Slate`](../epic_wallet_libwallet/slate/struct.Slate.html) uuid.
 	/// * `limit` - Maximum number of transactions to return. If `None`, return all.
 	/// * `offset` - Starting index for transactions. Defaults to `0` if `None`.
-	/// * `sort_order` - Sort order for transactions, either `"asc"` or `"desc"`. Defaults to `"desc"`.
+	/// * `sort_order` - Sort order for transactions, either `"asc"` or `"desc"`. Defaults to `"asc"`.
 	///
 	/// # Returns
 	/// A `RetrieveTxsResult` struct containing:
@@ -516,7 +516,7 @@ where
 	///     tx_slate_id,    // tx_slate_id
 	///     Some(10),       // limit
 	///     Some(0),        // offset
-	///     Some("desc".to_string()), // sort_order
+	///     Some("asc".to_string()), // sort_order
 	/// );
 	///
 	/// if let Ok(txs_result) = result {
