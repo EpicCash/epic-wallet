@@ -95,9 +95,9 @@ fn no_change_test_impl(test_dir: &'static str) -> Result<(), libwallet::Error> {
 
 	// Refresh and check transaction log for wallet 1
 	wallet::controller::owner_single_use(wallet1.clone(), mask2, |api, m| {
-		let (refreshed, txs) = api.retrieve_txs(m, true, None, Some(slate.id), None, None, None)?;
-		assert!(refreshed);
-		let tx = txs[0].clone();
+		let txs = api.retrieve_txs(m, true, None, Some(slate.id), None, None, None)?;
+		assert!(txs.refresh_from_node);
+		let tx = txs.txs[0].clone();
 		println!("{:?}", tx);
 		assert!(tx.confirmed);
 		Ok(())
@@ -143,9 +143,9 @@ fn no_change_test_impl(test_dir: &'static str) -> Result<(), libwallet::Error> {
 
 	// Refresh and check transaction log for wallet 1
 	wallet::controller::owner_single_use(wallet1.clone(), mask2, |api, m| {
-		let (refreshed, txs) = api.retrieve_txs(m, true, None, Some(slate.id), None, None, None)?;
-		assert!(refreshed);
-		for tx in txs {
+		let txs = api.retrieve_txs(m, true, None, Some(slate.id), None, None, None)?;
+		assert!(txs.refresh_from_node);
+		for tx in txs.txs {
 			println!("{:?}", tx);
 			assert!(tx.confirmed);
 		}

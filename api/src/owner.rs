@@ -28,8 +28,8 @@ use crate::libwallet::api_impl::owner_updater::{start_updater_log_thread, Status
 use crate::libwallet::api_impl::{owner, owner_updater};
 use crate::libwallet::{
 	address, AcctPathMapping, EpicboxAddress, Error, InitTxArgs, IssueInvoiceTxArgs, NodeClient,
-	NodeHeightResult, PaymentProof, RetrieveOutputsResult, Slate, TxLogEntry, WalletInfo,
-	WalletInst, WalletLCProvider,
+	NodeHeightResult, PaymentProof, RetrieveOutputsResult, RetrieveTxsResult, Slate, TxLogEntry,
+	WalletInfo, WalletInst, WalletLCProvider,
 };
 
 use crate::util::logger::LoggingConfig;
@@ -470,8 +470,7 @@ where
 		)
 	}
 
-	/// Returns a list of [Transaction Log Entries](../epic_wallet_libwallet/types/struct.TxLogEntry.html)
-	/// from the active account in the wallet.
+	/// Returns a list of transaction log entries from the active account in the wallet.
 	///
 	/// # Arguments
 	/// * `keychain_mask` - Wallet secret mask to XOR against the stored wallet seed before using, if
@@ -481,10 +480,7 @@ where
 	/// provided during wallet instantiation). If `false`, the results will
 	/// contain transaction information that may be out-of-date (from the last time
 	/// the wallet's output set was refreshed against the node).
-	/// Note this setting is ignored if the updater process is running via a call to
-	/// [`start_updater`](struct.Owner.html#method.start_updater)
-	/// * `tx_id` - If `Some(i)`, only return the transactions associated with
-	/// the transaction log entry of id `i`.
+	/// * `tx_id` - If `Some(i)`, only return the transaction log entry of id `i`.
 	/// * `tx_slate_id` - If `Some(uuid)`, only return transactions associated with
 	/// the given [`Slate`](../epic_wallet_libwallet/slate/struct.Slate.html) uuid.
 	/// * `limit` - Maximum number of transactions to return. If `None`, return all.
@@ -492,12 +488,51 @@ where
 	/// * `sort_order` - Sort order for transactions, either `"asc"` or `"desc"`. Defaults to `"desc"`.
 	///
 	/// # Returns
-	/// * `(bool, Vec<TxLogEntry)` - A tuple:
-	/// * The first `bool` element indicates whether the data was successfully
-	/// refreshed from the node (note this may be false even if the `refresh_from_node`
-	/// argument was set to `true`.
-	/// * The second element contains the set of retrieved
-	/// [TxLogEntries](../epic_wallet_libwallet/types/struct.TxLogEntry.html)
+	/// A `RetrieveTxsResult` struct containing:
+	/// - `refresh_from_node`: A boolean indicating whether the data was successfully refreshed from the node.
+	/// - `pager`: A `Pager` struct containing pagination metadata:
+	///   - `records_read`: The number of records returned after pagination.
+	///   - `total_records`: The total number of records available before pagination.
+	///   - `limit`: The limit used for pagination.
+	///   - `offset`: The offset used for pagination.
+	///   - `sort_order`: The sort order used for pagination.
+	/// - `txs`: A vector of [`TxLogEntry`](../epic_wallet_libwallet/types/struct.TxLogEntry.html)
+	///   objects, where each element represents a transaction log entry.
+	///
+	/// # Example
+	/// Set up as in [`new`](struct.Owner.html#method.new) method above.
+	/// ```
+	/// # epic_wallet_api::doctest_helper_setup_doc_env!(wallet, wallet_config);
+	///
+	/// let api_owner = Owner::new(wallet.clone(), None);
+	/// let update_from_node = true;
+	/// let tx_id = None;
+	/// let tx_slate_id = None;
+	///
+	/// let result = api_owner.retrieve_txs(
+	///     None,           // keychain_mask
+	///     update_from_node, // refresh_from_node
+	///     tx_id,          // tx_id
+	///     tx_slate_id,    // tx_slate_id
+	///     Some(10),       // limit
+	///     Some(0),        // offset
+	///     Some("desc".to_string()), // sort_order
+	/// );
+	///
+	/// if let Ok(txs_result) = result {
+	///     println!("Was updated: {}", txs_result.refresh_from_node);
+	///     println!("Records read: {}", txs_result.pager.records_read);
+	///     println!("Total records: {}", txs_result.pager.total_records);
+	///     println!("Limit: {}", txs_result.pager.limit);
+	///     println!("Offset: {}", txs_result.pager.offset);
+	///     println!("Sort order: {}", txs_result.pager.sort_order);
+	///
+	///     for tx in txs_result.txs {
+	///         println!("{:?}", tx);
+	///     }
+	/// }
+	/// ```
+
 	pub fn retrieve_txs(
 		&self,
 		keychain_mask: Option<&SecretKey>,
@@ -507,7 +542,7 @@ where
 		limit: Option<usize>,
 		offset: Option<usize>,
 		sort_order: Option<String>,
-	) -> Result<(bool, Vec<TxLogEntry>), Error> {
+	) -> Result<RetrieveTxsResult, Error> {
 		let tx = {
 			let t = self.status_tx.lock();
 			t.clone()
@@ -531,8 +566,8 @@ where
 		)?;
 
 		if self.doctest_mode {
-			res.1 = res
-				.1
+			res.txs = res
+				.txs
 				.into_iter()
 				.map(|mut t| {
 					t.confirmation_ts = Some(Utc.with_ymd_and_hms(2019, 1, 15, 16, 1, 26).unwrap());

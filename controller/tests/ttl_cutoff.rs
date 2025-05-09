@@ -93,8 +93,8 @@ fn ttl_cutoff_test_impl(test_dir: &'static str) -> Result<(), libwallet::Error> 
 		slate = client1.send_tx_slate_direct("wallet2", &slate_i)?;
 		sender_api.tx_lock_outputs(m, &slate, 0, None)?;
 
-		let (_, txs) = sender_api.retrieve_txs(m, true, None, Some(slate.id), None, None, None)?;
-		let tx = txs[0].clone();
+		let txs = sender_api.retrieve_txs(m, true, None, Some(slate.id), None, None, None)?;
+		let tx = txs.txs[0].clone();
 
 		assert_eq!(tx.ttl_cutoff_height, Some(12));
 		Ok(())
@@ -104,8 +104,8 @@ fn ttl_cutoff_test_impl(test_dir: &'static str) -> Result<(), libwallet::Error> 
 	let _ = test_framework::award_blocks_to_wallet(&chain, wallet1.clone(), mask1, 2, false);
 
 	wallet::controller::owner_single_use(wallet1.clone(), mask1, |sender_api, m| {
-		let (_, txs) = sender_api.retrieve_txs(m, true, None, Some(slate.id), None, None, None)?;
-		let tx = txs[0].clone();
+		let txs = sender_api.retrieve_txs(m, true, None, Some(slate.id), None, None, None)?;
+		let tx = txs.txs[0].clone();
 
 		assert_eq!(tx.ttl_cutoff_height, Some(12));
 		assert!(tx.tx_type == TxLogEntryType::TxSentCancelled);
@@ -114,8 +114,8 @@ fn ttl_cutoff_test_impl(test_dir: &'static str) -> Result<(), libwallet::Error> 
 
 	// Should also be gone in wallet 2, and output gone
 	wallet::controller::owner_single_use(wallet2.clone(), mask2, |sender_api, m| {
-		let (_, txs) = sender_api.retrieve_txs(m, true, None, Some(slate.id), None, None, None)?;
-		let tx = txs[0].clone();
+		let txs = sender_api.retrieve_txs(m, true, None, Some(slate.id), None, None, None)?;
+		let tx = txs.txs[0].clone();
 		let outputs = sender_api
 			.retrieve_outputs(m, false, true, false, None, None, None, None)?
 			.outputs;
@@ -144,8 +144,8 @@ fn ttl_cutoff_test_impl(test_dir: &'static str) -> Result<(), libwallet::Error> 
 		sender_api.tx_lock_outputs(m, &slate_i, 0, None)?;
 		slate = slate_i;
 
-		let (_, txs) = sender_api.retrieve_txs(m, true, None, Some(slate.id), None, None, None)?;
-		let tx = txs[0].clone();
+		let txs = sender_api.retrieve_txs(m, true, None, Some(slate.id), None, None, None)?;
+		let tx = txs.txs[0].clone();
 
 		assert_eq!(tx.ttl_cutoff_height, Some(14));
 		Ok(())
@@ -156,7 +156,7 @@ fn ttl_cutoff_test_impl(test_dir: &'static str) -> Result<(), libwallet::Error> 
 
 	// Wallet 2 will need to have updated past the TTL
 	wallet::controller::owner_single_use(wallet2.clone(), mask2, |sender_api, m| {
-		let (_, _) = sender_api.retrieve_txs(m, true, None, Some(slate.id), None, None, None)?;
+		let txs = sender_api.retrieve_txs(m, true, None, Some(slate.id), None, None, None)?;
 		Ok(())
 	})?;
 

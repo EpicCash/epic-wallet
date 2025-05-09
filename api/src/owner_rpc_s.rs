@@ -22,8 +22,8 @@ use crate::keychain::{Identifier, Keychain};
 use crate::libwallet::slate_versions::v3::TransactionV3;
 use crate::libwallet::{
 	AcctPathMapping, EpicboxAddress, Error, InitTxArgs, IssueInvoiceTxArgs, NodeClient,
-	NodeHeightResult, PaymentProof, RetrieveOutputsResult, Slate, SlateVersion, StatusMessage,
-	TxLogEntry, VersionedSlate, WalletInfo, WalletLCProvider,
+	NodeHeightResult, PaymentProof, RetrieveOutputsResult, RetrieveTxsResult, Slate, SlateVersion,
+	StatusMessage, TxLogEntry, VersionedSlate, WalletInfo, WalletLCProvider,
 };
 use crate::util::logger::LoggingConfig;
 use crate::util::secp::key::{PublicKey, SecretKey};
@@ -263,24 +263,29 @@ pub trait OwnerRpcS {
 	- **Next Version**:
 	  - Added three new parameters: `limit`, `offset`, and `sort_order`.
 	  - These parameters must be explicitly provided in the JSON request as a value or `null`. If they are missing, the JSON-RPC request will return an error.
-	  - Added two new return values: `records_read` and `total_records`.
-	  - These values provide pagination metadata for the outputs.
+	  - Updated the return type to use the `RetrieveTxsResult` struct, which includes pagination metadata and transaction log entries.
 
 	# Parameters
 	- `token`: The authentication token for the secure API.
-	- `include_spent`: Whether to include spent outputs in the results.
-	- `refresh_from_node`: Whether to refresh outputs from the node. If `true`, the wallet will attempt to contact the node to get the latest output data. If `false`, the results may be outdated.
-	- `tx_id`: Optional transaction ID to filter outputs. If `Some(id)`, only outputs associated with the transaction log entry of ID `id` will be returned.
-	- `limit`: The maximum number of outputs to retrieve. This parameter must be explicitly provided as a value or `null`. If `null`, a default value of `10` will be used.
+	- `refresh_from_node`: Whether to refresh transactions from the node. If `true`, the wallet will attempt to contact the node to get the latest transaction data. If `false`, the results may be outdated.
+	- `tx_id`: Optional transaction ID to filter transactions. If `Some(id)`, only the transaction log entry of ID `id` will be returned.
+	- `tx_slate_id`: Optional slate ID to filter transactions. If `Some(uuid)`, only the transaction log entry associated with the slate ID `uuid` will be returned.
+	- `limit`: The maximum number of transactions to retrieve. This parameter must be explicitly provided as a value or `null`. If `null`, a default value of `10` will be used.
 	- `offset`: The starting index for pagination. This parameter must be explicitly provided as a value or `null`. If `null`, a default value of `0` will be used.
-	- `sort_order`: The order in which outputs are sorted. This parameter must be explicitly provided as a value or `null`. If `null`, the default value `"desc"` will be used. Accepted values are:
-	  - `"asc"`: Sort outputs in ascending order.
-	  - `"desc"`: Sort outputs in descending order.
+	- `sort_order`: The order in which transactions are sorted. This parameter must be explicitly provided as a value or `null`. If `null`, the default value `"desc"` will be used. Accepted values are:
+	  - `"asc"`: Sort transactions in ascending order.
+	  - `"desc"`: Sort transactions in descending order.
 
 	# Returns
-	A tuple containing:
-	- `refreshed`: A boolean indicating whether the data was successfully refreshed from the node.
-	- `outputs`: A vector of `OutputCommitMapping` objects, where each element is a mapping between the wallet's internal `OutputData` and the output commitment as identified in the chain's UTXO set.
+	A `RetrieveTxsResult` struct containing:
+	- `refresh_from_node`: A boolean indicating whether the data was successfully refreshed from the node.
+	- `pager`: A `Pager` struct containing pagination metadata:
+	  - `records_read`: The number of records returned after pagination.
+	  - `total_records`: The total number of records available before pagination.
+	  - `limit`: The limit used for pagination.
+	  - `offset`: The offset used for pagination.
+	  - `sort_order`: The sort order used for pagination.
+	- `txs`: A vector of `TxLogEntry` objects, where each element represents a transaction log entry.
 
 
 	# Json rpc example
@@ -305,50 +310,57 @@ pub trait OwnerRpcS {
 		{
 		"id": 1,
 		"jsonrpc": "2.0",
-	  "result": {
+		  "result": {
 		"Ok": [
-		  true,
-		  [
-			{
-			  "amount_credited": "1457920000",
-			  "amount_debited": "0",
-			  "confirmation_ts": "2019-01-15T16:01:26Z",
-			  "confirmed": true,
-			  "creation_ts": "2019-01-15T16:01:26Z",
-			  "fee": null,
-			  "id": 0,
-			  "kernel_excess": "09a89280fa8d888358ab730383f00a3d990b7f2c6b17fc960501f30aac8e014478",
-			  "kernel_lookup_min_height": 1,
-			  "messages": null,
-			  "num_inputs": 0,
-			  "num_outputs": 1,
-			  "parent_key_id": "0200000000000000000000000000000000",
-			  "stored_tx": null,
-			  "ttl_cutoff_height": null,
-			  "tx_slate_id": null,
-			  "payment_proof": null,
-			  "tx_type": "ConfirmedCoinbase"
+			"refresh_from_node": true,
+			  "pager": {
+				  "records_read": 2,
+				"total_records": 25,
+				"limit": 10,
+				"offset": 0,
+				"sort_order": "desc"
 			},
-			{
-			  "amount_credited": "1457920000",
-			  "amount_debited": "0",
-			  "confirmation_ts": "2019-01-15T16:01:26Z",
-			  "confirmed": true,
-			  "creation_ts": "2019-01-15T16:01:26Z",
-			  "fee": null,
-			  "id": 1,
-			  "kernel_excess": "08bae42ff7d5fa5aca058fd0889dd1e40df16bf3ee2eea6e5db720c0a6d638a7f8",
-			  "kernel_lookup_min_height": 2,
-			  "messages": null,
-			  "num_inputs": 0,
-			  "num_outputs": 1,
-			  "parent_key_id": "0200000000000000000000000000000000",
-			  "stored_tx": null,
-			  "ttl_cutoff_height": null,
-			  "payment_proof": null,
-			  "tx_slate_id": null,
-			  "tx_type": "ConfirmedCoinbase"
-			}
+			"txs": [
+				{
+				"amount_credited": "1457920000",
+				"amount_debited": "0",
+				"confirmation_ts": "2019-01-15T16:01:26Z",
+				"confirmed": true,
+				"creation_ts": "2019-01-15T16:01:26Z",
+				"fee": null,
+				"id": 0,
+				"kernel_excess": "09a89280fa8d888358ab730383f00a3d990b7f2c6b17fc960501f30aac8e014478",
+				"kernel_lookup_min_height": 1,
+				"messages": null,
+				"num_inputs": 0,
+				"num_outputs": 1,
+				"parent_key_id": "0200000000000000000000000000000000",
+				"stored_tx": null,
+				"ttl_cutoff_height": null,
+				"tx_slate_id": null,
+				"payment_proof": null,
+				"tx_type": "ConfirmedCoinbase"
+				},
+				{
+				"amount_credited": "1457920000",
+				"amount_debited": "0",
+				"confirmation_ts": "2019-01-15T16:01:26Z",
+				"confirmed": true,
+				"creation_ts": "2019-01-15T16:01:26Z",
+				"fee": null,
+				"id": 1,
+				"kernel_excess": "08bae42ff7d5fa5aca058fd0889dd1e40df16bf3ee2eea6e5db720c0a6d638a7f8",
+				"kernel_lookup_min_height": 2,
+				"messages": null,
+				"num_inputs": 0,
+				"num_outputs": 1,
+				"parent_key_id": "0200000000000000000000000000000000",
+				"stored_tx": null,
+				"ttl_cutoff_height": null,
+				"payment_proof": null,
+				"tx_slate_id": null,
+				"tx_type": "ConfirmedCoinbase"
+				}
 		  ]
 		]
 	  }
@@ -367,31 +379,20 @@ pub trait OwnerRpcS {
 		limit: Option<usize>,       // Number of items to return
 		offset: Option<usize>,      // Starting index
 		sort_order: Option<String>, // "asc" or "desc", default is "desc"
-	) -> Result<(bool, Vec<TxLogEntry>), Error>;
+	) -> Result<RetrieveTxsResult, Error>;
 
 	/**
 	Networked version of [Owner::retrieve_summary_info](struct.Owner.html#method.retrieve_summary_info).
 
-	# Breaking Changes
-	- **Next Version**:
-	  - Added three new parameters: `limit`, `offset`, and `sort_order`.
-	  - These parameters must be explicitly provided in the JSON request as a value or `null`. If they are missing, the JSON-RPC request will return an error.
-
 	# Parameters
 	- `token`: The authentication token for the secure API.
-	- `include_spent`: Whether to include spent outputs in the results.
-	- `refresh_from_node`: Whether to refresh outputs from the node. If `true`, the wallet will attempt to contact the node to get the latest output data. If `false`, the results may be outdated.
-	- `tx_id`: Optional transaction ID to filter outputs. If `Some(id)`, only outputs associated with the transaction log entry of ID `id` will be returned.
-	- `limit`: The maximum number of outputs to retrieve. This parameter must be explicitly provided as a value or `null`. If `null`, a default value of `10` will be used.
-	- `offset`: The starting index for pagination. This parameter must be explicitly provided as a value or `null`. If `null`, a default value of `0` will be used.
-	- `sort_order`: The order in which outputs are sorted. This parameter must be explicitly provided as a value or `null`. If `null`, the default value `"desc"` will be used. Accepted values are:
-	  - `"asc"`: Sort outputs in ascending order.
-	  - `"desc"`: Sort outputs in descending order.
+	- `refresh_from_node`: Whether to refresh summary information from the node. If `true`, the wallet will attempt to contact the node to get the latest data. If `false`, the results may be outdated.
+	- `minimum_confirmations`: The minimum number of confirmations required for outputs to be included in the summary.
 
 	# Returns
 	A tuple containing:
-	- `refreshed`: A boolean indicating whether the data was successfully refreshed from the node.
-	- `outputs`: A vector of `OutputCommitMapping` objects, where each element is a mapping between the wallet's internal `OutputData` and the output commitment as identified in the chain's UTXO set.
+	- `refresh_from_node`: A boolean indicating whether the data was successfully refreshed from the node.
+	- `wallet_info`: A `WalletInfo` object containing the summary information.
 
 	# Json rpc example
 
@@ -2263,7 +2264,7 @@ where
 		limit: Option<usize>,  // Number of items to return
 		offset: Option<usize>, // Starting index
 		sort_order: Option<String>,
-	) -> Result<(bool, Vec<TxLogEntry>), Error> {
+	) -> Result<RetrieveTxsResult, Error> {
 		Owner::retrieve_txs(
 			self,
 			(&token.keychain_mask).as_ref(),

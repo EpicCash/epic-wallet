@@ -31,8 +31,8 @@ use crate::slate::{PaymentInfo, Slate};
 use crate::types::{AcctPathMapping, NodeClient, TxLogEntry, WalletBackend, WalletInfo};
 use crate::{
 	address, wallet_lock, InitTxArgs, IssueInvoiceTxArgs, NodeHeightResult, Pager, PaymentProof,
-	RetrieveOutputsResult, ScannedBlockInfo, TxLogEntryType, WalletInitStatus, WalletInst,
-	WalletLCProvider,
+	RetrieveOutputsResult, RetrieveTxsResult, ScannedBlockInfo, TxLogEntryType, WalletInitStatus,
+	WalletInst, WalletLCProvider,
 };
 
 use crate::Error;
@@ -194,7 +194,7 @@ pub fn retrieve_txs<'a, L, C, K>(
 	limit: Option<usize>,       // Number of items to return
 	offset: Option<usize>,      // Starting index
 	sort_order: Option<String>, // "asc" or "desc", default is "desc"
-) -> Result<(bool, Vec<TxLogEntry>), Error>
+) -> Result<RetrieveTxsResult, Error>
 where
 	L: WalletLCProvider<'a, C, K>,
 	C: NodeClient + 'a,
@@ -214,7 +214,7 @@ where
 	let parent_key_id = w.parent_key_id();
 
 	// Call the updated `updater::retrieve_txs` with pagination and sorting
-	let txs = updater::retrieve_txs(
+	let (records_read, total_records, txs) = updater::retrieve_txs(
 		&mut **w,
 		tx_id,
 		tx_slate_id,
@@ -222,10 +222,21 @@ where
 		false,
 		limit,
 		offset,
-		sort_order,
+		sort_order.clone(),
 	)?;
 
-	Ok((validated, txs))
+	// Return the new `RetrieveTxsResult` struct
+	Ok(RetrieveTxsResult {
+		refresh_from_node: validated,
+		pager: Pager {
+			records_read,
+			total_records,
+			limit: limit.unwrap_or(10),  // Default to 10 if not provided
+			offset: offset.unwrap_or(0), // Default to 0 if not provided
+			sort_order: sort_order.unwrap_or_else(|| "desc".to_string()), // Default to "desc"
+		},
+		txs,
+	})
 }
 
 /// Retrieve summary info
@@ -296,11 +307,11 @@ where
 		None,
 		None,
 	)?;
-	if txs.1.len() != 1 {
+	if txs.txs.len() != 1 {
 		return Err(Error::PaymentProofRetrieval("Transaction doesn't exist".into()).into());
 	}
 	// Pull out all needed fields, returning an error if they're not present
-	let tx = txs.1[0].clone();
+	let tx = txs.txs[0].clone();
 	let proof = match tx.payment_proof {
 		Some(p) => p,
 		None => {
@@ -551,7 +562,7 @@ where
 		None,
 		None,
 	)?;
-	for t in &tx {
+	for t in &tx.2 {
 		if t.tx_type == TxLogEntryType::TxSent {
 			return Err(Error::TransactionAlreadyReceived(ret_slate.id.to_string()).into());
 		}
@@ -862,7 +873,7 @@ where
 			None,
 		)?
 	};
-	result = update_txs_via_kernel(wallet_inst.clone(), keychain_mask, &mut txs)?;
+	result = update_txs_via_kernel(wallet_inst.clone(), keychain_mask, &mut txs.2)?;
 	if !result {
 		if let Some(ref s) = status_send_channel {
 			let _ = s.send(StatusMessage::UpdateWarning(
@@ -937,7 +948,7 @@ where
 	}
 
 	// Step 5: Cancel any transactions with an expired TTL
-	for tx in txs {
+	for tx in txs.2 {
 		if let Some(e) = tx.ttl_cutoff_height {
 			if tip.0 >= e {
 				wallet_lock!(wallet_inst, w);

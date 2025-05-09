@@ -141,14 +141,14 @@ fn invoice_tx_impl(test_dir: &'static str) -> Result<(), libwallet::Error> {
 	// Check transaction log for wallet 2
 	wallet::controller::owner_single_use(wallet2.clone(), mask2, |api, m| {
 		let (_, wallet2_info) = api.retrieve_summary_info(m, true, 1)?;
-		let (refreshed, txs) = api.retrieve_txs(m, true, None, None, None, None, None)?;
-		assert!(refreshed);
-		assert!(txs.len() == 1);
+		let txs = api.retrieve_txs(m, true, None, None, None, None, None)?;
+		assert!(txs.refresh_from_node);
+		assert!(txs.txs.len() == 1);
 		println!(
 			"last confirmed height: {}, bh: {}",
 			wallet2_info.last_confirmed_height, bh
 		);
-		assert!(refreshed);
+		assert!(txs.refresh_from_node);
 		assert_eq!(wallet2_info.amount_currently_spendable, slate.amount);
 		Ok(())
 	})?;
@@ -157,9 +157,9 @@ fn invoice_tx_impl(test_dir: &'static str) -> Result<(), libwallet::Error> {
 	// exists
 	wallet::controller::owner_single_use(wallet1.clone(), mask1, |api, m| {
 		let (_, wallet1_info) = api.retrieve_summary_info(m, true, 1)?;
-		let (refreshed, txs) = api.retrieve_txs(m, true, None, None, None, None, None)?;
-		assert!(refreshed);
-		assert_eq!(txs.len() as u64, bh + 1);
+		let txs = api.retrieve_txs(m, true, None, None, None, None, None)?;
+		assert!(txs.refresh_from_node);
+		assert_eq!(txs.txs.len() as u64, bh + 1);
 		println!(
 			"Wallet 1: last confirmed height: {}, bh: {}",
 			wallet1_info.last_confirmed_height, bh

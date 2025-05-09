@@ -109,7 +109,7 @@ where
 		None,
 		None,
 	)?;
-	for t in &tx {
+	for t in &tx.2 {
 		if t.tx_type == TxLogEntryType::TxReceived {
 			return Err(Error::TransactionAlreadyReceived(ret_slate.id.to_string()).into());
 		}

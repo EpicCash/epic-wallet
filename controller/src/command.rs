@@ -803,7 +803,7 @@ where
 {
 	controller::owner_single_use(wallet.clone(), keychain_mask, |api, m| {
 		let res = api.node_height(m)?;
-		let (validated, txs) = api.retrieve_txs(
+		let txs = api.retrieve_txs(
 			m,
 			true,
 			args.id,
@@ -816,8 +816,8 @@ where
 		display::txs(
 			&g_args.account,
 			res.height,
-			validated,
-			&txs,
+			txs.refresh_from_node,
+			&txs.txs,
 			include_status,
 			dark_scheme,
 		)?;
@@ -827,7 +827,7 @@ where
 		let id = if args.id.is_some() {
 			args.id
 		} else if args.tx_slate_id.is_some() {
-			if let Some(tx) = txs.iter().find(|t| t.tx_slate_id == args.tx_slate_id) {
+			if let Some(tx) = txs.txs.iter().find(|t| t.tx_slate_id == args.tx_slate_id) {
 				Some(tx.id)
 			} else {
 				println!("Could not find a transaction matching given txid.\n");
@@ -849,7 +849,7 @@ where
 				dark_scheme,
 			)?;
 			// should only be one here, but just in case
-			for tx in txs {
+			for tx in txs.txs {
 				display::tx_messages(&tx, dark_scheme)?;
 				display::payment_proof(&tx)?;
 			}
@@ -904,8 +904,8 @@ where
 	K: keychain::Keychain + 'static,
 {
 	controller::owner_single_use(wallet.clone(), keychain_mask, |api, m| {
-		let (_, txs) = api.retrieve_txs(m, true, Some(args.id), None, None, None, None)?;
-		let stored_tx = api.get_stored_tx(m, &txs[0])?;
+		let txs = api.retrieve_txs(m, true, Some(args.id), None, None, None, None)?;
+		let stored_tx = api.get_stored_tx(m, &txs.txs[0])?;
 		if stored_tx.is_none() {
 			error!(
 				"Transaction with id {} does not have transaction data. Not reposting.",
@@ -915,7 +915,7 @@ where
 		}
 		match args.dump_file {
 			None => {
-				if txs[0].confirmed {
+				if txs.txs[0].confirmed {
 					error!(
 						"Transaction with id {} is confirmed. Not reposting.",
 						args.id

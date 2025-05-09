@@ -302,10 +302,10 @@ where
 		None,
 		None,
 	)?;
-	if tx_vec.len() != 1 {
+	if tx_vec.2.len() != 1 {
 		return Err(Error::TransactionDoesntExist(tx_id_string))?;
 	}
-	let tx = tx_vec[0].clone();
+	let tx = tx_vec.2[0].clone();
 	if tx.tx_type != TxLogEntryType::TxSent && tx.tx_type != TxLogEntryType::TxReceived {
 		return Err(Error::TransactionNotCancellable(tx_id_string))?;
 	}
@@ -347,7 +347,7 @@ where
 		updater::retrieve_txs(wallet, None, Some(slate.id), None, false, None, None, None)?;
 	let mut tx = None;
 	// don't want to assume this is the right tx, in case of self-sending
-	for t in tx_vec {
+	for t in tx_vec.2 {
 		if t.tx_type == TxLogEntryType::TxSent && !is_invoiced {
 			tx = Some(t.clone());
 			break;
@@ -407,11 +407,11 @@ where
 {
 	let tx_vec =
 		updater::retrieve_txs(wallet, None, Some(slate.id), None, false, None, None, None)?;
-	if tx_vec.is_empty() {
+	if tx_vec.2.is_empty() {
 		return Err(Error::TransactionDoesntExist(slate.id.to_string()))?;
 	}
 	let mut batch = wallet.batch(keychain_mask)?;
-	for mut tx in tx_vec.into_iter() {
+	for mut tx in tx_vec.2.into_iter() {
 		tx.public_addr = public_addr.clone();
 		let parent_key = tx.parent_key_id.clone();
 		batch.save_tx_log_entry(tx, &parent_key)?;
@@ -433,11 +433,11 @@ where
 {
 	let tx_vec =
 		updater::retrieve_txs(wallet, None, Some(slate.id), None, false, None, None, None)?;
-	if tx_vec.is_empty() {
+	if tx_vec.2.is_empty() {
 		return Err(Error::TransactionDoesntExist(slate.id.to_string()))?;
 	}
 	let mut batch = wallet.batch(keychain_mask)?;
-	for mut tx in tx_vec.into_iter() {
+	for mut tx in tx_vec.2.into_iter() {
 		tx.messages = Some(slate.participant_messages());
 		let parent_key = tx.parent_key_id.clone();
 		batch.save_tx_log_entry(tx, &parent_key)?;
@@ -514,13 +514,13 @@ where
 		None,
 		None,
 	)?;
-	if tx_vec.len() == 0 {
+	if tx_vec.2.len() == 0 {
 		return Err(Error::PaymentProof(
 			"TxLogEntry with original proof info not found (is account correct?)".to_owned(),
 		))?;
 	}
 
-	let orig_proof_info = tx_vec[0].clone().payment_proof;
+	let orig_proof_info = tx_vec.2[0].clone().payment_proof;
 
 	if orig_proof_info.is_some() && slate.payment_proof.is_none() {
 		return Err(Error::PaymentProof(

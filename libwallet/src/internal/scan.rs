@@ -303,8 +303,8 @@ where
 			None,
 			None,
 		)?;
-		if entries.len() > 0 {
-			let mut entry = entries[0].clone();
+		if entries.2.len() > 0 {
+			let mut entry = entries.2[0].clone();
 			match entry.tx_type {
 				TxLogEntryType::TxSent => entry.tx_type = TxLogEntryType::TxSentCancelled,
 				TxLogEntryType::TxReceived => entry.tx_type = TxLogEntryType::TxReceivedCancelled,

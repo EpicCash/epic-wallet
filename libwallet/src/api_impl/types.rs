@@ -19,7 +19,7 @@ use crate::epic_util::secp::pedersen;
 use crate::slate_versions::ser as dalek_ser;
 use crate::slate_versions::SlateVersion;
 use crate::types::OutputData;
-
+use crate::types::TxLogEntry;
 use ed25519_dalek::Signature as DalekSignature;
 use ed25519_dalek::VerifyingKey as DalekPublicKey;
 
@@ -178,6 +178,17 @@ pub struct RetrieveOutputsResult {
 	pub pager: Pager,
 	/// The actual outputs     
 	pub outputs: Vec<OutputCommitMapping>,
+}
+
+/// Struct to encapsulate the result of `retrieve_txs`
+#[derive(Serialize, Deserialize, Debug)]
+pub struct RetrieveTxsResult {
+	/// Indicates whether the data was refreshed from the node
+	pub refresh_from_node: bool,
+	/// Pagination metadata
+	pub pager: Pager,
+	/// The actual transaction log entries
+	pub txs: Vec<TxLogEntry>,
 }
 
 /// Struct to encapsulate pagination metadata

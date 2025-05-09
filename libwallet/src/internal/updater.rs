@@ -135,7 +135,7 @@ pub fn retrieve_txs<'a, T: ?Sized, C, K>(
 	limit: Option<usize>,       // Number of items to return
 	offset: Option<usize>,      // Starting index
 	sort_order: Option<String>, // "asc" or "desc", default is "desc"
-) -> Result<Vec<TxLogEntry>, Error>
+) -> Result<(usize, usize, Vec<TxLogEntry>), Error>
 where
 	T: WalletBackend<'a, C, K>,
 	C: NodeClient + 'a,
@@ -175,12 +175,22 @@ where
 		_ => txs.sort_by_key(|tx| std::cmp::Reverse(tx.creation_ts)), // Default to "desc"
 	}
 
+	// Total number of records before pagination
+	let total_records = txs.len();
+
 	// Apply pagination
 	let start = offset.unwrap_or(0);
 	let end = limit.map(|l| start + l).unwrap_or(txs.len());
-	let paginated_txs = txs.into_iter().skip(start).take(end - start).collect();
+	let paginated_txs = txs
+		.into_iter()
+		.skip(start)
+		.take(end - start)
+		.collect::<Vec<_>>();
 
-	Ok(paginated_txs)
+	// Number of records read after pagination
+	let records_read = paginated_txs.len();
+
+	Ok((records_read, total_records, paginated_txs))
 }
 
 /// Refreshes the outputs in a wallet with the latest information
@@ -244,7 +254,8 @@ where
 		None,
 		None,
 		None,
-	)?;
+	)?
+	.2;
 
 	// Only select outputs that are actually involved in an outstanding transaction
 	let unspents: Vec<OutputData> = match update_all {

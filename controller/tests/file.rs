@@ -185,29 +185,29 @@ fn file_exchange_test_impl(test_dir: &'static str) -> Result<(), libwallet::Erro
 
 	// Check messages, all participants should have both
 	wallet::controller::owner_single_use(wallet1.clone(), mask1, |api, m| {
-		let (_, tx) = api.retrieve_txs(m, true, None, Some(slate.id), None, None, None)?;
+		let txs = api.retrieve_txs(m, true, None, Some(slate.id), None, None, None)?;
 		assert_eq!(
-			tx[0].clone().messages.unwrap().messages[0].message,
+			txs.txs[0].clone().messages.unwrap().messages[0].message,
 			Some(message.to_owned())
 		);
 		assert_eq!(
-			tx[0].clone().messages.unwrap().messages[1].message,
+			txs.txs[0].clone().messages.unwrap().messages[1].message,
 			Some(sender2_message.to_owned())
 		);
 
-		let msg_json = serde_json::to_string_pretty(&tx[0].clone().messages.unwrap()).unwrap();
+		let msg_json = serde_json::to_string_pretty(&txs.txs[0].clone().messages.unwrap()).unwrap();
 		println!("{}", msg_json);
 		Ok(())
 	})?;
 
 	wallet::controller::owner_single_use(wallet2.clone(), mask2, |api, m| {
-		let (_, tx) = api.retrieve_txs(m, true, None, Some(slate.id), None, None, None)?;
+		let txs = api.retrieve_txs(m, true, None, Some(slate.id), None, None, None)?;
 		assert_eq!(
-			tx[0].clone().messages.unwrap().messages[0].message,
+			txs.txs[0].clone().messages.unwrap().messages[0].message,
 			Some(message.to_owned())
 		);
 		assert_eq!(
-			tx[0].clone().messages.unwrap().messages[1].message,
+			txs.txs[0].clone().messages.unwrap().messages[1].message,
 			Some(sender2_message)
 		);
 		Ok(())

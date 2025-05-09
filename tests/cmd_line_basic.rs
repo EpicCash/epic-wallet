@@ -241,10 +241,10 @@ fn command_line_test_impl(test_dir: &str) -> Result<(), epic_wallet_controller::
 	// Check our transaction log, should have 10 entries
 	epic_wallet_controller::controller::owner_single_use(wallet1.clone(), mask1, |api, m| {
 		api.set_active_account(m, "mining")?;
-		let (refreshed, txs) = api.retrieve_txs(m, true, None, None, None, None, None)?;
-		assert!(refreshed);
-		assert_eq!(txs.len(), bh as usize);
-		for t in txs {
+		let txs = api.retrieve_txs(m, true, None, None, None, None, None)?;
+		assert!(txs.refresh_from_node);
+		assert_eq!(txs.txs.len(), bh as usize);
+		for t in txs.txs {
 			assert!(t.kernel_excess.is_some());
 		}
 		Ok(())
@@ -339,9 +339,9 @@ fn command_line_test_impl(test_dir: &str) -> Result<(), epic_wallet_controller::
 
 	epic_wallet_controller::controller::owner_single_use(wallet1.clone(), mask1, |api, m| {
 		api.set_active_account(m, "mining")?;
-		let (refreshed, txs) = api.retrieve_txs(m, true, None, None, None, None, None)?;
-		assert!(refreshed);
-		assert_eq!(txs.len(), bh as usize + 1);
+		let txs = api.retrieve_txs(m, true, None, None, None, None, None)?;
+		assert!(txs.refresh_from_node);
+		assert_eq!(txs.txs.len(), bh as usize + 1);
 		Ok(())
 	})
 	.unwrap();
@@ -381,9 +381,9 @@ fn command_line_test_impl(test_dir: &str) -> Result<(), epic_wallet_controller::
 
 	epic_wallet_controller::controller::owner_single_use(wallet1.clone(), mask1, |api, m| {
 		api.set_active_account(m, "mining")?;
-		let (refreshed, txs) = api.retrieve_txs(m, true, None, None, None, None, None)?;
-		assert!(refreshed);
-		assert_eq!(txs.len(), bh as usize + 2);
+		let txs = api.retrieve_txs(m, true, None, None, None, None, None)?;
+		assert!(txs.refresh_from_node);
+		assert_eq!(txs.txs.len(), bh as usize + 2);
 		Ok(())
 	})
 	.unwrap();
@@ -518,8 +518,8 @@ fn command_line_test_impl(test_dir: &str) -> Result<(), epic_wallet_controller::
 	let mut tx_id = "".to_string();
 	epic_wallet_controller::controller::owner_single_use(wallet2.clone(), mask2, |api, m| {
 		api.set_active_account(m, "default")?;
-		let (_, txs) = api.retrieve_txs(m, true, None, None, None, None, None)?;
-		let some_tx_id = txs[0].tx_slate_id.clone();
+		let txs = api.retrieve_txs(m, true, None, None, None, None, None)?;
+		let some_tx_id = txs.txs[0].tx_slate_id.clone();
 		assert!(some_tx_id.is_some());
 		tx_id = some_tx_id.unwrap().to_string().clone();
 		Ok(())
