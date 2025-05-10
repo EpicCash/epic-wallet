@@ -156,7 +156,7 @@ fn ttl_cutoff_test_impl(test_dir: &'static str) -> Result<(), libwallet::Error> 
 
 	// Wallet 2 will need to have updated past the TTL
 	wallet::controller::owner_single_use(wallet2.clone(), mask2, |sender_api, m| {
-		let txs = sender_api.retrieve_txs(m, true, None, Some(slate.id), None, None, None)?;
+		let _ = sender_api.retrieve_txs(m, true, None, Some(slate.id), None, None, None)?;
 		Ok(())
 	})?;
 

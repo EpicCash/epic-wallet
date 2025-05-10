@@ -28,7 +28,7 @@ use crate::libwallet;
 use crate::libwallet::api_impl::foreign;
 use crate::libwallet::slate_versions::v3::SlateV3;
 use crate::libwallet::{
-	NodeClient, NodeStatus, NodeVersionInfo, Slate, WalletInst, WalletLCProvider,
+	NodeClient, NodeStatus, NodeVersionInfo, Slate, Tip, WalletInst, WalletLCProvider,
 };
 
 use crate::util;
@@ -37,6 +37,7 @@ use crate::util::secp::pedersen;
 use crate::util::secp::pedersen::Commitment;
 use crate::util::Mutex;
 
+use crate::test_framework::pow::PoWType;
 use serde_json;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -45,6 +46,7 @@ use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 
+use serde_json::json;
 /// Messages to simulate wallet requests/responses
 #[derive(Clone, Debug)]
 pub struct WalletProxyMessage {
@@ -143,7 +145,7 @@ where
 			thread::sleep(Duration::from_millis(10));
 			// read queue
 			let m = self.rx.recv().unwrap();
-			trace!("Wallet Client Proxy Received: {:?}", m);
+			println!("Wallet Client Proxy Received: {:?}", m);
 			let resp = match m.method.as_ref() {
 				"get_chain_tip" => self.get_chain_tip(m)?,
 				"get_outputs_from_node" => self.get_outputs_from_node(m)?,
@@ -152,6 +154,7 @@ where
 				"send_tx_slate" => self.send_tx_slate(m)?,
 				"post_tx" => self.post_tx(m)?,
 				"get_kernel" => self.get_kernel(m)?,
+				"get_status" => self.get_status(m)?,
 				_ => panic!("Unknown Wallet Proxy Message"),
 			};
 
@@ -334,7 +337,37 @@ where
 			body: serde_json::to_string(&ol).unwrap(),
 		})
 	}
+	fn get_status(
+		&mut self,
+		m: WalletProxyMessage,
+	) -> Result<WalletProxyMessage, libwallet::Error> {
+		let height = self.chain.head().unwrap().height;
+		let nodestatus = NodeStatus {
+			protocol_version: 1,                          // Example protocol version
+			user_agent: "Epic Test Node 1.0".to_string(), // Example user agent
+			connections: 8,                               // Example number of connections
+			tip: Tip {
+				height: height, // Example block height
+				last_block_pushed:
+					"0000000000000000000000000000000000000000000000000000000000000001".to_string(),
+				prev_block_to_last:
+					"0000000000000000000000000000000000000000000000000000000000000000".to_string(),
+				total_difficulty: HashMap::from([(PoWType::Cuckaroo, 1000000)]), // Example difficulty
+			},
+			sync_status: "no_sync".to_string(), // Example sync status
+			sync_info: Some(json!({
+				"current_height": height,
+				"highest_height": height,
+			})), // Example sync info
+		};
 
+		Ok(WalletProxyMessage {
+			sender_id: "node".to_owned(),
+			dest: m.sender_id,
+			method: m.method,
+			body: serde_json::to_string(&nodestatus).unwrap(),
+		})
+	}
 	/// get kernel
 	fn get_kernel(
 		&mut self,
