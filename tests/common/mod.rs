@@ -135,7 +135,7 @@ pub fn setup(test_dir: &str) {
 	clean_output_dir(test_dir);
 	global::set_mining_mode(ChainTypes::AutomatedTesting);
 	//path to the foundation in epic/tests/assets/foundation.json - not epic-wallet/
-	global::set_foundation_path("./tests/assets/foundation.json".to_string());
+	global::set_foundation_path("./tests/assets/foundation_floonet.json".to_string());
 
 	let mut policies: feijoada::Policy = feijoada::get_bottles_default();
 	policies.insert(feijoada::PoWType::Cuckatoo, 100);
@@ -157,11 +157,11 @@ pub fn setup(test_dir: &str) {
 	)
 	.unwrap();
 
-	fs::copy(
-		Path::new(source_dir).join("foundation.json"),
-		Path::new(target_dir).join("foundation.json"),
+	/*fs::copy(
+		Path::new(source_dir).join("foundation_floonet.json"),
+		Path::new(target_dir).join("foundation_floonet.json"),
 	)
-	.unwrap();
+	.unwrap();*/
 }
 
 /// Create a wallet config file in the given current directory

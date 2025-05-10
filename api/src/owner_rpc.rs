@@ -118,16 +118,16 @@ pub trait OwnerRpc: Sync + Send {
 	# ,
 	# r#"
 	{
+		"id": 1,
 		"jsonrpc": "2.0",
 		"result": {
 			"Ok": null
-		},
-		"id": 1
+		}
 	}
 	# "#
 	# , false, 4, false, false, false, false);
 	```
-	 */
+	*/
 	fn set_active_account(&self, label: &String) -> Result<(), Error>;
 
 	/**
@@ -178,11 +178,9 @@ pub trait OwnerRpc: Sync + Send {
 		"id": 1,
 		"jsonrpc": "2.0",
 		"result": {
-			"Ok": [
-				true,
-				2,
-				2,
-				[
+			"Ok": {
+
+				"outputs": [
 					{
 						"commit": "089be87c488db1e7c783b19272a83b23bce56a5263163554b345c6f7ffedac517e",
 						"output": {
@@ -215,8 +213,17 @@ pub trait OwnerRpc: Sync + Send {
 							"value": "1457920000"
 						}
 					}
-				]
-			]
+				],
+
+				"pager": {
+					"limit": 2,
+					"offset": 0,
+					"records_read": 2,
+					"sort_order": "asc",
+					"total_records": 2
+				},
+				"refresh_from_node": true
+			}
 		}
 	}
 	# "#
@@ -267,81 +274,79 @@ pub trait OwnerRpc: Sync + Send {
 	# Json rpc example
 
 	```
-		# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
-		# r#"
-		{
-			"jsonrpc": "2.0",
-			"method": "retrieve_txs",
-			"params": {
-				"refresh_from_node": true,
-				"tx_id": null,
-				"tx_slate_id": null
-			},
-			"id": 1
-		}
-		# "#
-		# ,
-		# r#"
-		{
-		"id": 1,
+	# epic_wallet_api::doctest_helper_json_rpc_owner_assert_response!(
+	# r#"
+	{
 		"jsonrpc": "2.0",
-		  "result": {
-		"Ok": [
-			"refresh_from_node": true,
-			  "pager": {
-				  "records_read": 2,
-				"total_records": 25,
-				"limit": 10,
-				"offset": 0,
-				"sort_order": "desc"
-			},
-			"txs": [
-				{
-				"amount_credited": "1457920000",
-				"amount_debited": "0",
-				"confirmation_ts": "2019-01-15T16:01:26Z",
-				"confirmed": true,
-				"creation_ts": "2019-01-15T16:01:26Z",
-				"fee": null,
-				"id": 0,
-				"kernel_excess": "09a89280fa8d888358ab730383f00a3d990b7f2c6b17fc960501f30aac8e014478",
-				"kernel_lookup_min_height": 1,
-				"messages": null,
-				"num_inputs": 0,
-				"num_outputs": 1,
-				"parent_key_id": "0200000000000000000000000000000000",
-				"stored_tx": null,
-				"ttl_cutoff_height": null,
-				"tx_slate_id": null,
-				"payment_proof": null,
-				"tx_type": "ConfirmedCoinbase"
-				},
-				{
-				"amount_credited": "1457920000",
-				"amount_debited": "0",
-				"confirmation_ts": "2019-01-15T16:01:26Z",
-				"confirmed": true,
-				"creation_ts": "2019-01-15T16:01:26Z",
-				"fee": null,
-				"id": 1,
-				"kernel_excess": "08bae42ff7d5fa5aca058fd0889dd1e40df16bf3ee2eea6e5db720c0a6d638a7f8",
-				"kernel_lookup_min_height": 2,
-				"messages": null,
-				"num_inputs": 0,
-				"num_outputs": 1,
-				"parent_key_id": "0200000000000000000000000000000000",
-				"stored_tx": null,
-				"ttl_cutoff_height": null,
-				"payment_proof": null,
-				"tx_slate_id": null,
-				"tx_type": "ConfirmedCoinbase"
-				}
-		  ]
-		]
-	  }
+		"method": "retrieve_txs",
+		"params": [true, null, null, null, null, null],
+		"id": 1
 	}
 	# "#
-	# , true, 2, false, false, false, false);
+	# ,
+	# r#"
+	{
+		"id": 1,
+		"jsonrpc": "2.0",
+		"result": {
+			"Ok": {
+				"pager": {
+					"limit": 0,
+					"offset": 0,
+					"records_read": 2,
+					"sort_order": "asc",
+					"total_records": 2
+				},
+				"refresh_from_node": true,
+				"txs": [
+					{
+					"amount_credited": "1457920000",
+					"amount_debited": "0",
+					"confirmation_ts": "2019-01-15T16:01:26Z",
+					"confirmed": true,
+					"creation_ts": "2019-01-15T16:01:26Z",
+					"fee": null,
+					"id": 0,
+					"kernel_excess": "09a89280fa8d888358ab730383f00a3d990b7f2c6b17fc960501f30aac8e014478",
+					"kernel_lookup_min_height": 1,
+					"messages": null,
+					"num_inputs": 0,
+					"num_outputs": 1,
+					"parent_key_id": "0200000000000000000000000000000000",
+					"payment_proof": null,
+					"stored_tx": null,
+					"ttl_cutoff_height": null,
+					"tx_slate_id": null,
+					"tx_type": "ConfirmedCoinbase",
+					"public_addr": null
+					},
+					{
+					"amount_credited": "1457920000",
+					"amount_debited": "0",
+					"confirmation_ts": "2019-01-15T16:01:26Z",
+					"confirmed": true,
+					"creation_ts": "2019-01-15T16:01:26Z",
+					"fee": null,
+					"id": 1,
+					"kernel_excess": "08bae42ff7d5fa5aca058fd0889dd1e40df16bf3ee2eea6e5db720c0a6d638a7f8",
+					"kernel_lookup_min_height": 2,
+					"messages": null,
+					"num_inputs": 0,
+					"num_outputs": 1,
+					"parent_key_id": "0200000000000000000000000000000000",
+					"payment_proof": null,
+					"stored_tx": null,
+					"ttl_cutoff_height": null,
+					"tx_slate_id": null,
+					"tx_type": "ConfirmedCoinbase",
+					"public_addr": null
+					}
+				]
+			}
+		}
+	}
+	# "#
+	# , false, 2, false, false, false, false);
 	```
 	*/
 
@@ -1505,7 +1510,7 @@ pub fn run_doctest_owner(
 	util::init_test_logger();
 	let _ = fs::remove_dir_all(test_dir);
 	global::set_mining_mode(ChainTypes::AutomatedTesting);
-	global::set_foundation_path("../tests/assets/foundation.json".to_string());
+	global::set_foundation_path("../tests/assets/foundation_floonet.json".to_string());
 	let mut policies: feijoada::Policy = feijoada::get_bottles_default();
 	policies.insert(feijoada::PoWType::Cuckatoo, 100);
 	global::set_policy_config(feijoada::PolicyConfig {

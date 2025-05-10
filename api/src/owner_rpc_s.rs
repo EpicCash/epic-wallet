@@ -200,11 +200,16 @@ pub trait OwnerRpcS {
 		"id": 1,
 		"jsonrpc": "2.0",
 		"result": {
-			"Ok": [
-				true,
-				2,
-				2,
-				[
+			"Ok": {
+				"refresh_from_node": true,
+				"pager": {
+					"limit": 0,
+					"offset": 0,
+					"records_read": 2,
+					"sort_order": "asc",
+					"total_records": 2
+				},
+				"outputs": [
 					{
 						"commit": "089be87c488db1e7c783b19272a83b23bce56a5263163554b345c6f7ffedac517e",
 						"output": {
@@ -238,7 +243,7 @@ pub trait OwnerRpcS {
 						}
 					}
 				]
-			]
+			}
 		}
 	}
 	# "#
@@ -300,7 +305,10 @@ pub trait OwnerRpcS {
 				"token": "d202964900000000d302964900000000d402964900000000d502964900000000",
 				"refresh_from_node": true,
 				"tx_id": null,
-				"tx_slate_id": null
+				"tx_slate_id": null,
+				"limit": null,
+				"offset": null,
+				"sort_order": null
 			},
 			"id": 1
 		}
@@ -311,15 +319,15 @@ pub trait OwnerRpcS {
 		"id": 1,
 		"jsonrpc": "2.0",
 		  "result": {
-		"Ok": [
-			"refresh_from_node": true,
-			  "pager": {
-				  "records_read": 2,
-				"total_records": 25,
-				"limit": 10,
+			"Ok": {
+			"pager": {
+				"limit": 0,
 				"offset": 0,
-				"sort_order": "asc"
+				"records_read": 2,
+				"sort_order": "asc",
+				"total_records": 2
 			},
+			"refresh_from_node": true,
 			"txs": [
 				{
 				"amount_credited": "1457920000",
@@ -339,7 +347,8 @@ pub trait OwnerRpcS {
 				"ttl_cutoff_height": null,
 				"tx_slate_id": null,
 				"payment_proof": null,
-				"tx_type": "ConfirmedCoinbase"
+				"tx_type": "ConfirmedCoinbase",
+				"public_addr": null
 				},
 				{
 				"amount_credited": "1457920000",
@@ -359,10 +368,11 @@ pub trait OwnerRpcS {
 				"ttl_cutoff_height": null,
 				"payment_proof": null,
 				"tx_slate_id": null,
-				"tx_type": "ConfirmedCoinbase"
+				"tx_type": "ConfirmedCoinbase",
+				"public_addr": null
 				}
 		  ]
-		]
+		}
 	  }
 	}
 	# "#

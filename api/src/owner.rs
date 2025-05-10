@@ -1194,8 +1194,8 @@ where
 	/// // Return all TxLogEntries
 	/// let result = api_owner.retrieve_txs(None, update_from_node, tx_id, tx_slate_id, None, None, None);
 	///
-	/// if let Ok((was_updated, tx_log_entries)) = result {
-	///		let stored_tx = api_owner.get_stored_tx(None, &tx_log_entries[0]).unwrap();
+	/// if let Ok(txs_result) = result {
+	///		let stored_tx = api_owner.get_stored_tx(None, &txs_result.txs[0]).unwrap();
 	///		//...
 	/// }
 	/// ```

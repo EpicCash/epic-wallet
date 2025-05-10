@@ -617,7 +617,7 @@ pub fn run_doctest_foreign(
 	util::init_test_logger();
 	let _ = fs::remove_dir_all(test_dir);
 	global::set_mining_mode(ChainTypes::AutomatedTesting);
-	global::set_foundation_path("../tests/assets/foundation.json".to_string());
+	global::set_foundation_path("../tests/assets/foundation_floonet.json".to_string());
 	let mut policies: feijoada::Policy = feijoada::get_bottles_default();
 	policies.insert(feijoada::PoWType::Cuckatoo, 100);
 	global::set_policy_config(feijoada::PolicyConfig {

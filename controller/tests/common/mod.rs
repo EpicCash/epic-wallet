@@ -82,7 +82,7 @@ pub fn setup(test_dir: &str) {
 	util::init_test_logger();
 	clean_output_dir(test_dir);
 	global::set_mining_mode(ChainTypes::AutomatedTesting);
-	global::set_foundation_path("../tests/assets/foundation.json".to_string());
+	global::set_foundation_path("../tests/assets/foundation_floonet.json".to_string());
 }
 
 pub fn create_wallet_proxy(
