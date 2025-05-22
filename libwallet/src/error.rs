@@ -23,7 +23,7 @@ use thiserror::Error;
 /// Error definition
 
 /// Wallet errors, mostly wrappers around underlying crypto or I/O errors.
-#[derive(Error, Debug, Deserialize)]
+#[derive(Error, Debug, Deserialize, Serialize)]
 pub enum Error {
 	/// Not enough funds
 	#[error(
