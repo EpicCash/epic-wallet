@@ -12,8 +12,6 @@ workspace = ".."
 
 [dependencies]
 blake2-rfc = "0.2"
-failure = "0.1"
-failure_derive = "0.1"
 futures = "0.3"
 thiserror = "2.0.12"
 rand = "0.9.0"

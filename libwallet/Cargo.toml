@@ -12,7 +12,7 @@ workspace = ".."
 
 [dependencies]
 blake2-rfc = "0.2"
-thiserror = "1"
+thiserror = "2.0.12"
 rand = "0.9"
 serde = "1"
 serde_derive = "1"

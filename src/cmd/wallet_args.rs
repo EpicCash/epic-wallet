@@ -24,10 +24,8 @@ use epic_wallet_controller::command;
 use epic_wallet_impls::tor::config::is_tor_address;
 use epic_wallet_impls::{DefaultLCProvider, DefaultWalletImpl};
 use epic_wallet_impls::{PathToSlate, SlateGetter as _};
-use epic_wallet_libwallet::Error as LibwalletError;
-use epic_wallet_libwallet::Slate;
 use epic_wallet_libwallet::{
-	address, IssueInvoiceTxArgs, NodeClient, WalletInst, WalletLCProvider,
+	address, Error, IssueInvoiceTxArgs, NodeClient, Slate, WalletInst, WalletLCProvider,
 };
 use epic_wallet_util::epic_core as core;
 use epic_wallet_util::epic_core::core::amount_to_hr_string;
@@ -50,7 +48,7 @@ macro_rules! arg_parse {
 		match $r {
 			Ok(res) => res,
 			Err(e) => {
-				return Err(LibwalletError::ArgumentError(format!("{}", e)));
+				return Err(Error::ArgumentError(format!("{}", e)));
 			}
 		}
 	};
@@ -79,7 +77,7 @@ fn prompt_password_confirm() -> ZeroingString {
 
 fn prompt_recovery_phrase<L, C, K>(
 	wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K>>>>,
-) -> Result<ZeroingString, LibwalletError>
+) -> Result<ZeroingString, Error>
 where
 	DefaultWalletImpl<'static, C>: WalletInst<'static, L, C, K>,
 	L: WalletLCProvider<'static, C, K>,
@@ -105,20 +103,20 @@ where
 				}
 			}
 			Err(ReadlineError::Interrupted) => {
-				return Err(LibwalletError::CancelledError);
+				return Err(Error::CancelledError);
 			}
 			Err(ReadlineError::Eof) => {
-				return Err(LibwalletError::CancelledError);
+				return Err(Error::CancelledError);
 			}
 			Err(err) => {
 				eprintln!("Error: {:?}", err);
-				return Err(LibwalletError::CancelledError);
+				return Err(Error::CancelledError);
 			}
 		}
 	}
 }
 
-fn prompt_pay_invoice(slate: &Slate, method: &str, dest: &str) -> Result<bool, LibwalletError> {
+fn prompt_pay_invoice(slate: &Slate, method: &str, dest: &str) -> Result<bool, Error> {
 	let interface = Arc::new(Interface::new("pay")?);
 	let amount = amount_to_hr_string(slate.amount, false);
 	interface.set_report_signal(Signal::Interrupt, true);
@@ -154,12 +152,12 @@ fn prompt_pay_invoice(slate: &Slate, method: &str, dest: &str) -> Result<bool, L
 			ReadResult::Signal(sig) => {
 				if sig == Signal::Interrupt {
 					interface.cancel_read_line()?;
-					return Err(LibwalletError::CancelledError);
+					return Err(Error::CancelledError);
 				}
 			}
 			ReadResult::Input(line) => {
 				match line.trim() {
-					"Q" | "q" => return Err(LibwalletError::CancelledError),
+					"Q" | "q" => return Err(Error::CancelledError),
 					result => {
 						if result == amount {
 							return Ok(true);
@@ -179,7 +177,7 @@ fn prompt_pay_invoice(slate: &Slate, method: &str, dest: &str) -> Result<bool, L
 pub fn inst_wallet<L, C, K>(
 	config: WalletConfig,
 	node_client: C,
-) -> Result<Arc<Mutex<Box<dyn WalletInst<'static, L, C, K>>>>, LibwalletError>
+) -> Result<Arc<Mutex<Box<dyn WalletInst<'static, L, C, K>>>>, Error>
 where
 	DefaultWalletImpl<'static, C>: WalletInst<'static, L, C, K>,
 	L: WalletLCProvider<'static, C, K>,
@@ -194,25 +192,25 @@ where
 }
 
 // parses a required value, or throws error with message otherwise
-fn parse_required<'a>(args: &'a ArgMatches, name: &str) -> Result<&'a str, LibwalletError> {
+fn parse_required<'a>(args: &'a ArgMatches, name: &str) -> Result<&'a str, Error> {
 	let arg = args.value_of(name);
 	match arg {
 		Some(ar) => Ok(ar),
 		None => {
 			let msg = format!("Value for argument '{}' is required in this context", name,);
-			Err(LibwalletError::ArgumentError(msg))
+			Err(Error::ArgumentError(msg))
 		}
 	}
 }
 
 // parses a number, or throws error with message otherwise
-fn parse_u64(arg: &str, name: &str) -> Result<u64, LibwalletError> {
+fn parse_u64(arg: &str, name: &str) -> Result<u64, Error> {
 	let val = arg.parse::<u64>();
 	match val {
 		Ok(v) => Ok(v),
 		Err(e) => {
 			let msg = format!("Could not parse {} as a whole number. e={}", name, e);
-			Err(LibwalletError::ArgumentError(msg))
+			Err(Error::ArgumentError(msg))
 		}
 	}
 }
@@ -232,7 +230,7 @@ fn parse_u64_or_none(arg: Option<&str>) -> Option<u64> {
 pub fn parse_global_args(
 	config: &WalletConfig,
 	args: &ArgMatches,
-) -> Result<command::GlobalArgs, LibwalletError> {
+) -> Result<command::GlobalArgs, Error> {
 	let account = parse_required(args, "account")?;
 	let mut show_spent = false;
 	if args.is_present("show_spent") {
@@ -252,7 +250,7 @@ pub fn parse_global_args(
 				Some(k) => k,
 				None => {
 					let msg = format!("Private key for certificate is not set");
-					return Err(LibwalletError::ArgumentError(msg));
+					return Err(Error::ArgumentError(msg));
 				}
 			};
 			Some(TLSConfig::new(file, key))
@@ -286,7 +284,7 @@ pub fn parse_init_args<L, C, K>(
 	config: &WalletConfig,
 	g_args: &command::GlobalArgs,
 	args: &ArgMatches,
-) -> Result<command::InitArgs, LibwalletError>
+) -> Result<command::InitArgs, Error>
 where
 	DefaultWalletImpl<'static, C>: WalletInst<'static, L, C, K>,
 	L: WalletLCProvider<'static, C, K>,
@@ -322,9 +320,7 @@ where
 	})
 }
 
-pub fn parse_recover_args(
-	g_args: &command::GlobalArgs,
-) -> Result<command::RecoverArgs, LibwalletError>
+pub fn parse_recover_args(g_args: &command::GlobalArgs) -> Result<command::RecoverArgs, Error>
 where
 {
 	let passphrase = prompt_password(&g_args.password);
@@ -335,7 +331,7 @@ pub fn parse_listen_args(
 	config: &mut WalletConfig,
 	tor_config: &mut TorConfig,
 	args: &ArgMatches,
-) -> Result<command::ListenArgs, LibwalletError> {
+) -> Result<command::ListenArgs, Error> {
 	if let Some(port) = args.value_of("port") {
 		config.api_listen_port = port.parse().unwrap();
 	}
@@ -350,10 +346,7 @@ pub fn parse_listen_args(
 	})
 }
 
-pub fn parse_owner_api_args(
-	config: &mut WalletConfig,
-	args: &ArgMatches,
-) -> Result<(), LibwalletError> {
+pub fn parse_owner_api_args(config: &mut WalletConfig, args: &ArgMatches) -> Result<(), Error> {
 	if let Some(port) = args.value_of("port") {
 		config.owner_api_listen_port = Some(port.parse().unwrap());
 	}
@@ -363,9 +356,7 @@ pub fn parse_owner_api_args(
 	Ok(())
 }
 
-pub fn parse_account_args(
-	account_args: &ArgMatches,
-) -> Result<command::AccountArgs, LibwalletError> {
+pub fn parse_account_args(account_args: &ArgMatches) -> Result<command::AccountArgs, Error> {
 	let create = match account_args.value_of("create") {
 		None => None,
 		Some(s) => Some(s.to_owned()),
@@ -373,7 +364,7 @@ pub fn parse_account_args(
 	Ok(command::AccountArgs { create })
 }
 
-pub fn parse_send_args(args: &ArgMatches) -> Result<command::SendArgs, LibwalletError> {
+pub fn parse_send_args(args: &ArgMatches) -> Result<command::SendArgs, Error> {
 	// amount
 	let amount = parse_required(args, "amount")?;
 	let amount = core::core::amount_from_hr_string(amount);
@@ -384,7 +375,7 @@ pub fn parse_send_args(args: &ArgMatches) -> Result<command::SendArgs, Libwallet
 				"Could not parse amount as a number with optional decimal point. e={:?}",
 				e
 			);
-			return Err(LibwalletError::ArgumentError(msg));
+			return Err(Error::ArgumentError(msg));
 		}
 	};
 
@@ -435,7 +426,7 @@ pub fn parse_send_args(args: &ArgMatches) -> Result<command::SendArgs, Libwallet
 			"HTTP Destination should start with http://: or https://: {}",
 			dest,
 		);
-		return Err(LibwalletError::ArgumentError(msg));
+		return Err(Error::ArgumentError(msg));
 	}
 
 	// change_outputs
@@ -493,9 +484,7 @@ pub fn parse_send_args(args: &ArgMatches) -> Result<command::SendArgs, Libwallet
 	})
 }
 
-pub fn parse_receive_args(
-	receive_args: &ArgMatches,
-) -> Result<command::ReceiveArgs, LibwalletError> {
+pub fn parse_receive_args(receive_args: &ArgMatches) -> Result<command::ReceiveArgs, Error> {
 	// message
 	let message = match receive_args.is_present("message") {
 		true => Some(receive_args.value_of("message").unwrap().to_owned()),
@@ -512,7 +501,7 @@ pub fn parse_receive_args(
 	if method == "file" {
 		if !Path::new(&tx_file).is_file() {
 			let msg = format!("File {} not found.", &tx_file);
-			return Err(LibwalletError::ArgumentError(msg));
+			return Err(Error::ArgumentError(msg));
 		}
 	}
 
@@ -523,7 +512,7 @@ pub fn parse_receive_args(
 	})
 }
 
-pub fn parse_finalize_args(args: &ArgMatches) -> Result<command::FinalizeArgs, LibwalletError> {
+pub fn parse_finalize_args(args: &ArgMatches) -> Result<command::FinalizeArgs, Error> {
 	let fluff = args.is_present("fluff");
 	let nopost = args.is_present("nopost");
 
@@ -537,7 +526,7 @@ pub fn parse_finalize_args(args: &ArgMatches) -> Result<command::FinalizeArgs, L
 	if method == "file" {
 		if !Path::new(&input).is_file() {
 			let msg = format!("File {} not found.", input);
-			return Err(LibwalletError::ArgumentError(msg));
+			return Err(Error::ArgumentError(msg));
 		}
 	}
 
@@ -555,9 +544,7 @@ pub fn parse_finalize_args(args: &ArgMatches) -> Result<command::FinalizeArgs, L
 	})
 }
 
-pub fn parse_issue_invoice_args(
-	args: &ArgMatches,
-) -> Result<command::IssueInvoiceArgs, LibwalletError> {
+pub fn parse_issue_invoice_args(args: &ArgMatches) -> Result<command::IssueInvoiceArgs, Error> {
 	let amount = parse_required(args, "amount")?;
 	let amount = core::core::amount_from_hr_string(amount);
 	let amount = match amount {
@@ -567,7 +554,7 @@ pub fn parse_issue_invoice_args(
 				"Could not parse amount as a number with optional decimal point. e={:?}",
 				e
 			);
-			return Err(LibwalletError::ArgumentError(msg));
+			return Err(Error::ArgumentError(msg));
 		}
 	};
 	// message
@@ -601,7 +588,7 @@ pub fn parse_issue_invoice_args(
 pub fn parse_process_invoice_args(
 	args: &ArgMatches,
 	prompt: bool,
-) -> Result<command::ProcessInvoiceArgs, LibwalletError> {
+) -> Result<command::ProcessInvoiceArgs, Error> {
 	// TODO: display and prompt for confirmation of what we're doing
 	// message
 	let message = match args.is_present("message") {
@@ -646,7 +633,7 @@ pub fn parse_process_invoice_args(
 			"HTTP Destination should start with http://: or https://: {}",
 			dest,
 		);
-		return Err(LibwalletError::ArgumentError(msg));
+		return Err(Error::ArgumentError(msg));
 	}
 
 	// ttl_blocks
@@ -664,7 +651,7 @@ pub fn parse_process_invoice_args(
 
 		let slate = match PathToSlate((&tx_file).into()).get_tx() {
 			Ok(s) => s,
-			Err(e) => return Err(LibwalletError::ArgumentError(format!("{}", e))),
+			Err(e) => return Err(Error::ArgumentError(format!("{}", e))),
 		};
 
 		prompt_pay_invoice(&slate, method, dest)?;
@@ -683,7 +670,7 @@ pub fn parse_process_invoice_args(
 	})
 }
 
-pub fn parse_info_args(args: &ArgMatches) -> Result<command::InfoArgs, LibwalletError> {
+pub fn parse_info_args(args: &ArgMatches) -> Result<command::InfoArgs, Error> {
 	// minimum_confirmations
 	let mc = parse_required(args, "minimum_confirmations")?;
 	let mc = parse_u64(mc, "minimum_confirmations")?;
@@ -692,7 +679,7 @@ pub fn parse_info_args(args: &ArgMatches) -> Result<command::InfoArgs, Libwallet
 	})
 }
 
-pub fn parse_outputs_args(args: &ArgMatches) -> Result<command::OutputsArgs, LibwalletError> {
+pub fn parse_outputs_args(args: &ArgMatches) -> Result<command::OutputsArgs, Error> {
 	let show_full_history = args.is_present("show_full_history");
 	// Parse limit
 	let limit = match args.value_of("limit") {
@@ -713,7 +700,7 @@ pub fn parse_outputs_args(args: &ArgMatches) -> Result<command::OutputsArgs, Lib
 			let so_lower = so.to_lowercase();
 			if so_lower != "asc" && so_lower != "desc" {
 				let msg = format!("Invalid value for 'sort_order'. Must be 'asc' or 'desc'.");
-				return Err(LibwalletError::ArgumentError(msg));
+				return Err(Error::ArgumentError(msg));
 			}
 			Some(so_lower)
 		}
@@ -726,7 +713,7 @@ pub fn parse_outputs_args(args: &ArgMatches) -> Result<command::OutputsArgs, Lib
 	})
 }
 
-pub fn parse_check_args(args: &ArgMatches) -> Result<command::CheckArgs, LibwalletError> {
+pub fn parse_check_args(args: &ArgMatches) -> Result<command::CheckArgs, Error> {
 	let delete_unconfirmed = args.is_present("delete_unconfirmed");
 	let start_height = parse_u64_or_none(args.value_of("start_height"));
 	Ok(command::CheckArgs {
@@ -735,7 +722,7 @@ pub fn parse_check_args(args: &ArgMatches) -> Result<command::CheckArgs, Libwall
 	})
 }
 
-pub fn parse_txs_args(args: &ArgMatches) -> Result<command::TxsArgs, LibwalletError> {
+pub fn parse_txs_args(args: &ArgMatches) -> Result<command::TxsArgs, Error> {
 	// Parse transaction ID
 	let tx_id = match args.value_of("id") {
 		None => None,
@@ -749,7 +736,7 @@ pub fn parse_txs_args(args: &ArgMatches) -> Result<command::TxsArgs, LibwalletEr
 			Ok(t) => Some(t),
 			Err(e) => {
 				let msg = format!("Could not parse txid parameter. e={}", e);
-				return Err(LibwalletError::ArgumentError(msg));
+				return Err(Error::ArgumentError(msg));
 			}
 		},
 	};
@@ -757,7 +744,7 @@ pub fn parse_txs_args(args: &ArgMatches) -> Result<command::TxsArgs, LibwalletEr
 	// Ensure only one of `id` or `txid` is provided
 	if tx_id.is_some() && tx_slate_id.is_some() {
 		let msg = format!("At most one of 'id' (-i) or 'txid' (-t) may be provided.");
-		return Err(LibwalletError::ArgumentError(msg));
+		return Err(Error::ArgumentError(msg));
 	}
 
 	// Parse limit
@@ -779,7 +766,7 @@ pub fn parse_txs_args(args: &ArgMatches) -> Result<command::TxsArgs, LibwalletEr
 			let so_lower = so.to_lowercase();
 			if so_lower != "asc" && so_lower != "desc" {
 				let msg = format!("Invalid value for 'sort_order'. Must be 'asc' or 'desc'.");
-				return Err(LibwalletError::ArgumentError(msg));
+				return Err(Error::ArgumentError(msg));
 			}
 			Some(so_lower)
 		}
@@ -795,7 +782,7 @@ pub fn parse_txs_args(args: &ArgMatches) -> Result<command::TxsArgs, LibwalletEr
 	})
 }
 
-pub fn parse_post_args(args: &ArgMatches) -> Result<command::PostArgs, LibwalletError> {
+pub fn parse_post_args(args: &ArgMatches) -> Result<command::PostArgs, Error> {
 	let tx_file = parse_required(args, "input")?;
 	let fluff = args.is_present("fluff");
 
@@ -805,7 +792,7 @@ pub fn parse_post_args(args: &ArgMatches) -> Result<command::PostArgs, Libwallet
 	})
 }
 
-pub fn parse_repost_args(args: &ArgMatches) -> Result<command::RepostArgs, LibwalletError> {
+pub fn parse_repost_args(args: &ArgMatches) -> Result<command::RepostArgs, Error> {
 	let tx_id = match args.value_of("id") {
 		None => None,
 		Some(tx) => Some(parse_u64(tx, "id")? as u32),
@@ -824,7 +811,7 @@ pub fn parse_repost_args(args: &ArgMatches) -> Result<command::RepostArgs, Libwa
 	})
 }
 
-pub fn parse_cancel_args(args: &ArgMatches) -> Result<command::CancelArgs, LibwalletError> {
+pub fn parse_cancel_args(args: &ArgMatches) -> Result<command::CancelArgs, Error> {
 	let mut tx_id_string = "";
 	let tx_id = match args.value_of("id") {
 		None => None,
@@ -839,13 +826,13 @@ pub fn parse_cancel_args(args: &ArgMatches) -> Result<command::CancelArgs, Libwa
 			}
 			Err(e) => {
 				let msg = format!("Could not parse txid parameter. e={}", e);
-				return Err(LibwalletError::ArgumentError(msg));
+				return Err(Error::ArgumentError(msg));
 			}
 		},
 	};
 	if (tx_id.is_none() && tx_slate_id.is_none()) || (tx_id.is_some() && tx_slate_id.is_some()) {
 		let msg = format!("'id' (-i) or 'txid' (-t) argument is required.");
-		return Err(LibwalletError::ArgumentError(msg));
+		return Err(Error::ArgumentError(msg));
 	}
 	Ok(command::CancelArgs {
 		tx_id,
@@ -853,9 +840,7 @@ pub fn parse_cancel_args(args: &ArgMatches) -> Result<command::CancelArgs, Libwa
 		tx_id_string: tx_id_string.to_owned(),
 	})
 }
-pub fn parse_export_proof_args(
-	args: &ArgMatches,
-) -> Result<command::ProofExportArgs, LibwalletError> {
+pub fn parse_export_proof_args(args: &ArgMatches) -> Result<command::ProofExportArgs, Error> {
 	let output_file = parse_required(args, "output")?;
 	let tx_id = match args.value_of("id") {
 		None => None,
@@ -867,17 +852,17 @@ pub fn parse_export_proof_args(
 			Ok(t) => Some(t),
 			Err(e) => {
 				let msg = format!("Could not parse txid parameter. e={}", e);
-				return Err(LibwalletError::ArgumentError(msg));
+				return Err(Error::ArgumentError(msg));
 			}
 		},
 	};
 	if tx_id.is_some() && tx_slate_id.is_some() {
 		let msg = format!("At most one of 'id' (-i) or 'txid' (-t) may be provided.");
-		return Err(LibwalletError::ArgumentError(msg));
+		return Err(Error::ArgumentError(msg));
 	}
 	if tx_id.is_none() && tx_slate_id.is_none() {
 		let msg = format!("Either 'id' (-i) or 'txid' (-t) must be provided.");
-		return Err(LibwalletError::ArgumentError(msg));
+		return Err(Error::ArgumentError(msg));
 	}
 	Ok(command::ProofExportArgs {
 		output_file: output_file.to_owned(),
@@ -886,9 +871,7 @@ pub fn parse_export_proof_args(
 	})
 }
 
-pub fn parse_verify_proof_args(
-	args: &ArgMatches,
-) -> Result<command::ProofVerifyArgs, LibwalletError> {
+pub fn parse_verify_proof_args(args: &ArgMatches) -> Result<command::ProofVerifyArgs, Error> {
 	let input_file = parse_required(args, "input")?;
 	Ok(command::ProofVerifyArgs {
 		input_file: input_file.to_owned(),
@@ -903,7 +886,7 @@ pub fn wallet_command<C, F>(
 	node_client: C,
 	test_mode: bool,
 	wallet_inst_cb: F,
-) -> Result<String, LibwalletError>
+) -> Result<String, Error>
 where
 	C: NodeClient + 'static + Clone,
 	F: FnOnce(
@@ -1154,7 +1137,7 @@ where
 		}
 		_ => {
 			let msg = format!("Unknown wallet command, use 'epic-wallet help' for details");
-			return Err(LibwalletError::ArgumentError(msg));
+			return Err(Error::ArgumentError(msg));
 		}
 	};
 	if let Err(e) = res {

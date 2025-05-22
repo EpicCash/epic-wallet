@@ -47,9 +47,7 @@ where
 	key_path.depth = key_path.depth + 1;
 	key_path.path[key_path.depth as usize - 1] = ChildNumber::from(index);
 	let key_id = Identifier::from_path(&key_path);
-	let sec_key = keychain
-		.derive_key(0, &key_id, &SwitchCommitmentType::None)
-		.map_err(|e| Error::Keychain(e).to_owned())?;
+	let sec_key = keychain.derive_key(0, &key_id, &SwitchCommitmentType::None)?;
 	let hashed = blake2b(32, &[], &sec_key.0[..]);
 	Ok(SecretKey::from_slice(
 		&keychain.secp(),
@@ -79,7 +77,7 @@ pub fn ed25519_parse_pubkey(pub_key: &str) -> Result<DalekPublicKey, Error> {
 	match DalekPublicKey::from_bytes(array) {
 		Ok(k) => Ok(k),
 		Err(_) => {
-			return Err(Error::AddressDecoding("Not a valid public key".to_owned()).to_owned())?;
+			return Err(Error::AddressDecoding("Not a valid public key".to_owned()))?;
 		}
 	}
 }
@@ -120,8 +118,7 @@ pub fn pubkey_from_onion_v3(onion_address: &str) -> Result<DalekPublicKey, Error
 		Err(_) => {
 			return Err(Error::AddressDecoding(
 				"Provided onion V3 address is invalid (parsing key)".to_owned(),
-			)
-			.to_owned())?;
+			))?;
 		}
 	};
 	let test_v3 = match onion_v3_from_pubkey(&key) {
@@ -129,16 +126,14 @@ pub fn pubkey_from_onion_v3(onion_address: &str) -> Result<DalekPublicKey, Error
 		Err(_) => {
 			return Err(Error::AddressDecoding(
 				"Provided onion V3 address is invalid (converting from pubkey)".to_owned(),
-			)
-			.to_owned())?;
+			))?;
 		}
 	};
 
 	if test_v3.to_uppercase() != orig_address_raw.to_uppercase() {
 		return Err(Error::AddressDecoding(
 			"Provided onion V3 address is invalid (no match)".to_owned(),
-		)
-		.to_owned())?;
+		))?;
 	}
 	Ok(key)
 }

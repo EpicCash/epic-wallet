@@ -343,7 +343,7 @@ where
 		}
 		// Removin
 		info!("Password change confirmed, removing old seed file.");
-		fs::remove_file(backup_name).map_err(|_| Error::IO)?;
+		fs::remove_file(backup_name)?;
 
 		Ok(())
 	}
@@ -354,7 +354,7 @@ where
 			"Removing all wallet data from: {}",
 			data_dir_name.to_str().unwrap()
 		);
-		fs::remove_dir_all(data_dir_name).map_err(|_| Error::IO)?;
+		fs::remove_dir_all(data_dir_name)?;
 		Ok(())
 	}
 

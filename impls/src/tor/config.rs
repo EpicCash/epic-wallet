@@ -35,7 +35,7 @@ const HIDDEN_SERVICES_DIR: &'static str = "onion_service_addresses";
 #[cfg(unix)]
 fn set_permissions(file_path: &str) -> Result<(), Error> {
 	use std::os::unix::prelude::*;
-	fs::set_permissions(file_path, fs::Permissions::from_mode(0o700)).map_err(|_| Error::IO)?;
+	fs::set_permissions(file_path, fs::Permissions::from_mode(0o700))?;
 	Ok(())
 }
 
@@ -76,14 +76,12 @@ impl TorRcConfig {
 
 	/// write to file
 	pub fn write_to_file(&self, file_path: &str) -> Result<(), Error> {
-		let mut file = File::create(file_path).map_err(|_| Error::IO)?;
+		let mut file = File::create(file_path)?;
 		for item in &self.items {
-			file.write_all(item.name.as_bytes())
-				.map_err(|_| Error::IO)?;
-			file.write_all(b" ").map_err(|_| Error::IO)?;
-			file.write_all(item.value.as_bytes())
-				.map_err(|_| Error::IO)?;
-			file.write_all(b"\n").map_err(|_| Error::IO)?;
+			file.write_all(item.name.as_bytes())?;
+			file.write_all(b" ")?;
+			file.write_all(item.value.as_bytes())?;
+			file.write_all(b"\n")?;
 		}
 		Ok(())
 	}
@@ -100,11 +98,10 @@ pub fn create_onion_service_sec_key_file(
 	sec_key: &DalekSecretKey,
 ) -> Result<(), Error> {
 	let key_file_path = &format!("{}{}{}", os_directory, MAIN_SEPARATOR, SEC_KEY_FILE);
-	let mut file = File::create(key_file_path).map_err(|_| Error::IO)?;
+	let mut file = File::create(key_file_path)?;
 	// Tag is always 32 bytes, so pad with null zeroes
-	file.write("== ed25519v1-secret: type0 ==\0\0\0".as_bytes())
-		.map_err(|_| Error::IO)?;
-	file.write_all(&sec_key.to_bytes()).map_err(|_| Error::IO)?;
+	file.write("== ed25519v1-secret: type0 ==\0\0\0".as_bytes())?;
+	file.write_all(&sec_key.to_bytes())?;
 	Ok(())
 }
 
@@ -113,25 +110,23 @@ pub fn create_onion_service_pub_key_file(
 	pub_key: &DalekPublicKey,
 ) -> Result<(), Error> {
 	let key_file_path = &format!("{}{}{}", os_directory, MAIN_SEPARATOR, PUB_KEY_FILE);
-	let mut file = File::create(key_file_path).map_err(|_| Error::IO)?;
+	let mut file = File::create(key_file_path)?;
 	// Tag is always 32 bytes, so pad with null zeroes
-	file.write("== ed25519v1-public: type0 ==\0\0\0".as_bytes())
-		.map_err(|_| Error::IO)?;
-	file.write_all(pub_key.as_bytes()).map_err(|_| Error::IO)?;
+	file.write("== ed25519v1-public: type0 ==\0\0\0".as_bytes())?;
+	file.write_all(pub_key.as_bytes())?;
 	Ok(())
 }
 
 pub fn create_onion_service_hostname_file(os_directory: &str, hostname: &str) -> Result<(), Error> {
 	let file_path = &format!("{}{}{}", os_directory, MAIN_SEPARATOR, HOSTNAME_FILE);
-	let mut file = File::create(file_path).map_err(|_| Error::IO)?;
-	file.write_all(&format!("{}.onion\n", hostname).as_bytes())
-		.map_err(|_| Error::IO)?;
+	let mut file = File::create(file_path)?;
+	file.write_all(&format!("{}.onion\n", hostname).as_bytes())?;
 	Ok(())
 }
 
 pub fn create_onion_auth_clients_dir(os_directory: &str) -> Result<(), Error> {
 	let auth_dir_path = &format!("{}{}{}", os_directory, MAIN_SEPARATOR, AUTH_CLIENTS_DIR);
-	fs::create_dir_all(auth_dir_path).map_err(|_| Error::IO)?;
+	fs::create_dir_all(auth_dir_path)?;
 	Ok(())
 }
 /// output an onion service config for the secret key, and return the address
@@ -152,7 +147,7 @@ pub fn output_onion_service_config(
 	}
 
 	// create directory if it doesn't exist
-	fs::create_dir_all(&hs_dir_file_path).map_err(|_| Error::IO)?;
+	fs::create_dir_all(&hs_dir_file_path)?;
 
 	let (d_sec_key, d_pub_key) = address::ed25519_keypair(&sec_key)?;
 	create_onion_service_sec_key_file(&hs_dir_file_path, &d_sec_key)?;
@@ -200,7 +195,7 @@ pub fn output_tor_listener_config(
 	let tor_data_dir = format!("{}{}{}", tor_config_directory, MAIN_SEPARATOR, TOR_DATA_DIR);
 
 	// create data directory if it doesn't exist
-	fs::create_dir_all(&tor_data_dir).map_err(|_| Error::IO)?;
+	fs::create_dir_all(&tor_data_dir)?;
 
 	let mut service_dirs = vec![];
 
@@ -226,7 +221,7 @@ pub fn output_tor_sender_config(
 	socks_listener_addr: &str,
 ) -> Result<(), Error> {
 	// create data directory if it doesn't exist
-	fs::create_dir_all(&tor_config_dir).map_err(|_| Error::IO)?;
+	fs::create_dir_all(&tor_config_dir)?;
 
 	output_torrc(tor_config_dir, "", socks_listener_addr, &vec![])?;
 
@@ -238,7 +233,7 @@ pub fn is_tor_address(input: &str) -> Result<(), Error> {
 		Ok(_) => Ok(()),
 		Err(e) => {
 			let msg = format!("{}", e);
-			Err(Error::NotOnion(msg).to_owned())?
+			Err(Error::NotOnion(msg))?
 		}
 	}
 }

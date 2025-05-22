@@ -11,8 +11,7 @@ edition = "2021"
 workspace = ".."
 
 [dependencies]
-failure = "0.1"
-failure_derive = "0.1"
+thiserror = "2.0.12"
 log = "0.4"
 uuid = { version = "1.16.0", features = ["serde", "v4"] }
 serde = "1"
