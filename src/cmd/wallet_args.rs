@@ -42,6 +42,9 @@ use rustyline::error::ReadlineError;
 use rustyline::history::DefaultHistory;
 use rustyline::Editor;
 
+use crate::cmd::built_info;
+use clap::{Arg, Command};
+
 // define what to do on argument error
 macro_rules! arg_parse {
 	( $r:expr ) => {
@@ -52,6 +55,184 @@ macro_rules! arg_parse {
 			}
 		}
 	};
+}
+
+pub fn build_cli() -> Command {
+	Command::new("epic-wallet")
+        .about("Reference Epic Wallet")
+        .author("The Epic Team")
+        .version(built_info::PKG_VERSION)
+        .arg(Arg::new("floonet").long("floonet").help("Run epic against the Floonet (as opposed to mainnet)").action(clap::ArgAction::SetTrue))
+        .arg(Arg::new("usernet").long("usernet").help("Run epic as a local-only network. Doesn't block peer connections but will not connect to any peer or seed").action(clap::ArgAction::SetTrue))
+        .arg(Arg::new("pass").short('p').long("pass").help("cargo build passphrase used to encrypt wallet seed").num_args(1))
+        .arg(Arg::new("account").short('a').long("account").help("Wallet account to use for this operation").num_args(1).default_value("default"))
+        .arg(Arg::new("top_level_dir").short('t').long("top_level_dir").help("Top directory in which wallet files are stored (location of 'epic-wallet.toml')").num_args(1))
+        .arg(Arg::new("current_dir").short('c').long("current_dir").help("Path to epic-wallet dir").num_args(1))
+        .arg(Arg::new("external").short('e').long("external").help("Listen on 0.0.0.0 interface to allow external connections (default is 127.0.0.1)").action(clap::ArgAction::SetTrue))
+        .arg(Arg::new("show_spent").short('s').long("show_spent").help("Show spent outputs on wallet output commands").action(clap::ArgAction::SetTrue))
+        .arg(Arg::new("api_server_address").short('r').long("api_server_address").help("Api address of running node on which to check inputs and post transactions").num_args(1))
+        .arg(Arg::new("offline_mode").long("offline_mode").help("Run the wallet in offline mode, skipping node sync checks").action(clap::ArgAction::SetTrue))
+       
+		
+		
+		.subcommand(
+            Command::new("account")
+                .about("List wallet accounts or create a new account")
+                .arg(Arg::new("create").short('c').long("create").help("Create a new wallet account with provided name").num_args(1))
+        )
+        .subcommand(
+            Command::new("listen")
+                .about("Runs the wallet in listening mode waiting for transactions")
+                .arg(Arg::new("port").short('l').long("port").help("Port on which to run the wallet listener").num_args(1).value_parser(clap::value_parser!(u16)))
+                .arg(Arg::new("method").short('m').long("method").help("Which method to use for communication").value_parser(["http", "keybase", "epicbox"]).default_value("http").num_args(1))
+                .arg(Arg::new("no_tor").short('n').long("no_tor").help("Don't start TOR listener when starting HTTP listener").action(clap::ArgAction::SetTrue))
+        )
+        .subcommand(
+            Command::new("owner_api")
+                .about("Runs the wallet's local web API")
+                .arg(Arg::new("port").short('l').long("port").help("Port on which to run the wallet owner listener").num_args(1).value_parser(clap::value_parser!(u16)))
+                .arg(Arg::new("run_foreign").long("run_foreign").help("Also run the Foreign API").action(clap::ArgAction::SetTrue))
+        )
+        .subcommand(
+            Command::new("send")
+                .about("Builds a transaction to send coins and sends to the specified listener directly")
+                .arg(Arg::new("amount").help("Number of coins to send with optional fraction, e.g. 12.423").index(1))
+                .arg(Arg::new("minimum_confirmations").short('c').long("min_conf").help("Minimum number of confirmations required for an output to be spendable").default_value("10").num_args(1))
+                .arg(Arg::new("selection_strategy").short('s').long("selection").help("Coin/Output selection strategy.").value_parser(["all", "smallest"]).default_value("smallest").num_args(1))
+                .arg(Arg::new("estimate_selection_strategies").short('e').long("estimate-selection").help("Estimates all possible Coin/Output selection strategies."))
+                .arg(Arg::new("change_outputs").short('o').long("change_outputs").help("Number of change outputs to generate (mainly for testing)").default_value("1").num_args(1))
+                .arg(Arg::new("method").short('m').long("method").help("Method for sending this transaction").value_parser(["http", "file", "self", "keybase", "emoji", "epicbox"]).default_value("http").num_args(1))
+                .arg(Arg::new("dest").short('d').long("dest").help("Send the transaction to the provided server (start with http://) or save as file.").num_args(1))
+                .arg(Arg::new("request_payment_proof").short('y').long("request_payment_proof").help("Request a payment proof from the recipient. If sending to a tor address, the address will be filled automatically."))
+                .arg(Arg::new("proof_address").short('z').long("proof_address").help("Recipient proof address. If not using TOR, must be provided seprarately by the recipient").num_args(1))
+                .arg(Arg::new("fluff").short('f').long("fluff").help("Fluff the transaction (ignore Dandelion relay protocol)"))
+                .arg(Arg::new("message").short('g').long("message").help("Optional participant message to include").num_args(1))
+                .arg(Arg::new("stored_tx").short('t').long("stored_tx").help("If present, use the previously stored Unconfirmed transaction with given id").num_args(1))
+                .arg(Arg::new("ttl_blocks").short('b').long("ttl_blocks").help("If present, the number of blocks from the current after which wallets should refuse to process transactions further").num_args(1))
+				.arg(Arg::new("slate_version").short('v').long("slate_version").help("Target slate version to create/send").value_parser(clap::value_parser!(u16)).num_args(1))
+		)
+		.subcommand(
+			Command::new("issue_invoice")
+				.about("Issues an invoice transaction to be paid later")
+				.arg(Arg::new("amount").help("Number of coins to invoice with optional fraction, e.g. 12.423").index(1))
+				.arg(Arg::new("message").short('g').long("message").help("Optional participant message to include").num_args(1))
+				.arg(Arg::new("dest").short('d').long("dest").help("Name of destination slate output file").num_args(1))
+				.arg(Arg::new("fluff").short('f').long("fluff").help("Fluff the transaction (ignore Dandelion relay protocol)"))
+				.arg(Arg::new("ttl_blocks").short('b').long("ttl_blocks").help("If present, the number of blocks from the current after which wallets should refuse to process transactions further").num_args(1))
+				.arg(Arg::new("slate_version").short('v').long("slate_version").help("Target slate version to create/send").value_parser(clap::value_parser!(u16)).num_args(1))
+	
+		)
+        .subcommand(
+            Command::new("receive")
+                .about("Processes a transaction file to accept a transfer from a sender")
+                .arg(Arg::new("message").short('g').long("message").help("Optional participant message to include").num_args(1))
+                .arg(Arg::new("method").short('m').long("method").help("Method of receiving this transaction").value_parser(["file", "emoji"]).default_value("file").num_args(1))
+                .arg(Arg::new("input").short('i').long("input").help("Partial transaction to process, expects the sender's transaction file or emoji string.").num_args(1))
+        )
+        .subcommand(
+            Command::new("finalize")
+                .about("Processes a receiver's transaction file to finalize a transfer.")
+                .arg(Arg::new("method").short('m').long("method").help("Method for finalize this transaction").value_parser(["file", "emoji"]).default_value("file").num_args(1))
+                .arg(Arg::new("input").short('i').long("input").help("Partial transaction to process, expects the receiver's transaction file.").num_args(1))
+                .arg(Arg::new("fluff").short('f').long("fluff").help("Fluff the transaction (ignore Dandelion relay protocol)"))
+                .arg(Arg::new("nopost").short('n').long("nopost").help("Do not post the transaction."))
+                .arg(Arg::new("dest").short('d').long("dest").help("Specify file to save the finalized slate.").num_args(1))
+        )
+        .subcommand(
+            Command::new("invoice")
+                .about("Initialize an invoice transaction.")
+                .arg(Arg::new("amount").help("Number of coins to invoice  with optional fraction, e.g. 12.423").index(1))
+                .arg(Arg::new("message").short('g').long("message").help("Optional participant message to include").num_args(1))
+                .arg(Arg::new("dest").short('d').long("dest").help("Name of destination slate output file").num_args(1))
+				.arg(Arg::new("slate_version").short('v').long("slate_version").help("Target slate version to create/send").value_parser(clap::value_parser!(u16)).num_args(1))
+	
+		)		
+        .subcommand(
+            Command::new("pay")
+                .about("Spend coins to pay the provided invoice transaction")
+                .arg(Arg::new("minimum_confirmations").short('c').long("min_conf").help("Minimum number of confirmations required for an output to be spendable").default_value("10").num_args(1))
+                .arg(Arg::new("selection_strategy").short('s').long("selection").help("Coin/Output selection strategy.").value_parser(["all", "smallest"]).default_value("all").num_args(1))
+                .arg(Arg::new("estimate_selection_strategies").short('e').long("estimate-selection").help("Estimates all possible Coin/Output selection strategies."))
+                .arg(Arg::new("method").short('m').long("method").help("Method for sending the processed invoice back to the invoice creator").value_parser(["file", "http", "self"]).default_value("file").num_args(1))
+                .arg(Arg::new("dest").short('d').long("dest").help("Send the transaction to the provided server (start with http://) or save as file.").num_args(1))
+                .arg(Arg::new("message").short('g').long("message").help("Optional participant message to include").num_args(1))
+                .arg(Arg::new("input").short('i').long("input").help("Partial transaction to process, expects the invoicer's transaction file.").num_args(1))
+                .arg(Arg::new("ttl_blocks").short('b').long("ttl_blocks").help("If present, the number of blocks from the current after which wallets should refuse to process transactions further").num_args(1))
+        )
+        .subcommand(
+            Command::new("outputs")
+                .about("Raw wallet output info (list of outputs)")
+                .arg(Arg::new("show_full_history").short('f').long("show_full_history").help("If specified, display full outputs history").action(clap::ArgAction::SetTrue))
+                .arg(Arg::new("limit").short('l').long("limit").help("Limit the number of transactions to display").num_args(1))
+                .arg(Arg::new("offset").short('o').long("offset").help("Skip the first N transactions").num_args(1))
+                .arg(Arg::new("sort_order").short('s').long("sort_order").help("Sort transactions by creation time, either 'asc' or 'desc' (default is 'desc')").value_parser(["asc", "desc"]).num_args(1))
+        )
+        .subcommand(
+            Command::new("txs")
+                .about("Display transaction information")
+                .arg(Arg::new("id").short('i').long("id").help("If specified, display transaction with given Id and all associated Inputs/Outputs").num_args(1))
+                .arg(Arg::new("txid").short('t').long("txid").help("If specified, display transaction with given TxID UUID and all associated Inputs/Outputs").num_args(1))
+                .arg(Arg::new("limit").short('l').long("limit").help("Limit the number of transactions to display").num_args(1))
+                .arg(Arg::new("offset").short('o').long("offset").help("Skip the first N transactions").num_args(1))
+                .arg(Arg::new("sort_order").short('s').long("sort_order").help("Sort transactions by creation time, either 'asc' or 'desc' (default is 'desc')").value_parser(["asc", "desc"]).num_args(1))
+        )
+        .subcommand(
+            Command::new("post")
+                .about("Posts a finalized transaction to the chain")
+                .arg(Arg::new("input").short('i').long("input").help("File name of the transaction to post").num_args(1))
+                .arg(Arg::new("fluff").short('f').long("fluff").help("Fluff the transaction (ignore Dandelion relay protocol)"))
+        )
+        .subcommand(
+            Command::new("repost")
+                .about("Reposts a stored, completed but unconfirmed transaction to the chain, or dumps it to a file")
+                .arg(Arg::new("id").short('i').long("id").help("Transaction ID containing the stored completed transaction").num_args(1))
+                .arg(Arg::new("dumpfile").short('m').long("dumpfile").help("File name to duMp the transaction to instead of posting").num_args(1))
+                .arg(Arg::new("fluff").short('f').long("fluff").help("Fluff the transaction (ignore Dandelion relay protocol)"))
+        )
+        .subcommand(
+            Command::new("cancel")
+                .about("Cancels a previously created transaction, freeing previously locked outputs for use again")
+                .arg(Arg::new("id").short('i').long("id").help("The ID of the transaction to cancel").num_args(1))
+                .arg(Arg::new("txid").short('t').long("txid").help("The TxID UUID of the transaction to cancel").num_args(1))
+        )
+        .subcommand(
+            Command::new("info")
+                .about("Basic wallet contents summary")
+                .arg(Arg::new("minimum_confirmations").short('c').long("min_conf").help("Minimum number of confirmations required for an output to be spendable").default_value("10").num_args(1))
+        )
+        .subcommand(
+            Command::new("init")
+                .about("Initialize a new wallet seed file and database")
+				.arg(Arg::new("cwd").short('w').long("cwd").help("Create wallet files in the current directory instead of the default ~/.epic directory").action(clap::ArgAction::SetTrue))
+                .arg(Arg::new("short_wordlist").short('s').long("short_wordlist").help("Generate a 12-word recovery phrase/seed instead of default 24").action(clap::ArgAction::SetTrue))
+                .arg(Arg::new("recover").short('r').long("recover").help("Initialize new wallet using a recovery phrase").action(clap::ArgAction::SetTrue))
+        )
+        .subcommand(
+            Command::new("recover")
+                .about("Displays a recovery phrase for the wallet. (use `init -r` to perform recovery)")
+        )
+        .subcommand(
+            Command::new("address")
+                .about("Display the wallet's Epicbox public address, the payment proof address and the TOR address")
+        )
+        .subcommand(
+            Command::new("scan")
+                .about("Checks a wallet's outputs against a live node, repairing and restoring missing outputs if required")
+                .arg(Arg::new("delete_unconfirmed").short('d').long("delete_unconfirmed").help("!!! Warning !!! Delete any unconfirmed outputs unlock any locked outputs and delete all associated transactions (!!! this will delete all ongoing transactions !!!) while doing the check.").action(clap::ArgAction::SetTrue))
+                .arg(Arg::new("start_height").short('s').long("start_height").help("If given, the first block from which to start the scan (default 1)").default_value("1").num_args(1))
+        )
+        .subcommand(
+            Command::new("export_proof")
+                .about("Export a payment proof from a completed transaction")
+                .arg(Arg::new("output").help("Output proof file").index(1))
+                .arg(Arg::new("id").short('i').long("id").help("If specified, retrieve the proof for the given transaction ID").num_args(1))
+                .arg(Arg::new("txid").short('t').long("txid").help("If specified, retrieve the proof for the given Slate ID").num_args(1))
+        )
+        .subcommand(
+            Command::new("verify_proof")
+                .about("Verify a payment proof")
+                .arg(Arg::new("input").help("Filename of a proof file").index(1))
+        )
 }
 
 fn prompt_password_stdout(prompt: &str) -> ZeroingString {
@@ -193,7 +374,7 @@ where
 
 // parses a required value, or throws error with message otherwise
 fn parse_required<'a>(args: &'a ArgMatches, name: &str) -> Result<&'a str, Error> {
-	let arg = args.value_of(name);
+	let arg = args.get_one::<String>(name).map(|s| s.as_str());
 	match arg {
 		Some(ar) => Ok(ar),
 		None => {
@@ -231,17 +412,24 @@ pub fn parse_global_args(
 	config: &WalletConfig,
 	args: &ArgMatches,
 ) -> Result<command::GlobalArgs, Error> {
-	let account = parse_required(args, "account")?;
+	let account = args
+		.get_one::<String>("account")
+		.map(|s| s.as_str())
+		.ok_or_else(|| {
+			Error::ArgumentError(
+				"Value for argument 'account' is required in this context".to_string(),
+			)
+		})?;
+
 	let mut show_spent = false;
-	if args.is_present("show_spent") {
+	if args.contains_id("show_spent") {
 		show_spent = true;
 	}
 	let api_secret = get_first_line(config.api_secret_path.clone());
 	let node_api_secret = get_first_line(config.node_api_secret_path.clone());
-	let password = match args.value_of("pass") {
-		None => None,
-		Some(p) => Some(ZeroingString::from(p)),
-	};
+	let password = args
+		.get_one::<String>("pass")
+		.map(|p| ZeroingString::from(p.as_str()));
 
 	let tls_conf = match config.tls_certificate_file.clone() {
 		None => None,
@@ -265,7 +453,7 @@ pub fn parse_global_args(
 		Some(c) => c,
 	};
 
-	let offline_mode = args.is_present("offline_mode");
+	let offline_mode = args.contains_id("offline_mode");
 
 	Ok(command::GlobalArgs {
 		account: account.to_owned(),
@@ -291,13 +479,16 @@ where
 	C: NodeClient + 'static,
 	K: keychain::Keychain + 'static,
 {
-	let list_length = match args.is_present("short_wordlist") {
+	let list_length = match args.contains_id("short_wordlist") {
 		false => 32,
 		true => 16,
 	};
-	let recovery_phrase = match args.is_present("recover") {
-		true => Some(prompt_recovery_phrase(wallet)?),
-		false => None,
+
+	let recovery_phrase = match args.subcommand() {
+		Some(("init", sub_args)) if sub_args.contains_id("recover") => {
+			Some(prompt_recovery_phrase(wallet)?)
+		}
+		_ => None,
 	};
 
 	if recovery_phrase.is_some() {
@@ -332,13 +523,13 @@ pub fn parse_listen_args(
 	tor_config: &mut TorConfig,
 	args: &ArgMatches,
 ) -> Result<command::ListenArgs, Error> {
-	if let Some(port) = args.value_of("port") {
-		config.api_listen_port = port.parse().unwrap();
+	if let Some(port) = args.get_one::<u16>("port") {
+		config.api_listen_port = port.to_owned();
 	}
 
 	let method = parse_required(args, "method")?;
 
-	if args.is_present("no_tor") {
+	if args.contains_id("no_tor") {
 		tor_config.use_tor_listener = false;
 	}
 	Ok(command::ListenArgs {
@@ -347,17 +538,17 @@ pub fn parse_listen_args(
 }
 
 pub fn parse_owner_api_args(config: &mut WalletConfig, args: &ArgMatches) -> Result<(), Error> {
-	if let Some(port) = args.value_of("port") {
-		config.owner_api_listen_port = Some(port.parse().unwrap());
+	if let Some(port) = args.get_one::<u16>("port") {
+		config.owner_api_listen_port = Some(*port);
 	}
-	if args.is_present("run_foreign") {
+	if args.contains_id("run_foreign") {
 		config.owner_api_include_foreign = Some(true);
 	}
 	Ok(())
 }
 
 pub fn parse_account_args(account_args: &ArgMatches) -> Result<command::AccountArgs, Error> {
-	let create = match account_args.value_of("create") {
+	let create = match account_args.get_one::<String>("create") {
 		None => None,
 		Some(s) => Some(s.to_owned()),
 	};
@@ -380,8 +571,8 @@ pub fn parse_send_args(args: &ArgMatches) -> Result<command::SendArgs, Error> {
 	};
 
 	// message
-	let message = match args.is_present("message") {
-		true => Some(args.value_of("message").unwrap().to_owned()),
+	let message = match args.contains_id("message") {
+		true => Some(args.get_one::<String>("message").unwrap().to_owned()),
 		false => None,
 	};
 
@@ -393,7 +584,7 @@ pub fn parse_send_args(args: &ArgMatches) -> Result<command::SendArgs, Error> {
 	let selection_strategy = parse_required(args, "selection_strategy")?;
 
 	// estimate_selection_strategies
-	let estimate_selection_strategies = args.is_present("estimate_selection_strategies");
+	let estimate_selection_strategies = args.contains_id("estimate_selection_strategies");
 
 	// method
 	let method = parse_required(args, "method")?;
@@ -401,7 +592,7 @@ pub fn parse_send_args(args: &ArgMatches) -> Result<command::SendArgs, Error> {
 	// dest
 	let dest = {
 		if method == "self" {
-			match args.value_of("dest") {
+			match args.get_one::<String>("dest").map(|s| s.as_str()) {
 				Some(d) => d,
 				None => "default",
 			}
@@ -434,27 +625,22 @@ pub fn parse_send_args(args: &ArgMatches) -> Result<command::SendArgs, Error> {
 	let change_outputs = parse_u64(change_outputs, "change_outputs")? as usize;
 
 	// fluff
-	let fluff = args.is_present("fluff");
+	let fluff = args.contains_id("fluff");
 
 	// ttl_blocks
-	let ttl_blocks = parse_u64_or_none(args.value_of("ttl_blocks"));
+	let ttl_blocks = parse_u64_or_none(args.get_one::<String>("ttl_blocks").map(|s| s.as_str()));
 
 	// max_outputs
 	let max_outputs = 500;
 
 	// target slate version to create/send
-	let target_slate_version = {
-		match args.is_present("slate_version") {
-			true => {
-				let v = parse_required(args, "slate_version")?;
-				Some(parse_u64(v, "slate_version")? as u16)
-			}
-			false => None,
-		}
+	let target_slate_version = match args.contains_id("slate_version") {
+		true => Some(args.get_one::<u16>("slate_version").unwrap().to_owned()),
+		false => None,
 	};
 
 	let payment_proof_address = {
-		match args.is_present("request_payment_proof") {
+		match args.contains_id("request_payment_proof") {
 			true => {
 				// if the destination address is a TOR address, we don't need the address
 				// separately
@@ -486,8 +672,13 @@ pub fn parse_send_args(args: &ArgMatches) -> Result<command::SendArgs, Error> {
 
 pub fn parse_receive_args(receive_args: &ArgMatches) -> Result<command::ReceiveArgs, Error> {
 	// message
-	let message = match receive_args.is_present("message") {
-		true => Some(receive_args.value_of("message").unwrap().to_owned()),
+	let message = match receive_args.contains_id("message") {
+		true => Some(
+			receive_args
+				.get_one::<String>("message")
+				.unwrap()
+				.to_owned(),
+		),
 		false => None,
 	};
 
@@ -513,8 +704,8 @@ pub fn parse_receive_args(receive_args: &ArgMatches) -> Result<command::ReceiveA
 }
 
 pub fn parse_finalize_args(args: &ArgMatches) -> Result<command::FinalizeArgs, Error> {
-	let fluff = args.is_present("fluff");
-	let nopost = args.is_present("nopost");
+	let fluff = args.contains_id("fluff");
+	let nopost = args.contains_id("nopost");
 
 	// method
 	let method = parse_required(args, "method")?;
@@ -530,8 +721,8 @@ pub fn parse_finalize_args(args: &ArgMatches) -> Result<command::FinalizeArgs, E
 		}
 	}
 
-	let dest_file = match args.is_present("dest") {
-		true => Some(args.value_of("dest").unwrap().to_owned()),
+	let dest_file = match args.contains_id("dest") {
+		true => Some(args.get_one::<String>("dest").unwrap().to_owned()),
 		false => None,
 	};
 
@@ -558,20 +749,17 @@ pub fn parse_issue_invoice_args(args: &ArgMatches) -> Result<command::IssueInvoi
 		}
 	};
 	// message
-	let message = match args.is_present("message") {
-		true => Some(args.value_of("message").unwrap().to_owned()),
+	let message = match args.contains_id("message") {
+		true => Some(args.get_one::<String>("message").unwrap().to_owned()),
 		false => None,
 	};
+
 	// target slate version to create
-	let target_slate_version = {
-		match args.is_present("slate_version") {
-			true => {
-				let v = parse_required(args, "slate_version")?;
-				Some(parse_u64(v, "slate_version")? as u16)
-			}
-			false => None,
-		}
+	let target_slate_version = match args.contains_id("slate_version") {
+		true => Some(args.get_one::<u16>("slate_version").unwrap().to_owned()),
+		false => None,
 	};
+
 	// dest (output file)
 	let dest = parse_required(args, "dest")?;
 	Ok(command::IssueInvoiceArgs {
@@ -591,8 +779,8 @@ pub fn parse_process_invoice_args(
 ) -> Result<command::ProcessInvoiceArgs, Error> {
 	// TODO: display and prompt for confirmation of what we're doing
 	// message
-	let message = match args.is_present("message") {
-		true => Some(args.value_of("message").unwrap().to_owned()),
+	let message = match args.contains_id("message") {
+		true => Some(args.get_one::<String>("message").unwrap().to_owned()),
 		false => None,
 	};
 
@@ -604,7 +792,7 @@ pub fn parse_process_invoice_args(
 	let selection_strategy = parse_required(args, "selection_strategy")?;
 
 	// estimate_selection_strategies
-	let estimate_selection_strategies = args.is_present("estimate_selection_strategies");
+	let estimate_selection_strategies = args.contains_id("estimate_selection_strategies");
 
 	// method
 	let method = parse_required(args, "method")?;
@@ -612,7 +800,7 @@ pub fn parse_process_invoice_args(
 	// dest
 	let dest = {
 		if method == "self" {
-			match args.value_of("dest") {
+			match args.get_one::<String>("dest").map(|s| s.as_str()) {
 				Some(d) => d,
 				None => "default",
 			}
@@ -637,7 +825,7 @@ pub fn parse_process_invoice_args(
 	}
 
 	// ttl_blocks
-	let ttl_blocks = parse_u64_or_none(args.value_of("ttl_blocks"));
+	let ttl_blocks = parse_u64_or_none(args.get_one::<String>("ttl_blocks").map(|s| s.as_str()));
 
 	// max_outputs
 	let max_outputs = 500;
@@ -680,21 +868,21 @@ pub fn parse_info_args(args: &ArgMatches) -> Result<command::InfoArgs, Error> {
 }
 
 pub fn parse_outputs_args(args: &ArgMatches) -> Result<command::OutputsArgs, Error> {
-	let show_full_history = args.is_present("show_full_history");
+	let show_full_history = args.contains_id("show_full_history");
 	// Parse limit
-	let limit = match args.value_of("limit") {
+	let limit = match args.get_one::<String>("limit") {
 		None => None,
 		Some(l) => Some(parse_u64(l, "limit")? as usize),
 	};
 
 	// Parse offset
-	let offset = match args.value_of("offset") {
+	let offset = match args.get_one::<String>("offset") {
 		None => None,
 		Some(o) => Some(parse_u64(o, "offset")? as usize),
 	};
 
 	// Parse sort order
-	let sort_order = match args.value_of("sort_order") {
+	let sort_order = match args.get_one::<String>("sort_order") {
 		None => None,
 		Some(so) => {
 			let so_lower = so.to_lowercase();
@@ -714,8 +902,9 @@ pub fn parse_outputs_args(args: &ArgMatches) -> Result<command::OutputsArgs, Err
 }
 
 pub fn parse_check_args(args: &ArgMatches) -> Result<command::CheckArgs, Error> {
-	let delete_unconfirmed = args.is_present("delete_unconfirmed");
-	let start_height = parse_u64_or_none(args.value_of("start_height"));
+	let delete_unconfirmed = args.contains_id("delete_unconfirmed");
+	let start_height =
+		parse_u64_or_none(args.get_one::<String>("start_height").map(|s| s.as_str()));
 	Ok(command::CheckArgs {
 		start_height,
 		delete_unconfirmed,
@@ -724,13 +913,13 @@ pub fn parse_check_args(args: &ArgMatches) -> Result<command::CheckArgs, Error> 
 
 pub fn parse_txs_args(args: &ArgMatches) -> Result<command::TxsArgs, Error> {
 	// Parse transaction ID
-	let tx_id = match args.value_of("id") {
+	let tx_id = match args.get_one::<String>("id") {
 		None => None,
 		Some(tx) => Some(parse_u64(tx, "id")? as u32),
 	};
 
 	// Parse transaction slate ID
-	let tx_slate_id = match args.value_of("txid") {
+	let tx_slate_id = match args.get_one::<String>("txid") {
 		None => None,
 		Some(tx) => match tx.parse() {
 			Ok(t) => Some(t),
@@ -748,19 +937,19 @@ pub fn parse_txs_args(args: &ArgMatches) -> Result<command::TxsArgs, Error> {
 	}
 
 	// Parse limit
-	let limit = match args.value_of("limit") {
+	let limit = match args.get_one::<String>("limit") {
 		None => None,
 		Some(l) => Some(parse_u64(l, "limit")? as usize),
 	};
 
 	// Parse offset
-	let offset = match args.value_of("offset") {
+	let offset = match args.get_one::<String>("offset") {
 		None => None,
 		Some(o) => Some(parse_u64(o, "offset")? as usize),
 	};
 
 	// Parse sort order
-	let sort_order = match args.value_of("sort_order") {
+	let sort_order = match args.get_one::<String>("sort_order") {
 		None => None,
 		Some(so) => {
 			let so_lower = so.to_lowercase();
@@ -784,7 +973,7 @@ pub fn parse_txs_args(args: &ArgMatches) -> Result<command::TxsArgs, Error> {
 
 pub fn parse_post_args(args: &ArgMatches) -> Result<command::PostArgs, Error> {
 	let tx_file = parse_required(args, "input")?;
-	let fluff = args.is_present("fluff");
+	let fluff = args.contains_id("fluff");
 
 	Ok(command::PostArgs {
 		input: tx_file.to_owned(),
@@ -793,13 +982,13 @@ pub fn parse_post_args(args: &ArgMatches) -> Result<command::PostArgs, Error> {
 }
 
 pub fn parse_repost_args(args: &ArgMatches) -> Result<command::RepostArgs, Error> {
-	let tx_id = match args.value_of("id") {
+	let tx_id = match args.get_one::<String>("id") {
 		None => None,
 		Some(tx) => Some(parse_u64(tx, "id")? as u32),
 	};
 
-	let fluff = args.is_present("fluff");
-	let dump_file = match args.value_of("dumpfile") {
+	let fluff = args.contains_id("fluff");
+	let dump_file = match args.get_one::<String>("dumpfile") {
 		None => None,
 		Some(d) => Some(d.to_owned()),
 	};
@@ -813,11 +1002,11 @@ pub fn parse_repost_args(args: &ArgMatches) -> Result<command::RepostArgs, Error
 
 pub fn parse_cancel_args(args: &ArgMatches) -> Result<command::CancelArgs, Error> {
 	let mut tx_id_string = "";
-	let tx_id = match args.value_of("id") {
+	let tx_id = match args.get_one::<String>("id") {
 		None => None,
 		Some(tx) => Some(parse_u64(tx, "id")? as u32),
 	};
-	let tx_slate_id = match args.value_of("txid") {
+	let tx_slate_id = match args.get_one::<String>("txid") {
 		None => None,
 		Some(tx) => match tx.parse() {
 			Ok(t) => {
@@ -842,11 +1031,11 @@ pub fn parse_cancel_args(args: &ArgMatches) -> Result<command::CancelArgs, Error
 }
 pub fn parse_export_proof_args(args: &ArgMatches) -> Result<command::ProofExportArgs, Error> {
 	let output_file = parse_required(args, "output")?;
-	let tx_id = match args.value_of("id") {
+	let tx_id = match args.get_one::<String>("id") {
 		None => None,
 		Some(tx) => Some(parse_u64(tx, "id")? as u32),
 	};
-	let tx_slate_id = match args.value_of("txid") {
+	let tx_slate_id = match args.get_one::<String>("txid") {
 		None => None,
 		Some(tx) => match tx.parse() {
 			Ok(t) => Some(t),
@@ -908,12 +1097,12 @@ where
 		global::set_mining_mode(t);
 	}
 
-	if wallet_args.is_present("external") {
+	if wallet_args.contains_id("external") {
 		wallet_config.api_listen_interface = "0.0.0.0".to_string();
 	}
 
-	if let Some(dir) = wallet_args.value_of("top_level_dir") {
-		wallet_config.data_file_dir = dir.to_string().clone();
+	if let Some(dir) = wallet_args.get_one::<String>("top_level_dir") {
+		wallet_config.data_file_dir = dir.to_string();
 	}
 
 	let global_wallet_args = arg_parse!(parse_global_args(&wallet_config, &wallet_args));
@@ -967,9 +1156,9 @@ where
 	// don't open wallet for certain lifecycle commands
 	let mut open_wallet = true;
 	match wallet_args.subcommand() {
-		("init", Some(_)) => open_wallet = false,
-		("recover", _) => open_wallet = false,
-		("owner_api", _) => {
+		Some(("init", _)) => open_wallet = false,
+		Some(("recover", _)) => open_wallet = false,
+		Some(("owner_api", _)) => {
 			// If wallet exists, open it. Otherwise, that's fine too.
 			let mut wallet_lock = wallet.lock();
 			let lc = wallet_lock.lc_provider().unwrap();
@@ -988,7 +1177,7 @@ where
 				false,
 				false,
 			)?;
-			if let Some(account) = wallet_args.value_of("account") {
+			if let Some(account) = wallet_args.get_one::<String>("account") {
 				let wallet_inst = lc.wallet_inst()?;
 				wallet_inst.set_parent_key_id_by_name(account)?;
 			}
@@ -1000,7 +1189,7 @@ where
 	let km = (&keychain_mask).as_ref();
 
 	let res = match wallet_args.subcommand() {
-		("init", Some(args)) => {
+		Some(("init", args)) => {
 			let a = arg_parse!(parse_init_args(
 				wallet.clone(),
 				&wallet_config,
@@ -1009,11 +1198,11 @@ where
 			));
 			command::init(wallet, &global_wallet_args, a)
 		}
-		("recover", Some(_)) => {
+		Some(("recover", _)) => {
 			let a = arg_parse!(parse_recover_args(&global_wallet_args,));
 			command::recover(wallet, a)
 		}
-		("listen", Some(args)) => {
+		Some(("listen", args)) => {
 			let mut c = wallet_config.clone();
 			let mut t = tor_config.clone();
 			let e = epicbox_config.clone();
@@ -1028,14 +1217,14 @@ where
 				&global_wallet_args.clone(),
 			)
 		}
-		("owner_api", Some(args)) => {
+		Some(("owner_api", args)) => {
 			let mut c = wallet_config.clone();
 			let mut g = global_wallet_args.clone();
 			g.tls_conf = None;
 			arg_parse!(parse_owner_api_args(&mut c, &args));
 			command::owner_api(wallet, keychain_mask, &c, &tor_config, &epicbox_config, &g)
 		}
-		("web", Some(_)) => command::owner_api(
+		Some(("web", _)) => command::owner_api(
 			wallet,
 			keychain_mask,
 			&wallet_config,
@@ -1043,11 +1232,11 @@ where
 			&epicbox_config,
 			&global_wallet_args,
 		),
-		("account", Some(args)) => {
+		Some(("account", args)) => {
 			let a = arg_parse!(parse_account_args(&args));
 			command::account(wallet, km, a)
 		}
-		("send", Some(args)) => {
+		Some(("send", args)) => {
 			let a = arg_parse!(parse_send_args(&args));
 			command::send(
 				wallet,
@@ -1058,19 +1247,19 @@ where
 				wallet_config.dark_background_color_scheme.unwrap_or(true),
 			)
 		}
-		("receive", Some(args)) => {
+		Some(("receive", args)) => {
 			let a = arg_parse!(parse_receive_args(&args));
 			command::receive(wallet, km, &global_wallet_args, a)
 		}
-		("finalize", Some(args)) => {
+		Some(("finalize", args)) => {
 			let a = arg_parse!(parse_finalize_args(&args));
 			command::finalize(wallet, km, a)
 		}
-		("invoice", Some(args)) => {
+		Some(("invoice", args)) => {
 			let a = arg_parse!(parse_issue_invoice_args(&args));
 			command::issue_invoice_tx(wallet, km, a)
 		}
-		("pay", Some(args)) => {
+		Some(("pay", args)) => {
 			let a = arg_parse!(parse_process_invoice_args(&args, !test_mode));
 			command::process_invoice(
 				wallet,
@@ -1080,7 +1269,7 @@ where
 				wallet_config.dark_background_color_scheme.unwrap_or(true),
 			)
 		}
-		("info", Some(args)) => {
+		Some(("info", args)) => {
 			let a = arg_parse!(parse_info_args(&args));
 			command::info(
 				wallet,
@@ -1090,7 +1279,7 @@ where
 				wallet_config.dark_background_color_scheme.unwrap_or(true),
 			)
 		}
-		("outputs", Some(args)) => {
+		Some(("outputs", args)) => {
 			let a = arg_parse!(parse_outputs_args(&args));
 			command::outputs(
 				wallet,
@@ -1100,7 +1289,7 @@ where
 				wallet_config.dark_background_color_scheme.unwrap_or(true),
 			)
 		}
-		("txs", Some(args)) => {
+		Some(("txs", args)) => {
 			let a = arg_parse!(parse_txs_args(&args));
 			command::txs(
 				wallet,
@@ -1110,28 +1299,28 @@ where
 				wallet_config.dark_background_color_scheme.unwrap_or(true),
 			)
 		}
-		("post", Some(args)) => {
+		Some(("post", args)) => {
 			let a = arg_parse!(parse_post_args(&args));
 			command::post(wallet, km, a)
 		}
-		("repost", Some(args)) => {
+		Some(("repost", args)) => {
 			let a = arg_parse!(parse_repost_args(&args));
 			command::repost(wallet, km, a)
 		}
-		("cancel", Some(args)) => {
+		Some(("cancel", args)) => {
 			let a = arg_parse!(parse_cancel_args(&args));
 			command::cancel(wallet, km, a)
 		}
-		("export_proof", Some(args)) => {
+		Some(("export_proof", args)) => {
 			let a = arg_parse!(parse_export_proof_args(&args));
 			command::proof_export(wallet, km, a)
 		}
-		("verify_proof", Some(args)) => {
+		Some(("verify_proof", args)) => {
 			let a = arg_parse!(parse_verify_proof_args(&args));
 			command::proof_verify(wallet, km, a)
 		}
-		("address", Some(_)) => command::address(wallet, &global_wallet_args, km, epicbox_config),
-		("scan", Some(args)) => {
+		Some(("address", _)) => command::address(wallet, &global_wallet_args, km, epicbox_config),
+		Some(("scan", args)) => {
 			let a = arg_parse!(parse_check_args(&args));
 			command::scan(wallet, km, a)
 		}
@@ -1144,6 +1333,9 @@ where
 		Err(e)
 	} else {
 		//info!("subcommand");
-		Ok(wallet_args.subcommand().0.to_owned())
+		Ok(wallet_args
+			.subcommand()
+			.map(|(name, _)| name.to_owned())
+			.unwrap_or_default())
 	}
 }

@@ -104,12 +104,12 @@ IV.	### HOW TO INSTALL CLI WALLET ###
 	   (*~*PRO-Tip*~*) on Windows you can type "cmd" and hit enter in the File-Explorer Address bar. This will open a new terminal in the current directory.
 	   On Mac you can drag and drop the folder into the terminal, which copies the path from this folder
 	2. Init the wallet with:
-	   Linux/Mac $./epic-wallet init -h
-	   Windows: epic.exe init -h 
+	   Linux/Mac $./epic-wallet init -w
+	   Windows: epic.exe init -w 
 	   ... follow the instructions in terminal
 	3. Recover a wallet:
-	   Linux/Mac $./epic-wallet init -r -h
-	   Windows: epic.exe init -r -h
+	   Linux/Mac $./epic-wallet init -r -w
+	   Windows: epic.exe init -r -w
 	   ... follow the instructions in terminal
 	4. open another terminal/cmd and move to location of the epic-wallet(.exe) binary and start the listener with:
 	   Linux/Mac $./epic-wallet listen
@@ -165,7 +165,7 @@ V.	CLI WALLET USER HANDBOOK
 	If you need to recreate your wallet from an existing seed, you can init a wallet with a recovery phrase using the -r --recover flag. For example, the following command initializes a wallet in the current directory.
 
 
-	epic-wallet init -hr
+	epic-wallet init -r
 
 	File /home/tomriddle/wallet/epic-wallet.toml configured and created
 	Please enter your recovery phrase:

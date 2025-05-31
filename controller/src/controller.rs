@@ -14,20 +14,24 @@
 
 //! Controller for wallet.. instantiates and handles listeners (or single-run
 //! invocations) as needed.
-use crate::api::{self, ApiServer, BasicAuthMiddleware, ResponseFuture, Router, TLSConfig};
+use crate::api::{
+	self, boxed_body, ApiServer, BasicAuthMiddleware, BoxBodyType, ResponseFuture, Router,
+	TLSConfig,
+};
 use crate::config::{EpicboxConfig, TorConfig};
 use crate::keychain::Keychain;
 use crate::libwallet::{
 	address, Error, NodeClient, NodeVersionInfo, Slate, WalletInst, WalletLCProvider,
 	EPIC_BLOCK_HEADER_VERSION,
 };
-
 use crate::util::secp::key::SecretKey;
 use crate::util::{from_hex, static_secp_instance, to_base64, Mutex};
+use http_body_util::Full;
 
-use hyper::body::Buf;
+use bytes::Bytes;
+use http_body_util::BodyExt;
 use hyper::header::HeaderValue;
-use hyper::{Body, Request, Response, StatusCode};
+use hyper::{Request, Response, StatusCode};
 use serde::{Deserialize, Serialize};
 use serde_json;
 use std::collections::HashMap;
@@ -341,7 +345,7 @@ where
 	}
 
 	async fn call_api(
-		req: Request<Body>,
+		req: Request<hyper::body::Incoming>,
 
 		api: Arc<Owner<L, C, K>>,
 	) -> Result<serde_json::Value, Error> {
@@ -358,21 +362,21 @@ where
 	}
 
 	async fn handle_post_request(
-		req: Request<Body>,
+		req: Request<hyper::body::Incoming>,
 		api: Arc<Owner<L, C, K>>,
-	) -> Result<Response<Body>, Error> {
+	) -> Result<Response<BoxBodyType>, Error> {
 		let res = Self::call_api(req, api).await?;
 		Ok(json_response_pretty(&res))
 	}
 }
 
-impl<L, C, K> api::Handler for OwnerAPIHandlerV2<L, C, K>
+impl<L, C, K> api::Handler<Full<Bytes>> for OwnerAPIHandlerV2<L, C, K>
 where
 	L: WalletLCProvider<'static, C, K> + 'static,
 	C: NodeClient + 'static,
 	K: Keychain + 'static,
 {
-	fn post(&self, req: hyper::Request<Body>) -> ResponseFuture {
+	fn post(&self, req: hyper::Request<hyper::body::Incoming>) -> ResponseFuture {
 		let api = self.owner_api.clone();
 
 		Box::pin(async move {
@@ -386,7 +390,7 @@ where
 		})
 	}
 
-	fn options(&self, _req: Request<Body>) -> ResponseFuture {
+	fn options(&self, _req: Request<hyper::body::Incoming>) -> ResponseFuture {
 		Box::pin(async { Ok(create_ok_response("{}")) })
 	}
 }
@@ -659,7 +663,7 @@ where
 	}
 
 	async fn call_api(
-		req: Request<Body>,
+		req: Request<hyper::body::Incoming>,
 		key: Arc<Mutex<Option<SecretKey>>>,
 		mask: Arc<Mutex<Option<SecretKey>>>,
 		running_foreign: bool,
@@ -725,24 +729,24 @@ where
 	}
 
 	async fn handle_post_request(
-		req: Request<Body>,
+		req: Request<hyper::body::Incoming>,
 		key: Arc<Mutex<Option<SecretKey>>>,
 		mask: Arc<Mutex<Option<SecretKey>>>,
 		running_foreign: bool,
 		api: Arc<Owner<L, C, K>>,
-	) -> Result<Response<Body>, Error> {
+	) -> Result<Response<BoxBodyType>, Error> {
 		let res = Self::call_api(req, key, mask, running_foreign, api).await?;
 		Ok(json_response_pretty(&res))
 	}
 }
 
-impl<L, C, K> api::Handler for OwnerAPIHandlerV3<L, C, K>
+impl<L, C, K> api::Handler<Full<Bytes>> for OwnerAPIHandlerV3<L, C, K>
 where
 	L: WalletLCProvider<'static, C, K> + 'static,
 	C: NodeClient + 'static,
 	K: Keychain + 'static,
 {
-	fn post(&self, req: Request<Body>) -> ResponseFuture {
+	fn post(&self, req: Request<hyper::body::Incoming>) -> ResponseFuture {
 		let key = self.shared_key.clone();
 		let mask = self.keychain_mask.clone();
 		let running_foreign = self.running_foreign;
@@ -759,7 +763,7 @@ where
 		})
 	}
 
-	fn options(&self, _req: Request<Body>) -> ResponseFuture {
+	fn options(&self, _req: Request<hyper::body::Incoming>) -> ResponseFuture {
 		Box::pin(async { Ok(create_ok_response("{}")) })
 	}
 }
@@ -794,7 +798,7 @@ where
 	}
 
 	async fn call_api(
-		req: Request<Body>,
+		req: Request<hyper::body::Incoming>,
 		api: Foreign<'static, L, C, K>,
 	) -> Result<serde_json::Value, Error> {
 		let val: serde_json::Value = parse_body(req).await?;
@@ -810,10 +814,10 @@ where
 	}
 
 	async fn handle_post_request(
-		req: Request<Body>,
+		req: Request<hyper::body::Incoming>,
 		mask: Option<SecretKey>,
 		wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K> + 'static>>>,
-	) -> Result<Response<Body>, Error> {
+	) -> Result<Response<BoxBodyType>, Error> {
 		let api = Foreign::new(wallet, mask, Some(check_middleware));
 
 		let res = Self::call_api(req, api).await?;
@@ -821,13 +825,13 @@ where
 	}
 }
 
-impl<L, C, K> api::Handler for ForeignAPIHandlerV2<L, C, K>
+impl<L, C, K> api::Handler<Full<Bytes>> for ForeignAPIHandlerV2<L, C, K>
 where
 	L: WalletLCProvider<'static, C, K> + 'static,
 	C: NodeClient + 'static,
 	K: Keychain + 'static,
 {
-	fn post(&self, req: Request<Body>) -> ResponseFuture {
+	fn post(&self, req: Request<hyper::body::Incoming>) -> ResponseFuture {
 		let mask = self.keychain_mask.lock().clone();
 		let wallet = self.wallet.clone();
 
@@ -842,14 +846,14 @@ where
 		})
 	}
 
-	fn options(&self, _req: Request<Body>) -> ResponseFuture {
+	fn options(&self, _req: Request<hyper::body::Incoming>) -> ResponseFuture {
 		Box::pin(async { Ok(create_ok_response("{}")) })
 	}
 }
 
 // Utility to serialize a struct into JSON and produce a sensible Response
 // out of it.
-fn _json_response<T>(s: &T) -> Response<Body>
+fn _json_response<T>(s: &T) -> Response<BoxBodyType>
 where
 	T: Serialize,
 {
@@ -860,7 +864,7 @@ where
 }
 
 // pretty-printed version of above
-fn json_response_pretty<T>(s: &T) -> Response<Body>
+fn json_response_pretty<T>(s: &T) -> Response<BoxBodyType>
 where
 	T: Serialize,
 {
@@ -870,7 +874,9 @@ where
 	}
 }
 
-fn create_error_response(e: Error) -> Response<Body> {
+fn create_error_response(e: Error) -> Response<BoxBodyType> {
+	let body = boxed_body(e.to_string());
+
 	hyper::Response::builder()
 		.status(StatusCode::INTERNAL_SERVER_ERROR)
 		.header("access-control-allow-origin", "*")
@@ -878,11 +884,14 @@ fn create_error_response(e: Error) -> Response<Body> {
 			"access-control-allow-headers",
 			"Content-Type, Authorization",
 		)
-		.body(format!("{}", e).into())
+		.body(body)
 		.unwrap()
+	//no handler found
 }
 
-fn create_ok_response(json: &str) -> Response<Body> {
+fn create_ok_response(json: &str) -> Response<BoxBodyType> {
+	let body = boxed_body(json.to_owned());
+
 	hyper::Response::builder()
 		.status(StatusCode::OK)
 		.header("access-control-allow-origin", "*")
@@ -891,7 +900,7 @@ fn create_ok_response(json: &str) -> Response<Body> {
 			"Content-Type, Authorization",
 		)
 		.header(hyper::header::CONTENT_TYPE, "application/json")
-		.body(json.to_string().into())
+		.body(body)
 		.unwrap()
 }
 
@@ -899,7 +908,7 @@ fn create_ok_response(json: &str) -> Response<Body> {
 ///
 /// Whenever the status code is `StatusCode::OK` the text parameter should be
 /// valid JSON as the content type header will be set to `application/json'
-fn response<T: Into<Body>>(status: StatusCode, text: T) -> Response<Body> {
+fn response(status: StatusCode, text: impl Into<Bytes>) -> Response<BoxBodyType> {
 	let mut res = hyper::Response::builder()
 		.status(status)
 		.header("access-control-allow-origin", "*")
@@ -912,19 +921,23 @@ fn response<T: Into<Body>>(status: StatusCode, text: T) -> Response<Body> {
 		res = res.header(hyper::header::CONTENT_TYPE, "application/json");
 	}
 
-	res.body(text.into()).unwrap()
+	let body = boxed_body(text);
+
+	res.body(body).unwrap()
 }
 
-async fn parse_body<T>(req: Request<Body>) -> Result<T, Error>
+pub async fn parse_body<T>(req: Request<hyper::body::Incoming>) -> Result<T, Error>
 where
 	for<'de> T: Deserialize<'de> + Send + 'static,
 {
 	// Aggregate the body...
-	let whole_body = hyper::body::aggregate(req)
+	let body_bytes = req
+		.collect()
 		.await
-		.map_err(|e| Error::RequestError(format!("Failed to read request: {}", e)))?;
+		.map_err(|e| Error::RequestError(format!("Failed to read request: {}", e)))?
+		.to_bytes();
 
 	// Decode as JSON...
-	serde_json::from_reader(whole_body.reader())
+	serde_json::from_slice(&body_bytes)
 		.map_err(|e| Error::RequestError(format!("Invalid request body: {}", e)))
 }

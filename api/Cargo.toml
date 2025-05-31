@@ -11,18 +11,18 @@ edition = "2021"
 workspace = ".."
 
 [dependencies]
-thiserror = "2.0.12"
+thiserror = "2.0"
 log = "0.4"
-uuid = { version = "1.16.0", features = ["serde", "v4"] }
+uuid = { version = "1.16", features = ["serde", "v4"] }
 serde = "1"
-rand = "0.9.0"
+rand = "0.9"
 serde_derive = "1"
 serde_json = "1"
 easy-jsonrpc-mw = "0.5.3"
-chrono = { version = "0.4.4", features = ["serde"] }
-ring = "0.17.14"
-base64 = "0.22.1"
-ed25519-dalek = "2.1.1"
+chrono = { version = "0.4", features = ["serde"] }
+ring = "0.17"
+base64 = "0.22"
+ed25519-dalek = "2.1"
 
 
 epic_wallet_libwallet = { path = "../libwallet", version = "3.6.0" }

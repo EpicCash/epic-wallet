@@ -25,7 +25,7 @@ use std::time::Duration;
 
 const MIN_COMPAT_NODE_VERSION: &str = "3.5.0";
 
-pub fn wallet_command(wallet_args: &ArgMatches<'_>, config: GlobalWalletConfig) -> i32 {
+pub fn wallet_command(wallet_args: &ArgMatches, config: GlobalWalletConfig) -> i32 {
 	// Get defaults from the global config
 	let wallet_config = config.members.clone().unwrap().wallet;
 	let tor_config = config.members.clone().unwrap().tor;
@@ -42,10 +42,13 @@ pub fn wallet_command(wallet_args: &ArgMatches<'_>, config: GlobalWalletConfig) 
 	}
 
 	// Check if offline mode is enabled
-	let offline_mode = wallet_args.is_present("offline_mode");
+	let offline_mode = wallet_args.contains_id("offline_mode");
 
 	// Setup node client, check for provided node URL, else use default
-	let mut node_client = match wallet_args.value_of("api_server_address") {
+	let mut node_client = match wallet_args
+		.get_one::<String>("api_server_address")
+		.map(|s| s.as_str())
+	{
 		Some(node_url) => HTTPNodeClient::new(node_url, node_api_secret.clone()).unwrap(),
 		None => match HTTPNodeClient::new(
 			wallet_config.check_node_api_http_addr.as_str(),
@@ -143,7 +146,10 @@ pub fn wallet_command(wallet_args: &ArgMatches<'_>, config: GlobalWalletConfig) 
 	} else {
 		info!(
 			"Command '{}' completed successfully",
-			wallet_args.subcommand().0
+			wallet_args
+				.subcommand()
+				.map(|(name, _)| name)
+				.unwrap_or("unknown")
 		);
 		0
 	}

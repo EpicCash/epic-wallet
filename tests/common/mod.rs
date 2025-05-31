@@ -18,7 +18,7 @@ use epic_wallet_config as config;
 use epic_wallet_impls::test_framework::LocalWalletClient;
 use epic_wallet_util::epic_util as util;
 
-use clap::{App, ArgMatches};
+use clap::ArgMatches;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -57,19 +57,15 @@ macro_rules! setup_proxy {
 		> = WalletProxy::new($test_dir);
 		let $chain = wallet_proxy.chain.clone();
 
-		// load app yaml. If it don't exist, just say so and exit
-		let yml = load_yaml!("../src/bin/epic-wallet.yml");
-		let app = App::from_yaml(yml);
-
 		// wallet init
-		let arg_vec = vec!["epic-wallet", "-p", "password", "init", "-h"];
+		let arg_vec = vec!["epic-wallet", "-p", "password", "init", "-w"];
 		// should create new wallet file
 		let $client1 = LocalWalletClient::new("wallet1", wallet_proxy.tx.clone());
 
 		let target = std::path::PathBuf::from(format!("{}/wallet1/epic-wallet.toml", $test_dir));
 		println!("{:?}", target);
 		if !target.exists() {
-			execute_command(&app, $test_dir, "wallet1", &$client1, arg_vec.clone()).unwrap();
+			execute_command($test_dir, "wallet1", &$client1, arg_vec.clone()).unwrap();
 		}
 
 		// add wallet to proxy
@@ -95,7 +91,7 @@ macro_rules! setup_proxy {
 
 		let target = std::path::PathBuf::from(format!("{}/wallet2/epic-wallet.toml", $test_dir));
 		if !target.exists() {
-			execute_command(&app, $test_dir, "wallet2", &$client2, arg_vec.clone()).unwrap();
+			execute_command($test_dir, "wallet2", &$client2, arg_vec.clone()).unwrap();
 		}
 
 		let config2 = initial_setup_wallet($test_dir, "wallet2");
@@ -214,21 +210,20 @@ pub fn initial_setup_wallet(dir_name: &str, wallet_name: &str) -> GlobalWalletCo
 	GlobalWalletConfig::new(config_file_name.to_str().unwrap()).unwrap()
 }
 
-fn get_wallet_subcommand<'a>(
-	wallet_dir: &str,
-	wallet_name: &str,
-	args: ArgMatches<'a>,
-) -> ArgMatches<'a> {
+fn get_wallet_subcommand(wallet_dir: &str, wallet_name: &str, args: ArgMatches) -> ArgMatches {
 	match args.subcommand() {
-		("init", Some(init_args)) => {
+		Some(("init", init_args)) => {
 			// wallet init command should spit out its config file then continue
 			// (if desired)
-			if init_args.is_present("here") {
+			if init_args.contains_id("cwd") {
 				let _ = config_command_wallet(wallet_dir, wallet_name);
 			}
 			init_args.to_owned()
 		}
-		_ => ArgMatches::new(),
+		_ => {
+			// if no init command, just return the args
+			args.to_owned()
+		}
 	}
 }
 //
@@ -286,13 +281,13 @@ pub fn instantiate_wallet(
 
 #[allow(dead_code)]
 pub fn execute_command(
-	app: &App,
 	test_dir: &str,
 	wallet_name: &str,
 	client: &LocalWalletClient,
 	arg_vec: Vec<&str>,
 ) -> Result<String, epic_wallet_libwallet::Error> {
-	let args = app.clone().get_matches_from(arg_vec);
+	let args = wallet_args::build_cli().get_matches_from(arg_vec.clone());
+
 	let _ = get_wallet_subcommand(test_dir, wallet_name, args.clone());
 	let config = initial_setup_wallet(test_dir, wallet_name);
 	let mut wallet_config = config.clone().members.unwrap().wallet;
@@ -314,7 +309,6 @@ pub fn execute_command(
 // as above, but without necessarily setting up the wallet
 #[allow(dead_code)]
 pub fn execute_command_no_setup<C, F>(
-	app: &App,
 	test_dir: &str,
 	wallet_name: &str,
 	client: &C,
@@ -338,7 +332,8 @@ where
 		>,
 	),
 {
-	let args = app.clone().get_matches_from(arg_vec);
+	let args = wallet_args::build_cli().get_matches_from(arg_vec.clone());
+
 	let _ = get_wallet_subcommand(test_dir, wallet_name, args.clone());
 	let config = config::initial_setup_wallet(&ChainTypes::AutomatedTesting, None).unwrap();
 	let mut wallet_config = config.clone().members.unwrap().wallet;

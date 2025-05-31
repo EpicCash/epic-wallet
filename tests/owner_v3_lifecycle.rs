@@ -12,9 +12,6 @@
 // limitations under the License.
 
 #[macro_use]
-extern crate clap;
-
-#[macro_use]
 extern crate log;
 
 extern crate epic_wallet;
@@ -22,7 +19,6 @@ extern crate epic_wallet;
 use epic_wallet_api::{ECDHPubkey, RpcId};
 use epic_wallet_impls::test_framework::{self, LocalWalletClient, WalletProxy};
 
-use clap::App;
 use std::thread;
 use std::time::Duration;
 
@@ -48,9 +44,6 @@ fn owner_v3_lifecycle() -> Result<(), epic_wallet_controller::Error> {
 	let test_dir = "target/test_output/owner_v3_lifecycle";
 	setup(test_dir);
 
-	let yml = load_yaml!("../src/bin/epic-wallet.yml");
-	let app = App::from_yaml(yml);
-
 	// Create a new proxy to simulate server and wallet responses
 	let wallet_proxy_a: Arc<
 		Mutex<
@@ -68,8 +61,8 @@ fn owner_v3_lifecycle() -> Result<(), epic_wallet_controller::Error> {
 		// Create wallet 2 manually, which will mine a bit and insert some
 		// epics into the equation
 		let client2 = LocalWalletClient::new("wallet2", wallet_proxy.tx.clone());
-		let arg_vec = vec!["epic-wallet", "-p", "password", "init", "-h"];
-		execute_command(&app, test_dir, "wallet2", &client2, arg_vec.clone()).unwrap();
+		let arg_vec = vec!["epic-wallet", "-p", "password", "init", "-w"];
+		execute_command(test_dir, "wallet2", &client2, arg_vec.clone()).unwrap();
 
 		let config2 = initial_setup_wallet(test_dir, "wallet2");
 		let wallet_config2 = config2.clone().members.unwrap().wallet;
@@ -95,10 +88,7 @@ fn owner_v3_lifecycle() -> Result<(), epic_wallet_controller::Error> {
 		let p = wallet_proxy_a.clone();
 
 		thread::spawn(move || {
-			let yml = load_yaml!("../src/bin/epic-wallet.yml");
-			let app = App::from_yaml(yml);
 			execute_command_no_setup(
-				&app,
 				test_dir,
 				"wallet1",
 				&client1,

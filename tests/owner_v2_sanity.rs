@@ -12,16 +12,12 @@
 // limitations under the License.
 
 #[macro_use]
-extern crate clap;
-
-#[macro_use]
 extern crate log;
 
 extern crate epic_wallet;
 
 use epic_wallet_impls::test_framework::{self, LocalWalletClient, WalletProxy};
 
-use clap::App;
 use epic_wallet_impls::DefaultLCProvider;
 use epic_wallet_util::epic_keychain::ExtKeychain;
 use std::thread;
@@ -52,9 +48,7 @@ fn owner_v2_sanity() -> Result<(), epic_wallet_controller::Error> {
 	let arg_vec = vec!["epic-wallet", "-p", "password", "owner_api", "-l", "23420"];
 	// Set running
 	thread::spawn(move || {
-		let yml = load_yaml!("../src/bin/epic-wallet.yml");
-		let app = App::from_yaml(yml);
-		execute_command(&app, test_dir, "wallet1", &client1, arg_vec.clone()).unwrap();
+		execute_command(test_dir, "wallet1", &client1, arg_vec.clone()).unwrap();
 	});
 
 	// run the foreign listener for wallet 2
@@ -69,9 +63,7 @@ fn owner_v2_sanity() -> Result<(), epic_wallet_controller::Error> {
 	];
 	// Set owner listener running
 	thread::spawn(move || {
-		let yml = load_yaml!("../src/bin/epic-wallet.yml");
-		let app = App::from_yaml(yml);
-		execute_command(&app, test_dir, "wallet2", &client2, arg_vec.clone()).unwrap();
+		execute_command(test_dir, "wallet2", &client2, arg_vec.clone()).unwrap();
 	});
 
 	thread::sleep(Duration::from_millis(200));
@@ -94,9 +86,8 @@ fn owner_v2_sanity() -> Result<(), epic_wallet_controller::Error> {
 		"http://127.0.0.1:23415",
 		"10",
 	];
-	let yml = load_yaml!("../src/bin/epic-wallet.yml");
-	let app = App::from_yaml(yml);
-	let res = execute_command(&app, test_dir, "wallet1", &client1_2, arg_vec.clone());
+
+	let res = execute_command(test_dir, "wallet1", &client1_2, arg_vec.clone());
 	println!("Response 2: {:?}", res);
 	assert!(res.is_ok());
 

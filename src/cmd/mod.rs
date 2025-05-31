@@ -16,3 +16,7 @@ mod wallet;
 pub mod wallet_args;
 
 pub use self::wallet::wallet_command;
+// include build information
+pub mod built_info {
+	include!(concat!(env!("OUT_DIR"), "/built.rs"));
+}

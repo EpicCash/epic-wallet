@@ -22,14 +22,14 @@ exclude = ["integration"]
 
 [dependencies]
 thiserror = "2.0.12"
-clap = { version = "2.31", features = ["yaml"] }
+clap = { version = "4.4" }
 rpassword = "7.3.1"
 ctrlc = { version = "3.4.5", features = ["termination"] }
 prettytable-rs = "0.10"
 log = "0.4.27"
 linefeed = "0.6"
-rustyline = "15.0.0"
-semver = "1.0.26"
+rustyline = "16.0"
+semver = "1.0"
 
 epic_wallet_api = { path = "./api", version = "3.6.0" }
 epic_wallet_impls = { path = "./impls", version = "3.6.0" }
@@ -39,14 +39,14 @@ epic_wallet_config = { path = "./config", version = "3.6.0" }
 epic_wallet_util = { path = "./util", version = "3.6.0" }
 
 [build-dependencies]
-built = { version = "0.7.1", features = ["git2", "cargo-lock"] }
+built = { version = "0.8", features = ["git2", "cargo-lock"] }
 
 [dev-dependencies]
-url = "1.7.2"
+url = "2.5"
 serde = "1"
 serde_derive = "1"
 serde_json = "1"
-easy-jsonrpc = "0.5.1"
+easy-jsonrpc = "0.5"
 
 [profile.test]
 panic = "abort"
