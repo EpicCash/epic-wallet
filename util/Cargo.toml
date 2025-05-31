@@ -36,4 +36,4 @@ epic_api      = { path="../../epic/api" }
 epic_store    = { path="../../epic/store" }
 
 [dev-dependencies]
-pretty_assertions = "1.4.1"
+pretty_assertions = "1.4"

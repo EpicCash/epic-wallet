@@ -52,15 +52,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ansi_term"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ee49baf6cb617b853aa8d93bf420db2383fab46d314482ca2803b40d5fde979b"
-dependencies = [
- "winapi",
-]
-
-[[package]]
 name = "anstream"
 version = "0.6.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -732,12 +723,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "56254986775e3233ffa9c4d7d3faaf6d36a2c09d30b20687e9f88bc8bafc16c8"
 
 [[package]]
-name = "difference"
-version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "524cbf6897b527295dff137cec09ecf3a05f4fddffd7dfcd1585403449e74198"
-
-[[package]]
 name = "digest"
 version = "0.10.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1233,7 +1218,7 @@ version = "3.6.0"
 dependencies = [
  "dirs 6.0.0",
  "epic_wallet_util",
- "pretty_assertions 0.5.1",
+ "pretty_assertions",
  "rand 0.9.1",
  "serde",
  "serde_derive",
@@ -1354,7 +1339,7 @@ dependencies = [
  "epic_keychain",
  "epic_store",
  "epic_util",
- "pretty_assertions 1.4.1",
+ "pretty_assertions",
  "rand 0.9.1",
  "serde",
  "serde_derive",
@@ -3054,16 +3039,6 @@ dependencies = [
 
 [[package]]
 name = "pretty_assertions"
-version = "0.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3a029430f0d744bc3d15dd474d591bed2402b645d024583082b9f63bb936dac6"
-dependencies = [
- "ansi_term",
- "difference",
-]
-
-[[package]]
-name = "pretty_assertions"
 version = "1.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3ae130e2f271fbc2ac3a40fb1d07180839cdbbe443c7a27e1e3c13c5cac0116d"
@@ -3074,9 +3049,9 @@ dependencies = [
 
 [[package]]
 name = "prettyplease"
-version = "0.2.32"
+version = "0.2.33"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "664ec5419c51e34154eec046ebcba56312d5a2fc3b09a06da188e1ad21afadf6"
+checksum = "9dee91521343f4c5c6a63edd65e54f31f5c92fe8978c40a4282f8372194c6a7d"
 dependencies = [
  "proc-macro2 1.0.95",
  "syn 2.0.101",
