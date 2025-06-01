@@ -42,7 +42,7 @@ pub fn wallet_command(wallet_args: &ArgMatches, config: GlobalWalletConfig) -> i
 	}
 
 	// Check if offline mode is enabled
-	let offline_mode = wallet_args.contains_id("offline_mode");
+	let offline_mode = wallet_args.get_flag("offline_mode");
 
 	// Setup node client, check for provided node URL, else use default
 	let mut node_client = match wallet_args

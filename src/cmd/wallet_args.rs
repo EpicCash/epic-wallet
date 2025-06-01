@@ -62,150 +62,304 @@ pub fn build_cli() -> Command {
         .about("Reference Epic Wallet")
         .author("The Epic Team")
         .version(built_info::PKG_VERSION)
-        .arg(Arg::new("floonet").long("floonet").help("Run epic against the Floonet (as opposed to mainnet)").action(clap::ArgAction::SetTrue))
-        .arg(Arg::new("usernet").long("usernet").help("Run epic as a local-only network. Doesn't block peer connections but will not connect to any peer or seed").action(clap::ArgAction::SetTrue))
-        .arg(Arg::new("pass").short('p').long("pass").help("Passphrase used to encrypt wallet seed").num_args(1))
-        .arg(Arg::new("account").short('a').long("account").help("Wallet account to use").num_args(1).default_value("default"))
-        .arg(Arg::new("top_level_dir").short('t').long("top_level_dir").help("Top directory in which wallet files are stored (location of 'epic-wallet.toml')").num_args(1))
-        .arg(Arg::new("current_dir").short('c').long("current_dir").help("Path to epic wallet_data dir (defaul: ~/.epic)").num_args(1))
-        .arg(Arg::new("external").short('e').long("external").help("Listen on 0.0.0.0 interface to allow external connections (default is 127.0.0.1)").action(clap::ArgAction::SetTrue))
-        .arg(Arg::new("show_spent").short('s').long("show_spent").help("Show spent outputs on wallet output commands").action(clap::ArgAction::SetTrue))
-        .arg(Arg::new("api_server_address").short('r').long("api_server_address").help("Api address of running node on which to check inputs and post transactions").num_args(1))
-        .arg(Arg::new("offline_mode").long("offline_mode").help("Run the wallet in offline mode, skipping node sync checks").action(clap::ArgAction::SetTrue))
        
-		
+	    .arg(Arg::new("floonet").long("floonet")
+		.help("Run epic against the Floonet (as opposed to mainnet)").action(clap::ArgAction::SetTrue))
+        
+		.arg(Arg::new("usernet").long("usernet")
+		.help("Run epic as a local-only network. Doesn't block peer connections but will not connect to any peer or seed").action(clap::ArgAction::SetTrue))
+        
+		.arg(Arg::new("pass").short('p').long("pass")
+		.help("Passphrase used to encrypt wallet seed").num_args(1))
+        
+		.arg(Arg::new("account").short('a').long("account")
+		.help("Wallet account to use").num_args(1).default_value("default"))
+        
+		.arg(Arg::new("top_level_dir").short('t').long("top_level_dir")
+		.help("Top directory in which wallet files are stored (location of 'epic-wallet.toml')").num_args(1))
+        
+		.arg(Arg::new("current_dir").short('c').long("current_dir")
+		.help("Path to epic wallet_data dir (defaul: ~/.epic)").num_args(1))
+        
+		.arg(Arg::new("external").short('e').long("external")
+		.help("Listen on 0.0.0.0 interface to allow external connections (default is 127.0.0.1)").action(clap::ArgAction::SetTrue))
+        
+		.arg(Arg::new("show_spent").short('s').long("show_spent")
+		.help("Show spent outputs on wallet output commands").action(clap::ArgAction::SetTrue))
+        
+		.arg(Arg::new("api_server_address").short('r').long("api_server_address")
+		.help("Api address of running node on which to check inputs and post transactions").num_args(1))
+        
+		.arg(Arg::new("offline_mode").long("offline_mode")
+		.help("Run the wallet in offline mode, skipping node sync checks")
+		.action(clap::ArgAction::SetTrue)
+	
+	)
+       
 		
 		.subcommand(
             Command::new("account")
                 .about("List wallet accounts or create a new account")
-                .arg(Arg::new("create").short('c').long("create").help("Create a new wallet account with provided name").num_args(1))
+                
+				.arg(Arg::new("create").short('c').long("create")
+				.help("Create a new wallet account with provided name").num_args(1))
         )
         .subcommand(
             Command::new("listen")
                 .about("Runs the wallet in listening mode waiting for transactions")
-                .arg(Arg::new("port").short('l').long("port").help("Port on which to run the wallet listener").num_args(1).value_parser(clap::value_parser!(u16)))
-                .arg(Arg::new("method").short('m').long("method").help("Which method to use for communication").value_parser(["http", "keybase", "epicbox"]).default_value("http").num_args(1))
-                .arg(Arg::new("no_tor").short('n').long("no_tor").help("Don't start TOR listener when starting HTTP listener").action(clap::ArgAction::SetTrue))
+                
+				.arg(Arg::new("port").short('l').long("port")
+				.help("Port on which to run the wallet listener").num_args(1).value_parser(clap::value_parser!(u16)))
+                
+				.arg(Arg::new("method").short('m').long("method")
+				.help("Which method to use for communication").value_parser(["http", "keybase", "epicbox"]).default_value("http").num_args(1))
+                
+				.arg(Arg::new("no_tor").short('n').long("no_tor")
+				.help("Don't start TOR listener when starting HTTP listener").action(clap::ArgAction::SetTrue))
         )
         .subcommand(
             Command::new("owner_api")
                 .about("Runs the wallet's local web API")
-                .arg(Arg::new("port").short('l').long("port").help("Port on which to run the wallet owner listener").num_args(1).value_parser(clap::value_parser!(u16)))
-                .arg(Arg::new("run_foreign").long("run_foreign").help("Also run the Foreign API").action(clap::ArgAction::SetTrue))
+                
+				.arg(Arg::new("port").short('l').long("port")
+				.help("Port on which to run the wallet owner listener").num_args(1).value_parser(clap::value_parser!(u16)))
+                
+				.arg(Arg::new("run_foreign").long("run_foreign")
+				.help("Also run the Foreign API").action(clap::ArgAction::SetTrue))
         )
         .subcommand(
             Command::new("send")
                 .about("Builds a transaction to send coins and sends to the specified listener directly")
-                .arg(Arg::new("amount").help("Number of coins to send with optional fraction, e.g. 12.423").index(1))
-                .arg(Arg::new("minimum_confirmations").short('c').long("min_conf").help("Minimum number of confirmations required for an output to be spendable").default_value("10").num_args(1))
-                .arg(Arg::new("selection_strategy").short('s').long("selection").help("Coin/Output selection strategy.").value_parser(["all", "smallest"]).default_value("smallest").num_args(1))
-                .arg(Arg::new("estimate_selection_strategies").short('e').long("estimate-selection").help("Estimates all possible Coin/Output selection strategies."))
-                .arg(Arg::new("change_outputs").short('o').long("change_outputs").help("Number of change outputs to generate (mainly for testing)").default_value("1").num_args(1))
-                .arg(Arg::new("method").short('m').long("method").help("Method for sending this transaction").value_parser(["http", "file", "self", "keybase", "emoji", "epicbox"]).default_value("http").num_args(1))
-                .arg(Arg::new("dest").short('d').long("dest").help("Send the transaction to the provided server (start with http://) or save as file.").num_args(1))
-                .arg(Arg::new("request_payment_proof").short('y').long("request_payment_proof").help("Request a payment proof from the recipient. If sending to a tor address, the address will be filled automatically."))
-                .arg(Arg::new("proof_address").short('z').long("proof_address").help("Recipient proof address. If not using TOR, must be provided seprarately by the recipient").num_args(1))
-                .arg(Arg::new("fluff").short('f').long("fluff").help("Fluff the transaction (ignore Dandelion relay protocol)"))
-                .arg(Arg::new("message").short('g').long("message").help("Optional participant message to include").num_args(1))
-                .arg(Arg::new("stored_tx").short('t').long("stored_tx").help("If present, use the previously stored Unconfirmed transaction with given id").num_args(1))
-                .arg(Arg::new("ttl_blocks").short('b').long("ttl_blocks").help("If present, the number of blocks from the current after which wallets should refuse to process transactions further").num_args(1))
-				.arg(Arg::new("slate_version").short('v').long("slate_version").help("Target slate version to create/send").value_parser(clap::value_parser!(u16)).num_args(1))
+                
+				.arg(Arg::new("amount")
+				.help("Number of coins to send with optional fraction, e.g. 12.423").index(1))
+                
+				.arg(Arg::new("minimum_confirmations").short('c').long("min_conf")
+				.help("Minimum number of confirmations required for an output to be spendable").default_value("10").num_args(1))
+                
+				.arg(Arg::new("selection_strategy").short('s').long("selection")
+				.help("Coin/Output selection strategy.").value_parser(["all", "smallest"]).default_value("smallest").num_args(1))
+                
+				.arg(Arg::new("estimate_selection_strategies").short('e').long("estimate-selection")
+				.help("Estimates all possible Coin/Output selection strategies."))
+                
+				.arg(Arg::new("change_outputs").short('o').long("change_outputs")
+				.help("Number of change outputs to generate (mainly for testing)").default_value("1").num_args(1))
+                
+				.arg(Arg::new("method").short('m').long("method")
+				.help("Method for sending this transaction").value_parser(["http", "file", "self", "keybase", "emoji", "epicbox"]).default_value("http").num_args(1))
+                
+				.arg(Arg::new("dest").short('d').long("dest")
+				.help("Send the transaction to the provided server (start with http://) or save as file.").num_args(1))
+                
+				.arg(Arg::new("request_payment_proof").short('y').long("request_payment_proof")
+				.help("Request a payment proof from the recipient. If sending to a tor address, the address will be filled automatically."))
+                
+				.arg(Arg::new("proof_address").short('z').long("proof_address")
+				.help("Recipient proof address. If not using TOR, must be provided seprarately by the recipient").num_args(1))
+                
+				.arg(Arg::new("fluff").short('f').long("fluff")
+				.help("Fluff the transaction (ignore Dandelion relay protocol)"))
+                
+				.arg(Arg::new("message").short('g').long("message")
+				.help("Optional participant message to include").num_args(1))
+                
+				.arg(Arg::new("stored_tx").short('t').long("stored_tx")
+				.help("If present, use the previously stored Unconfirmed transaction with given id").num_args(1))
+                
+				.arg(Arg::new("ttl_blocks").short('b').long("ttl_blocks")
+				.help("If present, the number of blocks from the current after which wallets should refuse to process transactions further").num_args(1))
+				
+				.arg(Arg::new("slate_version").short('v').long("slate_version")
+				.help("Target slate version to create/send").value_parser(clap::value_parser!(u16)).num_args(1))
 		)
 		.subcommand(
 			Command::new("issue_invoice")
 				.about("Issues an invoice transaction to be paid later")
-				.arg(Arg::new("amount").help("Number of coins to invoice with optional fraction, e.g. 12.423").index(1))
-				.arg(Arg::new("message").short('g').long("message").help("Optional participant message to include").num_args(1))
-				.arg(Arg::new("dest").short('d').long("dest").help("Name of destination slate output file").num_args(1))
-				.arg(Arg::new("fluff").short('f').long("fluff").help("Fluff the transaction (ignore Dandelion relay protocol)"))
-				.arg(Arg::new("ttl_blocks").short('b').long("ttl_blocks").help("If present, the number of blocks from the current after which wallets should refuse to process transactions further").num_args(1))
-				.arg(Arg::new("slate_version").short('v').long("slate_version").help("Target slate version to create/send").value_parser(clap::value_parser!(u16)).num_args(1))
+				
+				.arg(Arg::new("amount")
+				.help("Number of coins to invoice with optional fraction, e.g. 12.423").index(1))
+				
+				.arg(Arg::new("message").short('g').long("message")
+				.help("Optional participant message to include").num_args(1))
+				
+				.arg(Arg::new("dest").short('d').long("dest")
+				.help("Name of destination slate output file").num_args(1))
+				
+				.arg(Arg::new("fluff").short('f').long("fluff")
+				.help("Fluff the transaction (ignore Dandelion relay protocol)"))
+				
+				.arg(Arg::new("ttl_blocks").short('b').long("ttl_blocks")
+				.help("If present, the number of blocks from the current after which wallets should refuse to process transactions further").num_args(1))
+				
+				.arg(Arg::new("slate_version").short('v').long("slate_version")
+				.help("Target slate version to create/send").value_parser(clap::value_parser!(u16)).num_args(1))
 	
 		)
         .subcommand(
             Command::new("receive")
                 .about("Processes a transaction file to accept a transfer from a sender")
-                .arg(Arg::new("message").short('g').long("message").help("Optional participant message to include").num_args(1))
-                .arg(Arg::new("method").short('m').long("method").help("Method of receiving this transaction").value_parser(["file", "emoji"]).default_value("file").num_args(1))
-                .arg(Arg::new("input").short('i').long("input").help("Partial transaction to process, expects the sender's transaction file or emoji string.").num_args(1))
+                
+				.arg(Arg::new("message").short('g').long("message")
+				.help("Optional participant message to include").num_args(1))
+               
+			    .arg(Arg::new("method").short('m').long("method")
+				.help("Method of receiving this transaction").value_parser(["file", "emoji"]).default_value("file").num_args(1))
+               
+			    .arg(Arg::new("input").short('i').long("input")
+				.help("Partial transaction to process, expects the sender's transaction file or emoji string.").num_args(1))
         )
         .subcommand(
             Command::new("finalize")
                 .about("Processes a receiver's transaction file to finalize a transfer.")
-                .arg(Arg::new("method").short('m').long("method").help("Method for finalize this transaction").value_parser(["file", "emoji"]).default_value("file").num_args(1))
-                .arg(Arg::new("input").short('i').long("input").help("Partial transaction to process, expects the receiver's transaction file.").num_args(1))
-                .arg(Arg::new("fluff").short('f').long("fluff").help("Fluff the transaction (ignore Dandelion relay protocol)"))
-                .arg(Arg::new("nopost").short('n').long("nopost").help("Do not post the transaction."))
-                .arg(Arg::new("dest").short('d').long("dest").help("Specify file to save the finalized slate.").num_args(1))
+                
+				.arg(Arg::new("method").short('m').long("method")
+				.help("Method for finalize this transaction").value_parser(["file", "emoji"]).default_value("file").num_args(1))
+                
+				.arg(Arg::new("input").short('i').long("input")
+				.help("Partial transaction to process, expects the receiver's transaction file.").num_args(1))
+                
+				.arg(Arg::new("fluff").short('f').long("fluff")
+				.help("Fluff the transaction (ignore Dandelion relay protocol)"))
+                
+				.arg(Arg::new("nopost").short('n').long("nopost")
+				.help("Do not post the transaction."))
+                
+				.arg(Arg::new("dest").short('d').long("dest")
+				.help("Specify file to save the finalized slate.").num_args(1))
         )
         .subcommand(
             Command::new("invoice")
                 .about("Initialize an invoice transaction.")
-                .arg(Arg::new("amount").help("Number of coins to invoice  with optional fraction, e.g. 12.423").index(1))
-                .arg(Arg::new("message").short('g').long("message").help("Optional participant message to include").num_args(1))
-                .arg(Arg::new("dest").short('d').long("dest").help("Name of destination slate output file").num_args(1))
-				.arg(Arg::new("slate_version").short('v').long("slate_version").help("Target slate version to create/send").value_parser(clap::value_parser!(u16)).num_args(1))
+                
+				.arg(Arg::new("amount")
+				.help("Number of coins to invoice  with optional fraction, e.g. 12.423").index(1))
+                
+				.arg(Arg::new("message").short('g').long("message")
+				.help("Optional participant message to include").num_args(1))
+                
+				.arg(Arg::new("dest").short('d').long("dest")
+				.help("Name of destination slate output file").num_args(1))
+				
+				.arg(Arg::new("slate_version").short('v').long("slate_version")
+				.help("Target slate version to create/send").value_parser(clap::value_parser!(u16)).num_args(1))
 	
 		)		
         .subcommand(
             Command::new("pay")
                 .about("Spend coins to pay the provided invoice transaction")
-                .arg(Arg::new("minimum_confirmations").short('c').long("min_conf").help("Minimum number of confirmations required for an output to be spendable").default_value("10").num_args(1))
-                .arg(Arg::new("selection_strategy").short('s').long("selection").help("Coin/Output selection strategy.").value_parser(["all", "smallest"]).default_value("all").num_args(1))
-                .arg(Arg::new("estimate_selection_strategies").short('e').long("estimate-selection").help("Estimates all possible Coin/Output selection strategies."))
-                .arg(Arg::new("method").short('m').long("method").help("Method for sending the processed invoice back to the invoice creator").value_parser(["file", "http", "self"]).default_value("file").num_args(1))
-                .arg(Arg::new("dest").short('d').long("dest").help("Send the transaction to the provided server (start with http://) or save as file.").num_args(1))
-                .arg(Arg::new("message").short('g').long("message").help("Optional participant message to include").num_args(1))
-                .arg(Arg::new("input").short('i').long("input").help("Partial transaction to process, expects the invoicer's transaction file.").num_args(1))
-                .arg(Arg::new("ttl_blocks").short('b').long("ttl_blocks").help("If present, the number of blocks from the current after which wallets should refuse to process transactions further").num_args(1))
+               
+			    .arg(Arg::new("minimum_confirmations").short('c').long("min_conf")
+				.help("Minimum number of confirmations required for an output to be spendable").default_value("10").num_args(1))
+              
+			    .arg(Arg::new("selection_strategy").short('s').long("selection")
+				.help("Coin/Output selection strategy.").value_parser(["all", "smallest"]).default_value("all").num_args(1))
+              
+			    .arg(Arg::new("estimate_selection_strategies").short('e').long("estimate-selection")
+				.help("Estimates all possible Coin/Output selection strategies."))
+              
+			    .arg(Arg::new("method").short('m').long("method")
+				.help("Method for sending the processed invoice back to the invoice creator").value_parser(["file", "http", "self"]).default_value("file").num_args(1))
+              
+			    .arg(Arg::new("dest").short('d').long("dest")
+				.help("Send the transaction to the provided server (start with http://) or save as file.").num_args(1))
+               
+			    .arg(Arg::new("message").short('g').long("message")
+				.help("Optional participant message to include").num_args(1))
+              
+			    .arg(Arg::new("input").short('i').long("input")
+				.help("Partial transaction to process, expects the invoicer's transaction file.").num_args(1))
+               
+			    .arg(Arg::new("ttl_blocks").short('b').long("ttl_blocks")
+				.help("If present, the number of blocks from the current after which wallets should refuse to process transactions further").num_args(1))
         )
         .subcommand(
             Command::new("outputs")
                 .about("Raw wallet output info (list of outputs)")
-                .arg(Arg::new("show_full_history").short('f').long("show_full_history").help("If specified, display full outputs history").action(clap::ArgAction::SetTrue))
-                .arg(Arg::new("limit").short('l').long("limit").help("Limit the number of transactions to display").num_args(1))
-                .arg(Arg::new("offset").short('o').long("offset").help("Skip the first N transactions").num_args(1))
-                .arg(Arg::new("sort_order").short('s').long("sort_order").help("Sort transactions by creation time, either 'asc' or 'desc' (default is 'desc')").value_parser(["asc", "desc"]).num_args(1))
+                
+				.arg(Arg::new("show_full_history").short('f').long("show_full_history")
+				.help("If specified, display full outputs history").action(clap::ArgAction::SetTrue))
+                
+				.arg(Arg::new("limit").short('l').long("limit")
+				.help("Limit the number of transactions to display").num_args(1))
+                
+				.arg(Arg::new("offset").short('o').long("offset")
+				.help("Skip the first N transactions").num_args(1))
+                
+				.arg(Arg::new("sort_order").short('s').long("sort_order")
+				.help("Sort transactions by creation time, either 'asc' or 'desc' (default is 'desc')").value_parser(["asc", "desc"]).num_args(1))
         )
         .subcommand(
             Command::new("txs")
                 .about("Display transaction information")
-                .arg(Arg::new("id").short('i').long("id").help("If specified, display transaction with given Id and all associated Inputs/Outputs").num_args(1))
-                .arg(Arg::new("txid").short('t').long("txid").help("If specified, display transaction with given TxID UUID and all associated Inputs/Outputs").num_args(1))
-                .arg(Arg::new("limit").short('l').long("limit").help("Limit the number of transactions to display").num_args(1))
-                .arg(Arg::new("offset").short('o').long("offset").help("Skip the first N transactions").num_args(1))
-                .arg(Arg::new("sort_order").short('s').long("sort_order").help("Sort transactions by creation time, either 'asc' or 'desc' (default is 'desc')").value_parser(["asc", "desc"]).num_args(1))
+                
+				.arg(Arg::new("id").short('i').long("id")
+				.help("If specified, display transaction with given Id and all associated Inputs/Outputs").num_args(1))
+                
+				.arg(Arg::new("txid").short('t').long("txid")
+				.help("If specified, display transaction with given TxID UUID and all associated Inputs/Outputs").num_args(1))
+                
+				.arg(Arg::new("limit").short('l').long("limit")
+				.help("Limit the number of transactions to display").num_args(1))
+                
+				.arg(Arg::new("offset").short('o').long("offset")
+				.help("Skip the first N transactions").num_args(1))
+                
+				.arg(Arg::new("sort_order").short('s').long("sort_order")
+				.help("Sort transactions by creation time, either 'asc' or 'desc' (default is 'desc')").value_parser(["asc", "desc"]).num_args(1))
         )
         .subcommand(
             Command::new("post")
                 .about("Posts a finalized transaction to the chain")
-                .arg(Arg::new("input").short('i').long("input").help("File name of the transaction to post").num_args(1))
-                .arg(Arg::new("fluff").short('f').long("fluff").help("Fluff the transaction (ignore Dandelion relay protocol)"))
+                
+				.arg(Arg::new("input").short('i').long("input")
+				.help("File name of the transaction to post").num_args(1))
+                
+				.arg(Arg::new("fluff").short('f').long("fluff")
+				.help("Fluff the transaction (ignore Dandelion relay protocol)"))
         )
         .subcommand(
             Command::new("repost")
                 .about("Reposts a stored, completed but unconfirmed transaction to the chain, or dumps it to a file")
-                .arg(Arg::new("id").short('i').long("id").help("Transaction ID containing the stored completed transaction").num_args(1))
-                .arg(Arg::new("dumpfile").short('m').long("dumpfile").help("File name to duMp the transaction to instead of posting").num_args(1))
-                .arg(Arg::new("fluff").short('f').long("fluff").help("Fluff the transaction (ignore Dandelion relay protocol)"))
+                
+				.arg(Arg::new("id").short('i').long("id")
+				.help("Transaction ID containing the stored completed transaction").num_args(1))
+                
+				.arg(Arg::new("dumpfile").short('m').long("dumpfile")
+				.help("File name to duMp the transaction to instead of posting").num_args(1))
+                
+				.arg(Arg::new("fluff").short('f').long("fluff")
+				.help("Fluff the transaction (ignore Dandelion relay protocol)"))
         )
         .subcommand(
             Command::new("cancel")
                 .about("Cancels a previously created transaction, freeing previously locked outputs for use again")
-                .arg(Arg::new("id").short('i').long("id").help("The ID of the transaction to cancel").num_args(1))
-                .arg(Arg::new("txid").short('t').long("txid").help("The TxID UUID of the transaction to cancel").num_args(1))
+                
+				.arg(Arg::new("id").short('i').long("id")
+				.help("The ID of the transaction to cancel").num_args(1))
+                
+				.arg(Arg::new("txid").short('t').long("txid")
+				.help("The TxID UUID of the transaction to cancel").num_args(1))
         )
         .subcommand(
             Command::new("info")
                 .about("Basic wallet contents summary")
-                .arg(Arg::new("minimum_confirmations").short('c').long("min_conf").help("Minimum number of confirmations required for an output to be spendable").default_value("10").num_args(1))
+                .arg(Arg::new("minimum_confirmations").short('c').long("min_conf")
+				.help("Minimum number of confirmations required for an output to be spendable")
+				.default_value("10").num_args(1))
         )
         .subcommand(
             Command::new("init")
                 .about("Initialize a new wallet seed file and database")
-				.arg(Arg::new("cwd").short('w').long("cwd").help("Create wallet files in the current directory instead of the default ~/.epic directory").action(clap::ArgAction::SetTrue))
-                .arg(Arg::new("short_wordlist").short('s').long("short_wordlist").help("Generate a 12-word recovery phrase/seed instead of default 24").action(clap::ArgAction::SetTrue))
-                .arg(Arg::new("recover").short('r').long("recover").help("Initialize new wallet using a recovery phrase").action(clap::ArgAction::SetTrue))
+				
+				.arg(Arg::new("cwd").short('w').long("cwd")
+				.help("Create wallet files in the current directory instead of the default ~/.epic directory").action(clap::ArgAction::SetTrue))
+                
+				.arg(Arg::new("short_wordlist").short('s').long("short_wordlist")
+				.help("Generate a 12-word recovery phrase/seed instead of default 24").action(clap::ArgAction::SetTrue))
+                
+				.arg(Arg::new("recover").short('r').long("recover")
+				.help("Initialize new wallet using a recovery phrase").action(clap::ArgAction::SetTrue))
         )
         .subcommand(
             Command::new("recover")
@@ -218,15 +372,25 @@ pub fn build_cli() -> Command {
         .subcommand(
             Command::new("scan")
                 .about("Checks a wallet's outputs against a live node, repairing and restoring missing outputs if required")
-                .arg(Arg::new("delete_unconfirmed").short('d').long("delete_unconfirmed").help("!!! Warning !!! Delete any unconfirmed outputs unlock any locked outputs and delete all associated transactions (!!! this will delete all ongoing transactions !!!) while doing the check.").action(clap::ArgAction::SetTrue))
-                .arg(Arg::new("start_height").short('s').long("start_height").help("If given, the first block from which to start the scan (default 1)").default_value("1").num_args(1))
+                
+				.arg(Arg::new("delete_unconfirmed").short('d').long("delete_unconfirmed")
+				.help("!!! Warning !!! Delete any unconfirmed outputs unlock any locked outputs and delete all associated transactions (!!! this will delete all ongoing transactions !!!) while doing the check.").action(clap::ArgAction::SetTrue))
+                
+				.arg(Arg::new("start_height").short('s').long("start_height")
+				.help("If given, the first block from which to start the scan (default 1)").default_value("1").num_args(1))
         )
         .subcommand(
             Command::new("export_proof")
                 .about("Export a payment proof from a completed transaction")
-                .arg(Arg::new("output").help("Output proof file").index(1))
-                .arg(Arg::new("id").short('i').long("id").help("If specified, retrieve the proof for the given transaction ID").num_args(1))
-                .arg(Arg::new("txid").short('t').long("txid").help("If specified, retrieve the proof for the given Slate ID").num_args(1))
+               
+			    .arg(Arg::new("output")
+				.help("Output proof file").index(1))
+              
+			    .arg(Arg::new("id").short('i').long("id")
+				.help("If specified, retrieve the proof for the given transaction ID").num_args(1))
+               
+			    .arg(Arg::new("txid").short('t').long("txid")
+				.help("If specified, retrieve the proof for the given Slate ID").num_args(1))
         )
         .subcommand(
             Command::new("verify_proof")
@@ -236,9 +400,16 @@ pub fn build_cli() -> Command {
 		.subcommand(
 		Command::new("change_password")
 			.about("Change the wallet password")
-			.arg(Arg::new("old_password").help("Current password"))
-			.arg(Arg::new("new_password").help("New password"))
-			.arg(Arg::new("remove_backup").long("remove-backup").help("Remove the backup file after password change").action(ArgAction::SetFalse),)
+			
+			.arg(Arg::new("old_password")
+			.help("Current password"))
+			
+			.arg(Arg::new("new_password")
+			.help("New password"))
+			
+			.arg(Arg::new("remove_backup").long("remove-backup")
+			.help("Remove the backup file after password change")
+			.action(ArgAction::SetFalse),)
 		)
 }
 
@@ -428,10 +599,8 @@ pub fn parse_global_args(
 			)
 		})?;
 
-	let mut show_spent = false;
-	if args.contains_id("show_spent") {
-		show_spent = true;
-	}
+	let show_spent = args.get_flag("show_spent");
+
 	let api_secret = get_first_line(config.api_secret_path.clone());
 	let node_api_secret = get_first_line(config.node_api_secret_path.clone());
 	let password = args
@@ -460,8 +629,11 @@ pub fn parse_global_args(
 		Some(c) => c,
 	};
 
-	let offline_mode = args.contains_id("offline_mode");
-
+	let offline_mode = args.get_flag("offline_mode");
+	print!(
+		"#################### Using offline_mode: {:?}\n",
+		offline_mode
+	);
 	Ok(command::GlobalArgs {
 		account: account.to_owned(),
 		show_spent,

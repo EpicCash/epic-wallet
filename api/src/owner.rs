@@ -1816,7 +1816,7 @@ where
 	///
 	///	let old = ZeroingString::from("my_password");
 	///	let new = ZeroingString::from("new_password");
-	/// let res = api_owner.change_password(None, old, new);
+	/// let res = api_owner.change_password(None, old, new, false);
 	///
 	/// if let Ok(mne) = res {
 	///		// ...
