@@ -1797,7 +1797,8 @@ pub trait OwnerRpcS {
 		"params": {
 			"name": null,
 			"old": "",
-			"new": "new_password"
+			"new": "new_password",
+			"remove_backup": false
 		},
 		"id": 1
 	}
@@ -1815,7 +1816,13 @@ pub trait OwnerRpcS {
 	# , true, 0, false, false, false, false);
 	```
 	*/
-	fn change_password(&self, name: Option<String>, old: String, new: String) -> Result<(), Error>;
+	fn change_password(
+		&self,
+		name: Option<String>,
+		old: String,
+		new: String,
+		remove_backup: bool,
+	) -> Result<(), Error>;
 
 	/**
 	Networked version of [Owner::delete_wallet](struct.Owner.html#method.delete_wallet).
@@ -2488,9 +2495,21 @@ where
 		Ok(format!("{}", &*res))
 	}
 
-	fn change_password(&self, name: Option<String>, old: String, new: String) -> Result<(), Error> {
+	fn change_password(
+		&self,
+		name: Option<String>,
+		old: String,
+		new: String,
+		remove_backup: bool,
+	) -> Result<(), Error> {
 		let n = name.as_ref().map(|s| s.as_str());
-		Owner::change_password(self, n, ZeroingString::from(old), ZeroingString::from(new))
+		Owner::change_password(
+			self,
+			n,
+			ZeroingString::from(old),
+			ZeroingString::from(new),
+			remove_backup,
+		)
 	}
 
 	fn delete_wallet(&self, name: Option<String>) -> Result<(), Error> {

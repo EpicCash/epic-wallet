@@ -43,7 +43,7 @@ use rustyline::history::DefaultHistory;
 use rustyline::Editor;
 
 use crate::cmd::built_info;
-use clap::{Arg, Command};
+use clap::{Arg, ArgAction, Command};
 
 // define what to do on argument error
 macro_rules! arg_parse {
@@ -64,10 +64,10 @@ pub fn build_cli() -> Command {
         .version(built_info::PKG_VERSION)
         .arg(Arg::new("floonet").long("floonet").help("Run epic against the Floonet (as opposed to mainnet)").action(clap::ArgAction::SetTrue))
         .arg(Arg::new("usernet").long("usernet").help("Run epic as a local-only network. Doesn't block peer connections but will not connect to any peer or seed").action(clap::ArgAction::SetTrue))
-        .arg(Arg::new("pass").short('p').long("pass").help("cargo build passphrase used to encrypt wallet seed").num_args(1))
-        .arg(Arg::new("account").short('a').long("account").help("Wallet account to use for this operation").num_args(1).default_value("default"))
+        .arg(Arg::new("pass").short('p').long("pass").help("Passphrase used to encrypt wallet seed").num_args(1))
+        .arg(Arg::new("account").short('a').long("account").help("Wallet account to use").num_args(1).default_value("default"))
         .arg(Arg::new("top_level_dir").short('t').long("top_level_dir").help("Top directory in which wallet files are stored (location of 'epic-wallet.toml')").num_args(1))
-        .arg(Arg::new("current_dir").short('c').long("current_dir").help("Path to epic-wallet dir").num_args(1))
+        .arg(Arg::new("current_dir").short('c').long("current_dir").help("Path to epic wallet_data dir (defaul: ~/.epic)").num_args(1))
         .arg(Arg::new("external").short('e').long("external").help("Listen on 0.0.0.0 interface to allow external connections (default is 127.0.0.1)").action(clap::ArgAction::SetTrue))
         .arg(Arg::new("show_spent").short('s').long("show_spent").help("Show spent outputs on wallet output commands").action(clap::ArgAction::SetTrue))
         .arg(Arg::new("api_server_address").short('r').long("api_server_address").help("Api address of running node on which to check inputs and post transactions").num_args(1))
@@ -230,9 +230,16 @@ pub fn build_cli() -> Command {
         )
         .subcommand(
             Command::new("verify_proof")
-                .about("Verify a payment proof")
-                .arg(Arg::new("input").help("Filename of a proof file").index(1))
+            .about("Verify a payment proof")
+            .arg(Arg::new("input").help("Filename of a proof file").index(1))
         )
+		.subcommand(
+		Command::new("change_password")
+			.about("Change the wallet password")
+			.arg(Arg::new("old_password").help("Current password"))
+			.arg(Arg::new("new_password").help("New password"))
+			.arg(Arg::new("remove_backup").long("remove-backup").help("Remove the backup file after password change").action(ArgAction::SetFalse),)
+		)
 }
 
 fn prompt_password_stdout(prompt: &str) -> ZeroingString {
@@ -250,7 +257,7 @@ fn prompt_password_confirm() -> ZeroingString {
 	let mut first = ZeroingString::from("first");
 	let mut second = ZeroingString::from("second");
 	while first != second {
-		first = prompt_password_stdout("Password: ");
+		first = prompt_password_stdout("New Password: ");
 		second = prompt_password_stdout("Confirm Password: ");
 	}
 	first
@@ -1324,6 +1331,29 @@ where
 			let a = arg_parse!(parse_check_args(&args));
 			command::scan(wallet, km, a)
 		}
+		Some(("change_password", args)) => {
+			// Prompt for current password if not provided
+			let old_password = match args.get_one::<String>("old_password") {
+				Some(p) => ZeroingString::from(p.clone()),
+				None => prompt_password_stdout("Current password: "),
+			};
+
+			// Prompt for new password and confirmation
+			let new_password = if let Some(p) = args.get_one::<String>("new_password") {
+				ZeroingString::from(p.clone())
+			} else {
+				prompt_password_confirm()
+			};
+
+			// Get the remove_backup flag
+			let remove_backup = args.get_flag("remove_backup");
+
+			// Call the lifecycle provider's change_password method
+			let mut wallet_lock = wallet.lock();
+			let lc = wallet_lock.lc_provider().unwrap();
+			lc.change_password(None, old_password, new_password, remove_backup)
+		}
+
 		_ => {
 			let msg = format!("Unknown wallet command, use 'epic-wallet help' for details");
 			return Err(Error::ArgumentError(msg));

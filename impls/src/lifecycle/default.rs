@@ -301,6 +301,7 @@ where
 		_name: Option<&str>,
 		old: ZeroingString,
 		new: ZeroingString,
+		remove_backup: bool,
 	) -> Result<(), Error> {
 		let mut data_dir_name = PathBuf::from(self.data_dir.clone());
 		data_dir_name.push(EPIC_WALLET_DIR);
@@ -342,8 +343,12 @@ where
 			return Err(Error::Lifecycle(msg).into());
 		}
 		// Removin
-		info!("Password change confirmed, removing old seed file.");
-		fs::remove_file(backup_name)?;
+		if remove_backup {
+			info!("Password change confirmed, removing backup seed file.");
+			fs::remove_file(backup_name)?;
+		} else {
+			info!("Password change confirmed.");
+		}
 
 		Ok(())
 	}

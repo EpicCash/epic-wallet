@@ -1827,10 +1827,11 @@ where
 		name: Option<&str>,
 		old: ZeroingString,
 		new: ZeroingString,
+		remove_backup: bool,
 	) -> Result<(), Error> {
 		let mut w_lock = self.wallet_inst.lock();
 		let lc = w_lock.lc_provider()?;
-		lc.change_password(name, old, new)
+		lc.change_password(name, old, new, remove_backup)
 	}
 
 	/// Deletes a wallet, removing the config file, seed file and all data files.

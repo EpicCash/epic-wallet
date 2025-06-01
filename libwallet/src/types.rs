@@ -151,6 +151,7 @@ where
 		name: Option<&str>,
 		old: ZeroingString,
 		new: ZeroingString,
+		remove_backup: bool,
 	) -> Result<(), Error>;
 
 	/// deletes wallet
