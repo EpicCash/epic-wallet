@@ -658,13 +658,13 @@ where
 	C: NodeClient + 'static,
 	K: keychain::Keychain + 'static,
 {
-	let list_length = match args.contains_id("short_wordlist") {
+	let list_length = match args.get_flag("short_wordlist") {
 		false => 32,
 		true => 16,
 	};
 
 	let recovery_phrase = match args.subcommand() {
-		Some(("init", sub_args)) if sub_args.contains_id("recover") => {
+		Some(("init", sub_args)) if sub_args.get_flag("recover") => {
 			Some(prompt_recovery_phrase(wallet)?)
 		}
 		_ => None,
@@ -708,7 +708,7 @@ pub fn parse_listen_args(
 
 	let method = parse_required(args, "method")?;
 
-	if args.contains_id("no_tor") {
+	if args.get_flag("no_tor") {
 		tor_config.use_tor_listener = false;
 	}
 	Ok(command::ListenArgs {
@@ -720,7 +720,7 @@ pub fn parse_owner_api_args(config: &mut WalletConfig, args: &ArgMatches) -> Res
 	if let Some(port) = args.get_one::<u16>("port") {
 		config.owner_api_listen_port = Some(*port);
 	}
-	if args.contains_id("run_foreign") {
+	if args.get_flag("run_foreign") {
 		config.owner_api_include_foreign = Some(true);
 	}
 	Ok(())
@@ -750,7 +750,7 @@ pub fn parse_send_args(args: &ArgMatches) -> Result<command::SendArgs, Error> {
 	};
 
 	// message
-	let message = match args.contains_id("message") {
+	let message = match args.get_flag("message") {
 		true => Some(args.get_one::<String>("message").unwrap().to_owned()),
 		false => None,
 	};
@@ -763,7 +763,7 @@ pub fn parse_send_args(args: &ArgMatches) -> Result<command::SendArgs, Error> {
 	let selection_strategy = parse_required(args, "selection_strategy")?;
 
 	// estimate_selection_strategies
-	let estimate_selection_strategies = args.contains_id("estimate_selection_strategies");
+	let estimate_selection_strategies = args.get_flag("estimate_selection_strategies");
 
 	// method
 	let method = parse_required(args, "method")?;
@@ -804,7 +804,7 @@ pub fn parse_send_args(args: &ArgMatches) -> Result<command::SendArgs, Error> {
 	let change_outputs = parse_u64(change_outputs, "change_outputs")? as usize;
 
 	// fluff
-	let fluff = args.contains_id("fluff");
+	let fluff = args.get_flag("fluff");
 
 	// ttl_blocks
 	let ttl_blocks = parse_u64_or_none(args.get_one::<String>("ttl_blocks").map(|s| s.as_str()));
@@ -813,13 +813,13 @@ pub fn parse_send_args(args: &ArgMatches) -> Result<command::SendArgs, Error> {
 	let max_outputs = 500;
 
 	// target slate version to create/send
-	let target_slate_version = match args.contains_id("slate_version") {
+	let target_slate_version = match args.get_flag("slate_version") {
 		true => Some(args.get_one::<u16>("slate_version").unwrap().to_owned()),
 		false => None,
 	};
 
 	let payment_proof_address = {
-		match args.contains_id("request_payment_proof") {
+		match args.get_flag("request_payment_proof") {
 			true => {
 				// if the destination address is a TOR address, we don't need the address
 				// separately
@@ -851,7 +851,7 @@ pub fn parse_send_args(args: &ArgMatches) -> Result<command::SendArgs, Error> {
 
 pub fn parse_receive_args(receive_args: &ArgMatches) -> Result<command::ReceiveArgs, Error> {
 	// message
-	let message = match receive_args.contains_id("message") {
+	let message = match receive_args.get_flag("message") {
 		true => Some(
 			receive_args
 				.get_one::<String>("message")
@@ -883,8 +883,8 @@ pub fn parse_receive_args(receive_args: &ArgMatches) -> Result<command::ReceiveA
 }
 
 pub fn parse_finalize_args(args: &ArgMatches) -> Result<command::FinalizeArgs, Error> {
-	let fluff = args.contains_id("fluff");
-	let nopost = args.contains_id("nopost");
+	let fluff = args.get_flag("fluff");
+	let nopost = args.get_flag("nopost");
 
 	// method
 	let method = parse_required(args, "method")?;
@@ -900,7 +900,7 @@ pub fn parse_finalize_args(args: &ArgMatches) -> Result<command::FinalizeArgs, E
 		}
 	}
 
-	let dest_file = match args.contains_id("dest") {
+	let dest_file = match args.get_flag("dest") {
 		true => Some(args.get_one::<String>("dest").unwrap().to_owned()),
 		false => None,
 	};
@@ -928,13 +928,13 @@ pub fn parse_issue_invoice_args(args: &ArgMatches) -> Result<command::IssueInvoi
 		}
 	};
 	// message
-	let message = match args.contains_id("message") {
+	let message = match args.get_flag("message") {
 		true => Some(args.get_one::<String>("message").unwrap().to_owned()),
 		false => None,
 	};
 
 	// target slate version to create
-	let target_slate_version = match args.contains_id("slate_version") {
+	let target_slate_version = match args.get_flag("slate_version") {
 		true => Some(args.get_one::<u16>("slate_version").unwrap().to_owned()),
 		false => None,
 	};
@@ -958,7 +958,7 @@ pub fn parse_process_invoice_args(
 ) -> Result<command::ProcessInvoiceArgs, Error> {
 	// TODO: display and prompt for confirmation of what we're doing
 	// message
-	let message = match args.contains_id("message") {
+	let message = match args.get_flag("message") {
 		true => Some(args.get_one::<String>("message").unwrap().to_owned()),
 		false => None,
 	};
@@ -971,7 +971,7 @@ pub fn parse_process_invoice_args(
 	let selection_strategy = parse_required(args, "selection_strategy")?;
 
 	// estimate_selection_strategies
-	let estimate_selection_strategies = args.contains_id("estimate_selection_strategies");
+	let estimate_selection_strategies = args.get_flag("estimate_selection_strategies");
 
 	// method
 	let method = parse_required(args, "method")?;
@@ -1047,7 +1047,7 @@ pub fn parse_info_args(args: &ArgMatches) -> Result<command::InfoArgs, Error> {
 }
 
 pub fn parse_outputs_args(args: &ArgMatches) -> Result<command::OutputsArgs, Error> {
-	let show_full_history = args.contains_id("show_full_history");
+	let show_full_history = args.get_flag("show_full_history");
 	// Parse limit
 	let limit = match args.get_one::<String>("limit") {
 		None => None,
@@ -1081,7 +1081,7 @@ pub fn parse_outputs_args(args: &ArgMatches) -> Result<command::OutputsArgs, Err
 }
 
 pub fn parse_check_args(args: &ArgMatches) -> Result<command::CheckArgs, Error> {
-	let delete_unconfirmed = args.contains_id("delete_unconfirmed");
+	let delete_unconfirmed = args.get_flag("delete_unconfirmed");
 	let start_height =
 		parse_u64_or_none(args.get_one::<String>("start_height").map(|s| s.as_str()));
 	Ok(command::CheckArgs {
@@ -1152,7 +1152,7 @@ pub fn parse_txs_args(args: &ArgMatches) -> Result<command::TxsArgs, Error> {
 
 pub fn parse_post_args(args: &ArgMatches) -> Result<command::PostArgs, Error> {
 	let tx_file = parse_required(args, "input")?;
-	let fluff = args.contains_id("fluff");
+	let fluff = args.get_flag("fluff");
 
 	Ok(command::PostArgs {
 		input: tx_file.to_owned(),
@@ -1166,7 +1166,7 @@ pub fn parse_repost_args(args: &ArgMatches) -> Result<command::RepostArgs, Error
 		Some(tx) => Some(parse_u64(tx, "id")? as u32),
 	};
 
-	let fluff = args.contains_id("fluff");
+	let fluff = args.get_flag("fluff");
 	let dump_file = match args.get_one::<String>("dumpfile") {
 		None => None,
 		Some(d) => Some(d.to_owned()),
@@ -1276,7 +1276,7 @@ where
 		global::set_mining_mode(t);
 	}
 
-	if wallet_args.contains_id("external") {
+	if wallet_args.get_flag("external") {
 		wallet_config.api_listen_interface = "0.0.0.0".to_string();
 	}
 

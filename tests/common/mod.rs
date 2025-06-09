@@ -215,7 +215,7 @@ fn get_wallet_subcommand(wallet_dir: &str, wallet_name: &str, args: ArgMatches) 
 		Some(("init", init_args)) => {
 			// wallet init command should spit out its config file then continue
 			// (if desired)
-			if init_args.contains_id("cwd") {
+			if init_args.get_flag("cwd") {
 				let _ = config_command_wallet(wallet_dir, wallet_name);
 			}
 			init_args.to_owned()

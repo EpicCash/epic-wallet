@@ -61,9 +61,9 @@ fn main() {
 fn real_main() -> i32 {
 	let args = wallet_args::build_cli().get_matches();
 
-	let chain_type = if args.contains_id("floonet") {
+	let chain_type = if args.get_flag("floonet") {
 		global::ChainTypes::Floonet
-	} else if args.contains_id("usernet") {
+	} else if args.get_flag("usernet") {
 		global::ChainTypes::UserTesting
 	} else {
 		global::ChainTypes::Mainnet
@@ -83,7 +83,7 @@ fn real_main() -> i32 {
 	match args.subcommand() {
 		Some(("init", init_args)) => {
 			// Use current working directory as the top wallet data directory
-			if init_args.contains_id("cwd") {
+			if init_args.get_flag("cwd") {
 				current_dir = Some(env::current_dir().unwrap_or_else(|e| {
 					panic!("Error creating config file: {}", e);
 				}));
