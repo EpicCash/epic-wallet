@@ -48,7 +48,7 @@ use crate::apiwallet::{
 };
 use easy_jsonrpc_mw;
 use easy_jsonrpc_mw::{Handler, MaybeReply};
-
+use std::sync::atomic::{AtomicBool, Ordering};
 lazy_static! {
 	pub static ref EPIC_OWNER_BASIC_REALM: HeaderValue =
 		HeaderValue::from_str("Basic realm=EpicOwnerAPI").unwrap();
@@ -128,6 +128,7 @@ pub fn owner_single_use<L, F, C, K>(
 	wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K>>>>,
 	keychain_mask: Option<&SecretKey>,
 	f: F,
+	is_node_synced: Arc<AtomicBool>,
 ) -> Result<(), Error>
 where
 	L: WalletLCProvider<'static, C, K> + 'static,
@@ -135,7 +136,7 @@ where
 	C: NodeClient + 'static,
 	K: Keychain + 'static,
 {
-	f(&mut Owner::new(wallet, None), keychain_mask)?;
+	f(&mut Owner::new(wallet, None, is_node_synced), keychain_mask)?;
 	Ok(())
 }
 
@@ -173,6 +174,7 @@ pub fn owner_listener<L, C, K>(
 	owner_api_include_foreign: Option<bool>,
 	tor_config: Option<TorConfig>,
 	epicbox_config: Option<EpicboxConfig>,
+	is_node_synced: Arc<AtomicBool>,
 ) -> Result<(), Error>
 where
 	L: WalletLCProvider<'static, C, K> + 'static,
@@ -201,6 +203,7 @@ where
 		tor_config.clone(),
 		epicbox_config.clone(),
 		running_foreign,
+		is_node_synced.clone(),
 	);
 	let api_handler_v3 = OwnerAPIHandlerV3::new(
 		wallet.clone(),
@@ -208,6 +211,7 @@ where
 		tor_config,
 		epicbox_config,
 		running_foreign,
+		is_node_synced.clone(),
 	);
 
 	router
@@ -221,7 +225,8 @@ where
 	// If so configured, add the foreign API to the same port
 	if running_foreign {
 		warn!("Add Foreign API at {}.", addr);
-		let foreign_api_handler_v2 = ForeignAPIHandlerV2::new(wallet, keychain_mask);
+		let foreign_api_handler_v2 =
+			ForeignAPIHandlerV2::new(wallet, keychain_mask, is_node_synced);
 		router
 			.add_route("/v2/foreign", Arc::new(foreign_api_handler_v2))
 			.map_err(|_| Error::GenericError("Router failed to add route".to_string()))?;
@@ -252,6 +257,7 @@ pub fn foreign_listener<L, C, K>(
 	addr: &str,
 	tls_config: Option<TLSConfig>,
 	use_tor: bool,
+	is_node_synced: Arc<AtomicBool>,
 ) -> Result<(), Error>
 where
 	L: WalletLCProvider<'static, C, K> + 'static,
@@ -272,7 +278,7 @@ where
 		false => None,
 	};
 
-	let api_handler_v2 = ForeignAPIHandlerV2::new(wallet, keychain_mask);
+	let api_handler_v2 = ForeignAPIHandlerV2::new(wallet, keychain_mask, is_node_synced);
 	let mut router = Router::new();
 
 	router
@@ -315,6 +321,7 @@ where
 	/// Whether we're running the foreign API on the same port, and therefore
 	/// have to store the mask in-process
 	pub running_foreign: bool,
+	pub is_node_synced: Arc<AtomicBool>,
 }
 
 impl<L, C, K> OwnerAPIHandlerV2<L, C, K>
@@ -330,8 +337,9 @@ where
 		tor_config: Option<TorConfig>,
 		epicbox_config: Option<EpicboxConfig>,
 		running_foreign: bool,
+		is_node_synced: Arc<AtomicBool>,
 	) -> OwnerAPIHandlerV2<L, C, K> {
-		let owner_api = Owner::new(wallet.clone(), None);
+		let owner_api = Owner::new(wallet.clone(), None, is_node_synced.clone());
 		owner_api.set_tor_config(tor_config);
 		owner_api.set_epicbox_config(epicbox_config);
 
@@ -341,6 +349,7 @@ where
 			owner_api,
 			keychain_mask,
 			running_foreign,
+			is_node_synced,
 		}
 	}
 
@@ -418,6 +427,8 @@ where
 	/// Whether we're running the foreign API on the same port, and therefore
 	/// have to store the mask in-process
 	pub running_foreign: bool,
+	/// Whether we're running the foreign API on the same port, and therefore
+	pub is_node_synced: Arc<AtomicBool>,
 }
 
 pub struct OwnerV3Helpers;
@@ -648,8 +659,9 @@ where
 		tor_config: Option<TorConfig>,
 		epicbox_config: Option<EpicboxConfig>,
 		running_foreign: bool,
+		is_node_synced: Arc<AtomicBool>,
 	) -> OwnerAPIHandlerV3<L, C, K> {
-		let owner_api = Owner::new(wallet.clone(), None);
+		let owner_api = Owner::new(wallet.clone(), None, is_node_synced.clone());
 		owner_api.set_tor_config(tor_config);
 		owner_api.set_epicbox_config(epicbox_config);
 		let owner_api = Arc::new(owner_api);
@@ -659,6 +671,7 @@ where
 			shared_key: Arc::new(Mutex::new(None)),
 			keychain_mask,
 			running_foreign,
+			is_node_synced,
 		}
 	}
 
@@ -778,6 +791,7 @@ where
 	pub wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K> + 'static>>>,
 	/// Keychain mask
 	pub keychain_mask: Arc<Mutex<Option<SecretKey>>>,
+	pub is_node_synced: Arc<AtomicBool>,
 }
 
 impl<L, C, K> ForeignAPIHandlerV2<L, C, K>
@@ -790,10 +804,12 @@ where
 	pub fn new(
 		wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K> + 'static>>>,
 		keychain_mask: Arc<Mutex<Option<SecretKey>>>,
+		is_node_synced: Arc<AtomicBool>,
 	) -> ForeignAPIHandlerV2<L, C, K> {
 		ForeignAPIHandlerV2 {
 			wallet,
 			keychain_mask,
+			is_node_synced,
 		}
 	}
 
@@ -834,8 +850,16 @@ where
 	fn post(&self, req: Request<hyper::body::Incoming>) -> ResponseFuture {
 		let mask = self.keychain_mask.lock().clone();
 		let wallet = self.wallet.clone();
+		let is_node_synced = self.is_node_synced.clone();
 
 		Box::pin(async move {
+			if !is_node_synced.load(Ordering::SeqCst) {
+				// Node is not synced, return 503
+				return Ok(response(
+					StatusCode::SERVICE_UNAVAILABLE,
+					"Node not synchronized",
+				));
+			}
 			match Self::handle_post_request(req, mask, wallet).await {
 				Ok(v) => Ok(v),
 				Err(e) => {

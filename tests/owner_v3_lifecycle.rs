@@ -29,6 +29,7 @@ use serde_json;
 
 use epic_wallet_util::epic_util::Mutex;
 use std::path::PathBuf;
+use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
 #[macro_use]
@@ -111,6 +112,7 @@ fn owner_v3_lifecycle() -> Result<(), epic_wallet_controller::Error> {
 	thread::sleep(Duration::from_millis(500));
 	let mask2 = (&mask2_i).as_ref();
 	let wallet_proxy = wallet_proxy_a.clone();
+	let is_node_synced = Arc::new(AtomicBool::new(true));
 
 	// Set the wallet proxy listener running
 	thread::spawn(move || {
@@ -383,23 +385,28 @@ fn owner_v3_lifecycle() -> Result<(), epic_wallet_controller::Error> {
 	let mut slate: Slate = res.unwrap().into();
 
 	// give this slate over to wallet 2 manually
-	epic_wallet_controller::controller::owner_single_use(wallet2.clone(), mask2, |api, m| {
-		let args = InitTxArgs {
-			src_acct_name: None,
-			amount: slate.amount,
-			minimum_confirmations: 1,
-			max_outputs: 500,
-			num_change_outputs: 1,
-			selection_strategy_is_use_all: false,
-			..Default::default()
-		};
-		let res = api.process_invoice_tx(m, &slate, args);
-		assert!(res.is_ok());
-		slate = res.unwrap();
-		api.tx_lock_outputs(m, &slate, 0, None)?;
+	epic_wallet_controller::controller::owner_single_use(
+		wallet2.clone(),
+		mask2,
+		|api, m| {
+			let args = InitTxArgs {
+				src_acct_name: None,
+				amount: slate.amount,
+				minimum_confirmations: 1,
+				max_outputs: 500,
+				num_change_outputs: 1,
+				selection_strategy_is_use_all: false,
+				..Default::default()
+			};
+			let res = api.process_invoice_tx(m, &slate, args);
+			assert!(res.is_ok());
+			slate = res.unwrap();
+			api.tx_lock_outputs(m, &slate, 0, None)?;
 
-		Ok(())
-	})
+			Ok(())
+		},
+		is_node_synced.clone(),
+	)
 	.unwrap();
 
 	//16) Finalize the invoice tx (to foreign api)

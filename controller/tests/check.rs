@@ -26,6 +26,8 @@ use epic_wallet_libwallet as libwallet;
 use impls::test_framework::{self, LocalWalletClient};
 use impls::{PathToSlate, SlatePutter as _};
 use libwallet::{InitTxArgs, NodeClient};
+use std::sync::atomic::AtomicBool;
+use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 use util::ZeroingString;
@@ -87,22 +89,32 @@ fn scan_impl(test_dir: &'static str) -> Result<(), libwallet::Error> {
 	// few values to keep things shorter
 	let reward = consensus::reward_at_height(1); //consensus::reward_foundation_at_height(1);
 	let cm = global::coinbase_maturity() as u64; // assume all testing precedes soft fork height
-
+	let is_node_synced = Arc::new(AtomicBool::new(true));
 	// add some accounts
-	wallet::controller::owner_single_use(wallet1.clone(), mask1, |api, m| {
-		api.create_account_path(m, "named_account_1")?;
-		api.create_account_path(m, "account_2")?;
-		api.create_account_path(m, "account_3")?;
-		api.set_active_account(m, "named_account_1")?;
-		Ok(())
-	})?;
+	wallet::controller::owner_single_use(
+		wallet1.clone(),
+		mask1,
+		|api, m| {
+			api.create_account_path(m, "named_account_1")?;
+			api.create_account_path(m, "account_2")?;
+			api.create_account_path(m, "account_3")?;
+			api.set_active_account(m, "named_account_1")?;
+			Ok(())
+		},
+		is_node_synced.clone(),
+	)?;
 
 	// add account to wallet 2
-	wallet::controller::owner_single_use(wallet2.clone(), mask2, |api, m| {
-		api.create_account_path(m, "account_1")?;
-		api.set_active_account(m, "account_1")?;
-		Ok(())
-	})?;
+	wallet::controller::owner_single_use(
+		wallet2.clone(),
+		mask2,
+		|api, m| {
+			api.create_account_path(m, "account_1")?;
+			api.set_active_account(m, "account_1")?;
+			Ok(())
+		},
+		is_node_synced.clone(),
+	)?;
 
 	// Do some mining
 	let bh = 20u64;
@@ -110,28 +122,38 @@ fn scan_impl(test_dir: &'static str) -> Result<(), libwallet::Error> {
 		test_framework::award_blocks_to_wallet(&chain, wallet1.clone(), mask1, bh as usize, false);
 
 	// Sanity check contents
-	wallet::controller::owner_single_use(wallet1.clone(), mask1, |api, m| {
-		let (wallet1_refreshed, wallet1_info) = api.retrieve_summary_info(m, true, 1)?;
-		assert!(wallet1_refreshed);
-		assert_eq!(wallet1_info.last_confirmed_height, bh);
-		assert_eq!(wallet1_info.total, bh * reward);
-		assert_eq!(wallet1_info.amount_currently_spendable, (bh - cm) * reward);
-		// check tx log as well
-		let txs = api.retrieve_txs(m, true, None, None, None, None, None)?;
-		let (c, _) = libwallet::TxLogEntry::sum_confirmed(&txs.txs);
-		assert_eq!(wallet1_info.total, c);
-		assert_eq!(txs.txs.len(), bh as usize);
-		Ok(())
-	})?;
+	wallet::controller::owner_single_use(
+		wallet1.clone(),
+		mask1,
+		|api, m| {
+			let (wallet1_refreshed, wallet1_info) = api.retrieve_summary_info(m, true, 1)?;
+			assert!(wallet1_refreshed);
+			assert_eq!(wallet1_info.last_confirmed_height, bh);
+			assert_eq!(wallet1_info.total, bh * reward);
+			assert_eq!(wallet1_info.amount_currently_spendable, (bh - cm) * reward);
+			// check tx log as well
+			let txs = api.retrieve_txs(m, true, None, None, None, None, None)?;
+			let (c, _) = libwallet::TxLogEntry::sum_confirmed(&txs.txs);
+			assert_eq!(wallet1_info.total, c);
+			assert_eq!(txs.txs.len(), bh as usize);
+			Ok(())
+		},
+		is_node_synced.clone(),
+	)?;
 
 	// Accidentally delete some outputs
 	let mut w1_outputs_commits = vec![];
-	wallet::controller::owner_single_use(wallet1.clone(), mask1, |api, m| {
-		w1_outputs_commits = api
-			.retrieve_outputs(m, false, true, false, None, None, None, None)?
-			.outputs;
-		Ok(())
-	})?;
+	wallet::controller::owner_single_use(
+		wallet1.clone(),
+		mask1,
+		|api, m| {
+			w1_outputs_commits = api
+				.retrieve_outputs(m, false, true, false, None, None, None, None)?
+				.outputs;
+			Ok(())
+		},
+		is_node_synced.clone(),
+	)?;
 	let w1_outputs: Vec<libwallet::OutputData> =
 		w1_outputs_commits.into_iter().map(|m| m.output).collect();
 	{
@@ -148,73 +170,108 @@ fn scan_impl(test_dir: &'static str) -> Result<(), libwallet::Error> {
 	}
 
 	// check we have a problem now
-	wallet::controller::owner_single_use(wallet1.clone(), mask1, |api, m| {
-		let (_, wallet1_info) = api.retrieve_summary_info(m, true, 1)?;
-		let txs = api.retrieve_txs(m, true, None, None, None, None, None)?;
-		let (c, _) = libwallet::TxLogEntry::sum_confirmed(&txs.txs);
-		assert!(wallet1_info.total != c);
-		Ok(())
-	})?;
+	wallet::controller::owner_single_use(
+		wallet1.clone(),
+		mask1,
+		|api, m| {
+			let (_, wallet1_info) = api.retrieve_summary_info(m, true, 1)?;
+			let txs = api.retrieve_txs(m, true, None, None, None, None, None)?;
+			let (c, _) = libwallet::TxLogEntry::sum_confirmed(&txs.txs);
+			assert!(wallet1_info.total != c);
+			Ok(())
+		},
+		is_node_synced.clone(),
+	)?;
 
 	// this should restore our missing outputs
-	wallet::controller::owner_single_use(wallet1.clone(), mask1, |api, m| {
-		api.scan(m, None, true)?;
-		Ok(())
-	})?;
+	wallet::controller::owner_single_use(
+		wallet1.clone(),
+		mask1,
+		|api, m| {
+			api.scan(m, None, true)?;
+			Ok(())
+		},
+		is_node_synced.clone(),
+	)?;
 
 	// check our outputs match again
-	wallet::controller::owner_single_use(wallet1.clone(), mask1, |api, m| {
-		let (wallet1_refreshed, wallet1_info) = api.retrieve_summary_info(m, true, 1)?;
-		assert!(wallet1_refreshed);
-		assert_eq!(wallet1_info.total, bh * reward);
-		// And check account names haven't been splatted
-		let accounts = api.accounts(m)?;
-		assert_eq!(accounts.len(), 4);
-		assert!(api.set_active_account(m, "account_1").is_err());
-		assert!(api.set_active_account(m, "named_account_1").is_ok());
-		Ok(())
-	})?;
+	wallet::controller::owner_single_use(
+		wallet1.clone(),
+		mask1,
+		|api, m| {
+			let (wallet1_refreshed, wallet1_info) = api.retrieve_summary_info(m, true, 1)?;
+			assert!(wallet1_refreshed);
+			assert_eq!(wallet1_info.total, bh * reward);
+			// And check account names haven't been splatted
+			let accounts = api.accounts(m)?;
+			assert_eq!(accounts.len(), 4);
+			assert!(api.set_active_account(m, "account_1").is_err());
+			assert!(api.set_active_account(m, "named_account_1").is_ok());
+			Ok(())
+		},
+		is_node_synced.clone(),
+	)?;
 
 	// perform a transaction, but don't let it finish
-	wallet::controller::owner_single_use(wallet1.clone(), mask1, |api, m| {
-		// send to send
-		let args = InitTxArgs {
-			src_acct_name: None,
-			amount: reward * 2,
-			minimum_confirmations: cm,
-			max_outputs: 500,
-			num_change_outputs: 1,
-			selection_strategy_is_use_all: true,
-			..Default::default()
-		};
-		let slate = api.init_send_tx(m, args)?;
-		// output tx file
-		let send_file = format!("{}/part_tx_1.tx", test_dir);
-		PathToSlate(send_file.into()).put_tx(&slate)?;
-		api.tx_lock_outputs(m, &slate, 0, None)?;
-		Ok(())
-	})?;
+	wallet::controller::owner_single_use(
+		wallet1.clone(),
+		mask1,
+		|api, m| {
+			// send to send
+			let args = InitTxArgs {
+				src_acct_name: None,
+				amount: reward * 2,
+				minimum_confirmations: cm,
+				max_outputs: 500,
+				num_change_outputs: 1,
+				selection_strategy_is_use_all: true,
+				..Default::default()
+			};
+			let slate = api.init_send_tx(m, args, is_node_synced.clone())?;
+			// output tx file
+			let send_file = format!("{}/part_tx_1.tx", test_dir);
+			PathToSlate(send_file.into()).put_tx(&slate)?;
+			api.tx_lock_outputs(m, &slate, 0, None)?;
+			Ok(())
+		},
+		is_node_synced.clone(),
+	)?;
 
 	// check we're all locked
-	wallet::controller::owner_single_use(wallet1.clone(), mask1, |api, m| {
-		let (wallet1_refreshed, wallet1_info) = api.retrieve_summary_info(m, true, 1)?;
-		assert!(wallet1_refreshed);
-		assert!(wallet1_info.amount_currently_spendable == 0);
-		Ok(())
-	})?;
+	wallet::controller::owner_single_use(
+		wallet1.clone(),
+		mask1,
+		|api, m| {
+			let (wallet1_refreshed, wallet1_info) = api.retrieve_summary_info(m, true, 1)?;
+			assert!(wallet1_refreshed);
+			assert!(wallet1_info.amount_currently_spendable == 0);
+			Ok(())
+		},
+		is_node_synced.clone(),
+	)?;
 
 	// unlock/restore
-	wallet::controller::owner_single_use(wallet1.clone(), mask1, |api, m| {
-		api.scan(m, None, true)?;
-		Ok(())
-	})?;
+	wallet::controller::owner_single_use(
+		wallet1.clone(),
+		mask1,
+		|api, m| {
+			api.scan(m, None, true)?;
+			Ok(())
+		},
+		is_node_synced.clone(),
+	)?;
 
 	// check spendable amount again
-	wallet::controller::owner_single_use(wallet1.clone(), mask1, |api, m| {
-		let (_, wallet1_info) = api.retrieve_summary_info(m, true, 1)?;
-		assert_eq!(wallet1_info.amount_currently_spendable, (bh - cm) * reward);
-		Ok(())
-	})?;
+	wallet::controller::owner_single_use(
+		wallet1.clone(),
+		mask1,
+		|api, m| {
+			let (_, wallet1_info) = api.retrieve_summary_info(m, true, 1)?;
+			assert_eq!(wallet1_info.amount_currently_spendable, (bh - cm) * reward);
+			Ok(())
+		},
+		is_node_synced.clone(),
+	)?;
 
 	// let logging finish
 	thread::sleep(Duration::from_millis(200));
@@ -373,7 +430,7 @@ fn two_wallets_one_seed_impl(test_dir: &'static str) -> Result<(), libwallet::Er
 	// few values to keep things shorter
 	let _reward = core::consensus::BLOCK_TIME_SEC * core::consensus::EPIC_BASE;
 	let cm = global::coinbase_maturity() as usize; // assume all testing precedes soft fork height
-
+	let is_node_synced = Arc::new(AtomicBool::new(true));
 	// Do some mining
 	let mut bh = 20u64;
 	let base_amount = consensus::EPIC_BASE;
@@ -410,13 +467,18 @@ fn two_wallets_one_seed_impl(test_dir: &'static str) -> Result<(), libwallet::Er
 	bh += 3;
 
 	// 0) Check repair when all is okay should leave wallet contents alone
-	wallet::controller::owner_single_use(wallet1.clone(), mask1, |api, m| {
-		api.scan(m, None, true)?;
-		let info = wallet_info!(wallet1.clone(), m)?;
-		assert_eq!(info.amount_currently_spendable, base_amount * 6);
-		assert_eq!(info.total, base_amount * 6);
-		Ok(())
-	})?;
+	wallet::controller::owner_single_use(
+		wallet1.clone(),
+		mask1,
+		|api, m| {
+			api.scan(m, None, true)?;
+			let info = wallet_info!(wallet1.clone(), m)?;
+			assert_eq!(info.amount_currently_spendable, base_amount * 6);
+			assert_eq!(info.total, base_amount * 6);
+			Ok(())
+		},
+		is_node_synced.clone(),
+	)?;
 
 	// send some funds to wallet 2
 	send_to_dest!(
@@ -460,37 +522,57 @@ fn two_wallets_one_seed_impl(test_dir: &'static str) -> Result<(), libwallet::Er
 	// seed + BIP32 path.
 
 	// 1) a full restore should recover all of them:
-	wallet::controller::owner_single_use(wallet3.clone(), mask3, |api, m| {
-		api.scan(m, None, false)?;
-		Ok(())
-	})?;
+	wallet::controller::owner_single_use(
+		wallet3.clone(),
+		mask3,
+		|api, m| {
+			api.scan(m, None, false)?;
+			Ok(())
+		},
+		is_node_synced.clone(),
+	)?;
 
-	wallet::controller::owner_single_use(wallet3.clone(), mask3, |api, m| {
-		let info = wallet_info!(wallet3.clone(), m)?;
-		let outputs = api
-			.retrieve_outputs(m, true, false, false, None, None, None, None)?
-			.outputs;
-		assert_eq!(outputs.len(), 6);
-		assert_eq!(info.amount_currently_spendable, base_amount * 21);
-		assert_eq!(info.total, base_amount * 21);
-		Ok(())
-	})?;
+	wallet::controller::owner_single_use(
+		wallet3.clone(),
+		mask3,
+		|api, m| {
+			let info = wallet_info!(wallet3.clone(), m)?;
+			let outputs = api
+				.retrieve_outputs(m, true, false, false, None, None, None, None)?
+				.outputs;
+			assert_eq!(outputs.len(), 6);
+			assert_eq!(info.amount_currently_spendable, base_amount * 21);
+			assert_eq!(info.total, base_amount * 21);
+			Ok(())
+		},
+		is_node_synced.clone(),
+	)?;
 
 	// 2) scan should recover them into a single wallet
-	wallet::controller::owner_single_use(wallet1.clone(), mask1, |api, m| {
-		api.scan(m, None, true)?;
-		Ok(())
-	})?;
+	wallet::controller::owner_single_use(
+		wallet1.clone(),
+		mask1,
+		|api, m| {
+			api.scan(m, None, true)?;
+			Ok(())
+		},
+		is_node_synced.clone(),
+	)?;
 
-	wallet::controller::owner_single_use(wallet1.clone(), mask1, |api, m| {
-		let info = wallet_info!(wallet1.clone(), m)?;
-		let outputs = api
-			.retrieve_outputs(m, true, false, false, None, None, None, None)?
-			.outputs;
-		assert_eq!(outputs.len(), 6);
-		assert_eq!(info.amount_currently_spendable, base_amount * 21);
-		Ok(())
-	})?;
+	wallet::controller::owner_single_use(
+		wallet1.clone(),
+		mask1,
+		|api, m| {
+			let info = wallet_info!(wallet1.clone(), m)?;
+			let outputs = api
+				.retrieve_outputs(m, true, false, false, None, None, None, None)?
+				.outputs;
+			assert_eq!(outputs.len(), 6);
+			assert_eq!(info.amount_currently_spendable, base_amount * 21);
+			Ok(())
+		},
+		is_node_synced.clone(),
+	)?;
 
 	// 3) If I recover from seed and start using the wallet without restoring,
 	// scan should restore the older outputs
@@ -522,30 +604,45 @@ fn two_wallets_one_seed_impl(test_dir: &'static str) -> Result<(), libwallet::Er
 	let _ = test_framework::award_blocks_to_wallet(&chain, miner.clone(), miner_mask, cm, false);
 	bh += cm as u64;
 
-	wallet::controller::owner_single_use(wallet4.clone(), mask4, |api, m| {
-		let info = wallet_info!(wallet4.clone(), m)?;
-		let outputs = api
-			.retrieve_outputs(m, true, false, false, None, None, None, None)?
-			.outputs;
-		assert_eq!(outputs.len(), 9);
-		assert_eq!(info.amount_currently_spendable, base_amount * 45);
-		Ok(())
-	})?;
+	wallet::controller::owner_single_use(
+		wallet4.clone(),
+		mask4,
+		|api, m| {
+			let info = wallet_info!(wallet4.clone(), m)?;
+			let outputs = api
+				.retrieve_outputs(m, true, false, false, None, None, None, None)?
+				.outputs;
+			assert_eq!(outputs.len(), 9);
+			assert_eq!(info.amount_currently_spendable, base_amount * 45);
+			Ok(())
+		},
+		is_node_synced.clone(),
+	)?;
 
-	wallet::controller::owner_single_use(wallet5.clone(), mask5, |api, m| {
-		api.scan(m, None, false)?;
-		Ok(())
-	})?;
+	wallet::controller::owner_single_use(
+		wallet5.clone(),
+		mask5,
+		|api, m| {
+			api.scan(m, None, false)?;
+			Ok(())
+		},
+		is_node_synced.clone(),
+	)?;
 
-	wallet::controller::owner_single_use(wallet5.clone(), mask5, |api, m| {
-		let info = wallet_info!(wallet5.clone(), m)?;
-		let outputs = api
-			.retrieve_outputs(m, true, false, false, None, None, None, None)?
-			.outputs;
-		assert_eq!(outputs.len(), 9);
-		assert_eq!(info.amount_currently_spendable, base_amount * (45));
-		Ok(())
-	})?;
+	wallet::controller::owner_single_use(
+		wallet5.clone(),
+		mask5,
+		|api, m| {
+			let info = wallet_info!(wallet5.clone(), m)?;
+			let outputs = api
+				.retrieve_outputs(m, true, false, false, None, None, None, None)?
+				.outputs;
+			assert_eq!(outputs.len(), 9);
+			assert_eq!(info.amount_currently_spendable, base_amount * (45));
+			Ok(())
+		},
+		is_node_synced.clone(),
+	)?;
 
 	// 4) If I recover from seed and start using the wallet without restoring,
 	// scan should restore the older outputs
@@ -581,30 +678,45 @@ fn two_wallets_one_seed_impl(test_dir: &'static str) -> Result<(), libwallet::Er
 	);
 	bh += cm as u64;
 
-	wallet::controller::owner_single_use(wallet6.clone(), mask6, |api, m| {
-		let info = wallet_info!(wallet6.clone(), m)?;
-		let outputs = api
-			.retrieve_outputs(m, true, false, false, None, None, None, None)?
-			.outputs;
-		assert_eq!(outputs.len(), 12);
-		assert_eq!(info.amount_currently_spendable, base_amount * 78);
-		Ok(())
-	})?;
+	wallet::controller::owner_single_use(
+		wallet6.clone(),
+		mask6,
+		|api, m| {
+			let info = wallet_info!(wallet6.clone(), m)?;
+			let outputs = api
+				.retrieve_outputs(m, true, false, false, None, None, None, None)?
+				.outputs;
+			assert_eq!(outputs.len(), 12);
+			assert_eq!(info.amount_currently_spendable, base_amount * 78);
+			Ok(())
+		},
+		is_node_synced.clone(),
+	)?;
 
-	wallet::controller::owner_single_use(wallet6.clone(), mask6, |api, m| {
-		api.scan(m, None, true)?;
-		Ok(())
-	})?;
+	wallet::controller::owner_single_use(
+		wallet6.clone(),
+		mask6,
+		|api, m| {
+			api.scan(m, None, true)?;
+			Ok(())
+		},
+		is_node_synced.clone(),
+	)?;
 
-	wallet::controller::owner_single_use(wallet6.clone(), mask6, |api, m| {
-		let info = wallet_info!(wallet6.clone(), m)?;
-		let outputs = api
-			.retrieve_outputs(m, true, false, false, None, None, None, None)?
-			.outputs;
-		assert_eq!(outputs.len(), 12);
-		assert_eq!(info.amount_currently_spendable, base_amount * (78));
-		Ok(())
-	})?;
+	wallet::controller::owner_single_use(
+		wallet6.clone(),
+		mask6,
+		|api, m| {
+			let info = wallet_info!(wallet6.clone(), m)?;
+			let outputs = api
+				.retrieve_outputs(m, true, false, false, None, None, None, None)?
+				.outputs;
+			assert_eq!(outputs.len(), 12);
+			assert_eq!(info.amount_currently_spendable, base_amount * (78));
+			Ok(())
+		},
+		is_node_synced.clone(),
+	)?;
 
 	// 5) Start using same seed with a different account, amounts should
 	// be distinct and restore should return funds from other account
@@ -633,11 +745,16 @@ fn two_wallets_one_seed_impl(test_dir: &'static str) -> Result<(), libwallet::Er
 	bh += 3;
 
 	// mix it up a bit
-	wallet::controller::owner_single_use(wallet7.clone(), mask7, |api, m| {
-		api.create_account_path(m, "account_1")?;
-		api.set_active_account(m, "account_1")?;
-		Ok(())
-	})?;
+	wallet::controller::owner_single_use(
+		wallet7.clone(),
+		mask7,
+		|api, m| {
+			api.create_account_path(m, "account_1")?;
+			api.set_active_account(m, "account_1")?;
+			Ok(())
+		},
+		is_node_synced.clone(),
+	)?;
 
 	send_to_dest!(
 		miner.clone(),
@@ -666,50 +783,65 @@ fn two_wallets_one_seed_impl(test_dir: &'static str) -> Result<(), libwallet::Er
 	let _ = test_framework::award_blocks_to_wallet(&chain, miner.clone(), miner_mask, cm, false);
 	bh += cm as u64;
 
-	wallet::controller::owner_single_use(wallet7.clone(), mask7, |api, m| {
-		let info = wallet_info!(wallet7.clone(), m)?;
-		let outputs = api
-			.retrieve_outputs(m, true, false, false, None, None, None, None)?
-			.outputs;
-		assert_eq!(outputs.len(), 3);
-		assert_eq!(info.amount_currently_spendable, base_amount * 6);
-		api.set_active_account(m, "default")?;
-		let info = wallet_info!(wallet7.clone(), m)?;
-		let outputs = api
-			.retrieve_outputs(m, true, false, false, None, None, None, None)?
-			.outputs;
-		assert_eq!(outputs.len(), 15);
-		assert_eq!(info.amount_currently_spendable, base_amount * 120);
-		Ok(())
-	})?;
+	wallet::controller::owner_single_use(
+		wallet7.clone(),
+		mask7,
+		|api, m| {
+			let info = wallet_info!(wallet7.clone(), m)?;
+			let outputs = api
+				.retrieve_outputs(m, true, false, false, None, None, None, None)?
+				.outputs;
+			assert_eq!(outputs.len(), 3);
+			assert_eq!(info.amount_currently_spendable, base_amount * 6);
+			api.set_active_account(m, "default")?;
+			let info = wallet_info!(wallet7.clone(), m)?;
+			let outputs = api
+				.retrieve_outputs(m, true, false, false, None, None, None, None)?
+				.outputs;
+			assert_eq!(outputs.len(), 15);
+			assert_eq!(info.amount_currently_spendable, base_amount * 120);
+			Ok(())
+		},
+		is_node_synced.clone(),
+	)?;
 
-	wallet::controller::owner_single_use(wallet8.clone(), mask8, |api, m| {
-		api.scan(m, None, false)?;
-		let info = wallet_info!(wallet8.clone(), m)?;
-		let outputs = api
-			.retrieve_outputs(m, true, false, false, None, None, None, None)?
-			.outputs;
-		assert_eq!(outputs.len(), 15);
-		assert_eq!(info.amount_currently_spendable, base_amount * 120);
-		api.set_active_account(m, "account_1")?;
-		let info = wallet_info!(wallet8.clone(), m)?;
-		let outputs = api
-			.retrieve_outputs(m, true, false, false, None, None, None, None)?
-			.outputs;
-		assert_eq!(outputs.len(), 3);
-		assert_eq!(info.amount_currently_spendable, base_amount * 6);
-		Ok(())
-	})?;
+	wallet::controller::owner_single_use(
+		wallet8.clone(),
+		mask8,
+		|api, m| {
+			api.scan(m, None, false)?;
+			let info = wallet_info!(wallet8.clone(), m)?;
+			let outputs = api
+				.retrieve_outputs(m, true, false, false, None, None, None, None)?
+				.outputs;
+			assert_eq!(outputs.len(), 15);
+			assert_eq!(info.amount_currently_spendable, base_amount * 120);
+			api.set_active_account(m, "account_1")?;
+			let info = wallet_info!(wallet8.clone(), m)?;
+			let outputs = api
+				.retrieve_outputs(m, true, false, false, None, None, None, None)?
+				.outputs;
+			assert_eq!(outputs.len(), 3);
+			assert_eq!(info.amount_currently_spendable, base_amount * 6);
+			Ok(())
+		},
+		is_node_synced.clone(),
+	)?;
 
 	// 6) Start using same seed with a different account, now overwriting
 	// ids on account 2 as well, scan should get all outputs created
 	// to now into 2 accounts
 
-	wallet::controller::owner_single_use(wallet9.clone(), mask9, |api, m| {
-		api.create_account_path(m, "account_1")?;
-		api.set_active_account(m, "account_1")?;
-		Ok(())
-	})?;
+	wallet::controller::owner_single_use(
+		wallet9.clone(),
+		mask9,
+		|api, m| {
+			api.create_account_path(m, "account_1")?;
+			api.set_active_account(m, "account_1")?;
+			Ok(())
+		},
+		is_node_synced.clone(),
+	)?;
 
 	send_to_dest!(
 		miner.clone(),
@@ -735,53 +867,63 @@ fn two_wallets_one_seed_impl(test_dir: &'static str) -> Result<(), libwallet::Er
 	bh += 3;
 	let _bh = bh;
 
-	wallet::controller::owner_single_use(wallet9.clone(), mask9, |api, m| {
-		let info = wallet_info!(wallet9.clone(), m)?;
-		let outputs = api
-			.retrieve_outputs(m, true, false, false, None, None, None, None)?
-			.outputs;
-		assert_eq!(outputs.len(), 6);
-		assert_eq!(info.amount_currently_spendable, base_amount * 21);
-		api.scan(m, None, true)?;
-		let info = wallet_info!(wallet9.clone(), m)?;
-		let outputs = api
-			.retrieve_outputs(m, true, false, false, None, None, None, None)?
-			.outputs;
-		assert_eq!(outputs.len(), 6);
-		assert_eq!(info.amount_currently_spendable, base_amount * 21);
+	wallet::controller::owner_single_use(
+		wallet9.clone(),
+		mask9,
+		|api, m| {
+			let info = wallet_info!(wallet9.clone(), m)?;
+			let outputs = api
+				.retrieve_outputs(m, true, false, false, None, None, None, None)?
+				.outputs;
+			assert_eq!(outputs.len(), 6);
+			assert_eq!(info.amount_currently_spendable, base_amount * 21);
+			api.scan(m, None, true)?;
+			let info = wallet_info!(wallet9.clone(), m)?;
+			let outputs = api
+				.retrieve_outputs(m, true, false, false, None, None, None, None)?
+				.outputs;
+			assert_eq!(outputs.len(), 6);
+			assert_eq!(info.amount_currently_spendable, base_amount * 21);
 
-		api.set_active_account(m, "default")?;
-		let info = wallet_info!(wallet9.clone(), m)?;
-		let outputs = api
-			.retrieve_outputs(m, true, false, false, None, None, None, None)?
-			.outputs;
-		assert_eq!(outputs.len(), 15);
-		assert_eq!(info.amount_currently_spendable, base_amount * 120);
-		Ok(())
-	})?;
+			api.set_active_account(m, "default")?;
+			let info = wallet_info!(wallet9.clone(), m)?;
+			let outputs = api
+				.retrieve_outputs(m, true, false, false, None, None, None, None)?
+				.outputs;
+			assert_eq!(outputs.len(), 15);
+			assert_eq!(info.amount_currently_spendable, base_amount * 120);
+			Ok(())
+		},
+		is_node_synced.clone(),
+	)?;
 
 	let _ = test_framework::award_blocks_to_wallet(&chain, miner.clone(), miner_mask, cm, false);
 
 	// 7) Ensure scan creates missing accounts
-	wallet::controller::owner_single_use(wallet10.clone(), mask10, |api, m| {
-		api.scan(m, None, true)?;
-		api.set_active_account(m, "account_1")?;
-		let info = wallet_info!(wallet10.clone(), m)?;
-		let outputs = api
-			.retrieve_outputs(m, true, false, false, None, None, None, None)?
-			.outputs;
-		assert_eq!(outputs.len(), 6);
-		assert_eq!(info.amount_currently_spendable, base_amount * 21);
+	wallet::controller::owner_single_use(
+		wallet10.clone(),
+		mask10,
+		|api, m| {
+			api.scan(m, None, true)?;
+			api.set_active_account(m, "account_1")?;
+			let info = wallet_info!(wallet10.clone(), m)?;
+			let outputs = api
+				.retrieve_outputs(m, true, false, false, None, None, None, None)?
+				.outputs;
+			assert_eq!(outputs.len(), 6);
+			assert_eq!(info.amount_currently_spendable, base_amount * 21);
 
-		api.set_active_account(m, "default")?;
-		let info = wallet_info!(wallet10.clone(), m)?;
-		let outputs = api
-			.retrieve_outputs(m, true, false, false, None, None, None, None)?
-			.outputs;
-		assert_eq!(outputs.len(), 15);
-		assert_eq!(info.amount_currently_spendable, base_amount * 120);
-		Ok(())
-	})?;
+			api.set_active_account(m, "default")?;
+			let info = wallet_info!(wallet10.clone(), m)?;
+			let outputs = api
+				.retrieve_outputs(m, true, false, false, None, None, None, None)?
+				.outputs;
+			assert_eq!(outputs.len(), 15);
+			assert_eq!(info.amount_currently_spendable, base_amount * 120);
+			Ok(())
+		},
+		is_node_synced.clone(),
+	)?;
 
 	// let logging finish
 	thread::sleep(Duration::from_millis(200));

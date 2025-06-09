@@ -1422,7 +1422,7 @@ where
 	}
 
 	fn init_send_tx(&self, args: InitTxArgs) -> Result<VersionedSlate, Error> {
-		let slate = Owner::init_send_tx(self, None, args)?;
+		let slate = Owner::init_send_tx(self, None, args, self.is_node_synced.clone())?;
 		let version = SlateVersion::V3;
 		Ok(VersionedSlate::into_version(slate, version))
 	}
@@ -1505,6 +1505,7 @@ pub fn run_doctest_owner(
 	use ed25519_dalek::VerifyingKey as DalekPublicKey;
 	use epic_wallet_util::epic_util as util;
 	use std::fs;
+	use std::sync::atomic::AtomicBool;
 	use std::thread;
 
 	util::init_test_logger();
@@ -1700,7 +1701,7 @@ pub fn run_doctest_owner(
 		);
 	}
 
-	let mut api_owner = Owner::new(wallet1, None);
+	let mut api_owner = Owner::new(wallet1, None, Arc::new(AtomicBool::new(true)));
 	api_owner.doctest_mode = true;
 	let res = if use_token {
 		let owner_api = &api_owner as &dyn OwnerRpcS;

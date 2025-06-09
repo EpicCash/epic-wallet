@@ -42,6 +42,10 @@ use rustyline::error::ReadlineError;
 use rustyline::history::DefaultHistory;
 use rustyline::Editor;
 
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::thread;
+use std::time::Duration;
+
 use crate::cmd::built_info;
 use clap::{Arg, ArgAction, Command};
 
@@ -141,7 +145,8 @@ pub fn build_cli() -> Command {
 				.help("Coin/Output selection strategy.").value_parser(["all", "smallest"]).default_value("smallest").num_args(1))
                 
 				.arg(Arg::new("estimate_selection_strategies").short('e').long("estimate-selection")
-				.help("Estimates all possible Coin/Output selection strategies."))
+				.help("Estimates all possible Coin/Output selection strategies.")
+				.action(clap::ArgAction::SetTrue))
                 
 				.arg(Arg::new("change_outputs").short('o').long("change_outputs")
 				.help("Number of change outputs to generate (mainly for testing)").default_value("1").num_args(1))
@@ -153,13 +158,14 @@ pub fn build_cli() -> Command {
 				.help("Send the transaction to the provided server (start with http://) or save as file.").num_args(1))
                 
 				.arg(Arg::new("request_payment_proof").short('y').long("request_payment_proof")
-				.help("Request a payment proof from the recipient. If sending to a tor address, the address will be filled automatically."))
+				.help("Request a payment proof from the recipient. If sending to a tor address, the address will be filled automatically.")
+				.action(clap::ArgAction::SetTrue))
                 
 				.arg(Arg::new("proof_address").short('z').long("proof_address")
 				.help("Recipient proof address. If not using TOR, must be provided seprarately by the recipient").num_args(1))
                 
 				.arg(Arg::new("fluff").short('f').long("fluff")
-				.help("Fluff the transaction (ignore Dandelion relay protocol)"))
+				.help("Fluff the transaction (ignore Dandelion relay protocol)").action(clap::ArgAction::SetTrue))
                 
 				.arg(Arg::new("message").short('g').long("message")
 				.help("Optional participant message to include").num_args(1))
@@ -187,7 +193,8 @@ pub fn build_cli() -> Command {
 				.help("Name of destination slate output file").num_args(1))
 				
 				.arg(Arg::new("fluff").short('f').long("fluff")
-				.help("Fluff the transaction (ignore Dandelion relay protocol)"))
+				.help("Fluff the transaction (ignore Dandelion relay protocol)")
+				.action(clap::ArgAction::SetTrue))
 				
 				.arg(Arg::new("ttl_blocks").short('b').long("ttl_blocks")
 				.help("If present, the number of blocks from the current after which wallets should refuse to process transactions further").num_args(1))
@@ -220,10 +227,12 @@ pub fn build_cli() -> Command {
 				.help("Partial transaction to process, expects the receiver's transaction file.").num_args(1))
                 
 				.arg(Arg::new("fluff").short('f').long("fluff")
-				.help("Fluff the transaction (ignore Dandelion relay protocol)"))
+				.help("Fluff the transaction (ignore Dandelion relay protocol)")
+				.action(clap::ArgAction::SetTrue))
                 
 				.arg(Arg::new("nopost").short('n').long("nopost")
-				.help("Do not post the transaction."))
+				.help("Do not post the transaction.")
+				.action(clap::ArgAction::SetTrue))	
                 
 				.arg(Arg::new("dest").short('d').long("dest")
 				.help("Specify file to save the finalized slate.").num_args(1))
@@ -256,7 +265,8 @@ pub fn build_cli() -> Command {
 				.help("Coin/Output selection strategy.").value_parser(["all", "smallest"]).default_value("all").num_args(1))
               
 			    .arg(Arg::new("estimate_selection_strategies").short('e').long("estimate-selection")
-				.help("Estimates all possible Coin/Output selection strategies."))
+				.help("Estimates all possible Coin/Output selection strategies.")
+				.action(clap::ArgAction::SetTrue))
               
 			    .arg(Arg::new("method").short('m').long("method")
 				.help("Method for sending the processed invoice back to the invoice creator").value_parser(["file", "http", "self"]).default_value("file").num_args(1))
@@ -316,7 +326,8 @@ pub fn build_cli() -> Command {
 				.help("File name of the transaction to post").num_args(1))
                 
 				.arg(Arg::new("fluff").short('f').long("fluff")
-				.help("Fluff the transaction (ignore Dandelion relay protocol)"))
+				.help("Fluff the transaction (ignore Dandelion relay protocol)")
+				.action(clap::ArgAction::SetTrue))
         )
         .subcommand(
             Command::new("repost")
@@ -329,7 +340,8 @@ pub fn build_cli() -> Command {
 				.help("File name to duMp the transaction to instead of posting").num_args(1))
                 
 				.arg(Arg::new("fluff").short('f').long("fluff")
-				.help("Fluff the transaction (ignore Dandelion relay protocol)"))
+				.help("Fluff the transaction (ignore Dandelion relay protocol)")
+				.action(clap::ArgAction::SetTrue))
         )
         .subcommand(
             Command::new("cancel")
@@ -630,10 +642,6 @@ pub fn parse_global_args(
 	};
 
 	let offline_mode = args.get_flag("offline_mode");
-	print!(
-		"#################### Using offline_mode: {:?}\n",
-		offline_mode
-	);
 	Ok(command::GlobalArgs {
 		account: account.to_owned(),
 		show_spent,
@@ -750,10 +758,7 @@ pub fn parse_send_args(args: &ArgMatches) -> Result<command::SendArgs, Error> {
 	};
 
 	// message
-	let message = match args.get_flag("message") {
-		true => Some(args.get_one::<String>("message").unwrap().to_owned()),
-		false => None,
-	};
+	let message = args.get_one::<String>("message").map(|s| s.to_owned());
 
 	// minimum_confirmations
 	let min_c = parse_required(args, "minimum_confirmations")?;
@@ -813,10 +818,7 @@ pub fn parse_send_args(args: &ArgMatches) -> Result<command::SendArgs, Error> {
 	let max_outputs = 500;
 
 	// target slate version to create/send
-	let target_slate_version = match args.get_flag("slate_version") {
-		true => Some(args.get_one::<u16>("slate_version").unwrap().to_owned()),
-		false => None,
-	};
+	let target_slate_version = args.get_one::<u16>("slate_version").map(|v| *v);
 
 	let payment_proof_address = {
 		match args.get_flag("request_payment_proof") {
@@ -851,15 +853,9 @@ pub fn parse_send_args(args: &ArgMatches) -> Result<command::SendArgs, Error> {
 
 pub fn parse_receive_args(receive_args: &ArgMatches) -> Result<command::ReceiveArgs, Error> {
 	// message
-	let message = match receive_args.get_flag("message") {
-		true => Some(
-			receive_args
-				.get_one::<String>("message")
-				.unwrap()
-				.to_owned(),
-		),
-		false => None,
-	};
+	let message = receive_args
+		.get_one::<String>("message")
+		.map(|s| s.to_owned());
 
 	// method
 	let method = parse_required(receive_args, "method")?;
@@ -900,10 +896,7 @@ pub fn parse_finalize_args(args: &ArgMatches) -> Result<command::FinalizeArgs, E
 		}
 	}
 
-	let dest_file = match args.get_flag("dest") {
-		true => Some(args.get_one::<String>("dest").unwrap().to_owned()),
-		false => None,
-	};
+	let dest_file = args.get_one::<String>("dest").map(|s| s.to_owned());
 
 	Ok(command::FinalizeArgs {
 		method: method.to_string(),
@@ -928,16 +921,10 @@ pub fn parse_issue_invoice_args(args: &ArgMatches) -> Result<command::IssueInvoi
 		}
 	};
 	// message
-	let message = match args.get_flag("message") {
-		true => Some(args.get_one::<String>("message").unwrap().to_owned()),
-		false => None,
-	};
+	let message = args.get_one::<String>("message").map(|s| s.to_owned());
 
 	// target slate version to create
-	let target_slate_version = match args.get_flag("slate_version") {
-		true => Some(args.get_one::<u16>("slate_version").unwrap().to_owned()),
-		false => None,
-	};
+	let target_slate_version = args.get_one::<u16>("slate_version").map(|v| *v);
 
 	// dest (output file)
 	let dest = parse_required(args, "dest")?;
@@ -958,10 +945,7 @@ pub fn parse_process_invoice_args(
 ) -> Result<command::ProcessInvoiceArgs, Error> {
 	// TODO: display and prompt for confirmation of what we're doing
 	// message
-	let message = match args.get_flag("message") {
-		true => Some(args.get_one::<String>("message").unwrap().to_owned()),
-		false => None,
-	};
+	let message = args.get_one::<String>("message").map(|s| s.to_owned());
 
 	// minimum_confirmations
 	let min_c = parse_required(args, "minimum_confirmations")?;
@@ -1316,7 +1300,7 @@ where
 	let wallet =
 		inst_wallet::<DefaultLCProvider<C, keychain::ExtKeychain>, C, keychain::ExtKeychain>(
 			wallet_config.clone(),
-			node_client,
+			node_client.clone(),
 		)
 		.unwrap_or_else(|e| {
 			eprintln!("{:?}", e);
@@ -1366,6 +1350,28 @@ where
 	};
 
 	let km = (&keychain_mask).as_ref();
+	let node_client_clone = node_client.clone();
+	let is_node_synced = if test_mode {
+		Arc::new(AtomicBool::new(true))
+	} else {
+		Arc::new(AtomicBool::new(false))
+	};
+
+	if !test_mode {
+		let is_node_synced_clone = is_node_synced.clone();
+
+		// Spawn a thread to check node sync status every 10 seconds
+		thread::spawn(move || {
+			loop {
+				let synced = match node_client_clone.get_node_status() {
+					Ok(status) => status.sync_status == "no_sync",
+					Err(_) => false,
+				};
+				is_node_synced_clone.store(synced, Ordering::SeqCst);
+				thread::sleep(Duration::from_secs(10)); // adjust interval as needed
+			}
+		});
+	}
 
 	let res = match wallet_args.subcommand() {
 		Some(("init", args)) => {
@@ -1394,6 +1400,7 @@ where
 				&e,
 				&a,
 				&global_wallet_args.clone(),
+				is_node_synced.clone(),
 			)
 		}
 		Some(("owner_api", args)) => {
@@ -1401,7 +1408,15 @@ where
 			let mut g = global_wallet_args.clone();
 			g.tls_conf = None;
 			arg_parse!(parse_owner_api_args(&mut c, &args));
-			command::owner_api(wallet, keychain_mask, &c, &tor_config, &epicbox_config, &g)
+			command::owner_api(
+				wallet,
+				keychain_mask,
+				&c,
+				&tor_config,
+				&epicbox_config,
+				&g,
+				is_node_synced.clone(),
+			)
 		}
 		Some(("web", _)) => command::owner_api(
 			wallet,
@@ -1410,10 +1425,11 @@ where
 			&tor_config,
 			&epicbox_config,
 			&global_wallet_args,
+			is_node_synced.clone(),
 		),
 		Some(("account", args)) => {
 			let a = arg_parse!(parse_account_args(&args));
-			command::account(wallet, km, a)
+			command::account(wallet, km, a, is_node_synced.clone())
 		}
 		Some(("send", args)) => {
 			let a = arg_parse!(parse_send_args(&args));
@@ -1424,6 +1440,7 @@ where
 				Some(epicbox_config),
 				a,
 				wallet_config.dark_background_color_scheme.unwrap_or(true),
+				is_node_synced.clone(),
 			)
 		}
 		Some(("receive", args)) => {
@@ -1432,11 +1449,11 @@ where
 		}
 		Some(("finalize", args)) => {
 			let a = arg_parse!(parse_finalize_args(&args));
-			command::finalize(wallet, km, a)
+			command::finalize(wallet, km, a, is_node_synced.clone())
 		}
 		Some(("invoice", args)) => {
 			let a = arg_parse!(parse_issue_invoice_args(&args));
-			command::issue_invoice_tx(wallet, km, a)
+			command::issue_invoice_tx(wallet, km, a, is_node_synced.clone())
 		}
 		Some(("pay", args)) => {
 			let a = arg_parse!(parse_process_invoice_args(&args, !test_mode));
@@ -1446,6 +1463,7 @@ where
 				Some(tor_config),
 				a,
 				wallet_config.dark_background_color_scheme.unwrap_or(true),
+				is_node_synced.clone(),
 			)
 		}
 		Some(("info", args)) => {
@@ -1456,6 +1474,7 @@ where
 				&global_wallet_args,
 				a,
 				wallet_config.dark_background_color_scheme.unwrap_or(true),
+				is_node_synced.clone(),
 			)
 		}
 		Some(("outputs", args)) => {
@@ -1466,6 +1485,7 @@ where
 				&global_wallet_args,
 				a,
 				wallet_config.dark_background_color_scheme.unwrap_or(true),
+				is_node_synced.clone(),
 			)
 		}
 		Some(("txs", args)) => {
@@ -1476,32 +1496,39 @@ where
 				&global_wallet_args,
 				a,
 				wallet_config.dark_background_color_scheme.unwrap_or(true),
+				is_node_synced.clone(),
 			)
 		}
 		Some(("post", args)) => {
 			let a = arg_parse!(parse_post_args(&args));
-			command::post(wallet, km, a)
+			command::post(wallet, km, a, is_node_synced.clone())
 		}
 		Some(("repost", args)) => {
 			let a = arg_parse!(parse_repost_args(&args));
-			command::repost(wallet, km, a)
+			command::repost(wallet, km, a, is_node_synced.clone())
 		}
 		Some(("cancel", args)) => {
 			let a = arg_parse!(parse_cancel_args(&args));
-			command::cancel(wallet, km, a)
+			command::cancel(wallet, km, a, is_node_synced.clone())
 		}
 		Some(("export_proof", args)) => {
 			let a = arg_parse!(parse_export_proof_args(&args));
-			command::proof_export(wallet, km, a)
+			command::proof_export(wallet, km, a, is_node_synced.clone())
 		}
 		Some(("verify_proof", args)) => {
 			let a = arg_parse!(parse_verify_proof_args(&args));
-			command::proof_verify(wallet, km, a)
+			command::proof_verify(wallet, km, a, is_node_synced.clone())
 		}
-		Some(("address", _)) => command::address(wallet, &global_wallet_args, km, epicbox_config),
+		Some(("address", _)) => command::address(
+			wallet,
+			&global_wallet_args,
+			km,
+			epicbox_config,
+			is_node_synced.clone(),
+		),
 		Some(("scan", args)) => {
 			let a = arg_parse!(parse_check_args(&args));
-			command::scan(wallet, km, a)
+			command::scan(wallet, km, a, is_node_synced.clone())
 		}
 		Some(("change_password", args)) => {
 			// Prompt for current password if not provided

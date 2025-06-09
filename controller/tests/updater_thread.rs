@@ -23,9 +23,10 @@ extern crate epic_wallet_libwallet as libwallet;
 // use epic_wallet_util::epic_core as core;
 
 use impls::test_framework::{self, LocalWalletClient};
+use std::sync::atomic::AtomicBool;
+use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
-
 #[macro_use]
 mod common;
 use common::{clean_output_dir, create_wallet_proxy, setup};
@@ -67,20 +68,30 @@ fn updater_thread_test_impl(test_dir: &'static str) -> Result<(), libwallet::Err
 			error!("Wallet Proxy error: {}", e);
 		}
 	});
+	let is_node_synced = Arc::new(AtomicBool::new(true));
+	// add some accounts
+	wallet::controller::owner_single_use(
+		wallet1.clone(),
+		mask1,
+		|api, m| {
+			api.create_account_path(m, "mining")?;
+			api.create_account_path(m, "listener")?;
+			Ok(())
+		},
+		is_node_synced.clone(),
+	)?;
 
 	// add some accounts
-	wallet::controller::owner_single_use(wallet1.clone(), mask1, |api, m| {
-		api.create_account_path(m, "mining")?;
-		api.create_account_path(m, "listener")?;
-		Ok(())
-	})?;
-
-	// add some accounts
-	wallet::controller::owner_single_use(wallet2.clone(), mask2, |api, m| {
-		api.create_account_path(m, "account1")?;
-		api.create_account_path(m, "account2")?;
-		Ok(())
-	})?;
+	wallet::controller::owner_single_use(
+		wallet2.clone(),
+		mask2,
+		|api, m| {
+			api.create_account_path(m, "account1")?;
+			api.create_account_path(m, "account2")?;
+			Ok(())
+		},
+		is_node_synced.clone(),
+	)?;
 
 	// Get some mining done
 	{
@@ -91,7 +102,7 @@ fn updater_thread_test_impl(test_dir: &'static str) -> Result<(), libwallet::Err
 	let _ =
 		test_framework::award_blocks_to_wallet(&chain, wallet1.clone(), mask1, bh as usize, false);
 
-	let owner_api = api::Owner::new(wallet1, None);
+	let owner_api = api::Owner::new(wallet1, None, is_node_synced.clone());
 	owner_api.start_updater(mask1, Duration::from_secs(5))?;
 
 	// let updater thread run a bit

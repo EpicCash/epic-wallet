@@ -22,9 +22,10 @@ use epic_wallet_util::epic_core as core;
 use epic_wallet_util::epic_core::consensus;
 use impls::test_framework::{self, LocalWalletClient};
 use libwallet::{InitTxArgs, IssueInvoiceTxArgs, Slate};
+use std::sync::atomic::AtomicBool;
+use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
-
 #[macro_use]
 mod common;
 use common::{clean_output_dir, create_wallet_proxy, setup};
@@ -75,60 +76,81 @@ fn no_change_test_impl(test_dir: &'static str) -> Result<(), libwallet::Error> {
 
 	// send a single block's worth of transactions with minimal strategy
 	let mut slate = Slate::blank(2);
-	wallet::controller::owner_single_use(wallet1.clone(), mask1, |api, m| {
-		let args = InitTxArgs {
-			src_acct_name: None,
-			amount: reward - fee,
-			minimum_confirmations: 2,
-			max_outputs: 500,
-			num_change_outputs: 1,
-			selection_strategy_is_use_all: false,
-			..Default::default()
-		};
-		slate = api.init_send_tx(m, args)?;
-		slate = client1.send_tx_slate_direct("wallet2", &slate)?;
-		api.tx_lock_outputs(m, &slate, 0, None)?;
-		slate = api.finalize_tx(m, &slate)?;
-		api.post_tx(m, &slate.tx, false)?;
-		Ok(())
-	})?;
+	let is_node_synced = Arc::new(AtomicBool::new(true));
+	wallet::controller::owner_single_use(
+		wallet1.clone(),
+		mask1,
+		|api, m| {
+			let args = InitTxArgs {
+				src_acct_name: None,
+				amount: reward - fee,
+				minimum_confirmations: 2,
+				max_outputs: 500,
+				num_change_outputs: 1,
+				selection_strategy_is_use_all: false,
+				..Default::default()
+			};
+			slate = api.init_send_tx(m, args, is_node_synced.clone())?;
+			slate = client1.send_tx_slate_direct("wallet2", &slate)?;
+			api.tx_lock_outputs(m, &slate, 0, None)?;
+			slate = api.finalize_tx(m, &slate)?;
+			api.post_tx(m, &slate.tx, false)?;
+			Ok(())
+		},
+		is_node_synced.clone(),
+	)?;
 
 	// Refresh and check transaction log for wallet 1
-	wallet::controller::owner_single_use(wallet1.clone(), mask2, |api, m| {
-		let txs = api.retrieve_txs(m, true, None, Some(slate.id), None, None, None)?;
-		assert!(txs.refresh_from_node);
-		let tx = txs.txs[0].clone();
-		println!("{:?}", tx);
-		assert!(tx.confirmed);
-		Ok(())
-	})?;
+	wallet::controller::owner_single_use(
+		wallet1.clone(),
+		mask2,
+		|api, m| {
+			let txs = api.retrieve_txs(m, true, None, Some(slate.id), None, None, None)?;
+			assert!(txs.refresh_from_node);
+			let tx = txs.txs[0].clone();
+			println!("{:?}", tx);
+			assert!(tx.confirmed);
+			Ok(())
+		},
+		is_node_synced.clone(),
+	)?;
 
 	// ensure invoice TX works as well with no change
-	wallet::controller::owner_single_use(wallet2.clone(), mask2, |api, m| {
-		// Wallet 2 inititates an invoice transaction, requesting payment
-		let args = IssueInvoiceTxArgs {
-			amount: reward - fee,
-			..Default::default()
-		};
-		slate = api.issue_invoice_tx(m, args)?;
-		Ok(())
-	})?;
+	wallet::controller::owner_single_use(
+		wallet2.clone(),
+		mask2,
+		|api, m| {
+			// Wallet 2 inititates an invoice transaction, requesting payment
+			let args = IssueInvoiceTxArgs {
+				amount: reward - fee,
+				..Default::default()
+			};
+			slate = api.issue_invoice_tx(m, args)?;
+			Ok(())
+		},
+		is_node_synced.clone(),
+	)?;
 
-	wallet::controller::owner_single_use(wallet1.clone(), mask1, |api, m| {
-		// Wallet 1 receives the invoice transaction
-		let args = InitTxArgs {
-			src_acct_name: None,
-			amount: slate.amount,
-			minimum_confirmations: 2,
-			max_outputs: 500,
-			num_change_outputs: 1,
-			selection_strategy_is_use_all: false,
-			..Default::default()
-		};
-		slate = api.process_invoice_tx(m, &slate, args)?;
-		api.tx_lock_outputs(m, &slate, 0, None)?;
-		Ok(())
-	})?;
+	wallet::controller::owner_single_use(
+		wallet1.clone(),
+		mask1,
+		|api, m| {
+			// Wallet 1 receives the invoice transaction
+			let args = InitTxArgs {
+				src_acct_name: None,
+				amount: slate.amount,
+				minimum_confirmations: 2,
+				max_outputs: 500,
+				num_change_outputs: 1,
+				selection_strategy_is_use_all: false,
+				..Default::default()
+			};
+			slate = api.process_invoice_tx(m, &slate, args)?;
+			api.tx_lock_outputs(m, &slate, 0, None)?;
+			Ok(())
+		},
+		is_node_synced.clone(),
+	)?;
 
 	// wallet 2 finalizes and posts
 	wallet::controller::foreign_single_use(wallet2.clone(), mask2_i.clone(), |api| {
@@ -136,21 +158,31 @@ fn no_change_test_impl(test_dir: &'static str) -> Result<(), libwallet::Error> {
 		slate = api.finalize_invoice_tx(&slate)?;
 		Ok(())
 	})?;
-	wallet::controller::owner_single_use(wallet2.clone(), mask1, |api, m| {
-		api.post_tx(m, &slate.tx, false)?;
-		Ok(())
-	})?;
+	wallet::controller::owner_single_use(
+		wallet2.clone(),
+		mask1,
+		|api, m| {
+			api.post_tx(m, &slate.tx, false)?;
+			Ok(())
+		},
+		is_node_synced.clone(),
+	)?;
 
 	// Refresh and check transaction log for wallet 1
-	wallet::controller::owner_single_use(wallet1.clone(), mask2, |api, m| {
-		let txs = api.retrieve_txs(m, true, None, Some(slate.id), None, None, None)?;
-		assert!(txs.refresh_from_node);
-		for tx in txs.txs {
-			println!("{:?}", tx);
-			assert!(tx.confirmed);
-		}
-		Ok(())
-	})?;
+	wallet::controller::owner_single_use(
+		wallet1.clone(),
+		mask2,
+		|api, m| {
+			let txs = api.retrieve_txs(m, true, None, Some(slate.id), None, None, None)?;
+			assert!(txs.refresh_from_node);
+			for tx in txs.txs {
+				println!("{:?}", tx);
+				assert!(tx.confirmed);
+			}
+			Ok(())
+		},
+		is_node_synced.clone(),
+	)?;
 
 	// let logging finish
 	thread::sleep(Duration::from_millis(200));

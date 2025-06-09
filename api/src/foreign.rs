@@ -448,7 +448,8 @@ where
 	/// ```
 	/// # epic_wallet_api::doctest_helper_setup_doc_env_foreign!(wallet, wallet_config);
 	///
-	/// let mut api_owner = Owner::new(wallet.clone(), None);
+	/// use std::sync::atomic::AtomicBool;
+	/// let mut api_owner = Owner::new(wallet.clone(), None, Arc::new(AtomicBool::new(true)));
 	/// let mut api_foreign = Foreign::new(wallet.clone(), None, None);
 	///
 	/// // . . .

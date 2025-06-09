@@ -46,13 +46,13 @@ use epic_wallet_util::epic_core::core::amount_to_hr_string;
 use std::env;
 use std::net::TcpStream;
 use std::string::ToString;
+use std::sync::atomic::AtomicBool;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::thread::spawn;
 use tungstenite::connect;
 use tungstenite::Error as tungsteniteError;
 use tungstenite::{protocol::WebSocket, stream::MaybeTlsStream};
 use tungstenite::{Error as ErrorTungstenite, Message};
-
 // Copyright 2019 The vault713 Developers
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -84,6 +84,7 @@ pub struct EpicboxSubscriber {
 	broker: EpicboxBroker,
 	secret_key: SecretKey,
 	wallet_mode: String,
+	is_node_synced: Arc<AtomicBool>,
 }
 #[derive(Clone)]
 pub struct EpicboxPublisher {
@@ -121,6 +122,7 @@ impl EpicboxListenChannel {
 		keychain_mask: Arc<Mutex<Option<SecretKey>>>,
 		epicbox_config: EpicboxConfig,
 		reconnections: &mut u32,
+		is_node_synced: Arc<AtomicBool>,
 	) -> Result<(), Error>
 	where
 		L: WalletLCProvider<'static, C, K> + 'static,
@@ -174,7 +176,7 @@ impl EpicboxListenChannel {
 		let publisher =
 			EpicboxPublisher::new(address.clone(), sec_key, socket, tx, "listener".to_string())?;
 
-		let mut subscriber = EpicboxSubscriber::new(&publisher)?;
+		let mut subscriber = EpicboxSubscriber::new(&publisher, is_node_synced)?;
 
 		let container = Container::new(epicbox_config.clone());
 		let cpublisher = publisher.clone();
@@ -205,6 +207,7 @@ impl EpicboxChannel {
 		wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K> + 'static>>>,
 		keychain_mask: Option<SecretKey>,
 		slate: &Slate,
+		is_node_synced: Arc<AtomicBool>,
 	) -> Result<Slate, Error>
 	where
 		L: WalletLCProvider<'static, C, K> + 'static,
@@ -219,7 +222,14 @@ impl EpicboxChannel {
 		let container = Container::new(config.clone());
 
 		let (tx, _rx): (Sender<bool>, Receiver<bool>) = channel();
-		let listener = start_epicbox(container.clone(), wallet, keychain_mask, config, tx)?;
+		let listener = start_epicbox(
+			container.clone(),
+			wallet,
+			keychain_mask,
+			config,
+			tx,
+			is_node_synced,
+		)?;
 
 		container
 			.lock()
@@ -248,6 +258,7 @@ pub fn start_epicbox<L, C, K>(
 	keychain_mask: Option<SecretKey>,
 	config: EpicboxConfig,
 	tx: Sender<bool>,
+	is_node_synced: Arc<AtomicBool>,
 ) -> Result<Box<dyn Listener>, Error>
 where
 	L: WalletLCProvider<'static, C, K> + 'static,
@@ -291,7 +302,7 @@ where
 
 	let publisher =
 		EpicboxPublisher::new(address.clone(), sec_key, socket, tx, "send".to_string())?;
-	let subscriber = EpicboxSubscriber::new(&publisher)?;
+	let subscriber = EpicboxSubscriber::new(&publisher, is_node_synced)?;
 
 	let mut csubscriber = subscriber.clone();
 	let cpublisher = publisher.clone();
@@ -378,12 +389,16 @@ impl Publisher for EpicboxPublisher {
 	}
 }
 impl EpicboxSubscriber {
-	pub fn new(publisher: &EpicboxPublisher) -> Result<Self, Error> {
+	pub fn new(
+		publisher: &EpicboxPublisher,
+		is_node_synced: Arc<AtomicBool>,
+	) -> Result<Self, Error> {
 		Ok(Self {
 			address: publisher.address.clone(),
 			broker: publisher.broker.clone(),
 			secret_key: publisher.secret_key.clone(),
 			wallet_mode: publisher.wallet_mode.clone(),
+			is_node_synced, // default to true, can be set later
 		})
 	}
 }
@@ -593,8 +608,13 @@ impl EpicboxSubscriber {
 		C: NodeClient + 'static,
 		K: Keychain + 'static,
 	{
-		self.broker
-			.subscribe(&self.address, &self.secret_key, handler, &self.wallet_mode)
+		self.broker.subscribe(
+			&self.address,
+			&self.secret_key,
+			handler,
+			&self.wallet_mode,
+			self.is_node_synced.clone(),
+		)
 	}
 
 	fn stop(&self) {
@@ -615,7 +635,6 @@ pub trait Publisher: Send {
 #[derive(Clone)]
 pub struct EpicboxBroker {
 	inner: Arc<Mutex<WebSocket<MaybeTlsStream<TcpStream>>>>,
-
 	tx: Sender<bool>,
 }
 impl EpicboxBroker {
@@ -627,7 +646,6 @@ impl EpicboxBroker {
 	) -> Result<Self, Error> {
 		Ok(Self {
 			inner: Arc::new(Mutex::new(inner)),
-
 			tx,
 		})
 	}
@@ -639,6 +657,7 @@ impl EpicboxBroker {
 		secret_key: &SecretKey,
 		handler: EpicboxController<P, L, C, K>,
 		wallet_mode: &String,
+		is_node_synced: Arc<AtomicBool>,
 	) -> Result<(), Error>
 	where
 		P: Publisher,
@@ -664,6 +683,13 @@ impl EpicboxBroker {
 		let wallet_mode = wallet_mode;
 
 		let res = loop {
+			// Pause if node is not synced
+			if !is_node_synced.load(std::sync::atomic::Ordering::SeqCst) {
+				warn!("Node not synced, pausing Epicbox message processing...");
+				std::thread::sleep(std::time::Duration::from_secs(5));
+				continue;
+			}
+
 			let err = client.sender.lock().read();
 
 			match err {

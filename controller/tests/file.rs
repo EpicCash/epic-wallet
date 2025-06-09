@@ -23,10 +23,11 @@ use epic_wallet_libwallet::InitTxArgs;
 use epic_wallet_util::epic_core::consensus;
 use impls::test_framework::{self, LocalWalletClient};
 use impls::{PathToSlate, SlateGetter as _, SlatePutter as _};
+use serde_json;
+use std::sync::atomic::AtomicBool;
+use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
-
-use serde_json;
 
 #[macro_use]
 mod common;
@@ -72,20 +73,30 @@ fn file_exchange_test_impl(test_dir: &'static str) -> Result<(), libwallet::Erro
 
 	// few values to keep things shorter
 	let reward = consensus::reward_at_height(1);
+	let is_node_synced = Arc::new(AtomicBool::new(true));
+	// add some accounts
+	wallet::controller::owner_single_use(
+		wallet1.clone(),
+		mask1,
+		|api, m| {
+			api.create_account_path(m, "mining")?;
+			api.create_account_path(m, "listener")?;
+			Ok(())
+		},
+		is_node_synced.clone(),
+	)?;
 
 	// add some accounts
-	wallet::controller::owner_single_use(wallet1.clone(), mask1, |api, m| {
-		api.create_account_path(m, "mining")?;
-		api.create_account_path(m, "listener")?;
-		Ok(())
-	})?;
-
-	// add some accounts
-	wallet::controller::owner_single_use(wallet2.clone(), mask2, |api, m| {
-		api.create_account_path(m, "account1")?;
-		api.create_account_path(m, "account2")?;
-		Ok(())
-	})?;
+	wallet::controller::owner_single_use(
+		wallet2.clone(),
+		mask2,
+		|api, m| {
+			api.create_account_path(m, "account1")?;
+			api.create_account_path(m, "account2")?;
+			Ok(())
+		},
+		is_node_synced.clone(),
+	)?;
 
 	// Get some mining done
 	{
@@ -103,28 +114,33 @@ fn file_exchange_test_impl(test_dir: &'static str) -> Result<(), libwallet::Erro
 	let message = "sender test message, sender test message";
 
 	// Should have 5 in account1 (5 spendable), 5 in account (2 spendable)
-	wallet::controller::owner_single_use(wallet1.clone(), mask1, |api, m| {
-		let (wallet1_refreshed, wallet1_info) = api.retrieve_summary_info(m, true, 1)?;
-		assert!(wallet1_refreshed);
-		assert_eq!(wallet1_info.last_confirmed_height, bh);
-		assert_eq!(wallet1_info.total, bh * reward);
-		// send to send
-		let args = InitTxArgs {
-			src_acct_name: Some("mining".to_owned()),
-			amount: reward * 2,
-			minimum_confirmations: 2,
-			max_outputs: 500,
-			num_change_outputs: 1,
-			selection_strategy_is_use_all: true,
-			message: Some(message.to_owned()),
-			..Default::default()
-		};
-		let mut slate = api.init_send_tx(m, args)?;
-		// output tx file
-		PathToSlate((&send_file).into()).put_tx(&mut slate)?;
-		api.tx_lock_outputs(m, &slate, 0, None)?;
-		Ok(())
-	})?;
+	wallet::controller::owner_single_use(
+		wallet1.clone(),
+		mask1,
+		|api, m| {
+			let (wallet1_refreshed, wallet1_info) = api.retrieve_summary_info(m, true, 1)?;
+			assert!(wallet1_refreshed);
+			assert_eq!(wallet1_info.last_confirmed_height, bh);
+			assert_eq!(wallet1_info.total, bh * reward);
+			// send to send
+			let args = InitTxArgs {
+				src_acct_name: Some("mining".to_owned()),
+				amount: reward * 2,
+				minimum_confirmations: 2,
+				max_outputs: 500,
+				num_change_outputs: 1,
+				selection_strategy_is_use_all: true,
+				message: Some(message.to_owned()),
+				..Default::default()
+			};
+			let mut slate = api.init_send_tx(m, args, is_node_synced.clone())?;
+			// output tx file
+			PathToSlate((&send_file).into()).put_tx(&mut slate)?;
+			api.tx_lock_outputs(m, &slate, 0, None)?;
+			Ok(())
+		},
+		is_node_synced.clone(),
+	)?;
 
 	// Get some mining done
 	{
@@ -137,11 +153,16 @@ fn file_exchange_test_impl(test_dir: &'static str) -> Result<(), libwallet::Erro
 	naughty_slate.participant_data[0].message = Some("I changed the message".to_owned());
 
 	// verify messages on slate match
-	wallet::controller::owner_single_use(wallet1.clone(), mask1, |api, m| {
-		api.verify_slate_messages(m, &slate)?;
-		assert!(api.verify_slate_messages(m, &naughty_slate).is_err());
-		Ok(())
-	})?;
+	wallet::controller::owner_single_use(
+		wallet1.clone(),
+		mask1,
+		|api, m| {
+			api.verify_slate_messages(m, &slate)?;
+			assert!(api.verify_slate_messages(m, &naughty_slate).is_err());
+			Ok(())
+		},
+		is_node_synced.clone(),
+	)?;
 
 	let sender2_message = "And this is sender 2s message".to_owned();
 
@@ -153,65 +174,91 @@ fn file_exchange_test_impl(test_dir: &'static str) -> Result<(), libwallet::Erro
 	})?;
 
 	// wallet 1 finalises and posts
-	wallet::controller::owner_single_use(wallet1.clone(), mask1, |api, m| {
-		let mut slate = PathToSlate(receive_file.into()).get_tx()?;
-		api.verify_slate_messages(m, &slate)?;
-		slate = api.finalize_tx(m, &slate)?;
-		api.post_tx(m, &slate.tx, false)?;
-		bh += 1;
-		Ok(())
-	})?;
+	wallet::controller::owner_single_use(
+		wallet1.clone(),
+		mask1,
+		|api, m| {
+			let mut slate = PathToSlate(receive_file.into()).get_tx()?;
+			api.verify_slate_messages(m, &slate)?;
+			slate = api.finalize_tx(m, &slate)?;
+			api.post_tx(m, &slate.tx, false)?;
+			bh += 1;
+			Ok(())
+		},
+		is_node_synced.clone(),
+	)?;
 
 	let _ = test_framework::award_blocks_to_wallet(&chain, wallet1.clone(), mask1, 3, false);
 	bh += 3;
 
 	// Check total in mining account
-	wallet::controller::owner_single_use(wallet1.clone(), mask1, |api, m| {
-		let (wallet1_refreshed, wallet1_info) = api.retrieve_summary_info(m, true, 1)?;
-		assert!(wallet1_refreshed);
-		assert_eq!(wallet1_info.last_confirmed_height, bh);
-		assert_eq!(wallet1_info.total, bh * reward - reward * 2);
-		Ok(())
-	})?;
+	wallet::controller::owner_single_use(
+		wallet1.clone(),
+		mask1,
+		|api, m| {
+			let (wallet1_refreshed, wallet1_info) = api.retrieve_summary_info(m, true, 1)?;
+			assert!(wallet1_refreshed);
+			assert_eq!(wallet1_info.last_confirmed_height, bh);
+			assert_eq!(wallet1_info.total, bh * reward - reward * 2);
+			Ok(())
+		},
+		is_node_synced.clone(),
+	)?;
 
 	// Check total in 'wallet 2' account
-	wallet::controller::owner_single_use(wallet2.clone(), mask2, |api, m| {
-		let (wallet2_refreshed, wallet2_info) = api.retrieve_summary_info(m, true, 1)?;
-		assert!(wallet2_refreshed);
-		assert_eq!(wallet2_info.last_confirmed_height, bh);
-		assert_eq!(wallet2_info.total, 2 * reward);
-		Ok(())
-	})?;
+	wallet::controller::owner_single_use(
+		wallet2.clone(),
+		mask2,
+		|api, m| {
+			let (wallet2_refreshed, wallet2_info) = api.retrieve_summary_info(m, true, 1)?;
+			assert!(wallet2_refreshed);
+			assert_eq!(wallet2_info.last_confirmed_height, bh);
+			assert_eq!(wallet2_info.total, 2 * reward);
+			Ok(())
+		},
+		is_node_synced.clone(),
+	)?;
 
 	// Check messages, all participants should have both
-	wallet::controller::owner_single_use(wallet1.clone(), mask1, |api, m| {
-		let txs = api.retrieve_txs(m, true, None, Some(slate.id), None, None, None)?;
-		assert_eq!(
-			txs.txs[0].clone().messages.unwrap().messages[0].message,
-			Some(message.to_owned())
-		);
-		assert_eq!(
-			txs.txs[0].clone().messages.unwrap().messages[1].message,
-			Some(sender2_message.to_owned())
-		);
+	wallet::controller::owner_single_use(
+		wallet1.clone(),
+		mask1,
+		|api, m| {
+			let txs = api.retrieve_txs(m, true, None, Some(slate.id), None, None, None)?;
+			assert_eq!(
+				txs.txs[0].clone().messages.unwrap().messages[0].message,
+				Some(message.to_owned())
+			);
+			assert_eq!(
+				txs.txs[0].clone().messages.unwrap().messages[1].message,
+				Some(sender2_message.to_owned())
+			);
 
-		let msg_json = serde_json::to_string_pretty(&txs.txs[0].clone().messages.unwrap()).unwrap();
-		println!("{}", msg_json);
-		Ok(())
-	})?;
+			let msg_json =
+				serde_json::to_string_pretty(&txs.txs[0].clone().messages.unwrap()).unwrap();
+			println!("{}", msg_json);
+			Ok(())
+		},
+		is_node_synced.clone(),
+	)?;
 
-	wallet::controller::owner_single_use(wallet2.clone(), mask2, |api, m| {
-		let txs = api.retrieve_txs(m, true, None, Some(slate.id), None, None, None)?;
-		assert_eq!(
-			txs.txs[0].clone().messages.unwrap().messages[0].message,
-			Some(message.to_owned())
-		);
-		assert_eq!(
-			txs.txs[0].clone().messages.unwrap().messages[1].message,
-			Some(sender2_message)
-		);
-		Ok(())
-	})?;
+	wallet::controller::owner_single_use(
+		wallet2.clone(),
+		mask2,
+		|api, m| {
+			let txs = api.retrieve_txs(m, true, None, Some(slate.id), None, None, None)?;
+			assert_eq!(
+				txs.txs[0].clone().messages.unwrap().messages[0].message,
+				Some(message.to_owned())
+			);
+			assert_eq!(
+				txs.txs[0].clone().messages.unwrap().messages[1].message,
+				Some(sender2_message)
+			);
+			Ok(())
+		},
+		is_node_synced.clone(),
+	)?;
 
 	// let logging finish
 	thread::sleep(Duration::from_millis(200));

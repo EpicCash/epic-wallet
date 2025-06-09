@@ -16,14 +16,15 @@
 use crate::client_utils::{Client, ClientError};
 use crate::libwallet::slate_versions::{SlateVersion, VersionedSlate};
 use crate::libwallet::{Error, Slate};
+use crate::tor::config as tor_config;
+use crate::tor::process as tor_process;
 use crate::SlateSender;
 use serde::Serialize;
 use serde_json::{json, Value};
 use std::net::SocketAddr;
 use std::path::MAIN_SEPARATOR;
-
-use crate::tor::config as tor_config;
-use crate::tor::process as tor_process;
+use std::sync::atomic::AtomicBool;
+use std::sync::Arc;
 
 const TOR_CONFIG_PATH: &'static str = "tor/sender";
 
@@ -33,11 +34,15 @@ pub struct HttpSlateSender {
 	use_socks: bool,
 	socks_proxy_addr: Option<SocketAddr>,
 	tor_config_dir: String,
+	is_node_synced: Arc<AtomicBool>,
 }
 
 impl HttpSlateSender {
 	/// Create, return Err if scheme is not "http"
-	pub fn new(base_url: &str) -> Result<HttpSlateSender, SchemeNotHttp> {
+	pub fn new(
+		base_url: &str,
+		is_node_synced: Arc<AtomicBool>,
+	) -> Result<HttpSlateSender, SchemeNotHttp> {
 		if !base_url.starts_with("http") && !base_url.starts_with("https") {
 			Err(SchemeNotHttp)
 		} else {
@@ -46,6 +51,7 @@ impl HttpSlateSender {
 				use_socks: false,
 				socks_proxy_addr: None,
 				tor_config_dir: String::from(""),
+				is_node_synced,
 			})
 		}
 	}
@@ -55,8 +61,9 @@ impl HttpSlateSender {
 		base_url: &str,
 		proxy_addr: &str,
 		tor_config_dir: &str,
+		is_node_synced: Arc<AtomicBool>,
 	) -> Result<HttpSlateSender, SchemeNotHttp> {
-		let mut ret = Self::new(base_url)?;
+		let mut ret = Self::new(base_url, is_node_synced)?;
 		ret.use_socks = true;
 		//TODO: Unwrap
 		ret.socks_proxy_addr = Some(SocketAddr::V4(proxy_addr.parse().unwrap()));
@@ -150,6 +157,13 @@ impl HttpSlateSender {
 
 impl SlateSender for HttpSlateSender {
 	fn send_tx(&self, slate: &Slate) -> Result<Slate, Error> {
+		if !self
+			.is_node_synced
+			.load(std::sync::atomic::Ordering::SeqCst)
+		{
+			return Err(Error::ClientCallback("Node not synchronized".into()));
+		}
+
 		let trailing = match self.base_url.ends_with('/') {
 			true => "",
 			false => "/",
@@ -242,5 +256,26 @@ impl Into<Error> for SchemeNotHttp {
 	fn into(self) -> Error {
 		let err_str = format!("url scheme must be http",);
 		Error::GenericError(err_str).into()
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use crate::libwallet::Slate;
+
+	#[test]
+	fn test_send_tx_node_not_synced() {
+		let is_node_synced = Arc::new(AtomicBool::new(false));
+		let sender =
+			HttpSlateSender::new("http://localhost:13415", is_node_synced.clone()).unwrap();
+
+		let dummy_slate = Slate::blank(2); // or construct a minimal valid Slate for your context
+
+		let result = sender.send_tx(&dummy_slate);
+
+		assert!(result.is_err());
+		let err_str = format!("{:?}", result.err().unwrap());
+		assert!(err_str.contains("Node not synchronized"));
 	}
 }

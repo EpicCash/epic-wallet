@@ -28,7 +28,8 @@ use epic_wallet_util::epic_keychain::ExtKeychain;
 
 mod common;
 use common::{clean_output_dir, execute_command, initial_setup_wallet, instantiate_wallet, setup};
-
+use std::sync::atomic::AtomicBool;
+use std::sync::Arc;
 /// command line tests
 fn command_line_test_impl(test_dir: &str) -> Result<(), epic_wallet_controller::Error> {
 	setup(test_dir);
@@ -42,7 +43,7 @@ fn command_line_test_impl(test_dir: &str) -> Result<(), epic_wallet_controller::
 	let chain = wallet_proxy.chain.clone();
 	// wallet init
 	let arg_vec = vec!["epic-wallet", "-p", "password", "init", "-w"];
-
+	let is_node_synced = Arc::new(AtomicBool::new(true));
 	// should create new wallet file
 	let client1 = LocalWalletClient::new("wallet1", wallet_proxy.tx.clone());
 	execute_command(test_dir, "wallet1", &client1, arg_vec.clone()).unwrap();
@@ -145,10 +146,15 @@ fn command_line_test_impl(test_dir: &str) -> Result<(), epic_wallet_controller::
 	let (wallet1, mask1_i) =
 		instantiate_wallet(wallet_config1, client1.clone(), "password", "default")?;
 	let mask1 = (&mask1_i).as_ref();
-	epic_wallet_controller::controller::owner_single_use(wallet1.clone(), mask1, |api, m| {
-		api.set_active_account(m, "mining")?;
-		Ok(())
-	})
+	epic_wallet_controller::controller::owner_single_use(
+		wallet1.clone(),
+		mask1,
+		|api, m| {
+			api.set_active_account(m, "mining")?;
+			Ok(())
+		},
+		is_node_synced.clone(),
+	)
 	.unwrap();
 
 	let mut bh = 10u64;
@@ -232,16 +238,21 @@ fn command_line_test_impl(test_dir: &str) -> Result<(), epic_wallet_controller::
 	let mask1 = (&mask1_i).as_ref();
 
 	// Check our transaction log, should have 10 entries
-	epic_wallet_controller::controller::owner_single_use(wallet1.clone(), mask1, |api, m| {
-		api.set_active_account(m, "mining")?;
-		let txs = api.retrieve_txs(m, true, None, None, None, None, None)?;
-		assert!(txs.refresh_from_node);
-		assert_eq!(txs.txs.len(), bh as usize);
-		for t in txs.txs {
-			assert!(t.kernel_excess.is_some());
-		}
-		Ok(())
-	})
+	epic_wallet_controller::controller::owner_single_use(
+		wallet1.clone(),
+		mask1,
+		|api, m| {
+			api.set_active_account(m, "mining")?;
+			let txs = api.retrieve_txs(m, true, None, None, None, None, None)?;
+			assert!(txs.refresh_from_node);
+			assert_eq!(txs.txs.len(), bh as usize);
+			for t in txs.txs {
+				assert!(t.kernel_excess.is_some());
+			}
+			Ok(())
+		},
+		is_node_synced.clone(),
+	)
 	.unwrap();
 
 	let _ = test_framework::award_blocks_to_wallet(&chain, wallet1.clone(), mask1, 10, false);
@@ -264,13 +275,18 @@ fn command_line_test_impl(test_dir: &str) -> Result<(), epic_wallet_controller::
 	)?;
 	let mask2 = (&mask2_i).as_ref();
 
-	epic_wallet_controller::controller::owner_single_use(wallet2.clone(), mask2, |api, m| {
-		api.set_active_account(m, "account_1")?;
-		let (_, wallet1_info) = api.retrieve_summary_info(m, true, 1)?;
-		assert_eq!(wallet1_info.last_confirmed_height, bh);
-		assert_eq!(wallet1_info.amount_currently_spendable, 1_000_000_000);
-		Ok(())
-	})
+	epic_wallet_controller::controller::owner_single_use(
+		wallet2.clone(),
+		mask2,
+		|api, m| {
+			api.set_active_account(m, "account_1")?;
+			let (_, wallet1_info) = api.retrieve_summary_info(m, true, 1)?;
+			assert_eq!(wallet1_info.last_confirmed_height, bh);
+			assert_eq!(wallet1_info.amount_currently_spendable, 1_000_000_000);
+			Ok(())
+		},
+		is_node_synced.clone(),
+	)
 	.unwrap();
 
 	// Self-send to same account, using smallest strategy
@@ -330,13 +346,18 @@ fn command_line_test_impl(test_dir: &str) -> Result<(), epic_wallet_controller::
 	)?;
 	let mask1 = (&mask1_i).as_ref();
 
-	epic_wallet_controller::controller::owner_single_use(wallet1.clone(), mask1, |api, m| {
-		api.set_active_account(m, "mining")?;
-		let txs = api.retrieve_txs(m, true, None, None, None, None, None)?;
-		assert!(txs.refresh_from_node);
-		assert_eq!(txs.txs.len(), bh as usize + 1);
-		Ok(())
-	})
+	epic_wallet_controller::controller::owner_single_use(
+		wallet1.clone(),
+		mask1,
+		|api, m| {
+			api.set_active_account(m, "mining")?;
+			let txs = api.retrieve_txs(m, true, None, None, None, None, None)?;
+			assert!(txs.refresh_from_node);
+			assert_eq!(txs.txs.len(), bh as usize + 1);
+			Ok(())
+		},
+		is_node_synced.clone(),
+	)
 	.unwrap();
 
 	// Try using the self-send method, splitting up outputs for the fun of it
@@ -372,13 +393,18 @@ fn command_line_test_impl(test_dir: &str) -> Result<(), epic_wallet_controller::
 	)?;
 	let mask1 = (&mask1_i).as_ref();
 
-	epic_wallet_controller::controller::owner_single_use(wallet1.clone(), mask1, |api, m| {
-		api.set_active_account(m, "mining")?;
-		let txs = api.retrieve_txs(m, true, None, None, None, None, None)?;
-		assert!(txs.refresh_from_node);
-		assert_eq!(txs.txs.len(), bh as usize + 2);
-		Ok(())
-	})
+	epic_wallet_controller::controller::owner_single_use(
+		wallet1.clone(),
+		mask1,
+		|api, m| {
+			api.set_active_account(m, "mining")?;
+			let txs = api.retrieve_txs(m, true, None, None, None, None, None)?;
+			assert!(txs.refresh_from_node);
+			assert_eq!(txs.txs.len(), bh as usize + 2);
+			Ok(())
+		},
+		is_node_synced.clone(),
+	)
 	.unwrap();
 
 	// Another file exchange, don't send, but unlock with repair command
@@ -509,14 +535,19 @@ fn command_line_test_impl(test_dir: &str) -> Result<(), epic_wallet_controller::
 
 	// get tx output via -tx parameter
 	let mut tx_id = "".to_string();
-	epic_wallet_controller::controller::owner_single_use(wallet2.clone(), mask2, |api, m| {
-		api.set_active_account(m, "default")?;
-		let txs = api.retrieve_txs(m, true, None, None, None, None, None)?;
-		let some_tx_id = txs.txs[0].tx_slate_id.clone();
-		assert!(some_tx_id.is_some());
-		tx_id = some_tx_id.unwrap().to_string().clone();
-		Ok(())
-	})
+	epic_wallet_controller::controller::owner_single_use(
+		wallet2.clone(),
+		mask2,
+		|api, m| {
+			api.set_active_account(m, "default")?;
+			let txs = api.retrieve_txs(m, true, None, None, None, None, None)?;
+			let some_tx_id = txs.txs[0].tx_slate_id.clone();
+			assert!(some_tx_id.is_some());
+			tx_id = some_tx_id.unwrap().to_string().clone();
+			Ok(())
+		},
+		is_node_synced.clone(),
+	)
 	.unwrap();
 	let arg_vec = vec!["epic-wallet", "-p", "password", "txs", "-t", &tx_id[..]];
 	execute_command(test_dir, "wallet2", &client2, arg_vec).unwrap();

@@ -2309,7 +2309,12 @@ where
 	}
 
 	fn init_send_tx(&self, token: Token, args: InitTxArgs) -> Result<VersionedSlate, Error> {
-		let slate = Owner::init_send_tx(self, (&token.keychain_mask).as_ref(), args)?;
+		let slate = Owner::init_send_tx(
+			self,
+			(&token.keychain_mask).as_ref(),
+			args,
+			self.is_node_synced.clone(),
+		)?;
 		let version = SlateVersion::V3;
 		Ok(VersionedSlate::into_version(slate, version))
 	}
