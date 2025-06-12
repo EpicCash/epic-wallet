@@ -712,8 +712,12 @@ impl EpicboxBroker {
 							&message.to_string(),
 						) {
 							Ok(x) => x,
-							Err(_) => {
-								error!("Could not parse response.");
+							Err(e) => {
+								error!(
+									"Could not parse response: {:?}\nMessage was: {}",
+									e,
+									message.to_string()
+								);
 								return Ok(());
 							}
 						};

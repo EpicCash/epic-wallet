@@ -421,14 +421,14 @@ mod tests {
 	#[test]
 	fn get_node_status() {
 		let mock_response = json!({
-			"protocol_version": "2",
+			"protocol_version": 2,
 			"user_agent": "MW/Epic 2.x.x",
-			"connections": "8",
+			"connections": 8,
 			"tip": {
 				"height": 371553,
 				"last_block_pushed": "00001d1623db988d7ed10c5b6319360a52f20c89b4710474145806ba0e8455ec",
 				"prev_block_to_last": "0000029f51bacee81c49a27b4bc9c6c446e03183867c922890f90bb17108d89f",
-				"total_difficulty": 1127628411943045i64
+				"total_difficulty": { "randomx": 1127628411943045u64, "progpow": 0 },
 			},
 			"sync_status": "header_sync",
 			"sync_info": {
