@@ -236,6 +236,7 @@ where
 		t.confirmed = true;
 		t.amount_credited = output.value;
 		t.num_outputs = 1;
+		t.public_addr = Some("Restore".to_string());
 		t.update_confirmation_ts();
 		batch.save_tx_log_entry(t, &parent_key_id)?;
 		log_id
@@ -396,6 +397,21 @@ where
 		let matched_out = wallet_outputs.2.iter().find(|wo| wo.commit == deffo.commit);
 		match matched_out {
 			Some(s) => {
+				// Update mmr_index if needed
+				if s.output.mmr_index != Some(deffo.mmr_index) {
+					let mut o = s.output.clone();
+					o.mmr_index = Some(deffo.mmr_index);
+					wallet_lock!(wallet_inst, w);
+					let mut batch = w.batch(keychain_mask)?;
+
+					// Delete old output with mmr_index == None and replace with new output
+					if s.output.mmr_index.is_none() {
+						batch.delete(&o.key_id, &None, &o.tx_log_entry)?;
+					}
+
+					batch.save(o)?;
+					batch.commit()?;
+				}
 				if s.output.status == OutputStatus::Spent {
 					accidental_spend_outs.push((s.output.clone(), deffo.clone()));
 				}
