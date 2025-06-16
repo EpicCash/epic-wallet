@@ -179,10 +179,10 @@ pub fn txs(
 		bMG->"Creation Time",
 		bMG->"Confirmed?",
 		bMG->"Confirmation Time",
-		bMG->"Amount Credited",
-		bMG->"Amount Debited",
+		bMG->"Change Returned",
+		bMG->"Total Spent",
 		bMG->"Fee",
-		bMG->"Net Difference",
+		bMG->"Net Change",
 	]);
 
 	details_table.set_titles(row![
@@ -333,7 +333,7 @@ pub fn info(
 			FB->amount_to_hr_string(wallet_info.amount_awaiting_finalization, false)
 		]);
 		table.add_row(row![
-			Fr->"Locked by previous transaction",
+			Fr->"Locked by transaction",
 			Fr->amount_to_hr_string(wallet_info.amount_locked, false)
 		]);
 		table.add_row(row![
@@ -362,7 +362,7 @@ pub fn info(
 			FB->amount_to_hr_string(wallet_info.amount_awaiting_confirmation, false)
 		]);
 		table.add_row(row![
-			Fr->"Locked by previous transaction",
+			Fr->"Locked by transaction",
 			Fr->amount_to_hr_string(wallet_info.amount_locked, false)
 		]);
 		table.add_row(row![

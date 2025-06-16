@@ -539,7 +539,7 @@ where
 	Ok(WalletInfo {
 		last_confirmed_height: current_height,
 		minimum_confirmations,
-		total: unspent_total + unconfirmed_total + immature_total,
+		total: unspent_total + immature_total + locked_total,
 		amount_awaiting_finalization: awaiting_finalization_total,
 		amount_awaiting_confirmation: unconfirmed_total,
 		amount_immature: immature_total,
