@@ -226,11 +226,12 @@ where
 
 /// build a local map of wallet outputs keyed by commit
 /// and a list of outputs we want to query the node for
+/// NOTE: `_update_all` is unused and kept for legacy compatibility. All unspent outputs are always checked against the chain.
 pub fn map_wallet_outputs<'a, T: ?Sized, C, K>(
 	wallet: &mut T,
 	keychain_mask: Option<&SecretKey>,
 	parent_key_id: &Identifier,
-	update_all: bool,
+	_update_all: bool, // unused, always checks all unspent outputs
 ) -> Result<HashMap<pedersen::Commitment, (Identifier, Option<u64>)>, Error>
 where
 	T: WalletBackend<'a, C, K>,
@@ -244,36 +245,6 @@ where
 		.iter()
 		.filter(|x| x.root_key_id == *parent_key_id && x.status != OutputStatus::Spent)
 		.collect();
-
-	let tx_entries = retrieve_txs(
-		wallet,
-		None,
-		None,
-		Some(&parent_key_id),
-		true,
-		None,
-		None,
-		None,
-	)?
-	.2;
-
-	// Only select outputs that are actually involved in an outstanding transaction
-	let unspents: Vec<OutputData> = match update_all {
-		false => unspents
-			.into_iter()
-			.filter(|x| match x.tx_log_entry.as_ref() {
-				Some(t) => {
-					if let Some(_) = tx_entries.iter().find(|&te| te.id == *t) {
-						true
-					} else {
-						false
-					}
-				}
-				None => true,
-			})
-			.collect(),
-		true => unspents,
-	};
 
 	for out in unspents {
 		let commit = match out.commit.clone() {

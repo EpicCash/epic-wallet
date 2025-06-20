@@ -143,6 +143,7 @@ where
 	Ok(wallet_outputs)
 }
 
+/// Collect outputs from the chain, starting at a given start and end index
 fn collect_chain_outputs<'a, C, K>(
 	keychain: &K,
 	client: C,
@@ -342,7 +343,6 @@ where
 	C: NodeClient + 'a,
 	K: Keychain + 'a,
 {
-	// First, get a definitive list of outputs we own from the chain
 	if let Some(ref s) = status_send_channel {
 		let _ = s.send(StatusMessage::Scanning("Starting UTXO scan".to_owned(), 0));
 	}
