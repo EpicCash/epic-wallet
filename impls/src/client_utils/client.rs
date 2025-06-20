@@ -72,7 +72,7 @@ impl Client {
 		headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
 
 		let mut builder = ClientBuilder::new()
-			.timeout(Duration::from_secs(20))
+			.timeout(Duration::from_secs(300))
 			.use_rustls_tls()
 			.default_headers(headers);
 
