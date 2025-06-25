@@ -521,6 +521,8 @@ where
 
 			info!("Post transaction to the network (owner::post_tx)");
 			owner::post_tx(w.w2n_client(), &slate.tx, false)?;
+			owner::get_mempool_status(w.w2n_client(), &slate.tx)?;
+
 			Ok(true)
 		}
 	}

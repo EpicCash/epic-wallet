@@ -66,6 +66,32 @@ pub struct NodeStatus {
 	pub sync_info: Option<serde_json::Value>,
 }
 
+/// Represents a single entry in the pool.
+/// A single (possibly aggregated) transaction.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PoolEntry {
+	/// Info on where this tx originated from.
+	pub src: TxSource,
+	/// Timestamp of when this tx was originally added to the pool.
+	pub tx_at: DateTime<Utc>,
+	/// The transaction itself.
+	pub tx: Transaction,
+}
+
+/// Used to make decisions based on transaction acceptance priority from
+/// various sources. For example, a node may want to bypass pool size
+/// restrictions when accepting a transaction from a local wallet.
+/// Most likely this will evolve to contain some sort of network identifier,
+/// once we get a better sense of what transaction building might look like.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub enum TxSource {
+	PushApi,
+	Broadcast,
+	Fluff,
+	EmbargoExpired,
+	Deaggregate,
+}
+
 /// Combined trait to allow dynamic wallet dispatch
 pub trait WalletInst<'a, L, C, K>: Send + Sync
 where
@@ -377,6 +403,9 @@ pub trait NodeClient: Send + Sync + Clone {
 
 	/// Posts a transaction to a epic node
 	fn post_tx(&self, tx: &Transaction, fluff: bool) -> Result<(), Error>;
+
+	/// Get a transaction from node mempool
+	fn get_mempool(&self) -> Result<Vec<PoolEntry>, Error>;
 
 	/// Returns the api version string and block header version as reported
 	/// by the node. Result can be cached for later use
@@ -782,6 +811,8 @@ pub enum TxLogEntryType {
 	TxReceivedCancelled,
 	/// Sent transaction that was rolled back by user
 	TxSentCancelled,
+	/// Transaction sent to mempool, waiting to be mined
+	TxSentMempool,
 }
 
 impl fmt::Display for TxLogEntryType {
@@ -792,6 +823,7 @@ impl fmt::Display for TxLogEntryType {
 			TxLogEntryType::TxSent => write!(f, "Sent"),
 			TxLogEntryType::TxReceivedCancelled => write!(f, "Received (Cancelled)"),
 			TxLogEntryType::TxSentCancelled => write!(f, "Sent (Cancelled)"),
+			TxLogEntryType::TxSentMempool => write!(f, "Sent (Mempool)"), // <-- Add this line
 		}
 	}
 }

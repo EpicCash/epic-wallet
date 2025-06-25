@@ -650,7 +650,7 @@ where
 	tx::verify_slate_payment_proof(&mut *w, keychain_mask, &parent_key_id, &context, &sl)?;
 	tx::update_stored_tx(&mut *w, keychain_mask, &context, &mut sl, false)?;
 	tx::update_message(&mut *w, keychain_mask, &mut sl)?;
-
+	tx::update_mempool_status(&mut *w, keychain_mask, &sl)?;
 	{
 		let mut batch = w.batch(keychain_mask)?;
 		batch.delete_private_context(sl.id.as_bytes(), 0)?;
@@ -698,6 +698,17 @@ where
 	K: Keychain + 'a,
 {
 	w.get_stored_tx(entry)
+}
+
+/// Update the tx log entry to indicate the transaction is in the mempool
+/// take a client impl instead of wallet so as not to have to lock the wallet
+pub fn get_mempool_status<'a, C>(client: &C, _tx: &Transaction) -> Result<(), Error>
+where
+	C: NodeClient + 'a,
+{
+	let txs = client.get_mempool();
+	println!("txs in mempool: {:?}", txs);
+	Ok(())
 }
 
 /// Posts a transaction to the chain

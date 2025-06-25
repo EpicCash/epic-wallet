@@ -30,6 +30,7 @@ use crate::libwallet::slate_versions::v3::SlateV3;
 use crate::libwallet::{
 	NodeClient, NodeStatus, NodeVersionInfo, Slate, Tip, WalletInst, WalletLCProvider,
 };
+use epic_wallet_libwallet::PoolEntry;
 
 use crate::util;
 use crate::util::secp::key::SecretKey;
@@ -507,6 +508,27 @@ impl NodeClient for LocalWalletClient {
 		let m = r.recv().unwrap();
 		trace!("Received post_tx response: {:?}", m.clone());
 		Ok(())
+	}
+
+	fn get_mempool(&self) -> Result<Vec<PoolEntry>, libwallet::Error> {
+		let m = WalletProxyMessage {
+			sender_id: self.id.clone(),
+			dest: self.node_url().to_owned(),
+			method: "get_mempool".to_owned(),
+			body: "".to_owned(),
+		};
+		{
+			let p = self.proxy_tx.lock();
+			p.send(m)
+				.map_err(|_| libwallet::Error::ClientCallback("Get mempool send".to_owned()))?;
+		}
+		let r = self.rx.lock();
+		let m = r.recv().unwrap();
+		trace!("Received get_mempool response: {:?}", m.clone());
+		let res: Vec<PoolEntry> = serde_json::from_str(&m.body).map_err(|_| {
+			libwallet::Error::ClientCallback("Parsing get_mempool response".to_owned())
+		})?;
+		Ok(res)
 	}
 
 	/// Return the chain tip from a given node
