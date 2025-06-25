@@ -311,6 +311,27 @@ pub enum Error {
 	#[error("LibWallet Error: {0}")]
 	LibWallet(String),
 
+	/// Error when a resource is not found
 	#[error("NotFoundErr Error: {0}")]
 	NotFoundErr(String),
+
+	/// 401 Unauthorized error
+	#[error("Unauthorized (HTTP 401): Authentication failed")]
+	Unauthorized,
+
+	/// 403 Forbidden error
+	#[error("Not found (HTTP 404): Resource not found")]
+	NotFound,
+
+	/// 400 Bad Request error
+	#[error("Bad request (HTTP 400): {0}")]
+	BadRequest(String),
+
+	/// 500 Internal Server Error
+	#[error("Internal server error (HTTP 500): {0}")]
+	InternalServerError(String),
+
+	/// HTTP error with status code and message
+	#[error("HTTP error {0}: {1}")]
+	HttpError(u16, String),
 }

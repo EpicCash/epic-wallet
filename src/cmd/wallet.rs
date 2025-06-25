@@ -16,7 +16,7 @@ use crate::cmd::wallet_args;
 use crate::config::GlobalWalletConfig;
 use clap::ArgMatches;
 use epic_wallet_impls::HTTPNodeClient;
-use epic_wallet_libwallet::NodeClient;
+use epic_wallet_libwallet::{Error, NodeClient};
 use log::{error, info, warn};
 use semver::Version;
 use std::fs;
@@ -55,18 +55,20 @@ pub fn wallet_command(wallet_args: &ArgMatches, config: GlobalWalletConfig) -> i
 			node_api_secret.clone(),
 		) {
 			Ok(client) => client,
-			Err(e) => {
-				if offline_mode {
-					warn!(
-						"Failed to create HTTPNodeClient: {}. Proceeding without node sync.",
-						e
-					);
-					return 0; // Allow offline mode to proceed
-				} else {
-					error!("Failed to create HTTPNodeClient: {}", e);
-					return 1; // Exit with error code
+			Err(e) => match e {
+				Error::Unauthorized => {
+					error!("Authentication failed: wrong password or API secret.");
+					return 1;
 				}
-			}
+				Error::NotFound => {
+					error!("Node not found at the specified address.");
+					return 1;
+				}
+				_ => {
+					error!("Failed to create HTTPNodeClient: {}", e);
+					return 1;
+				}
+			},
 		},
 	};
 
@@ -91,11 +93,15 @@ pub fn wallet_command(wallet_args: &ArgMatches, config: GlobalWalletConfig) -> i
 				return 1; // Exit with an error code to indicate the node is not ready
 			}
 		}
-		Err(_) => {
+		Err(e) => {
 			if offline_mode {
 				warn!("Failed to check node sync status. Proceeding without a synced node.");
 			} else {
-				error!("Failed to check node sync status.");
+				error!("Failed to check node sync status: {}", e);
+				//add additional error info is type is 401
+				if let Error::Unauthorized = e {
+					error!("Check your node_api_secret_path in epic-wallet.toml (default: ~/.epic/main/epic-wallet.toml)");
+				}
 				warn!("Set --offline_mode to proceed without a synced node, or check your node connection.");
 				return 1; // Exit with error code
 			}

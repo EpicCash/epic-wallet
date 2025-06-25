@@ -20,7 +20,7 @@ use crate::core::core::Transaction;
 
 use crate::core::core::TxKernel;
 
-use crate::libwallet::{Error, NodeClient, NodeStatus, NodeVersionInfo};
+use crate::libwallet::{Error, NodeClient, NodeStatus, NodeVersionInfo, PoolEntry};
 
 use crate::util::secp::pedersen;
 
@@ -60,12 +60,15 @@ pub struct HTTPNodeClient {
 impl HTTPNodeClient {
 	/// Create a new client that will communicate with the given epic node
 	pub fn new(node_url: &str, node_api_secret: Option<String>) -> Result<HTTPNodeClient, Error> {
-		Ok(HTTPNodeClient {
-			client: Client::new().map_err(|_| Error::Node)?,
+		let client = Client::new()
+			.map_err(|_| Error::InternalServerError("Failed to create HTTP client".to_string()))?;
+		let nc = HTTPNodeClient {
+			client,
 			node_url: node_url.to_owned(),
 			node_api_secret,
 			node_version_info: None,
-		})
+		};
+		Ok(nc)
 	}
 
 	/// Allow returning the chain height without needing a wallet instantiated
@@ -84,15 +87,23 @@ impl HTTPNodeClient {
 		let res = self
 			.client
 			.post::<Request, Response>(url.as_str(), self.node_api_secret(), &req);
-
 		match res {
 			Ok(inner) => match inner.clone().into_result() {
 				Ok(r) => Ok(r),
 				Err(e) => {
+					// Check for JSON-RPC error message
+					if let Some(rpc_error) = &inner.error {
+						if rpc_error.message.contains("Unauthorized") {
+							return Err(Error::Unauthorized);
+						}
+						if rpc_error.message.contains("Not found") {
+							return Err(Error::NotFound);
+						}
+					}
 					error!("{:?}", inner);
 					let report = format!("Unable to parse response for {}: {}", method, e);
 					error!("{}", report);
-					Err(Error::ClientCallback(report).into())
+					Err(Error::BadRequest(report))
 				}
 			},
 			Err(e) => {
@@ -159,6 +170,16 @@ impl NodeClient for HTTPNodeClient {
 		let params = json!([tx, fluff]);
 		self.send_json_request::<serde_json::Value>(FOREIGN_ENDPOINT, "push_transaction", &params)?;
 		Ok(())
+	}
+
+	/// Get transactions from node mempool
+	fn get_mempool(&self) -> Result<Vec<PoolEntry>, Error> {
+		let result = self.send_json_request::<Vec<PoolEntry>>(
+			FOREIGN_ENDPOINT,
+			"get_unconfirmed_transactions",
+			&serde_json::Value::Null,
+		)?;
+		Ok(result)
 	}
 
 	/// Return the chain tip from a given node
