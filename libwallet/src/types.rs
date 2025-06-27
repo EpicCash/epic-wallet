@@ -813,6 +813,8 @@ pub enum TxLogEntryType {
 	TxSentCancelled,
 	/// Transaction sent to mempool, waiting to be mined
 	TxSentMempool,
+	/// Transaction created, but not yet sent to the node
+	TxSentCreated,
 }
 
 impl fmt::Display for TxLogEntryType {
@@ -823,7 +825,8 @@ impl fmt::Display for TxLogEntryType {
 			TxLogEntryType::TxSent => write!(f, "Sent"),
 			TxLogEntryType::TxReceivedCancelled => write!(f, "Received (Cancelled)"),
 			TxLogEntryType::TxSentCancelled => write!(f, "Sent (Cancelled)"),
-			TxLogEntryType::TxSentMempool => write!(f, "Sent (Mempool)"), // <-- Add this line
+			TxLogEntryType::TxSentMempool => write!(f, "Sent (Mempool)"),
+			TxLogEntryType::TxSentCreated => write!(f, "Sent (Created)"),
 		}
 	}
 }

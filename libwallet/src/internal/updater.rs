@@ -160,7 +160,8 @@ where
 				true => {
 					!tx_entry.confirmed
 						&& (tx_entry.tx_type == TxLogEntryType::TxReceived
-							|| tx_entry.tx_type == TxLogEntryType::TxSent)
+							|| tx_entry.tx_type == TxLogEntryType::TxSent
+							|| tx_entry.tx_type == TxLogEntryType::TxSentCreated)
 				}
 				false => true,
 			};
@@ -284,7 +285,7 @@ where
 		}
 	}
 	let mut tx = tx.clone();
-	if tx.tx_type == TxLogEntryType::TxSent {
+	if tx.tx_type == TxLogEntryType::TxSentCreated {
 		tx.tx_type = TxLogEntryType::TxSentCancelled;
 	}
 	if tx.tx_type == TxLogEntryType::TxReceived {
@@ -366,6 +367,10 @@ where
 							if let Some(mut t) = tx {
 								t.update_confirmation_ts();
 								t.confirmed = true;
+								// If it was SentMempool, update to Sent
+								if t.tx_type == TxLogEntryType::TxSentMempool {
+									t.tx_type = TxLogEntryType::TxSent;
+								}
 								batch.save_tx_log_entry(t, &parent_key_id)?;
 							}
 						}
@@ -476,6 +481,7 @@ where
 	let mut awaiting_finalization_total = 0;
 	let mut unconfirmed_total = 0;
 	let mut locked_total = 0;
+	let mut unspent_unconfirmed_total = 0;
 
 	for out in outputs {
 		match out.status {
@@ -485,6 +491,7 @@ where
 				} else if out.num_confirmations(current_height) < minimum_confirmations {
 					// Treat anything less than minimum confirmations as "unconfirmed".
 					unconfirmed_total += out.value;
+					unspent_unconfirmed_total += out.value;
 				} else {
 					unspent_total += out.value;
 				}
@@ -510,7 +517,7 @@ where
 	Ok(WalletInfo {
 		last_confirmed_height: current_height,
 		minimum_confirmations,
-		total: unspent_total + immature_total + locked_total,
+		total: unspent_total + immature_total + locked_total + unspent_unconfirmed_total,
 		amount_awaiting_finalization: awaiting_finalization_total,
 		amount_awaiting_confirmation: unconfirmed_total,
 		amount_immature: immature_total,

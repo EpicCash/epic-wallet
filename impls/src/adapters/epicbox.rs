@@ -521,7 +521,28 @@ where
 
 			info!("Post transaction to the network (owner::post_tx)");
 			owner::post_tx(w.w2n_client(), &slate.tx, false)?;
-			owner::get_mempool_status(w.w2n_client(), &slate.tx)?;
+
+			// --- Blocking mempool observation after post_tx ---
+			let tx_slate_id = slate.id;
+			let found = owner::wait_for_tx_in_mempool(
+				&mut **w,
+				self.keychain_mask.as_ref(),
+				&tx_slate_id,
+				1,   // poll every 1 second
+				240, // up to 240 attempts (4 minutes)
+			);
+			if let Ok(true) = found {
+				owner::update_mempool_status(&mut **w, self.keychain_mask.as_ref(), &slate)?;
+				info!(
+					"Transaction with slate_id {} found in mempool and marked as TxSentMempool.",
+					tx_slate_id
+				);
+			} else {
+				warn!(
+					"Transaction with slate_id {} not found in mempool after waiting.",
+					tx_slate_id
+				);
+			}
 
 			Ok(true)
 		}

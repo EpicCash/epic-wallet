@@ -308,7 +308,7 @@ where
 		if entries.2.len() > 0 {
 			let mut entry = entries.2[0].clone();
 			match entry.tx_type {
-				TxLogEntryType::TxSent => entry.tx_type = TxLogEntryType::TxSentCancelled,
+				TxLogEntryType::TxSentCreated => entry.tx_type = TxLogEntryType::TxSentCancelled,
 				TxLogEntryType::TxReceived => entry.tx_type = TxLogEntryType::TxReceivedCancelled,
 				_ => {}
 			}

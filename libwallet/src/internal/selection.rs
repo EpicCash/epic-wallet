@@ -138,7 +138,7 @@ where
 		let parent_key_id = context.parent_key_id.clone();
 		let mut batch = wallet.batch(keychain_mask)?;
 		let log_id = batch.next_tx_log_id(&parent_key_id)?;
-		let mut t = TxLogEntry::new(parent_key_id.clone(), TxLogEntryType::TxSent, log_id);
+		let mut t = TxLogEntry::new(parent_key_id.clone(), TxLogEntryType::TxSentCreated, log_id);
 		t.tx_slate_id = Some(slate_id.clone());
 		let filename = format!("{}.epictx", slate_id);
 		t.stored_tx = Some(filename);

@@ -306,7 +306,7 @@ where
 		return Err(Error::TransactionDoesntExist(tx_id_string))?;
 	}
 	let tx = tx_vec.2[0].clone();
-	if tx.tx_type != TxLogEntryType::TxSent && tx.tx_type != TxLogEntryType::TxReceived {
+	if tx.tx_type != TxLogEntryType::TxSentCreated && tx.tx_type != TxLogEntryType::TxReceived {
 		return Err(Error::TransactionNotCancellable(tx_id_string))?;
 	}
 	if tx.confirmed == true {
@@ -348,7 +348,9 @@ where
 	let mut tx = None;
 	// don't want to assume this is the right tx, in case of self-sending
 	for t in tx_vec.2 {
-		if t.tx_type == TxLogEntryType::TxSent && !is_invoiced {
+		if (t.tx_type == TxLogEntryType::TxSentCreated || t.tx_type == TxLogEntryType::TxSent)
+			&& !is_invoiced
+		{
 			tx = Some(t.clone());
 			break;
 		}

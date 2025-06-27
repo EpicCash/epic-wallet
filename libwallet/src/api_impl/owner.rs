@@ -42,6 +42,7 @@ use ed25519_dalek::VerifyingKey as DalekPublicKey;
 
 use std::sync::mpsc::Sender;
 use std::sync::Arc;
+use std::{thread, time::Duration};
 
 const USER_MESSAGE_MAX_LEN: usize = 256;
 
@@ -650,13 +651,71 @@ where
 	tx::verify_slate_payment_proof(&mut *w, keychain_mask, &parent_key_id, &context, &sl)?;
 	tx::update_stored_tx(&mut *w, keychain_mask, &context, &mut sl, false)?;
 	tx::update_message(&mut *w, keychain_mask, &mut sl)?;
-	tx::update_mempool_status(&mut *w, keychain_mask, &sl)?;
+
 	{
 		let mut batch = w.batch(keychain_mask)?;
 		batch.delete_private_context(sl.id.as_bytes(), 0)?;
 		batch.commit()?;
 	}
+
 	Ok(sl)
+}
+
+/// Wrapper for tx::update_mempool_status
+pub fn update_mempool_status<'a, T: ?Sized, C, K>(
+	wallet: &mut T,
+	keychain_mask: Option<&SecretKey>,
+	slate: &Slate,
+) -> Result<(), Error>
+where
+	T: WalletBackend<'a, C, K>,
+	C: NodeClient + 'a,
+	K: Keychain + 'a,
+{
+	tx::update_mempool_status(wallet, keychain_mask, slate)
+}
+
+/// Polls the node mempool for the given transaction and marks it as TxSentMempool if found.
+pub fn wait_for_tx_in_mempool<'a, T: ?Sized, C, K>(
+	wallet: &mut T,
+	keychain_mask: Option<&SecretKey>,
+	tx_slate_id: &uuid::Uuid,
+	poll_interval_secs: u64,
+	max_attempts: u32,
+) -> Result<bool, Error>
+where
+	T: WalletBackend<'a, C, K>,
+	C: NodeClient + 'a,
+	K: Keychain + 'a,
+{
+	for _ in 0..max_attempts {
+		// Get mempool entries from node
+		let mempool = wallet.w2n_client().get_mempool()?;
+		// Get the tx log entry for this slate id
+		let mut txs = wallet.tx_log_iter().collect::<Vec<_>>();
+		if let Some(entry) = txs.iter_mut().find(|e| e.tx_slate_id == Some(*tx_slate_id)) {
+			// Check if any mempool entry matches this transaction (by kernel, id, etc.)
+			let found = mempool.iter().any(|pool_entry| {
+				// You may want to match by kernel_excess, tx hash, or another unique property
+				entry.kernel_excess.is_some()
+					&& pool_entry
+						.tx
+						.kernels()
+						.iter()
+						.any(|k| Some(k.excess()) == entry.kernel_excess)
+			});
+			if found {
+				entry.tx_type = TxLogEntryType::TxSentMempool;
+				let parent_key_id = wallet.parent_key_id();
+				let mut batch = wallet.batch(keychain_mask)?;
+				batch.save_tx_log_entry(entry.clone(), &parent_key_id)?;
+				batch.commit()?;
+				return Ok(true);
+			}
+		}
+		thread::sleep(Duration::from_secs(poll_interval_secs));
+	}
+	Ok(false)
 }
 
 /// cancel tx
