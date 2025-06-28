@@ -565,3 +565,127 @@ fn wallet_command_line() {
 		panic!("Libwallet Error: {}", e);
 	}
 }
+
+#[test]
+fn tx_type_updates_to_sent_when_confirmed() {
+	let test_dir = "target/test_output/tx_type_updates_to_sent_when_confirmed";
+
+	setup(test_dir);
+
+	let mut wallet_proxy: WalletProxy<
+		DefaultLCProvider<LocalWalletClient, ExtKeychain>,
+		LocalWalletClient,
+		ExtKeychain,
+	> = WalletProxy::new(test_dir);
+	let chain = wallet_proxy.chain.clone();
+
+	let arg_vec = vec!["epic-wallet", "-p", "password", "init", "-w"];
+	let is_node_synced = Arc::new(AtomicBool::new(true));
+	let client1 = LocalWalletClient::new("wallet1", wallet_proxy.tx.clone());
+	execute_command(test_dir, "wallet1", &client1, arg_vec.clone()).unwrap();
+
+	let config1 = initial_setup_wallet(test_dir, "wallet1");
+	let wallet_config1 = config1.clone().members.unwrap().wallet;
+	let (wallet1, mask1_i) = instantiate_wallet(
+		wallet_config1.clone(),
+		client1.clone(),
+		"password",
+		"default",
+	)
+	.unwrap();
+	wallet_proxy.add_wallet(
+		"wallet1",
+		client1.get_send_instance(),
+		wallet1.clone(),
+		mask1_i.clone(),
+	);
+
+	// Set the wallet proxy listener running
+	thread::spawn(move || {
+		if let Err(e) = wallet_proxy.run() {
+			error!("Wallet Proxy error: {}", e);
+		}
+	});
+
+	// Mine some blocks to wallet1
+	let mask1 = (&mask1_i).as_ref();
+
+	let _ = test_framework::award_blocks_to_wallet(&chain, wallet1.clone(), mask1, 10, false);
+
+	// Send a transaction (file mode for simplicity)
+	let file_name = format!("{}/tx.part_tx", test_dir);
+	let arg_vec = vec![
+		"epic-wallet",
+		"-p",
+		"password",
+		"-a",
+		"default",
+		"send",
+		"-m",
+		"file",
+		"-d",
+		&file_name,
+		"1",
+	];
+
+	execute_command(test_dir, "wallet1", &client1, arg_vec).unwrap();
+
+	// Finalize the transaction (simulate receiver)
+	let response_file_name = format!("{}/tx.part_tx.response", test_dir);
+	let arg_vec = vec![
+		"epic-wallet",
+		"-p",
+		"password",
+		"-a",
+		"default",
+		"receive",
+		"-i",
+		&file_name,
+		"-g",
+		"test",
+	];
+	execute_command(test_dir, "wallet1", &client1, arg_vec).unwrap();
+
+	let arg_vec = vec![
+		"epic-wallet",
+		"-p",
+		"password",
+		"-a",
+		"default",
+		"finalize",
+		"-i",
+		&response_file_name,
+	];
+	execute_command(test_dir, "wallet1", &client1, arg_vec).unwrap();
+
+	// Mine a block to confirm the transaction
+
+	let _ = test_framework::award_blocks_to_wallet(&chain, wallet1.clone(), mask1, 10, false);
+
+	// Check the tx log entry type
+	epic_wallet_controller::controller::owner_single_use(
+		wallet1.clone(),
+		mask1,
+		|api, m| {
+			let txs = api.retrieve_txs(m, true, None, None, None, None, None)?;
+			for t in &txs.txs {
+				eprintln!(
+					"TxLogEntry: id={:?}, type={:?}, confirmed={}, slate_id={:?}, kernel_excess={:?}",
+					t.id, t.tx_type, t.confirmed, t.tx_slate_id, t.kernel_excess
+				);
+			}
+			// Find the most recent sent tx
+			use epic_wallet_libwallet::TxLogEntryType;
+			let sent_tx = txs.txs.iter().find(|t| t.tx_type == TxLogEntryType::TxSent);
+			assert!(
+				sent_tx.is_some(),
+				"No confirmed sent transaction found in tx log!"
+			);
+			Ok(())
+		},
+		is_node_synced.clone(),
+	)
+	.unwrap();
+
+	clean_output_dir(test_dir);
+}

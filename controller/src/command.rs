@@ -438,11 +438,30 @@ where
 				let result = api.post_tx(m, &slate.tx, args.fluff);
 				match result {
 					Ok(_) => {
-						info!("Tx sent ok",);
+						// Wait for mempool status and update if found
+						let found = api.wait_for_tx_in_mempool(
+							m, &slate.id, 1,   // poll every 1 second
+							240, // up to 240 attempts (4 minutes)
+						);
+						if let Ok(true) = found {
+							let _ = api.update_mempool_status(m, &slate);
+							info!(
+								"Transaction with slate_id {} found in mempool and marked as TxSentMempool.",
+								slate.id
+							);
+						} else {
+							warn!(
+								"Transaction with slate_id {} not found in mempool after waiting.",
+								slate.id
+							);
+						}
+						info!(
+							"Transaction sent successfully, check the wallet again for confirmation."
+						);
 						return Ok(());
 					}
 					Err(e) => {
-						error!("Tx sent fail: {}", e);
+						error!("Tx not sent: {}", e);
 						return Err(e);
 					}
 				}
@@ -589,9 +608,26 @@ where
 				let result = api.post_tx(m, &slate.tx, args.fluff);
 				match result {
 					Ok(_) => {
+						// Wait for mempool status and update if found
+						let found = api.wait_for_tx_in_mempool(
+							m, &slate.id, 1,   // poll every 1 second
+							240, // up to 240 attempts (4 minutes)
+						);
+						if let Ok(true) = found {
+							let _ = api.update_mempool_status(m, &slate);
+							info!(
+								"Transaction with slate_id {} found in mempool and marked as TxSentMempool.",
+								slate.id
+							);
+						} else {
+							warn!(
+								"Transaction with slate_id {} not found in mempool after waiting.",
+								slate.id
+							);
+						}
 						info!(
-						"Transaction sent successfully, check the wallet again for confirmation."
-					);
+							"Transaction sent successfully, check the wallet again for confirmation."
+						);
 						Ok(())
 					}
 					Err(e) => {

@@ -76,7 +76,7 @@ pub use slate_versions::ser as dalek_ser;
 pub use types::{
 	AcctPathMapping, BlockIdentifier, CbData, Context, NodeClient, NodeStatus, NodeVersionInfo,
 	OutputData, OutputStatus, PoolEntry, ScannedBlockInfo, StoredProofInfo, Tip, TxLogEntry,
-	TxLogEntryType, TxWrapper, WalletBackend, WalletInfo, WalletInitStatus, WalletInst,
+	TxLogEntryType, TxSource, TxWrapper, WalletBackend, WalletInfo, WalletInitStatus, WalletInst,
 	WalletLCProvider, WalletOutputBatch,
 };
 

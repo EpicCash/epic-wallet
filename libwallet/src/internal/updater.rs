@@ -367,8 +367,10 @@ where
 							if let Some(mut t) = tx {
 								t.update_confirmation_ts();
 								t.confirmed = true;
-								// If it was SentMempool, update to Sent
-								if t.tx_type == TxLogEntryType::TxSentMempool {
+								// If it was SentMempool or SentCreated, update to Sent
+								if t.tx_type == TxLogEntryType::TxSentMempool
+									|| t.tx_type == TxLogEntryType::TxSentCreated
+								{
 									t.tx_type = TxLogEntryType::TxSent;
 								}
 								batch.save_tx_log_entry(t, &parent_key_id)?;

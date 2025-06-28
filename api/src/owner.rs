@@ -2382,6 +2382,36 @@ where
 	) -> Result<(bool, bool), Error> {
 		owner::verify_payment_proof(self.wallet_inst.clone(), keychain_mask, proof)
 	}
+
+	/// Updates the mempool status for a given slate.
+	pub fn update_mempool_status(
+		&self,
+		keychain_mask: Option<&SecretKey>,
+		slate: &Slate,
+	) -> Result<(), Error> {
+		let mut w_lock = self.wallet_inst.lock();
+		let w = w_lock.lc_provider()?.wallet_inst()?;
+		crate::libwallet::api_impl::owner::update_mempool_status(&mut **w, keychain_mask, slate)
+	}
+
+	/// Wait for a transaction to appear in the mempool.
+	pub fn wait_for_tx_in_mempool(
+		&self,
+		mask: Option<&SecretKey>,
+		tx_slate_id: &Uuid,
+		poll_interval_secs: u64,
+		max_attempts: u32,
+	) -> Result<bool, Error> {
+		let mut w_lock = self.wallet_inst.lock();
+		let w = w_lock.lc_provider()?.wallet_inst()?;
+		crate::libwallet::api_impl::owner::wait_for_tx_in_mempool(
+			&mut **w,
+			mask,
+			tx_slate_id,
+			poll_interval_secs,
+			max_attempts,
+		)
+	}
 }
 
 #[doc(hidden)]

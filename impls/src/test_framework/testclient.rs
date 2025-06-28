@@ -30,7 +30,7 @@ use crate::libwallet::slate_versions::v3::SlateV3;
 use crate::libwallet::{
 	NodeClient, NodeStatus, NodeVersionInfo, Slate, Tip, WalletInst, WalletLCProvider,
 };
-use epic_wallet_libwallet::PoolEntry;
+use epic_wallet_libwallet::{PoolEntry, TxSource};
 
 use crate::util;
 use crate::util::secp::key::SecretKey;
@@ -48,6 +48,9 @@ use std::thread;
 use std::time::Duration;
 
 use serde_json::json;
+
+use chrono::Utc;
+
 /// Messages to simulate wallet requests/responses
 #[derive(Clone, Debug)]
 pub struct WalletProxyMessage {
@@ -89,6 +92,8 @@ where
 	pub rx: Receiver<WalletProxyMessage>,
 	/// queue control
 	pub running: Arc<AtomicBool>,
+	/// last posted transaction
+	pub last_posted_tx: Option<Transaction>,
 }
 
 impl<'a, L, C, K> WalletProxy<'a, L, C, K>
@@ -118,6 +123,7 @@ where
 			rx,
 			wallets: HashMap::new(),
 			running: Arc::new(AtomicBool::new(false)),
+			last_posted_tx: None,
 		};
 		retval
 	}
@@ -156,6 +162,7 @@ where
 				"post_tx" => self.post_tx(m)?,
 				"get_kernel" => self.get_kernel(m)?,
 				"get_status" => self.get_status(m)?,
+				"get_mempool" => self.get_mempool(m)?,
 				_ => panic!("Unknown Wallet Proxy Message"),
 			};
 
@@ -164,6 +171,32 @@ where
 				return Ok(());
 			}
 		}
+	}
+
+	// Add this method to your WalletProxy impl:
+	fn get_mempool(
+		&mut self,
+		m: WalletProxyMessage,
+	) -> Result<WalletProxyMessage, libwallet::Error> {
+		// Build a minimal valid Transaction for testing
+		let entries = if let Some(ref tx) = self.last_posted_tx {
+			vec![PoolEntry {
+				src: TxSource::PushApi,
+				tx_at: Utc::now(),
+				tx: tx.clone(),
+			}]
+		} else {
+			vec![]
+		};
+
+		let response = serde_json::to_string(&entries).unwrap();
+
+		Ok(WalletProxyMessage {
+			sender_id: "node".to_owned(),
+			dest: m.sender_id,
+			method: m.method,
+			body: response,
+		})
 	}
 
 	/// Return a message to a given wallet client
@@ -185,7 +218,7 @@ where
 		let tx: Transaction = serde_json::from_str(&m.body).map_err(|_| {
 			libwallet::Error::ClientCallback("Error parsing Transaction".to_owned())
 		})?;
-
+		self.last_posted_tx = Some(tx.clone());
 		super::award_block_to_wallet(
 			&self.chain,
 			vec![&tx],
