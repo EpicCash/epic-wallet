@@ -1204,6 +1204,7 @@ dependencies = [
  "serde",
  "serde_derive",
  "serde_json",
+ "sha2",
  "thiserror 2.0.12",
  "url",
 ]
@@ -1279,6 +1280,7 @@ dependencies = [
 name = "epic_wallet_impls"
 version = "3.6.0"
 dependencies = [
+ "base64 0.22.1",
  "bitvec",
  "blake2-rfc",
  "byteorder",
@@ -1295,6 +1297,7 @@ dependencies = [
  "hyper-timeout",
  "lazy_static",
  "log",
+ "once_cell",
  "parking_lot 0.12.4",
  "rand 0.9.1",
  "regex",
@@ -3646,7 +3649,9 @@ dependencies = [
  "base64 0.22.1",
  "bytes",
  "encoding_rs",
+ "futures-channel",
  "futures-core",
+ "futures-util",
  "h2",
  "http",
  "http-body",

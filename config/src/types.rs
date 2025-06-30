@@ -153,7 +153,7 @@ impl Default for TorConfig {
 	fn default() -> TorConfig {
 		TorConfig {
 			use_tor_listener: true,
-			socks_proxy_addr: "127.0.0.1:59050".to_owned(),
+			socks_proxy_addr: "127.0.0.1:9050".to_owned(),
 			send_config_dir: ".".into(),
 		}
 	}

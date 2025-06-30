@@ -509,10 +509,15 @@ where
 	}
 
 	// restore labels, account paths and child derivation indices
-	wallet_lock!(wallet_inst, w);
+
 	let label_base = "account";
-	let accounts: Vec<Identifier> = w.acct_path_iter().map(|m| m.path).collect();
+	// Only lock to get the list of accounts
+	let accounts: Vec<Identifier> = {
+		wallet_lock!(wallet_inst, w);
+		w.acct_path_iter().map(|m| m.path).collect()
+	};
 	let mut acct_index = accounts.len();
+
 	for (path, max_child_index) in found_parents.iter() {
 		// Only restore paths that don't exist
 		if !accounts.contains(path) {
@@ -521,11 +526,18 @@ where
 			if let Some(ref s) = status_send_channel {
 				let _ = s.send(StatusMessage::Scanning(msg, 99));
 			}
+			// Lock only for setting account path
+			wallet_lock!(wallet_inst, w);
 			keys::set_acct_path(&mut **w, keychain_mask, &label, path)?;
 			acct_index += 1;
 		}
-		let current_child_index = w.current_child_index(&path)?;
+		// Lock only for reading/updating child index
+		let current_child_index = {
+			wallet_lock!(wallet_inst, w);
+			w.current_child_index(&path)?
+		};
 		if *max_child_index >= current_child_index {
+			wallet_lock!(wallet_inst, w);
 			let mut batch = w.batch(keychain_mask)?;
 			debug!("Next child for account {} is {}", path, max_child_index + 1);
 			batch.save_child_index(path, max_child_index + 1)?;

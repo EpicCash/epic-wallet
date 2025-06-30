@@ -48,6 +48,8 @@ use std::time::Duration;
 
 use crate::cmd::built_info;
 use clap::{Arg, ArgAction, Command};
+use epic_wallet_impls::tor::tor_manager::TorManager;
+use epic_wallet_impls::tor::tor_manager::TOR_MANAGER;
 
 // define what to do on argument error
 macro_rules! arg_parse {
@@ -1388,13 +1390,29 @@ where
 			command::recover(wallet, a)
 		}
 		Some(("listen", args)) => {
+			let keychain_mask_arc = Arc::new(Mutex::new(keychain_mask));
 			let mut c = wallet_config.clone();
 			let mut t = tor_config.clone();
 			let e = epicbox_config.clone();
 			let a = arg_parse!(parse_listen_args(&mut c, &mut t, &args));
+
+			// Start Tor here if t.use_tor_listener is true
+			if t.use_tor_listener {
+				let (tor_manager, _onion_addr) = match TorManager::init_tor_listener(
+					&t.socks_proxy_addr,
+					wallet.clone(),
+					keychain_mask_arc.clone(),
+					&wallet_config.api_listen_addr(),
+				) {
+					Ok(res) => res,
+					Err(e) => return Err(e),
+				};
+				let _ = TOR_MANAGER.set(tor_manager);
+			}
+
 			command::listen(
 				wallet,
-				Arc::new(Mutex::new(keychain_mask)),
+				keychain_mask_arc.clone(),
 				&c,
 				&t,
 				&e,
@@ -1460,7 +1478,6 @@ where
 			command::process_invoice(
 				wallet,
 				km,
-				Some(tor_config),
 				a,
 				wallet_config.dark_background_color_scheme.unwrap_or(true),
 				is_node_synced.clone(),
@@ -1554,7 +1571,7 @@ where
 		}
 
 		_ => {
-			let msg = format!("Unknown wallet command, use 'epic-wallet help' for details");
+			let msg = format!("Unknown wallet command, use 'epic-wallet --help' for details");
 			return Err(Error::ArgumentError(msg));
 		}
 	};

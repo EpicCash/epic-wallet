@@ -20,7 +20,6 @@ use reqwest::header::{HeaderMap, HeaderValue, ACCEPT, AUTHORIZATION, CONTENT_TYP
 use reqwest::{ClientBuilder, Method, Proxy, RequestBuilder};
 use serde::{Deserialize, Serialize};
 use serde_json;
-use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tokio::runtime::{Builder, Handle, Runtime};
@@ -58,14 +57,22 @@ pub struct Client {
 impl Client {
 	/// New client
 	pub fn new() -> Result<Self, Error> {
-		Self::build(None)
+		// Try to get the SOCKS proxy address from TorManager or config
+		let socks_proxy_addr = crate::tor::tor_manager::TOR_MANAGER
+			.get()
+			.map(|mgr| {
+				let mgr = mgr.lock();
+				Some(mgr.socks_proxy_addr().to_string())
+			})
+			.unwrap_or_else(|| {
+				// If TOR_MANAGER is not initialized, return None
+				None
+			});
+
+		Self::build(socks_proxy_addr)
 	}
 
-	pub fn with_socks_proxy(socks_proxy_addr: SocketAddr) -> Result<Self, Error> {
-		Self::build(Some(socks_proxy_addr))
-	}
-
-	fn build(socks_proxy_addr: Option<SocketAddr>) -> Result<Self, Error> {
+	fn build(socks_proxy_addr: Option<String>) -> Result<Self, Error> {
 		let mut headers = HeaderMap::new();
 		headers.insert(USER_AGENT, HeaderValue::from_static("epic-client"));
 		headers.insert(ACCEPT, HeaderValue::from_static("application/json"));
@@ -76,8 +83,8 @@ impl Client {
 			.use_rustls_tls()
 			.default_headers(headers);
 
-		if let Some(s) = socks_proxy_addr {
-			let proxy = Proxy::all(&format!("socks5h://{}:{}", s.ip(), s.port()))
+		if let Some(addr) = socks_proxy_addr {
+			let proxy = Proxy::all(&format!("socks5h://{}", addr))
 				.map_err(|e| Error::Internal(format!("Unable to create proxy: {}", e)))?;
 			builder = builder.proxy(proxy);
 		}

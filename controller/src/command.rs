@@ -153,7 +153,6 @@ where
 			keychain_mask,
 			&config.api_listen_addr(),
 			g_args.tls_conf.clone(),
-			tor_config.use_tor_listener,
 			is_node_synced.clone(),
 		),
 		"keybase" => KeybaseAllChannels::new().unwrap().listen(
@@ -171,6 +170,7 @@ where
 					epicbox_config.clone(),
 					&mut reconnections,
 					is_node_synced.clone(),
+					tor_config.clone(),
 				);
 				info!("Reconnect to epicbox");
 				match listener {
@@ -415,15 +415,23 @@ where
 							None => None,
 							Some(&m) => Some(m.to_owned()),
 						};
-						slate = epicbox_channel.send(wallet, km, &slate, is_node_synced.clone())?;
+						let tor_conf = tor_config
+							.clone()
+							.expect("TorConfig is required for epicbox send");
+						slate = epicbox_channel.send(
+							wallet,
+							km,
+							&slate,
+							is_node_synced.clone(),
+							tor_conf,
+						)?;
 
 						api.tx_lock_outputs(m, &slate, 0, Some(args.dest))?;
 
 						return Ok(());
 					}
 					method => {
-						let sender =
-							create_sender(method, &args.dest, tor_config, is_node_synced.clone())?;
+						let sender = create_sender(method, &args.dest, is_node_synced.clone())?;
 
 						slate = sender.send_tx(&slate)?;
 						api.tx_lock_outputs(m, &slate, 0, Some(args.dest))?;
@@ -696,7 +704,6 @@ pub struct ProcessInvoiceArgs {
 pub fn process_invoice<L, C, K>(
 	wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K>>>>,
 	keychain_mask: Option<&SecretKey>,
-	tor_config: Option<TorConfig>,
 	args: ProcessInvoiceArgs,
 	dark_scheme: bool,
 	is_node_synced: Arc<AtomicBool>,
@@ -784,8 +791,7 @@ where
 						})?;
 					}
 					method => {
-						let sender =
-							create_sender(method, &args.dest, tor_config, is_node_synced.clone())?;
+						let sender = create_sender(method, &args.dest, is_node_synced.clone())?;
 						slate = sender.send_tx(&slate)?;
 						api.tx_lock_outputs(m, &slate, 0, Some(args.dest))?;
 					}

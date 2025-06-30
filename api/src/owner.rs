@@ -35,13 +35,12 @@ use crate::libwallet::{
 use crate::util::logger::LoggingConfig;
 use crate::util::secp::key::SecretKey;
 use crate::util::{from_hex, static_secp_instance, Mutex, ZeroingString};
+use ed25519_dalek::VerifyingKey as DalekPublicKey;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{channel, Sender};
 use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
-
-use ed25519_dalek::VerifyingKey as DalekPublicKey;
 
 /// Main interface into all wallet API functions.
 /// Wallet APIs are split into two seperate blocks of functionality
@@ -769,18 +768,18 @@ where
 						Some(&m) => Some(m.to_owned()),
 					};
 
-					slate =
-						epicbox_channel.send(wallet, km, &slate, self.is_node_synced.clone())?;
+					slate = epicbox_channel.send(
+						wallet,
+						km,
+						&slate,
+						self.is_node_synced.clone(),
+						tor_config_lock.clone().unwrap_or_default(),
+					)?;
 					self.tx_lock_outputs(keychain_mask, &slate, 0, Some(sa.dest))?;
 					return Ok(slate);
 				} else {
-					let comm_adapter = create_sender(
-						&sa.method,
-						&sa.dest,
-						tor_config_lock.clone(),
-						is_node_synced,
-					)
-					.map_err(|e| Error::GenericError(format!("{}", e)))?;
+					let comm_adapter = create_sender(&sa.method, &sa.dest, is_node_synced)
+						.map_err(|e| Error::GenericError(format!("{}", e)))?;
 					slate = comm_adapter.send_tx(&slate)?;
 				}
 
@@ -1119,6 +1118,62 @@ where
 		};
 
 		owner::post_tx(&client, tx, fluff)
+	}
+
+	/// Posts a completed transaction to a Tor .onion node for validation and inclusion in a block.
+	///
+	/// # Arguments
+	/// * `keychain_mask` - Wallet secret mask to XOR against the stored wallet seed before using, if being used.
+	/// * `tx` - A completed [`Transaction`](../epic_core/core/transaction/struct.Transaction.html).
+	/// * `tor_node_url` - The Tor .onion address of the node (e.g. "http://abc123.onion")
+	///
+	/// # Returns
+	/// * `Ok(())` if successful
+	/// * or [`libwallet::Error`](../epic_wallet_libwallet/struct.Error.html) if an error is encountered.
+	///
+	/// # Example
+	/// Set up as in [`new`](struct.Owner.html#method.new) method above.
+	/// ```
+	/// # epic_wallet_api::doctest_helper_setup_doc_env!(wallet, wallet_config);
+	///
+	/// use std::sync::atomic::AtomicBool;
+	/// let mut api_owner = Owner::new(wallet.clone(), None, Arc::new(AtomicBool::new(true)));
+	/// let args = epic_wallet_libwallet::InitTxArgs {
+	///     src_acct_name: None,
+	///     amount: 2_000_000_000,
+	///     minimum_confirmations: 10,
+	///     max_outputs: 500,
+	///     num_change_outputs: 1,
+	///     selection_strategy_is_use_all: false,
+	///     message: Some("Post this tx via Tor".to_owned()),
+	///     ..Default::default()
+	/// };
+	/// let result = api_owner.init_send_tx(
+	///     None,
+	///     args,
+	///     Arc::new(AtomicBool::new(true))
+	/// );
+	///
+	/// if let Ok(slate) = result {
+	///     // ... finalize and get the transaction ...
+	///     let tor_url = "http://exampleonionaddress.onion:3413";
+	///     let res = api_owner.post_tx_tor(None, &slate.tx, tor_url);
+	/// }
+	/// ```
+	pub fn post_tx_tor(
+		&self,
+		keychain_mask: Option<&SecretKey>,
+		tx: &Transaction,
+		tor_node_url: &str,
+	) -> Result<(), Error> {
+		let client = {
+			let mut w_lock = self.wallet_inst.lock();
+			let w = w_lock.lc_provider()?.wallet_inst()?;
+			let _ = w.keychain(keychain_mask)?;
+			w.w2n_client().clone()
+		};
+
+		owner::post_tx_tor(&client, tx, tor_node_url)
 	}
 
 	/// Cancels a transaction. This entails:
@@ -2402,10 +2457,8 @@ where
 		poll_interval_secs: u64,
 		max_attempts: u32,
 	) -> Result<bool, Error> {
-		let mut w_lock = self.wallet_inst.lock();
-		let w = w_lock.lc_provider()?.wallet_inst()?;
 		crate::libwallet::api_impl::owner::wait_for_tx_in_mempool(
-			&mut **w,
+			self.wallet_inst.clone(),
 			mask,
 			tx_slate_id,
 			poll_interval_secs,

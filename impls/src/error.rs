@@ -81,6 +81,14 @@ pub enum Error {
 	#[error("Address is not an Onion v3 Address: {0}")]
 	NotOnion(String),
 
+	/// Tor Process error
+	#[error("Tor Process Error: {0}")]
+	TorProcess(String),
+
+	/// Tor Configuration Error
+	#[error("Tor Config Error: {0}")]
+	TorConfig(String),
+
 	/// From sqlite::Error
 	#[error("SQLite Error: {0}")]
 	#[serde(skip)]

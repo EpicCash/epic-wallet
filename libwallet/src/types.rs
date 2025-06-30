@@ -403,6 +403,8 @@ pub trait NodeClient: Send + Sync + Clone {
 
 	/// Posts a transaction to a epic node
 	fn post_tx(&self, tx: &Transaction, fluff: bool) -> Result<(), Error>;
+	/// Posts a transaction to a epic node via Tor
+	fn post_tx_tor(&self, tx: &Transaction, tor_url: &str) -> Result<(), Error>;
 
 	/// Get a transaction from node mempool
 	fn get_mempool(&self) -> Result<Vec<PoolEntry>, Error>;
@@ -460,6 +462,9 @@ pub trait NodeClient: Send + Sync + Clone {
 		start_height: u64,
 		end_height: Option<u64>,
 	) -> Result<(u64, u64), Error>;
+
+	/// Optionally get onion addresses from the node (owner API)
+	fn get_onion_addresses(&self) -> Result<Vec<String>, Error>;
 }
 
 /// Node version info

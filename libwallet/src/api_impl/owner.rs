@@ -676,23 +676,33 @@ where
 }
 
 /// Polls the node mempool for the given transaction and marks it as TxSentMempool if found.
-pub fn wait_for_tx_in_mempool<'a, T: ?Sized, C, K>(
-	wallet: &mut T,
+pub fn wait_for_tx_in_mempool<'a, L, C, K>(
+	wallet_inst: Arc<Mutex<Box<dyn WalletInst<'a, L, C, K>>>>,
 	keychain_mask: Option<&SecretKey>,
 	tx_slate_id: &uuid::Uuid,
 	poll_interval_secs: u64,
 	max_attempts: u32,
 ) -> Result<bool, Error>
 where
-	T: WalletBackend<'a, C, K>,
+	L: WalletLCProvider<'a, C, K>,
 	C: NodeClient + 'a,
 	K: Keychain + 'a,
 {
 	for _ in 0..max_attempts {
+		let mempool = {
+			wallet_lock!(wallet_inst, w);
+			w.w2n_client().get_mempool()?
+			// wallet is unlocked here, at the end of this block
+		};
+
 		// Get mempool entries from node
-		let mempool = wallet.w2n_client().get_mempool()?;
+
 		// Get the tx log entry for this slate id
-		let mut txs = wallet.tx_log_iter().collect::<Vec<_>>();
+		let mut txs = {
+			wallet_lock!(wallet_inst, w);
+			w.tx_log_iter().collect::<Vec<_>>()
+			// wallet is unlocked here, at the end of this block
+		};
 		if let Some(entry) = txs.iter_mut().find(|e| e.tx_slate_id == Some(*tx_slate_id)) {
 			// Check if any mempool entry matches this transaction (by kernel, id, etc.)
 			let found = mempool.iter().any(|pool_entry| {
@@ -705,9 +715,10 @@ where
 						.any(|k| Some(k.excess()) == entry.kernel_excess)
 			});
 			if found {
+				wallet_lock!(wallet_inst, w);
 				entry.tx_type = TxLogEntryType::TxSentMempool;
-				let parent_key_id = wallet.parent_key_id();
-				let mut batch = wallet.batch(keychain_mask)?;
+				let parent_key_id = w.parent_key_id();
+				let mut batch = w.batch(keychain_mask)?;
 				batch.save_tx_log_entry(entry.clone(), &parent_key_id)?;
 				batch.commit()?;
 				return Ok(true);
@@ -759,17 +770,6 @@ where
 	w.get_stored_tx(entry)
 }
 
-/// Update the tx log entry to indicate the transaction is in the mempool
-/// take a client impl instead of wallet so as not to have to lock the wallet
-pub fn get_mempool_status<'a, C>(client: &C, _tx: &Transaction) -> Result<(), Error>
-where
-	C: NodeClient + 'a,
-{
-	let txs = client.get_mempool();
-	println!("txs in mempool: {:?}", txs);
-	Ok(())
-}
-
 /// Posts a transaction to the chain
 /// take a client impl instead of wallet so as not to have to lock the wallet
 pub fn post_tx<'a, C>(client: &C, tx: &Transaction, fluff: bool) -> Result<(), Error>
@@ -779,13 +779,30 @@ where
 	let res = client.post_tx(&tx, fluff);
 
 	if let Err(e) = res {
-		error!("api: post_tx: failed with error: {}", e);
+		error!("Failed posting tx: {} with error: {}", tx.hash(), e);
 		Err(e)
 	} else {
-		debug!(
-			"api: post_tx: successfully posted tx: {}, fluff? {}",
+		debug!("Successfully posted tx: {}, fluff? {}", tx.hash(), fluff);
+		Ok(())
+	}
+}
+
+/// Posts a transaction to a Tor .onion node mempool
+/// take a client impl instead of wallet so as not to have to lock the wallet
+pub fn post_tx_tor<'a, C>(client: &C, tx: &Transaction, tor_node_url: &str) -> Result<(), Error>
+where
+	C: NodeClient + 'a,
+{
+	let res = client.post_tx_tor(tx, tor_node_url);
+
+	if let Err(e) = res {
+		error!("Failed posting tx: {} with error: {}", tx.hash(), e);
+		Err(e)
+	} else {
+		info!(
+			"Successfully posted tx: {} via tor, to {}",
 			tx.hash(),
-			fluff
+			tor_node_url
 		);
 		Ok(())
 	}

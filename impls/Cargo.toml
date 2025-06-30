@@ -43,9 +43,10 @@ sysinfo = "0.35"
 parking_lot = "0.12"
 tungstenite = {version="*", features = ["native-tls"] }
 tokio = { version = "1", features = ["full"] }
-reqwest = { version = "0.12", features = ["rustls-tls", "socks"] }
+reqwest = { version = "0.12", features = ["rustls-tls", "socks", "blocking"] }
 sqlite = { version="0.37"}
-
+once_cell = "1.21.3"
+base64 = "0.22"
 epic_wallet_util = { path = "../util", version = "3.6.0" }
 epic_wallet_config = { path = "../config", version = "3.6.0" }
 epic_wallet_libwallet = { path = "../libwallet", version = "3.6.0" }

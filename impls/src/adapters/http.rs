@@ -16,24 +16,15 @@
 use crate::client_utils::{Client, ClientError};
 use crate::libwallet::slate_versions::{SlateVersion, VersionedSlate};
 use crate::libwallet::{Error, Slate};
-use crate::tor::config as tor_config;
-use crate::tor::process as tor_process;
 use crate::SlateSender;
 use serde::Serialize;
 use serde_json::{json, Value};
-use std::net::SocketAddr;
-use std::path::MAIN_SEPARATOR;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
-
-const TOR_CONFIG_PATH: &'static str = "tor/sender";
 
 #[derive(Clone)]
 pub struct HttpSlateSender {
 	base_url: String,
-	use_socks: bool,
-	socks_proxy_addr: Option<SocketAddr>,
-	tor_config_dir: String,
 	is_node_synced: Arc<AtomicBool>,
 }
 
@@ -48,27 +39,9 @@ impl HttpSlateSender {
 		} else {
 			Ok(HttpSlateSender {
 				base_url: base_url.to_owned(),
-				use_socks: false,
-				socks_proxy_addr: None,
-				tor_config_dir: String::from(""),
 				is_node_synced,
 			})
 		}
-	}
-
-	/// Switch to using socks proxy
-	pub fn with_socks_proxy(
-		base_url: &str,
-		proxy_addr: &str,
-		tor_config_dir: &str,
-		is_node_synced: Arc<AtomicBool>,
-	) -> Result<HttpSlateSender, SchemeNotHttp> {
-		let mut ret = Self::new(base_url, is_node_synced)?;
-		ret.use_socks = true;
-		//TODO: Unwrap
-		ret.socks_proxy_addr = Some(SocketAddr::V4(proxy_addr.parse().unwrap()));
-		ret.tor_config_dir = tor_config_dir.into();
-		Ok(ret)
 	}
 
 	/// Check version of the listening wallet
@@ -140,15 +113,8 @@ impl HttpSlateSender {
 	where
 		IN: Serialize,
 	{
-		let client = if !self.use_socks {
-			Client::new()
-		} else {
-			Client::with_socks_proxy(
-				self.socks_proxy_addr
-					.ok_or_else(|| ClientError::Internal("No socks proxy address set".into()))?,
-			)
-		}
-		.map_err(|_| ClientError::Internal("Unable to create http client".into()))?;
+		let client = Client::new()
+			.map_err(|_| ClientError::Internal("Unable to create http client".into()))?;
 		let req = client.create_post_request(url, api_secret, &input)?;
 		let res = client.send_request(req)?;
 		Ok(res)
@@ -169,31 +135,6 @@ impl SlateSender for HttpSlateSender {
 			false => "/",
 		};
 		let url_str = format!("{}{}v2/foreign", self.base_url, trailing);
-
-		// set up tor send process if needed
-		let mut tor = tor_process::TorProcess::new();
-		if self.use_socks {
-			let tor_dir = format!(
-				"{}{}{}",
-				&self.tor_config_dir, MAIN_SEPARATOR, TOR_CONFIG_PATH
-			);
-			warn!(
-				"Starting TOR Process for send at {:?}",
-				self.socks_proxy_addr
-			);
-			tor_config::output_tor_sender_config(
-				&tor_dir,
-				&self.socks_proxy_addr.unwrap().to_string(),
-			)
-			.map_err(|e| Error::TorConfig(format!("{:?}", e).into()))?;
-			// Start TOR process
-			tor.torrc_path(&format!("{}/torrc", &tor_dir))
-				.working_dir(&tor_dir)
-				.timeout(20)
-				.completion_percent(100)
-				.launch()
-				.map_err(|e| Error::TorProcess(format!("{:?}", e).into()))?;
-		}
 
 		let slate_send = match self.check_other_version(&url_str)? {
 			SlateVersion::V3 => VersionedSlate::into_version(slate.clone(), SlateVersion::V3),

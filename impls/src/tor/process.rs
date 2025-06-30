@@ -50,7 +50,6 @@ extern crate regex;
 extern crate timer;
 
 use regex::Regex;
-use std::env;
 use std::fs::{self, File};
 use std::io;
 use std::io::Write;
@@ -62,9 +61,9 @@ use std::thread;
 use sysinfo::{Pid, Process};
 
 #[cfg(windows)]
-const TOR_EXE_NAME: &'static str = "tor.exe";
+const TOR_EXE_NAME: &'static str = "tor/tor.exe";
 #[cfg(not(windows))]
-const TOR_EXE_NAME: &'static str = "tor";
+const TOR_EXE_NAME: &'static str = "tor/tor";
 
 #[derive(Debug)]
 pub enum Error {
@@ -162,11 +161,10 @@ impl TorProcess {
 	// The tor process will have its stdout piped, so if the stdout lines are not consumed they
 	// will keep accumulating over time, increasing the consumed memory.
 	pub fn launch(&mut self) -> Result<&mut Self, Error> {
-		let mut tor_exe_dir = env::current_exe().unwrap();
-		tor_exe_dir.pop();
-		tor_exe_dir.push(&self.tor_cmd);
-
-		let mut tor = Command::new(tor_exe_dir);
+		let mut tor_exe_path = std::env::current_exe().expect("Failed to get current exe path");
+		tor_exe_path.pop(); // remove the executable filename
+		tor_exe_path.push(&self.tor_cmd); // append "tor/tor" or "tor/tor.exe"
+		let mut tor = Command::new(tor_exe_path);
 
 		if let Some(ref d) = self.working_dir {
 			tor.current_dir(&d);
@@ -262,7 +260,7 @@ impl TorProcess {
 				}
 				let timestamp = &raw_line[..timestamp_len];
 				let line = &raw_line[timestamp_len + 1..raw_line.len() - 1];
-				debug!("{} {}", timestamp, line);
+				info!("{} {}", timestamp, line);
 				match line.split(' ').nth(0) {
 					Some("[notice]") => {
 						if let Some("Bootstrapped") = line.split(' ').nth(1) {
@@ -350,7 +348,7 @@ impl<T: BufRead> BufReadLossy for T {}
 impl Drop for TorProcess {
 	// kill the child
 	fn drop(&mut self) {
-		trace!("DROPPING TOR PROCESS");
 		self.kill().unwrap_or(());
+		info!("Tor thread stopped");
 	}
 }
