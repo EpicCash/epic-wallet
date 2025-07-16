@@ -641,7 +641,10 @@ pub fn parse_global_args(
 		Some(c) => c,
 	};
 
-	let offline_mode = args.get_flag("offline_mode");
+	let mut offline_mode = args.get_flag("offline_mode");
+	if let Some(("init", _)) = args.subcommand() {
+		offline_mode = true;
+	}
 	Ok(command::GlobalArgs {
 		account: account.to_owned(),
 		show_spent,
@@ -671,11 +674,10 @@ where
 		true => 16,
 	};
 
-	let recovery_phrase = match args.subcommand() {
-		Some(("init", sub_args)) if sub_args.get_flag("recover") => {
-			Some(prompt_recovery_phrase(wallet)?)
-		}
-		_ => None,
+	let recovery_phrase = if args.get_flag("recover") {
+		Some(prompt_recovery_phrase(wallet)?)
+	} else {
+		None
 	};
 
 	if recovery_phrase.is_some() {

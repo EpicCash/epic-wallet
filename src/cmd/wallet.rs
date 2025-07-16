@@ -42,7 +42,10 @@ pub fn wallet_command(wallet_args: &ArgMatches, config: GlobalWalletConfig) -> i
 	}
 
 	// Check if offline mode is enabled
-	let offline_mode = wallet_args.get_flag("offline_mode");
+	let (offline_mode, is_init) = match wallet_args.subcommand() {
+		Some(("init", _)) => (true, true),
+		_ => (wallet_args.get_flag("offline_mode"), false),
+	};
 
 	// Setup node client, check for provided node URL, else use default
 	let mut node_client = match wallet_args
@@ -95,7 +98,9 @@ pub fn wallet_command(wallet_args: &ArgMatches, config: GlobalWalletConfig) -> i
 		}
 		Err(e) => {
 			if offline_mode {
-				warn!("Failed to check node sync status. Proceeding without a synced node.");
+				if !is_init {
+					warn!("Failed to check node sync status. Proceeding without a synced node.");
+				}
 			} else {
 				error!("Failed to check node sync status: {}", e);
 				//add additional error info is type is 401
