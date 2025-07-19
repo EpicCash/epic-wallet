@@ -138,6 +138,10 @@ pub fn initial_setup_wallet(
 		let mut config_path = epic_path.clone();
 		config_path.push(WALLET_CONFIG_FILE_NAME);
 
+		//only if file not exist return defaults else load epic-wallet.toml data
+		if config_path.exists() {
+			return GlobalWalletConfig::new(config_path.to_str().unwrap());
+		}
 		// Return defaults if file doesn't exist
 		let mut default_config = GlobalWalletConfig::for_chain(chain_type);
 		default_config.config_file_path = Some(config_path);

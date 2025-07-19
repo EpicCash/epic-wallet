@@ -1188,6 +1188,7 @@ dependencies = [
  "built",
  "clap",
  "ctrlc",
+ "dirs 6.0.0",
  "easy-jsonrpc",
  "epic_wallet_api",
  "epic_wallet_config",

@@ -169,10 +169,11 @@ where
 		let perc_complete = cmp::min(((progress / range) * 100.0) as u8, 99);
 
 		let msg = format!(
-			"Checking {} outputs, up to index {}. (Highest index: {})",
+			"Checking {} outputs (from PMMR index {} to {}, highest: {}).",
 			outputs.len(),
-			highest_index,
+			start_index,
 			last_retrieved_index,
+			highest_index,
 		);
 		if let Some(ref s) = status_send_channel {
 			let _ = s.send(StatusMessage::Scanning(msg, perc_complete));

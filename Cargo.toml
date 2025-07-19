@@ -37,6 +37,7 @@ epic_wallet_libwallet = { path = "./libwallet", version = "3.6.0" }
 epic_wallet_controller = { path = "./controller", version = "3.6.0" }
 epic_wallet_config = { path = "./config", version = "3.6.0" }
 epic_wallet_util = { path = "./util", version = "3.6.0" }
+dirs = "6.0.0"
 
 [build-dependencies]
 built = { version = "0.8", features = ["git2", "cargo-lock"] }
