@@ -1252,6 +1252,7 @@ version = "3.6.0"
 dependencies = [
  "bytes",
  "chrono",
+ "csv",
  "easy-jsonrpc-mw",
  "epic_wallet_api",
  "epic_wallet_config",
