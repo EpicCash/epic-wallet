@@ -17,7 +17,7 @@
 **Goal:** Improve network stability and wallet functionalities
 
 1. 🟧 Update the scan method for sub-accounts
-2. 🟧 Improve wallet transaction behavior
+2. ✅ Improve wallet transaction behavior
 
 ## 4: Automation & CLI Wizard
 **Goal:** Enhance automation and usability
