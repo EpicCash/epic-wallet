@@ -24,7 +24,7 @@ where
     controller::owner_single_use(
         wallet.clone(),
         keychain_mask,
-        |api, m| {
+        |_api, _m| {
             // Read file and parse transactions
             let file = File::open(&args.input)?;
             let imported_txs: Vec<TxLogEntry> = match args.format.as_str() {
