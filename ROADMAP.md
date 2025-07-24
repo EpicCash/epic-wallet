@@ -29,7 +29,7 @@
 ## 5: Long-Term Features & Documentation
 **Goal:** Implement import/export functionality, update documentation, and plan future improvements
 
-1. ⬜ Implement Wallet transaction import/export functionality
+1. ✅ Implement Wallet transaction import/export functionality
 2. 🟧 Update comments and documentation for missing transaction types and functionalities
 
 ---
