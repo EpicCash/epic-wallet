@@ -1546,6 +1546,7 @@ where
                 a,
                 wallet_config.dark_background_color_scheme.unwrap_or(true),
                 is_node_synced.clone(),
+                &global_wallet_args,
             ) {
                 Ok(_) => Ok("send".to_string()),
                 Err(e) => Err(e),

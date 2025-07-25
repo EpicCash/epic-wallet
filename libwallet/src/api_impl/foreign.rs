@@ -21,8 +21,8 @@ use crate::epic_util::secp::key::SecretKey;
 use crate::internal::{tx, updater};
 use crate::slate_versions::SlateVersion;
 use crate::{
-	address, BlockFees, CbData, Error, NodeClient, Slate, TxLogEntryType, VersionInfo,
-	WalletBackend,
+    address, BlockFees, CbData, Error, NodeClient, Slate, TxLogEntryType, VersionInfo,
+    WalletBackend,
 };
 
 const FOREIGN_API_VERSION: u16 = 2;
@@ -30,150 +30,156 @@ const USER_MESSAGE_MAX_LEN: usize = 256;
 
 /// Return the version info
 pub fn check_version() -> VersionInfo {
-	VersionInfo {
-		foreign_api_version: FOREIGN_API_VERSION,
-		supported_slate_versions: SlateVersion::iter().collect(),
-	}
+    VersionInfo {
+        foreign_api_version: FOREIGN_API_VERSION,
+        supported_slate_versions: SlateVersion::iter().collect(),
+    }
 }
 
 /// Build a coinbase transaction
 pub fn build_coinbase<'a, T: ?Sized, C, K>(
-	w: &mut T,
-	keychain_mask: Option<&SecretKey>,
-	block_fees: &BlockFees,
-	test_mode: bool,
+    w: &mut T,
+    keychain_mask: Option<&SecretKey>,
+    block_fees: &BlockFees,
+    test_mode: bool,
 ) -> Result<CbData, Error>
 where
-	T: WalletBackend<'a, C, K>,
-	C: NodeClient + 'a,
-	K: Keychain + 'a,
+    T: WalletBackend<'a, C, K>,
+    C: NodeClient + 'a,
+    K: Keychain + 'a,
 {
-	updater::build_coinbase(&mut *w, keychain_mask, block_fees, test_mode)
+    updater::build_coinbase(&mut *w, keychain_mask, block_fees, test_mode)
 }
 
 /// Build a coinbase transaction
 pub fn build_foundation<'a, T: ?Sized, C, K>(
-	w: &mut T,
-	keychain_mask: Option<&SecretKey>,
-	block_fees: &BlockFees,
-	test_mode: bool,
+    w: &mut T,
+    keychain_mask: Option<&SecretKey>,
+    block_fees: &BlockFees,
+    test_mode: bool,
 ) -> Result<CbData, Error>
 where
-	T: WalletBackend<'a, C, K>,
-	C: NodeClient + 'a,
-	K: Keychain + 'a,
+    T: WalletBackend<'a, C, K>,
+    C: NodeClient + 'a,
+    K: Keychain + 'a,
 {
-	updater::build_foundation(&mut *w, keychain_mask, block_fees, test_mode)
+    updater::build_foundation(&mut *w, keychain_mask, block_fees, test_mode)
 }
 
 /// verify slate messages
 pub fn verify_slate_messages(slate: &Slate) -> Result<(), Error> {
-	slate.verify_messages()
+    slate.verify_messages()
 }
 
 /// Receive a tx as recipient
 pub fn receive_tx<'a, T: ?Sized, C, K>(
-	w: &mut T,
-	keychain_mask: Option<&SecretKey>,
-	slate: &Slate,
-	dest_acct_name: Option<&str>,
-	message: Option<String>,
-	addr_from: Option<String>,
-	use_test_rng: bool,
+    w: &mut T,
+    keychain_mask: Option<&SecretKey>,
+    slate: &Slate,
+    dest_acct_name: Option<&str>,
+    message: Option<String>,
+    addr_from: Option<String>,
+    use_test_rng: bool,
 ) -> Result<Slate, Error>
 where
-	T: WalletBackend<'a, C, K>,
-	C: NodeClient + 'a,
-	K: Keychain + 'a,
+    T: WalletBackend<'a, C, K>,
+    C: NodeClient + 'a,
+    K: Keychain + 'a,
 {
-	let mut ret_slate = slate.clone();
-	check_ttl(w, &ret_slate)?;
-	let parent_key_id = match dest_acct_name {
-		Some(d) => {
-			let pm = w.get_acct_path(d.to_owned())?;
-			match pm {
-				Some(p) => p.path,
-				None => w.parent_key_id(),
-			}
-		}
-		None => w.parent_key_id(),
-	};
-	// Don't do this multiple times
-	let tx = updater::retrieve_txs(
-		&mut *w,
-		None,
-		Some(ret_slate.id),
-		Some(&parent_key_id),
-		use_test_rng,
-		None,
-		None,
-		None,
-	)?;
-	for t in &tx.2 {
-		if t.tx_type == TxLogEntryType::TxReceived {
-			return Err(Error::TransactionAlreadyReceived(ret_slate.id.to_string()).into());
-		}
-	}
+    let mut ret_slate = slate.clone();
+    check_ttl(w, &ret_slate)?;
+    let parent_key_id = match dest_acct_name {
+        Some(d) => {
+            let pm = w.get_acct_path(d.to_owned())?;
+            match pm {
+                Some(p) => p.path,
+                None => w.parent_key_id(),
+            }
+        }
+        None => w.parent_key_id(),
+    };
+    // Don't do this multiple times
+    let tx = updater::retrieve_txs(
+        &mut *w,
+        None,
+        Some(ret_slate.id),
+        Some(&parent_key_id),
+        use_test_rng,
+        None,
+        None,
+        None,
+    )?;
+    for t in &tx.2 {
+        if t.tx_type == TxLogEntryType::TxReceived {
+            return Err(Error::TransactionAlreadyReceived(ret_slate.id.to_string()).into());
+        }
+    }
 
-	let message = match message {
-		Some(mut m) => {
-			m.truncate(USER_MESSAGE_MAX_LEN);
-			Some(m)
-		}
-		None => None,
-	};
+    let message = match message {
+        Some(mut m) => {
+            m.truncate(USER_MESSAGE_MAX_LEN);
+            Some(m)
+        }
+        None => None,
+    };
 
-	tx::add_output_to_slate(
-		&mut *w,
-		keychain_mask,
-		&mut ret_slate,
-		&parent_key_id,
-		1,
-		message,
-		false,
-		use_test_rng,
-	)?;
-	tx::update_message(&mut *w, keychain_mask, &mut ret_slate)?;
-	tx::update_public_addr(&mut *w, keychain_mask, &mut ret_slate, addr_from)?;
+    tx::add_output_to_slate(
+        &mut *w,
+        keychain_mask,
+        &mut ret_slate,
+        &parent_key_id,
+        1,
+        message,
+        false,
+        use_test_rng,
+    )?;
+    tx::update_message(&mut *w, keychain_mask, &mut ret_slate)?;
+    tx::update_public_addr(
+        &mut *w,
+        keychain_mask,
+        &mut ret_slate,
+        addr_from,
+        Some(&parent_key_id),
+    )?;
 
-	let keychain = w.keychain(keychain_mask)?;
-	let excess = ret_slate.calc_excess(&keychain)?;
+    let keychain = w.keychain(keychain_mask)?;
+    let excess = ret_slate.calc_excess(&keychain)?;
 
-	if let Some(ref mut p) = ret_slate.payment_proof {
-		let sig = tx::create_payment_proof_signature(
-			ret_slate.amount,
-			&excess,
-			p.sender_address,
-			address::address_from_derivation_path(&keychain, &parent_key_id, 0)?,
-		)?;
+    if let Some(ref mut p) = ret_slate.payment_proof {
+        let sig = tx::create_payment_proof_signature(
+            ret_slate.amount,
+            &excess,
+            p.sender_address,
+            address::address_from_derivation_path(&keychain, &parent_key_id, 0)?,
+        )?;
 
-		p.receiver_signature = Some(sig);
-	}
+        p.receiver_signature = Some(sig);
+    }
 
-	Ok(ret_slate)
+    Ok(ret_slate)
 }
 
 /// Receive an tx that this wallet has issued
 pub fn finalize_invoice_tx<'a, T: ?Sized, C, K>(
-	w: &mut T,
-	keychain_mask: Option<&SecretKey>,
-	slate: &Slate,
+    w: &mut T,
+    keychain_mask: Option<&SecretKey>,
+    slate: &Slate,
 ) -> Result<Slate, Error>
 where
-	T: WalletBackend<'a, C, K>,
-	C: NodeClient + 'a,
-	K: Keychain + 'a,
+    T: WalletBackend<'a, C, K>,
+    C: NodeClient + 'a,
+    K: Keychain + 'a,
 {
-	let mut sl = slate.clone();
-	check_ttl(w, &sl)?;
-	let context = w.get_private_context(keychain_mask, sl.id.as_bytes(), 1)?;
-	tx::complete_tx(&mut *w, keychain_mask, &mut sl, 1, &context)?;
-	tx::update_stored_tx(&mut *w, keychain_mask, &context, &mut sl, true)?;
-	tx::update_message(&mut *w, keychain_mask, &mut sl)?;
-	{
-		let mut batch = w.batch(keychain_mask)?;
-		batch.delete_private_context(sl.id.as_bytes(), 1)?;
-		batch.commit()?;
-	}
-	Ok(sl)
+    let mut sl = slate.clone();
+    check_ttl(w, &sl)?;
+    let context = w.get_private_context(keychain_mask, sl.id.as_bytes(), 1)?;
+    tx::complete_tx(&mut *w, keychain_mask, &mut sl, 1, &context)?;
+    tx::update_stored_tx(&mut *w, keychain_mask, &context, &mut sl, true)?;
+    tx::update_message(&mut *w, keychain_mask, &mut sl)?;
+    {
+        let mut batch = w.batch(keychain_mask)?;
+        batch.delete_private_context(sl.id.as_bytes(), 1)?;
+        batch.commit()?;
+    }
+    Ok(sl)
 }

@@ -468,6 +468,7 @@ pub fn send<L, C, K>(
     args: SendArgs,
     dark_scheme: bool,
     is_node_synced: Arc<AtomicBool>,
+    g_args: &GlobalArgs,
 ) -> Result<(), Error>
 where
     L: WalletLCProvider<'static, C, K> + 'static,
@@ -553,7 +554,12 @@ where
                             Some(&m) => Some(m.to_owned()),
                         };
                         controller::foreign_single_use(wallet, km, |api| {
-                            slate = api.receive_tx(&slate, Some(&args.dest), None)?;
+                            slate = api.receive_tx(
+                                &slate,
+                                Some(&args.dest),
+                                None,
+                                Some(g_args.account.clone()),
+                            )?;
                             Ok(())
                         })?;
                     }
@@ -667,7 +673,7 @@ where
             error!("Error validating participant messages: {}", e);
             return Err(e);
         }
-        slate = api.receive_tx(&slate, Some(&g_args.account), args.message.clone())?;
+        slate = api.receive_tx(&slate, Some(&g_args.account), args.message.clone(), None)?;
         Ok(())
     })?;
     if method == "emoji" {
