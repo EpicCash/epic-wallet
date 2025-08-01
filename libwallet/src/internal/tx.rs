@@ -471,7 +471,15 @@ where
     let parent_key_id = w.parent_key_id();
     let mut txs = w.tx_log_iter().collect::<Vec<_>>();
     if let Some(entry) = txs.iter_mut().find(|e| e.tx_slate_id == Some(slate.id)) {
-        entry.tx_type = TxLogEntryType::TxSentMempool;
+        match entry.tx_type {
+            TxLogEntryType::TxSent | TxLogEntryType::TxSentCreated => {
+                entry.tx_type = TxLogEntryType::TxSentMempool;
+            }
+            TxLogEntryType::TxReceived => {
+                entry.tx_type = TxLogEntryType::TxReceivedMempool;
+            }
+            _ => {}
+        }
         let mut batch = w.batch(keychain_mask)?;
         batch.save_tx_log_entry(entry.clone(), &parent_key_id)?;
         batch.commit()?;
