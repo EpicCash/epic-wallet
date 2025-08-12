@@ -139,7 +139,7 @@ where
         let mut batch = wallet.batch(keychain_mask)?;
         let log_id = batch.next_tx_log_id(&parent_key_id)?;
         let mut t = TxLogEntry::new(parent_key_id.clone(), TxLogEntryType::TxSentCreated, log_id);
-        t.creation_height = Some(height);
+
         t.tx_slate_id = Some(slate_id.clone());
         let filename = format!("{}.epictx", slate_id);
         t.stored_tx = Some(filename);
@@ -263,7 +263,7 @@ where
     let mut batch = wallet.batch(keychain_mask)?;
     let log_id = batch.next_tx_log_id(&parent_key_id)?;
     let mut t = TxLogEntry::new(parent_key_id.clone(), TxLogEntryType::TxReceived, log_id);
-    t.creation_height = Some(height);
+
     t.tx_slate_id = Some(slate_id);
     t.amount_credited = amount;
     t.num_outputs = 1;

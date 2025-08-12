@@ -319,7 +319,7 @@ pub trait OwnerRpc: Sync + Send {
                     "tx_slate_id": null,
                     "tx_type": "ConfirmedCoinbase",
                     "public_addr": null,
-                    "creation_height": null
+                    "confirmation_height": 1
                     },
                     {
                     "amount_credited": "1457920000",
@@ -341,7 +341,7 @@ pub trait OwnerRpc: Sync + Send {
                     "tx_slate_id": null,
                     "tx_type": "ConfirmedCoinbase",
                     "public_addr": null,
-                    "creation_height": null
+                    "confirmation_height": 2
                     }
                 ]
             }

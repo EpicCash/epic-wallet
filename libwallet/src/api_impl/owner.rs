@@ -1215,6 +1215,7 @@ where
                 let mut batch = w.batch(keychain_mask)?;
                 tx.confirmed = true;
                 tx.update_confirmation_ts();
+                tx.confirmation_height = Some(height);
                 batch.save_tx_log_entry(tx.clone(), &parent_key_id)?;
                 batch.commit()?;
             }

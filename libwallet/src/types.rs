@@ -846,7 +846,7 @@ impl fmt::Display for TxLogEntryType {
 pub struct TxLogEntry {
     /// Block height when transaction was created (for all tx types)
     #[serde(default)]
-    pub creation_height: Option<u64>,
+    pub confirmation_height: Option<u64>,
     /// BIP32 account path used for creating this tx
     pub parent_key_id: Identifier,
     /// Local id for this transaction (distinct from a slate transaction id)
@@ -938,7 +938,7 @@ impl TxLogEntry {
             kernel_lookup_min_height: None,
             payment_proof: None,
             public_addr: None,
-            creation_height: None,
+            confirmation_height: None,
         }
     }
 

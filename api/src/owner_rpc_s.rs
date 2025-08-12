@@ -349,7 +349,7 @@ pub trait OwnerRpcS {
                 "payment_proof": null,
                 "tx_type": "ConfirmedCoinbase",
                 "public_addr": null,
-                "creation_height": null
+                "confirmation_height": 1
                 },
                 {
                 "amount_credited": "1457920000",
@@ -371,7 +371,7 @@ pub trait OwnerRpcS {
                 "tx_slate_id": null,
                 "tx_type": "ConfirmedCoinbase",
                 "public_addr": null,
-                "creation_height": null
+                "confirmation_height": 2
                 }
           ]
         }
