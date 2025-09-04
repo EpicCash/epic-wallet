@@ -43,7 +43,7 @@ pub fn wallet_command(wallet_args: &ArgMatches, config: GlobalWalletConfig) -> i
 
 	// Check if offline mode is enabled
 	let (offline_mode, is_init) = match wallet_args.subcommand() {
-		Some(("init", _)) => (true, true),
+		Some(("init", _)) | Some(("recover", _)) => (true, true),
 		_ => (wallet_args.get_flag("offline_mode"), false),
 	};
 

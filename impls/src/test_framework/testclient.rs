@@ -501,6 +501,10 @@ impl NodeClient for LocalWalletClient {
 	fn get_version_info(&mut self) -> Option<NodeVersionInfo> {
 		None
 	}
+	/// Optionally get onion addresses from the node (owner API)
+	fn get_onion_addresses(&self) -> Result<Vec<String>, libwallet::Error> {
+		Ok(vec![])
+	}
 	fn get_node_status(&self) -> Result<NodeStatus, libwallet::Error> {
 		let m = WalletProxyMessage {
 			sender_id: self.id.clone(),
@@ -540,6 +544,22 @@ impl NodeClient for LocalWalletClient {
 		let r = self.rx.lock();
 		let m = r.recv().unwrap();
 		trace!("Received post_tx response: {:?}", m.clone());
+		Ok(())
+	}
+
+	fn post_tx_tor(&self, tx: &Transaction, tor_url: &str) -> Result<(), libwallet::Error> {
+		let m = WalletProxyMessage {
+			sender_id: self.id.clone(),
+			dest: tor_url.to_owned(),
+			method: "post_tx_tor".to_owned(),
+			body: serde_json::to_string(tx).unwrap(),
+		};
+
+		{
+			let p = self.proxy_tx.lock();
+			p.send(m)
+				.map_err(|_| libwallet::Error::ClientCallback("post_tx_tor send".to_owned()))?;
+		}
 		Ok(())
 	}
 

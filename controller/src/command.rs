@@ -1,3 +1,155 @@
+use epic_wallet_libwallet::wallet_lock;
+/// Arguments for import_tx command
+pub struct ImportTxArgs {
+    pub input: String,
+    pub format: String, // "json" or "csv"
+}
+
+/// Import transactions from a file in JSON or CSV format, avoiding duplicates
+pub fn import_tx<L, C, K>(
+    wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K>>>>,
+    keychain_mask: Option<&SecretKey>,
+    args: ImportTxArgs,
+    is_node_synced: Arc<AtomicBool>,
+) -> Result<(), Error>
+where
+    L: WalletLCProvider<'static, C, K> + 'static,
+    C: NodeClient + 'static,
+    K: keychain::Keychain + 'static,
+{
+    use epic_wallet_libwallet::TxLogEntry;
+    use std::collections::HashSet;
+    use std::io::BufReader;
+
+    controller::owner_single_use(
+        wallet.clone(),
+        keychain_mask,
+        |_api, _m| {
+            // Read file and parse transactions
+            let file = File::open(&args.input)?;
+            let imported_txs: Vec<TxLogEntry> = match args.format.as_str() {
+                "json" => serde_json::from_reader(BufReader::new(file))
+                    .map_err(|e| Error::ArgumentError(format!("JSON parse error: {}", e)))?,
+                "csv" => {
+                    let mut rdr = csv::Reader::from_reader(BufReader::new(file));
+                    let mut txs = Vec::new();
+                    for result in rdr.deserialize() {
+                        let tx: TxLogEntry = result
+                            .map_err(|e| Error::ArgumentError(format!("CSV parse error: {}", e)))?;
+                        txs.push(tx);
+                    }
+                    txs
+                }
+                _ => {
+                    return Err(Error::ArgumentError(
+                        "Invalid format, must be 'json' or 'csv'".to_string(),
+                    ))
+                }
+            };
+
+            // Get existing tx ids and slate ids to avoid duplicates
+            wallet_lock!(wallet, w);
+            let existing: Vec<TxLogEntry> = w.tx_log_iter().collect();
+            let mut existing_ids = HashSet::new();
+            let mut existing_slate_ids = HashSet::new();
+            for tx in &existing {
+                existing_ids.insert(tx.id);
+                if let Some(sid) = tx.tx_slate_id {
+                    existing_slate_ids.insert(sid);
+                }
+            }
+
+            // Only import txs that are not already present
+            let mut imported = 0;
+            let mut batch = w.batch(keychain_mask)?;
+            for tx in imported_txs {
+                if existing_ids.contains(&tx.id)
+                    || (tx.tx_slate_id.is_some()
+                        && existing_slate_ids.contains(&tx.tx_slate_id.unwrap()))
+                {
+                    continue;
+                }
+                // Save tx log entry
+                let parent_key_id = tx.parent_key_id.clone();
+                batch.save_tx_log_entry(tx, &parent_key_id)?;
+                imported += 1;
+            }
+            batch.commit()?;
+            warn!("Imported {} new transactions from {}", imported, args.input);
+            Ok(())
+        },
+        is_node_synced,
+    )
+}
+/// Arguments for export_tx command
+pub struct ExportTxArgs {
+    pub id: Option<u32>,
+    pub all: bool,
+    pub output: String,
+    pub format: String, // "json" or "csv"
+}
+
+/// Export transactions to a file in JSON or CSV format
+pub fn export_tx<L, C, K>(
+    wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K>>>>,
+    keychain_mask: Option<&SecretKey>,
+    args: ExportTxArgs,
+    is_node_synced: Arc<AtomicBool>,
+) -> Result<(), Error>
+where
+    L: WalletLCProvider<'static, C, K> + 'static,
+    C: NodeClient + 'static,
+    K: keychain::Keychain + 'static,
+{
+    controller::owner_single_use(
+        wallet.clone(),
+        keychain_mask,
+        |api, m| {
+            let txs_result = api.retrieve_txs(m, true, args.id, None, None, None, None)?;
+            let txs = if args.all {
+                txs_result.txs
+            } else if let Some(id) = args.id {
+                txs_result.txs.into_iter().filter(|t| t.id == id).collect()
+            } else {
+                return Err(Error::ArgumentError(
+                    "Must specify --id or --all".to_string(),
+                ));
+            };
+
+            if txs.is_empty() {
+                return Err(Error::ArgumentError(
+                    "No transactions found to export".to_string(),
+                ));
+            }
+
+            let mut file = File::create(&args.output)?;
+            match args.format.as_str() {
+                "json" => {
+                    file.write_all(json::to_string_pretty(&txs).unwrap().as_bytes())?;
+                }
+                "csv" => {
+                    // Use serde to serialize to CSV
+                    let mut wtr = csv::Writer::from_writer(file);
+                    for tx in txs {
+                        wtr.serialize(tx).map_err(|e| {
+                            Error::ArgumentError(format!("CSV serialization error: {}", e))
+                        })?;
+                    }
+                    wtr.flush()?;
+                }
+                _ => {
+                    return Err(Error::ArgumentError(
+                        "Invalid format, must be 'json' or 'csv'".to_string(),
+                    ));
+                }
+            }
+            warn!("Transactions exported to {}", args.output);
+            Ok(())
+        },
+        is_node_synced,
+    )?;
+    Ok(())
+}
 // Copyright 2019 The Epic Developers
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,21 +164,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Epic wallet command-line function implementations
-
+///! Epic wallet command-line function implementations
 use crate::api::TLSConfig;
 use crate::config::{EpicboxConfig, TorConfig, WalletConfig, WALLET_CONFIG_FILE_NAME};
 use crate::core::{core, global};
 
 use crate::impls::{
-	create_sender, EpicboxChannel, EpicboxListenChannel, KeybaseAllChannels, SlateGetter as _,
-	SlateReceiver as _,
+    create_sender, EpicboxChannel, EpicboxListenChannel, KeybaseAllChannels, SlateGetter as _,
+    SlateReceiver as _,
 };
 use crate::impls::{EmojiSlate, PathToSlate, SlatePutter};
 use crate::keychain;
 use crate::libwallet::{
-	address, Error, InitTxArgs, IssueInvoiceTxArgs, NodeClient, PaymentProof, WalletInst,
-	WalletLCProvider,
+    address, Error, InitTxArgs, IssueInvoiceTxArgs, NodeClient, PaymentProof, WalletInst,
+    WalletLCProvider,
 };
 
 use crate::util::secp::key::SecretKey;
@@ -44,1295 +195,1307 @@ use std::time::Duration;
 use uuid::Uuid;
 
 fn show_recovery_phrase(phrase: ZeroingString) {
-	println!("Your recovery phrase is:");
-	println!();
-	println!("{}", &*phrase);
-	println!();
-	println!("Please back-up these words in a non-digital format.");
+    println!("Your recovery phrase is:");
+    println!();
+    println!("{}", &*phrase);
+    println!();
+    println!("Please back-up these words in a non-digital format.");
 }
 
 /// Arguments common to all wallet commands
 #[derive(Clone)]
 pub struct GlobalArgs {
-	pub account: String,
-	pub api_secret: Option<String>,
-	pub node_api_secret: Option<String>,
-	pub show_spent: bool,
-	pub chain_type: global::ChainTypes,
-	pub password: Option<ZeroingString>,
-	pub tls_conf: Option<TLSConfig>,
-	pub offline_mode: bool,
+    pub account: String,
+    pub api_secret: Option<String>,
+    pub node_api_secret: Option<String>,
+    pub show_spent: bool,
+    pub chain_type: global::ChainTypes,
+    pub password: Option<ZeroingString>,
+    pub tls_conf: Option<TLSConfig>,
+    pub offline_mode: bool,
 }
 /// Arguments for init command
 pub struct InitArgs {
-	/// BIP39 recovery phrase length
-	pub list_length: usize,
-	pub password: ZeroingString,
-	pub config: WalletConfig,
-	pub recovery_phrase: Option<ZeroingString>,
-	pub restore: bool,
+    /// BIP39 recovery phrase length
+    pub list_length: usize,
+    pub password: ZeroingString,
+    pub config: WalletConfig,
+    pub recovery_phrase: Option<ZeroingString>,
+    pub restore: bool,
 }
 
 pub fn init<L, C, K>(
-	wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K>>>>,
-	g_args: &GlobalArgs,
-	args: InitArgs,
+    wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K>>>>,
+    g_args: &GlobalArgs,
+    args: InitArgs,
 ) -> Result<(), epic_wallet_libwallet::Error>
 where
-	L: WalletLCProvider<'static, C, K> + 'static,
-	C: NodeClient + 'static,
-	K: keychain::Keychain + 'static,
+    L: WalletLCProvider<'static, C, K> + 'static,
+    C: NodeClient + 'static,
+    K: keychain::Keychain + 'static,
 {
-	let mut w_lock = wallet.lock();
-	let p = w_lock.lc_provider()?;
-	p.create_config(
-		&g_args.chain_type,
-		WALLET_CONFIG_FILE_NAME,
-		None,
-		None,
-		None,
-		None,
-	)?;
-	p.create_wallet(
-		None,
-		args.recovery_phrase,
-		args.list_length,
-		args.password.clone(),
-		false,
-	)?;
+    let mut w_lock = wallet.lock();
+    let p = w_lock.lc_provider()?;
+    p.create_config(
+        &g_args.chain_type,
+        WALLET_CONFIG_FILE_NAME,
+        None,
+        None,
+        None,
+        None,
+    )?;
+    p.create_wallet(
+        None,
+        args.recovery_phrase,
+        args.list_length,
+        args.password.clone(),
+        false,
+    )?;
 
-	let m = p.get_mnemonic(None, args.password)?;
-	show_recovery_phrase(m);
-	Ok(())
+    let m = p.get_mnemonic(None, args.password)?;
+    show_recovery_phrase(m);
+    Ok(())
 }
 
 /// Argument for recover
 pub struct RecoverArgs {
-	pub passphrase: ZeroingString,
+    pub passphrase: ZeroingString,
 }
 
 pub fn recover<L, C, K>(
-	wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K>>>>,
-	args: RecoverArgs,
+    wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K>>>>,
+    args: RecoverArgs,
 ) -> Result<(), epic_wallet_libwallet::Error>
 where
-	L: WalletLCProvider<'static, C, K> + 'static,
-	C: NodeClient + 'static,
-	K: keychain::Keychain + 'static,
+    L: WalletLCProvider<'static, C, K> + 'static,
+    C: NodeClient + 'static,
+    K: keychain::Keychain + 'static,
 {
-	let mut w_lock = wallet.lock();
-	let p = w_lock.lc_provider()?;
-	let m = p.get_mnemonic(None, args.passphrase)?;
-	show_recovery_phrase(m);
-	Ok(())
+    let mut w_lock = wallet.lock();
+    let p = w_lock.lc_provider()?;
+    let m = p.get_mnemonic(None, args.passphrase)?;
+    show_recovery_phrase(m);
+    Ok(())
 }
 
 /// Arguments for listen command
 pub struct ListenArgs {
-	pub method: String,
+    pub method: String,
 }
 
 pub fn listen<L, C, K>(
-	wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K>>>>,
-	keychain_mask: Arc<Mutex<Option<SecretKey>>>,
-	config: &WalletConfig,
-	tor_config: &TorConfig,
-	epicbox_config: &EpicboxConfig,
-	args: &ListenArgs,
-	g_args: &GlobalArgs,
-	is_node_synced: Arc<AtomicBool>,
+    wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K>>>>,
+    keychain_mask: Arc<Mutex<Option<SecretKey>>>,
+    config: &WalletConfig,
+    tor_config: &TorConfig,
+    epicbox_config: &EpicboxConfig,
+    args: &ListenArgs,
+    g_args: &GlobalArgs,
+    is_node_synced: Arc<AtomicBool>,
 ) -> Result<(), Error>
 where
-	L: WalletLCProvider<'static, C, K> + 'static,
-	C: NodeClient + 'static,
-	K: keychain::Keychain + 'static,
+    L: WalletLCProvider<'static, C, K> + 'static,
+    C: NodeClient + 'static,
+    K: keychain::Keychain + 'static,
 {
-	let res = match args.method.as_str() {
-		"http" => controller::foreign_listener(
-			wallet.clone(),
-			keychain_mask,
-			&config.api_listen_addr(),
-			g_args.tls_conf.clone(),
-			tor_config.use_tor_listener,
-			is_node_synced.clone(),
-		),
-		"keybase" => KeybaseAllChannels::new().unwrap().listen(
-			wallet.clone(),
-			keychain_mask.clone(),
-			config.clone(),
-			is_node_synced.clone(),
-		),
-		"epicbox" => {
-			let mut reconnections = 0;
-			loop {
-				let listener = EpicboxListenChannel::new()?.listen(
-					wallet.clone(),
-					keychain_mask.clone(),
-					epicbox_config.clone(),
-					&mut reconnections,
-					is_node_synced.clone(),
-				);
-				info!("Reconnect to epicbox");
-				match listener {
-					Err(e) => {
-						error!("Error in listener loop ({})", e);
-					}
-					Ok(_) => (),
-				}
-				if reconnections >= 5 {
-					break;
-				}
-				let duration = std::time::Duration::from_secs(20);
-				std::thread::sleep(duration);
-			}
-			return Err(Error::EpicboxReconnectLimit);
-		}
-		method => {
-			return Err(Error::ArgumentError(format!(
-				"No listener for method {}",
-				method
-			)));
-		}
-	};
+    let res = match args.method.as_str() {
+        "http" => controller::foreign_listener(
+            wallet.clone(),
+            keychain_mask,
+            &config.api_listen_addr(),
+            g_args.tls_conf.clone(),
+            is_node_synced.clone(),
+        ),
+        "keybase" => KeybaseAllChannels::new().unwrap().listen(
+            wallet.clone(),
+            keychain_mask.clone(),
+            config.clone(),
+            is_node_synced.clone(),
+        ),
+        "epicbox" => {
+            let mut reconnections = 0;
+            loop {
+                let listener = EpicboxListenChannel::new()?.listen(
+                    wallet.clone(),
+                    keychain_mask.clone(),
+                    epicbox_config.clone(),
+                    &mut reconnections,
+                    is_node_synced.clone(),
+                    tor_config.clone(),
+                );
+                info!("Reconnect to epicbox");
+                match listener {
+                    Err(e) => {
+                        error!("Error in listener loop ({})", e);
+                    }
+                    Ok(_) => (),
+                }
+                if reconnections >= 5 {
+                    break;
+                }
+                let duration = std::time::Duration::from_secs(20);
+                std::thread::sleep(duration);
+            }
+            return Err(Error::EpicboxReconnectLimit);
+        }
+        method => {
+            return Err(Error::ArgumentError(format!(
+                "No listener for method {}",
+                method
+            )));
+        }
+    };
 
-	debug!("{}", args.method.clone());
+    debug!("{}", args.method.clone());
 
-	if let Err(e) = res {
-		return Err(Error::LibWallet(format!("{}", e)));
-	}
-	Ok(())
+    if let Err(e) = res {
+        return Err(Error::LibWallet(format!("{}", e)));
+    }
+    Ok(())
 }
 
 pub fn owner_api<L, C, K>(
-	wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K>>>>,
-	keychain_mask: Option<SecretKey>,
-	config: &WalletConfig,
-	tor_config: &TorConfig,
-	epicbox_config: &EpicboxConfig,
-	g_args: &GlobalArgs,
-	is_node_synced: Arc<AtomicBool>,
+    wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K>>>>,
+    keychain_mask: Option<SecretKey>,
+    config: &WalletConfig,
+    tor_config: &TorConfig,
+    epicbox_config: &EpicboxConfig,
+    g_args: &GlobalArgs,
+    is_node_synced: Arc<AtomicBool>,
 ) -> Result<(), Error>
 where
-	L: WalletLCProvider<'static, C, K> + Send + Sync + 'static,
-	C: NodeClient + 'static,
-	K: keychain::Keychain + 'static,
+    L: WalletLCProvider<'static, C, K> + Send + Sync + 'static,
+    C: NodeClient + 'static,
+    K: keychain::Keychain + 'static,
 {
-	// keychain mask needs to be a sinlge instance, in case the foreign API is
-	// also being run at the same time
-	let km = Arc::new(Mutex::new(keychain_mask));
-	let res = controller::owner_listener(
-		wallet,
-		km,
-		config.owner_api_listen_addr().as_str(),
-		g_args.api_secret.clone(),
-		g_args.tls_conf.clone(),
-		config.owner_api_include_foreign.clone(),
-		Some(tor_config.clone()),
-		Some(epicbox_config.clone()),
-		is_node_synced.clone(),
-	);
-	if let Err(e) = res {
-		return Err(Error::LibWallet(format!("{}", e)));
-	}
-	Ok(())
+    // keychain mask needs to be a sinlge instance, in case the foreign API is
+    // also being run at the same time
+    let km = Arc::new(Mutex::new(keychain_mask));
+    let res = controller::owner_listener(
+        wallet,
+        km,
+        config.owner_api_listen_addr().as_str(),
+        g_args.api_secret.clone(),
+        g_args.tls_conf.clone(),
+        config.owner_api_include_foreign.clone(),
+        Some(tor_config.clone()),
+        Some(epicbox_config.clone()),
+        is_node_synced.clone(),
+    );
+    if let Err(e) = res {
+        return Err(Error::LibWallet(format!("{}", e)));
+    }
+    Ok(())
 }
 
 /// Arguments for account command
 pub struct AccountArgs {
-	pub create: Option<String>,
+    pub create: Option<String>,
 }
 
 pub fn account<L, C, K>(
-	wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K>>>>,
-	keychain_mask: Option<&SecretKey>,
-	args: AccountArgs,
-	is_node_synced: Arc<AtomicBool>,
+    wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K>>>>,
+    keychain_mask: Option<&SecretKey>,
+    args: AccountArgs,
+    is_node_synced: Arc<AtomicBool>,
 ) -> Result<(), Error>
 where
-	L: WalletLCProvider<'static, C, K> + 'static,
-	C: NodeClient + 'static,
-	K: keychain::Keychain + 'static,
+    L: WalletLCProvider<'static, C, K> + 'static,
+    C: NodeClient + 'static,
+    K: keychain::Keychain + 'static,
 {
-	if args.create.is_none() {
-		let res = controller::owner_single_use(
-			wallet,
-			keychain_mask,
-			|api, m| {
-				let acct_mappings = api.accounts(m)?;
-				// give logging thread a moment to catch up
-				thread::sleep(Duration::from_millis(200));
-				display::accounts(acct_mappings);
-				Ok(())
-			},
-			is_node_synced.clone(),
-		);
-		if let Err(e) = res {
-			error!("Error listing accounts: {}", e);
-			return Err(Error::LibWallet(format!("{}", e)));
-		}
-	} else {
-		let label = args.create.unwrap();
-		let res = controller::owner_single_use(
-			wallet,
-			keychain_mask,
-			|api, m| {
-				api.create_account_path(m, &label)?;
-				thread::sleep(Duration::from_millis(200));
-				info!("Account: '{}' Created!", label);
-				Ok(())
-			},
-			is_node_synced.clone(),
-		);
-		if let Err(e) = res {
-			thread::sleep(Duration::from_millis(200));
-			error!("Error creating account '{}': {}", label, e);
-			return Err(Error::LibWallet(format!("{}", e)));
-		}
-	}
-	Ok(())
+    if args.create.is_none() {
+        let res = controller::owner_single_use(
+            wallet,
+            keychain_mask,
+            |api, m| {
+                let acct_mappings = api.accounts(m)?;
+                // give logging thread a moment to catch up
+                thread::sleep(Duration::from_millis(200));
+                display::accounts(acct_mappings);
+                Ok(())
+            },
+            is_node_synced.clone(),
+        );
+        if let Err(e) = res {
+            error!("Error listing accounts: {}", e);
+            return Err(Error::LibWallet(format!("{}", e)));
+        }
+    } else {
+        let label = args.create.unwrap();
+        let res = controller::owner_single_use(
+            wallet,
+            keychain_mask,
+            |api, m| {
+                api.create_account_path(m, &label)?;
+                thread::sleep(Duration::from_millis(200));
+                info!("Account: '{}' Created!", label);
+                Ok(())
+            },
+            is_node_synced.clone(),
+        );
+        if let Err(e) = res {
+            thread::sleep(Duration::from_millis(200));
+            error!("Error creating account '{}': {}", label, e);
+            return Err(Error::LibWallet(format!("{}", e)));
+        }
+    }
+    Ok(())
 }
 
 /// Arguments for the send command
 pub struct SendArgs {
-	pub amount: u64,
-	pub message: Option<String>,
-	pub minimum_confirmations: u64,
-	pub selection_strategy: String,
-	pub estimate_selection_strategies: bool,
-	pub method: String,
-	pub dest: String,
-	pub change_outputs: usize,
-	pub fluff: bool,
-	pub max_outputs: usize,
-	pub target_slate_version: Option<u16>,
-	pub payment_proof_address: Option<String>,
-	pub ttl_blocks: Option<u64>,
+    pub amount: u64,
+    pub message: Option<String>,
+    pub minimum_confirmations: u64,
+    pub selection_strategy: String,
+    pub estimate_selection_strategies: bool,
+    pub method: String,
+    pub dest: String,
+    pub change_outputs: usize,
+    pub fluff: bool,
+    pub max_outputs: usize,
+    pub target_slate_version: Option<u16>,
+    pub payment_proof_address: Option<String>,
+    pub ttl_blocks: Option<u64>,
 }
 
 pub fn send<L, C, K>(
-	wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K>>>>,
-	keychain_mask: Option<&SecretKey>,
-	tor_config: Option<TorConfig>,
-	epicbox_config: Option<EpicboxConfig>,
-	args: SendArgs,
-	dark_scheme: bool,
-	is_node_synced: Arc<AtomicBool>,
+    wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K>>>>,
+    keychain_mask: Option<&SecretKey>,
+    tor_config: Option<TorConfig>,
+    epicbox_config: Option<EpicboxConfig>,
+    args: SendArgs,
+    dark_scheme: bool,
+    is_node_synced: Arc<AtomicBool>,
+    g_args: &GlobalArgs,
 ) -> Result<(), Error>
 where
-	L: WalletLCProvider<'static, C, K> + 'static,
-	C: NodeClient + 'static,
-	K: keychain::Keychain + 'static,
+    L: WalletLCProvider<'static, C, K> + 'static,
+    C: NodeClient + 'static,
+    K: keychain::Keychain + 'static,
 {
-	controller::owner_single_use(
-		wallet.clone(),
-		keychain_mask,
-		|api, m| {
-			if args.estimate_selection_strategies {
-				let strategies = vec!["smallest", "all"]
-					.into_iter()
-					.map(|strategy| {
-						let init_args = InitTxArgs {
-							src_acct_name: None,
-							amount: args.amount,
-							minimum_confirmations: args.minimum_confirmations,
-							max_outputs: args.max_outputs as u32,
-							num_change_outputs: args.change_outputs as u32,
-							selection_strategy_is_use_all: strategy == "all",
-							estimate_only: Some(true),
-							..Default::default()
-						};
-						let slate = api
-							.init_send_tx(m, init_args, is_node_synced.clone())
-							.unwrap();
-						(strategy, slate.amount, slate.fee)
-					})
-					.collect();
-				display::estimate(args.amount, strategies, dark_scheme);
-			} else {
-				let payment_proof_recipient_address = match args.payment_proof_address {
-					Some(ref p) => Some(address::ed25519_parse_pubkey(p)?),
-					None => None,
-				};
-				let init_args = InitTxArgs {
-					src_acct_name: None,
-					amount: args.amount,
-					minimum_confirmations: args.minimum_confirmations,
-					max_outputs: args.max_outputs as u32,
-					num_change_outputs: args.change_outputs as u32,
-					selection_strategy_is_use_all: args.selection_strategy == "all",
-					message: args.message.clone(),
-					target_slate_version: args.target_slate_version,
-					payment_proof_recipient_address,
-					ttl_blocks: args.ttl_blocks,
-					send_args: None,
-					..Default::default()
-				};
-				let result = api.init_send_tx(m, init_args, is_node_synced.clone());
-				let mut slate = match result {
-					Ok(s) => {
-						info!(
-							"Tx created: {} epic to {} (strategy '{}')",
-							core::amount_to_hr_string(args.amount, false),
-							args.dest,
-							args.selection_strategy,
-						);
-						s
-					}
-					Err(e) => {
-						info!("Tx not created: {}", e);
-						return Err(e);
-					}
-				};
+    controller::owner_single_use(
+        wallet.clone(),
+        keychain_mask,
+        |api, m| {
+            if args.estimate_selection_strategies {
+                let strategies = vec!["smallest", "all"]
+                    .into_iter()
+                    .map(|strategy| {
+                        let init_args = InitTxArgs {
+                            src_acct_name: None,
+                            amount: args.amount,
+                            minimum_confirmations: args.minimum_confirmations,
+                            max_outputs: args.max_outputs as u32,
+                            num_change_outputs: args.change_outputs as u32,
+                            selection_strategy_is_use_all: strategy == "all",
+                            estimate_only: Some(true),
+                            ..Default::default()
+                        };
+                        let slate = api
+                            .init_send_tx(m, init_args, is_node_synced.clone())
+                            .unwrap();
+                        (strategy, slate.amount, slate.fee)
+                    })
+                    .collect();
+                display::estimate(args.amount, strategies, dark_scheme);
+            } else {
+                let payment_proof_recipient_address = match args.payment_proof_address {
+                    Some(ref p) => Some(address::ed25519_parse_pubkey(p)?),
+                    None => None,
+                };
+                let init_args = InitTxArgs {
+                    src_acct_name: None,
+                    amount: args.amount,
+                    minimum_confirmations: args.minimum_confirmations,
+                    max_outputs: args.max_outputs as u32,
+                    num_change_outputs: args.change_outputs as u32,
+                    selection_strategy_is_use_all: args.selection_strategy == "all",
+                    message: args.message.clone(),
+                    target_slate_version: args.target_slate_version,
+                    payment_proof_recipient_address,
+                    ttl_blocks: args.ttl_blocks,
+                    send_args: None,
+                    ..Default::default()
+                };
+                let result = api.init_send_tx(m, init_args, is_node_synced.clone());
+                let mut slate = match result {
+                    Ok(s) => {
+                        info!(
+                            "Tx created: {} epic to {} (strategy '{}')",
+                            core::amount_to_hr_string(args.amount, false),
+                            args.dest,
+                            args.selection_strategy,
+                        );
+                        s
+                    }
+                    Err(e) => {
+                        info!("Tx not created: {}", e);
+                        return Err(e);
+                    }
+                };
 
-				match args.method.as_str() {
-					"emoji" => {
-						println!("{}", EmojiSlate().encode(&slate));
-						api.tx_lock_outputs(m, &slate, 0, Some(args.dest))?;
-						return Ok(());
-					}
-					"file" => {
-						PathToSlate((&args.dest).into()).put_tx(&slate)?;
-						api.tx_lock_outputs(m, &slate, 0, Some(args.dest))?;
-						return Ok(());
-					}
-					"self" => {
-						api.tx_lock_outputs(m, &slate, 0, Some(args.dest.clone()))?;
-						let km = match keychain_mask.as_ref() {
-							None => None,
-							Some(&m) => Some(m.to_owned()),
-						};
-						controller::foreign_single_use(wallet, km, |api| {
-							slate = api.receive_tx(&slate, Some(&args.dest), None)?;
-							Ok(())
-						})?;
-					}
-					"epicbox" => {
-						let epicbox_channel =
-							Box::new(EpicboxChannel::new(&args.dest, epicbox_config))
-								.expect("error starting epicbox");
+                match args.method.as_str() {
+                    "emoji" => {
+                        println!("{}", EmojiSlate().encode(&slate));
+                        api.tx_lock_outputs(m, &slate, 0, Some(args.dest))?;
+                        return Ok(());
+                    }
+                    "file" => {
+                        PathToSlate((&args.dest).into()).put_tx(&slate)?;
+                        api.tx_lock_outputs(m, &slate, 0, Some(args.dest))?;
+                        return Ok(());
+                    }
+                    "self" => {
+                        api.tx_lock_outputs(m, &slate, 0, Some(args.dest.clone()))?;
+                        let km = match keychain_mask.as_ref() {
+                            None => None,
+                            Some(&m) => Some(m.to_owned()),
+                        };
+                        controller::foreign_single_use(wallet, km, |api| {
+                            slate = api.receive_tx(
+                                &slate,
+                                Some(&args.dest),
+                                None,
+                                Some(g_args.account.clone()),
+                            )?;
+                            Ok(())
+                        })?;
+                    }
+                    "epicbox" => {
+                        let epicbox_channel =
+                            Box::new(EpicboxChannel::new(&args.dest, epicbox_config))
+                                .expect("error starting epicbox");
 
-						let km = match keychain_mask.as_ref() {
-							None => None,
-							Some(&m) => Some(m.to_owned()),
-						};
-						slate = epicbox_channel.send(wallet, km, &slate, is_node_synced.clone())?;
+                        let km = match keychain_mask.as_ref() {
+                            None => None,
+                            Some(&m) => Some(m.to_owned()),
+                        };
+                        let tor_conf = tor_config
+                            .clone()
+                            .expect("TorConfig is required for epicbox send");
+                        slate = epicbox_channel.send(
+                            wallet,
+                            km,
+                            &slate,
+                            is_node_synced.clone(),
+                            tor_conf,
+                        )?;
 
-						api.tx_lock_outputs(m, &slate, 0, Some(args.dest))?;
+                        api.tx_lock_outputs(m, &slate, 0, Some(args.dest))?;
 
-						return Ok(());
-					}
-					method => {
-						let sender =
-							create_sender(method, &args.dest, tor_config, is_node_synced.clone())?;
+                        return Ok(());
+                    }
+                    method => {
+                        let sender = create_sender(method, &args.dest, is_node_synced.clone())?;
 
-						slate = sender.send_tx(&slate)?;
-						api.tx_lock_outputs(m, &slate, 0, Some(args.dest))?;
-					}
-				}
+                        slate = sender.send_tx(&slate)?;
+                        api.tx_lock_outputs(m, &slate, 0, Some(args.dest))?;
+                    }
+                }
 
-				api.verify_slate_messages(m, &slate).map_err(|e| {
-					error!("Error validating participant messages: {}", e);
-					e
-				})?;
-				slate = api.finalize_tx(m, &slate)?;
-				let result = api.post_tx(m, &slate.tx, args.fluff);
-				match result {
-					Ok(_) => {
-						// Wait for mempool status and update if found
-						let found = api.wait_for_tx_in_mempool(
-							m, &slate.id, 1,   // poll every 1 second
-							240, // up to 240 attempts (4 minutes)
-						);
-						if let Ok(true) = found {
-							let _ = api.update_mempool_status(m, &slate);
-							info!(
+                api.verify_slate_messages(m, &slate).map_err(|e| {
+                    error!("Error validating participant messages: {}", e);
+                    e
+                })?;
+                slate = api.finalize_tx(m, &slate)?;
+                let result = api.post_tx(m, &slate.tx, args.fluff);
+                match result {
+                    Ok(_) => {
+                        // Wait for mempool status and update if found
+                        let found = api.wait_for_tx_in_mempool(
+                            m, &slate.id, 1,   // poll every 1 second
+                            240, // up to 240 attempts (4 minutes)
+                        );
+                        if let Ok(true) = found {
+                            let _ = api.update_mempool_status(m, &slate);
+                            info!(
 								"Transaction with slate_id {} found in mempool and marked as TxSentMempool.",
 								slate.id
 							);
-						} else {
-							warn!(
-								"Transaction with slate_id {} not found in mempool after waiting.",
-								slate.id
-							);
-						}
-						info!(
+                        } else {
+                            warn!(
+                                "Transaction with slate_id {} not found in mempool after waiting.",
+                                slate.id
+                            );
+                        }
+                        info!(
 							"Transaction sent successfully, check the wallet again for confirmation."
 						);
-						return Ok(());
-					}
-					Err(e) => {
-						error!("Tx not sent: {}", e);
-						return Err(e);
-					}
-				}
-			}
-			Ok(())
-		},
-		is_node_synced.clone(),
-	)?;
-	Ok(())
+                        return Ok(());
+                    }
+                    Err(e) => {
+                        error!("Tx not sent: {}", e);
+                        return Err(e);
+                    }
+                }
+            }
+            Ok(())
+        },
+        is_node_synced.clone(),
+    )?;
+    Ok(())
 }
 
 /// Receive command argument
 pub struct ReceiveArgs {
-	pub input: String,
-	pub message: Option<String>,
-	pub method: String,
+    pub input: String,
+    pub message: Option<String>,
+    pub method: String,
 }
 
 pub fn receive<L, C, K>(
-	wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K>>>>,
-	keychain_mask: Option<&SecretKey>,
-	g_args: &GlobalArgs,
-	args: ReceiveArgs,
+    wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K>>>>,
+    keychain_mask: Option<&SecretKey>,
+    g_args: &GlobalArgs,
+    args: ReceiveArgs,
 ) -> Result<(), Error>
 where
-	L: WalletLCProvider<'static, C, K>,
-	C: NodeClient + 'static,
-	K: keychain::Keychain + 'static,
+    L: WalletLCProvider<'static, C, K>,
+    C: NodeClient + 'static,
+    K: keychain::Keychain + 'static,
 {
-	let method = args.method.as_str();
-	let mut slate;
-	if method == "emoji" {
-		slate = EmojiSlate().decode(&args.input.as_str())?;
-	} else {
-		slate = PathToSlate((&args.input).into()).get_tx()?;
-	}
+    let method = args.method.as_str();
+    let mut slate;
+    if method == "emoji" {
+        slate = EmojiSlate().decode(&args.input.as_str())?;
+    } else {
+        slate = PathToSlate((&args.input).into()).get_tx()?;
+    }
 
-	let km = match keychain_mask.as_ref() {
-		None => None,
-		Some(&m) => Some(m.to_owned()),
-	};
-	controller::foreign_single_use(wallet, km, |api| {
-		if let Err(e) = api.verify_slate_messages(&slate) {
-			error!("Error validating participant messages: {}", e);
-			return Err(e);
-		}
-		slate = api.receive_tx(&slate, Some(&g_args.account), args.message.clone())?;
-		Ok(())
-	})?;
-	if method == "emoji" {
-		println!("\n\nThis is your response emoji string. Please send it back to the payer to finalize the transaction:\n\n{}", EmojiSlate().encode(&slate));
-		info!("Response emoji.response generated, and can be sent back to the transaction originator.");
-	} else {
-		PathToSlate(format!("{}.response", args.input).into()).put_tx(&slate)?;
-		info!(
+    let km = match keychain_mask.as_ref() {
+        None => None,
+        Some(&m) => Some(m.to_owned()),
+    };
+    controller::foreign_single_use(wallet, km, |api| {
+        if let Err(e) = api.verify_slate_messages(&slate) {
+            error!("Error validating participant messages: {}", e);
+            return Err(e);
+        }
+        slate = api.receive_tx(&slate, Some(&g_args.account), args.message.clone(), None)?;
+        Ok(())
+    })?;
+    if method == "emoji" {
+        println!("\n\nThis is your response emoji string. Please send it back to the payer to finalize the transaction:\n\n{}", EmojiSlate().encode(&slate));
+        info!("Response emoji.response generated, and can be sent back to the transaction originator.");
+    } else {
+        PathToSlate(format!("{}.response", args.input).into()).put_tx(&slate)?;
+        info!(
 			"Response file {}.response generated, and can be sent back to the transaction originator.",
 			args.input
 		);
-	}
+    }
 
-	Ok(())
+    Ok(())
 }
 
 /// Finalize command args
 pub struct FinalizeArgs {
-	pub method: String,
-	pub input: String,
-	pub fluff: bool,
-	pub nopost: bool,
-	pub dest: Option<String>,
+    pub method: String,
+    pub input: String,
+    pub fluff: bool,
+    pub nopost: bool,
+    pub dest: Option<String>,
 }
 
 pub fn finalize<L, C, K>(
-	wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K>>>>,
-	keychain_mask: Option<&SecretKey>,
-	args: FinalizeArgs,
-	is_node_synced: Arc<AtomicBool>,
+    wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K>>>>,
+    keychain_mask: Option<&SecretKey>,
+    args: FinalizeArgs,
+    is_node_synced: Arc<AtomicBool>,
 ) -> Result<(), Error>
 where
-	L: WalletLCProvider<'static, C, K> + 'static,
-	C: NodeClient + 'static,
-	K: keychain::Keychain + 'static,
+    L: WalletLCProvider<'static, C, K> + 'static,
+    C: NodeClient + 'static,
+    K: keychain::Keychain + 'static,
 {
-	let method = args.method.as_str();
-	let mut slate;
-	if method == "emoji" {
-		slate = EmojiSlate().decode(&args.input.as_str())?;
-	} else {
-		slate = PathToSlate((&args.input).into()).get_tx()?;
-	}
+    let method = args.method.as_str();
+    let mut slate;
+    if method == "emoji" {
+        slate = EmojiSlate().decode(&args.input.as_str())?;
+    } else {
+        slate = PathToSlate((&args.input).into()).get_tx()?;
+    }
 
-	// Rather than duplicating the entire command, we'll just
-	// try to determine what kind of finalization this is
-	// based on the slate contents
-	// for now, we can tell this is an invoice transaction
-	// if the receipient (participant 1) hasn't completed sigs
-	let part_data = slate.participant_with_id(1);
-	let is_invoice = {
-		match part_data {
-			None => {
-				error!("Expected slate participant data missing");
-				return Err(Error::ArgumentError(format!(
-					"Expected Slate participant data missing"
-				)))?;
-			}
-			Some(p) => !p.is_complete(),
-		}
-	};
+    // Rather than duplicating the entire command, we'll just
+    // try to determine what kind of finalization this is
+    // based on the slate contents
+    // for now, we can tell this is an invoice transaction
+    // if the receipient (participant 1) hasn't completed sigs
+    let part_data = slate.participant_with_id(1);
+    let is_invoice = {
+        match part_data {
+            None => {
+                error!("Expected slate participant data missing");
+                return Err(Error::ArgumentError(format!(
+                    "Expected Slate participant data missing"
+                )))?;
+            }
+            Some(p) => !p.is_complete(),
+        }
+    };
 
-	if is_invoice {
-		let km = match keychain_mask.as_ref() {
-			None => None,
-			Some(&m) => Some(m.to_owned()),
-		};
-		controller::foreign_single_use(wallet.clone(), km, |api| {
-			if let Err(e) = api.verify_slate_messages(&slate) {
-				error!("Error validating participant messages: {}", e);
-				return Err(e);
-			}
-			slate = api.finalize_invoice_tx(&mut slate)?;
-			Ok(())
-		})?;
-	} else {
-		controller::owner_single_use(
-			wallet.clone(),
-			keychain_mask,
-			|api, m| {
-				if let Err(e) = api.verify_slate_messages(m, &slate) {
-					error!("Error validating participant messages: {}", e);
-					return Err(e);
-				}
-				slate = api.finalize_tx(m, &mut slate)?;
-				Ok(())
-			},
-			is_node_synced.clone(),
-		)?;
-	}
+    if is_invoice {
+        let km = match keychain_mask.as_ref() {
+            None => None,
+            Some(&m) => Some(m.to_owned()),
+        };
+        controller::foreign_single_use(wallet.clone(), km, |api| {
+            if let Err(e) = api.verify_slate_messages(&slate) {
+                error!("Error validating participant messages: {}", e);
+                return Err(e);
+            }
+            slate = api.finalize_invoice_tx(&mut slate)?;
+            Ok(())
+        })?;
+    } else {
+        controller::owner_single_use(
+            wallet.clone(),
+            keychain_mask,
+            |api, m| {
+                if let Err(e) = api.verify_slate_messages(m, &slate) {
+                    error!("Error validating participant messages: {}", e);
+                    return Err(e);
+                }
+                slate = api.finalize_tx(m, &mut slate)?;
+                Ok(())
+            },
+            is_node_synced.clone(),
+        )?;
+    }
 
-	if !args.nopost {
-		controller::owner_single_use(
-			wallet.clone(),
-			keychain_mask,
-			|api, m| {
-				let result = api.post_tx(m, &slate.tx, args.fluff);
-				match result {
-					Ok(_) => {
-						// Wait for mempool status and update if found
-						let found = api.wait_for_tx_in_mempool(
-							m, &slate.id, 1,   // poll every 1 second
-							240, // up to 240 attempts (4 minutes)
-						);
-						if let Ok(true) = found {
-							let _ = api.update_mempool_status(m, &slate);
-							info!(
+    if !args.nopost {
+        controller::owner_single_use(
+            wallet.clone(),
+            keychain_mask,
+            |api, m| {
+                let result = api.post_tx(m, &slate.tx, args.fluff);
+                match result {
+                    Ok(_) => {
+                        // Wait for mempool status and update if found
+                        let found = api.wait_for_tx_in_mempool(
+                            m, &slate.id, 1,   // poll every 1 second
+                            240, // up to 240 attempts (4 minutes)
+                        );
+                        if let Ok(true) = found {
+                            let _ = api.update_mempool_status(m, &slate);
+                            info!(
 								"Transaction with slate_id {} found in mempool and marked as TxSentMempool.",
 								slate.id
 							);
-						} else {
-							warn!(
-								"Transaction with slate_id {} not found in mempool after waiting.",
-								slate.id
-							);
-						}
-						info!(
+                        } else {
+                            warn!(
+                                "Transaction with slate_id {} not found in mempool after waiting.",
+                                slate.id
+                            );
+                        }
+                        info!(
 							"Transaction sent successfully, check the wallet again for confirmation."
 						);
-						Ok(())
-					}
-					Err(e) => {
-						error!("Tx not sent: {}", e);
-						Err(e)
-					}
-				}
-			},
-			is_node_synced,
-		)?;
-	}
+                        Ok(())
+                    }
+                    Err(e) => {
+                        error!("Tx not sent: {}", e);
+                        Err(e)
+                    }
+                }
+            },
+            is_node_synced,
+        )?;
+    }
 
-	if args.dest.is_some() {
-		PathToSlate((&args.dest.unwrap()).into()).put_tx(&slate)?;
-	}
+    if args.dest.is_some() {
+        PathToSlate((&args.dest.unwrap()).into()).put_tx(&slate)?;
+    }
 
-	Ok(())
+    Ok(())
 }
 
 /// Issue Invoice Args
 pub struct IssueInvoiceArgs {
-	/// output file
-	pub dest: String,
-	/// issue invoice tx args
-	pub issue_args: IssueInvoiceTxArgs,
+    /// output file
+    pub dest: String,
+    /// issue invoice tx args
+    pub issue_args: IssueInvoiceTxArgs,
 }
 
 pub fn issue_invoice_tx<L, C, K>(
-	wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K>>>>,
-	keychain_mask: Option<&SecretKey>,
-	args: IssueInvoiceArgs,
-	is_node_synced: Arc<AtomicBool>,
+    wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K>>>>,
+    keychain_mask: Option<&SecretKey>,
+    args: IssueInvoiceArgs,
+    is_node_synced: Arc<AtomicBool>,
 ) -> Result<(), Error>
 where
-	L: WalletLCProvider<'static, C, K> + 'static,
-	C: NodeClient + 'static,
-	K: keychain::Keychain + 'static,
+    L: WalletLCProvider<'static, C, K> + 'static,
+    C: NodeClient + 'static,
+    K: keychain::Keychain + 'static,
 {
-	controller::owner_single_use(
-		wallet.clone(),
-		keychain_mask,
-		|api, m| {
-			let slate = api.issue_invoice_tx(m, args.issue_args)?;
-			PathToSlate((&args.dest).into()).put_tx(&slate)?;
-			Ok(())
-		},
-		is_node_synced,
-	)?;
-	Ok(())
+    controller::owner_single_use(
+        wallet.clone(),
+        keychain_mask,
+        |api, m| {
+            let slate = api.issue_invoice_tx(m, args.issue_args)?;
+            PathToSlate((&args.dest).into()).put_tx(&slate)?;
+            Ok(())
+        },
+        is_node_synced,
+    )?;
+    Ok(())
 }
 
 /// Arguments for the process_invoice command
 pub struct ProcessInvoiceArgs {
-	pub message: Option<String>,
-	pub minimum_confirmations: u64,
-	pub selection_strategy: String,
-	pub method: String,
-	pub dest: String,
-	pub max_outputs: usize,
-	pub input: String,
-	pub estimate_selection_strategies: bool,
-	pub ttl_blocks: Option<u64>,
+    pub message: Option<String>,
+    pub minimum_confirmations: u64,
+    pub selection_strategy: String,
+    pub method: String,
+    pub dest: String,
+    pub max_outputs: usize,
+    pub input: String,
+    pub estimate_selection_strategies: bool,
+    pub ttl_blocks: Option<u64>,
 }
 
 /// Process invoice
 pub fn process_invoice<L, C, K>(
-	wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K>>>>,
-	keychain_mask: Option<&SecretKey>,
-	tor_config: Option<TorConfig>,
-	args: ProcessInvoiceArgs,
-	dark_scheme: bool,
-	is_node_synced: Arc<AtomicBool>,
+    wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K>>>>,
+    keychain_mask: Option<&SecretKey>,
+    args: ProcessInvoiceArgs,
+    dark_scheme: bool,
+    is_node_synced: Arc<AtomicBool>,
 ) -> Result<(), Error>
 where
-	L: WalletLCProvider<'static, C, K> + 'static,
-	C: NodeClient + 'static,
-	K: keychain::Keychain + 'static,
+    L: WalletLCProvider<'static, C, K> + 'static,
+    C: NodeClient + 'static,
+    K: keychain::Keychain + 'static,
 {
-	let slate = PathToSlate((&args.input).into()).get_tx()?;
-	controller::owner_single_use(
-		wallet.clone(),
-		keychain_mask,
-		|api, m| {
-			if args.estimate_selection_strategies {
-				let strategies = vec!["smallest", "all"]
-					.into_iter()
-					.map(|strategy| {
-						let init_args = InitTxArgs {
-							src_acct_name: None,
-							amount: slate.amount,
-							minimum_confirmations: args.minimum_confirmations,
-							max_outputs: args.max_outputs as u32,
-							num_change_outputs: 1u32,
-							selection_strategy_is_use_all: strategy == "all",
-							estimate_only: Some(true),
-							..Default::default()
-						};
-						let slate = api
-							.init_send_tx(m, init_args, is_node_synced.clone())
-							.unwrap();
-						(strategy, slate.amount, slate.fee)
-					})
-					.collect();
-				display::estimate(slate.amount, strategies, dark_scheme);
-			} else {
-				let init_args = InitTxArgs {
-					src_acct_name: None,
-					amount: 0,
-					minimum_confirmations: args.minimum_confirmations,
-					max_outputs: args.max_outputs as u32,
-					num_change_outputs: 1u32,
-					selection_strategy_is_use_all: args.selection_strategy == "all",
-					message: args.message.clone(),
-					ttl_blocks: args.ttl_blocks,
-					send_args: None,
-					..Default::default()
-				};
-				if let Err(e) = api.verify_slate_messages(m, &slate) {
-					error!("Error validating participant messages: {}", e);
-					return Err(e);
-				}
-				let result = api.process_invoice_tx(m, &slate, init_args);
-				let mut slate = match result {
-					Ok(s) => {
-						info!(
-							"Invoice processed: {} epic to {} (strategy '{}')",
-							core::amount_to_hr_string(slate.amount, false),
-							args.dest,
-							args.selection_strategy,
-						);
-						s
-					}
-					Err(e) => {
-						info!("Tx not created: {}", e);
-						return Err(e);
-					}
-				};
+    let slate = PathToSlate((&args.input).into()).get_tx()?;
+    controller::owner_single_use(
+        wallet.clone(),
+        keychain_mask,
+        |api, m| {
+            if args.estimate_selection_strategies {
+                let strategies = vec!["smallest", "all"]
+                    .into_iter()
+                    .map(|strategy| {
+                        let init_args = InitTxArgs {
+                            src_acct_name: None,
+                            amount: slate.amount,
+                            minimum_confirmations: args.minimum_confirmations,
+                            max_outputs: args.max_outputs as u32,
+                            num_change_outputs: 1u32,
+                            selection_strategy_is_use_all: strategy == "all",
+                            estimate_only: Some(true),
+                            ..Default::default()
+                        };
+                        let slate = api
+                            .init_send_tx(m, init_args, is_node_synced.clone())
+                            .unwrap();
+                        (strategy, slate.amount, slate.fee)
+                    })
+                    .collect();
+                display::estimate(slate.amount, strategies, dark_scheme);
+            } else {
+                let init_args = InitTxArgs {
+                    src_acct_name: None,
+                    amount: 0,
+                    minimum_confirmations: args.minimum_confirmations,
+                    max_outputs: args.max_outputs as u32,
+                    num_change_outputs: 1u32,
+                    selection_strategy_is_use_all: args.selection_strategy == "all",
+                    message: args.message.clone(),
+                    ttl_blocks: args.ttl_blocks,
+                    send_args: None,
+                    ..Default::default()
+                };
+                if let Err(e) = api.verify_slate_messages(m, &slate) {
+                    error!("Error validating participant messages: {}", e);
+                    return Err(e);
+                }
+                let result = api.process_invoice_tx(m, &slate, init_args);
+                let mut slate = match result {
+                    Ok(s) => {
+                        info!(
+                            "Invoice processed: {} epic to {} (strategy '{}')",
+                            core::amount_to_hr_string(slate.amount, false),
+                            args.dest,
+                            args.selection_strategy,
+                        );
+                        s
+                    }
+                    Err(e) => {
+                        info!("Tx not created: {}", e);
+                        return Err(e);
+                    }
+                };
 
-				match args.method.as_str() {
-					"file" => {
-						let slate_putter = PathToSlate((&args.dest).into());
-						slate_putter.put_tx(&slate)?;
-						api.tx_lock_outputs(m, &slate, 0, Some(args.dest))?;
-					}
-					"self" => {
-						api.tx_lock_outputs(m, &slate, 0, Some(args.dest))?;
-						let km = match keychain_mask.as_ref() {
-							None => None,
-							Some(&m) => Some(m.to_owned()),
-						};
-						controller::foreign_single_use(wallet, km, |api| {
-							slate = api.finalize_invoice_tx(&slate)?;
-							Ok(())
-						})?;
-					}
-					method => {
-						let sender =
-							create_sender(method, &args.dest, tor_config, is_node_synced.clone())?;
-						slate = sender.send_tx(&slate)?;
-						api.tx_lock_outputs(m, &slate, 0, Some(args.dest))?;
-					}
-				}
-			}
-			Ok(())
-		},
-		is_node_synced.clone(),
-	)?;
-	Ok(())
+                match args.method.as_str() {
+                    "file" => {
+                        let slate_putter = PathToSlate((&args.dest).into());
+                        slate_putter.put_tx(&slate)?;
+                        api.tx_lock_outputs(m, &slate, 0, Some(args.dest))?;
+                    }
+                    "self" => {
+                        api.tx_lock_outputs(m, &slate, 0, Some(args.dest))?;
+                        let km = match keychain_mask.as_ref() {
+                            None => None,
+                            Some(&m) => Some(m.to_owned()),
+                        };
+                        controller::foreign_single_use(wallet, km, |api| {
+                            slate = api.finalize_invoice_tx(&slate)?;
+                            Ok(())
+                        })?;
+                    }
+                    method => {
+                        let sender = create_sender(method, &args.dest, is_node_synced.clone())?;
+                        slate = sender.send_tx(&slate)?;
+                        api.tx_lock_outputs(m, &slate, 0, Some(args.dest))?;
+                    }
+                }
+            }
+            Ok(())
+        },
+        is_node_synced.clone(),
+    )?;
+    Ok(())
 }
 /// Info command args
 pub struct InfoArgs {
-	pub minimum_confirmations: u64,
+    pub minimum_confirmations: u64,
 }
 
 pub fn info<L, C, K>(
-	wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K>>>>,
-	keychain_mask: Option<&SecretKey>,
-	g_args: &GlobalArgs,
-	args: InfoArgs,
-	dark_scheme: bool,
-	is_node_synced: Arc<AtomicBool>,
+    wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K>>>>,
+    keychain_mask: Option<&SecretKey>,
+    g_args: &GlobalArgs,
+    args: InfoArgs,
+    dark_scheme: bool,
+    is_node_synced: Arc<AtomicBool>,
 ) -> Result<(), Error>
 where
-	L: WalletLCProvider<'static, C, K> + 'static,
-	C: NodeClient + 'static,
-	K: keychain::Keychain + 'static,
+    L: WalletLCProvider<'static, C, K> + 'static,
+    C: NodeClient + 'static,
+    K: keychain::Keychain + 'static,
 {
-	controller::owner_single_use(
-		wallet.clone(),
-		keychain_mask,
-		|api, m| {
-			let (validated, wallet_info) =
-				api.retrieve_summary_info(m, true, args.minimum_confirmations)?;
-			display::info(&g_args.account, &wallet_info, validated, dark_scheme);
-			Ok(())
-		},
-		is_node_synced,
-	)?;
-	Ok(())
+    controller::owner_single_use(
+        wallet.clone(),
+        keychain_mask,
+        |api, m| {
+            let (validated, wallet_info) =
+                api.retrieve_summary_info(m, true, args.minimum_confirmations)?;
+            display::info(&g_args.account, &wallet_info, validated, dark_scheme);
+            Ok(())
+        },
+        is_node_synced,
+    )?;
+    Ok(())
 }
 
 /// Outputs command args
 pub struct OutputsArgs {
-	pub show_full_history: bool,
-	pub limit: Option<usize>,       // Number of items to return
-	pub offset: Option<usize>,      // Starting index
-	pub sort_order: Option<String>, // "asc" or "desc", default is "asc"
+    pub show_full_history: bool,
+    pub limit: Option<usize>,       // Number of items to return
+    pub offset: Option<usize>,      // Starting index
+    pub sort_order: Option<String>, // "asc" or "desc", default is "asc"
 }
 
 pub fn outputs<L, C, K>(
-	wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K>>>>,
-	keychain_mask: Option<&SecretKey>,
-	g_args: &GlobalArgs,
-	args: OutputsArgs,
-	dark_scheme: bool,
-	is_node_synced: Arc<AtomicBool>,
+    wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K>>>>,
+    keychain_mask: Option<&SecretKey>,
+    g_args: &GlobalArgs,
+    args: OutputsArgs,
+    dark_scheme: bool,
+    is_node_synced: Arc<AtomicBool>,
 ) -> Result<(), Error>
 where
-	L: WalletLCProvider<'static, C, K> + 'static,
-	C: NodeClient + 'static,
-	K: keychain::Keychain + 'static,
+    L: WalletLCProvider<'static, C, K> + 'static,
+    C: NodeClient + 'static,
+    K: keychain::Keychain + 'static,
 {
-	controller::owner_single_use(
-		wallet.clone(),
-		keychain_mask,
-		|api, m| {
-			let res = api.node_height(m)?;
-			let outputs_result = api.retrieve_outputs(
-				m,
-				g_args.show_spent,
-				true,
-				args.show_full_history,
-				None,
-				args.limit,
-				args.offset,
-				args.sort_order,
-			)?;
-			display::outputs(
-				&g_args.account,
-				res.height,
-				outputs_result.refresh_from_node,
-				outputs_result.outputs,
-				dark_scheme,
-				outputs_result.pager.records_read,
-				outputs_result.pager.total_records,
-				outputs_result.pager.limit,
-				outputs_result.pager.offset,
-				outputs_result.pager.sort_order.clone(),
-			)?;
-			Ok(())
-		},
-		is_node_synced,
-	)?;
-	Ok(())
+    controller::owner_single_use(
+        wallet.clone(),
+        keychain_mask,
+        |api, m| {
+            let res = api.node_height(m)?;
+            let outputs_result = api.retrieve_outputs(
+                m,
+                g_args.show_spent,
+                true,
+                args.show_full_history,
+                None,
+                args.limit,
+                args.offset,
+                args.sort_order,
+            )?;
+            display::outputs(
+                &g_args.account,
+                res.height,
+                outputs_result.refresh_from_node,
+                outputs_result.outputs,
+                dark_scheme,
+                outputs_result.pager.records_read,
+                outputs_result.pager.total_records,
+                outputs_result.pager.limit,
+                outputs_result.pager.offset,
+                outputs_result.pager.sort_order.clone(),
+            )?;
+            Ok(())
+        },
+        is_node_synced,
+    )?;
+    Ok(())
 }
 
 /// Txs command args
 pub struct TxsArgs {
-	pub id: Option<u32>,
-	pub tx_slate_id: Option<Uuid>,
-	pub limit: Option<usize>,       // Number of items to return
-	pub offset: Option<usize>,      // Starting index
-	pub sort_order: Option<String>, // "asc" or "desc", default is "asc"
+    pub id: Option<u32>,
+    pub tx_slate_id: Option<Uuid>,
+    pub limit: Option<usize>,       // Number of items to return
+    pub offset: Option<usize>,      // Starting index
+    pub sort_order: Option<String>, // "asc" or "desc", default is "asc"
 }
 
 pub fn txs<L, C, K>(
-	wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K>>>>,
-	keychain_mask: Option<&SecretKey>,
-	g_args: &GlobalArgs,
-	args: TxsArgs,
-	dark_scheme: bool,
-	is_node_synced: Arc<AtomicBool>,
+    wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K>>>>,
+    keychain_mask: Option<&SecretKey>,
+    g_args: &GlobalArgs,
+    args: TxsArgs,
+    dark_scheme: bool,
+    is_node_synced: Arc<AtomicBool>,
 ) -> Result<(), Error>
 where
-	L: WalletLCProvider<'static, C, K> + 'static,
-	C: NodeClient + 'static,
-	K: keychain::Keychain + 'static,
+    L: WalletLCProvider<'static, C, K> + 'static,
+    C: NodeClient + 'static,
+    K: keychain::Keychain + 'static,
 {
-	controller::owner_single_use(
-		wallet.clone(),
-		keychain_mask,
-		|api, m| {
-			let res = api.node_height(m)?;
-			let txs_result = api.retrieve_txs(
-				m,
-				true,
-				args.id,
-				args.tx_slate_id,
-				args.limit,
-				args.offset,
-				args.sort_order,
-			)?;
+    controller::owner_single_use(
+        wallet.clone(),
+        keychain_mask,
+        |api, m| {
+            let res = api.node_height(m)?;
+            let txs_result = api.retrieve_txs(
+                m,
+                true,
+                args.id,
+                args.tx_slate_id,
+                args.limit,
+                args.offset,
+                args.sort_order,
+            )?;
 
-			let display_details = args.id.is_some() || args.tx_slate_id.is_some();
+            let display_details = args.id.is_some() || args.tx_slate_id.is_some();
 
-			// if given a particular transaction id or uuid, also get and display associated
-			// inputs/outputs and messages
-			let id = if args.id.is_some() {
-				args.id
-			} else if args.tx_slate_id.is_some() {
-				if let Some(tx) = txs_result
-					.txs
-					.iter()
-					.find(|t| t.tx_slate_id == args.tx_slate_id)
-				{
-					Some(tx.id)
-				} else {
-					println!("Could not find a transaction matching given txid.\n");
-					None
-				}
-			} else {
-				None
-			};
+            // if given a particular transaction id or uuid, also get and display associated
+            // inputs/outputs and messages
+            let id = if args.id.is_some() {
+                args.id
+            } else if args.tx_slate_id.is_some() {
+                if let Some(tx) = txs_result
+                    .txs
+                    .iter()
+                    .find(|t| t.tx_slate_id == args.tx_slate_id)
+                {
+                    Some(tx.id)
+                } else {
+                    println!("Could not find a transaction matching given txid.\n");
+                    None
+                }
+            } else {
+                None
+            };
 
-			if id.is_some() && display_details {
-				let outputs_result =
-					api.retrieve_outputs(m, true, true, false, id, None, None, None)?;
+            if id.is_some() && display_details {
+                let outputs_result =
+                    api.retrieve_outputs(m, true, true, false, id, None, None, None)?;
 
-				display::txs(
-					&g_args.account,
-					res.height,
-					txs_result.refresh_from_node,
-					&txs_result.txs,
-					display_details,
-					txs_result.pager.records_read,
-					txs_result.pager.total_records,
-					txs_result.pager.limit,
-					txs_result.pager.offset,
-					txs_result.pager.sort_order.clone(),
-				)?;
+                display::txs(
+                    &g_args.account,
+                    res.height,
+                    txs_result.refresh_from_node,
+                    &txs_result.txs,
+                    display_details,
+                    txs_result.pager.records_read,
+                    txs_result.pager.total_records,
+                    txs_result.pager.limit,
+                    txs_result.pager.offset,
+                    txs_result.pager.sort_order.clone(),
+                )?;
 
-				display::outputs(
-					&g_args.account,
-					res.height,
-					outputs_result.refresh_from_node,
-					outputs_result.outputs,
-					dark_scheme,
-					outputs_result.pager.records_read,
-					outputs_result.pager.total_records,
-					outputs_result.pager.limit,
-					outputs_result.pager.offset,
-					outputs_result.pager.sort_order.clone(),
-				)?;
-				// should only be one here, but just in case
-				for tx in txs_result.txs {
-					display::tx_messages(&tx, dark_scheme)?;
+                display::outputs(
+                    &g_args.account,
+                    res.height,
+                    outputs_result.refresh_from_node,
+                    outputs_result.outputs,
+                    dark_scheme,
+                    outputs_result.pager.records_read,
+                    outputs_result.pager.total_records,
+                    outputs_result.pager.limit,
+                    outputs_result.pager.offset,
+                    outputs_result.pager.sort_order.clone(),
+                )?;
+                // should only be one here, but just in case
+                for tx in txs_result.txs {
+                    display::tx_messages(&tx, dark_scheme)?;
 
-					display::payment_proof(&tx)?;
-					println!();
-				}
-			} else {
-				display::txs(
-					&g_args.account,
-					res.height,
-					txs_result.refresh_from_node,
-					&txs_result.txs,
-					display_details,
-					txs_result.pager.records_read,
-					txs_result.pager.total_records,
-					txs_result.pager.limit,
-					txs_result.pager.offset,
-					txs_result.pager.sort_order.clone(),
-				)?;
-			}
+                    display::payment_proof(&tx)?;
+                    println!();
+                }
+            } else {
+                display::txs(
+                    &g_args.account,
+                    res.height,
+                    txs_result.refresh_from_node,
+                    &txs_result.txs,
+                    display_details,
+                    txs_result.pager.records_read,
+                    txs_result.pager.total_records,
+                    txs_result.pager.limit,
+                    txs_result.pager.offset,
+                    txs_result.pager.sort_order.clone(),
+                )?;
+            }
 
-			Ok(())
-		},
-		is_node_synced,
-	)?;
-	Ok(())
+            Ok(())
+        },
+        is_node_synced,
+    )?;
+    Ok(())
 }
 
 /// Post
 pub struct PostArgs {
-	pub input: String,
-	pub fluff: bool,
+    pub input: String,
+    pub fluff: bool,
 }
 
 pub fn post<L, C, K>(
-	wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K>>>>,
-	keychain_mask: Option<&SecretKey>,
-	args: PostArgs,
-	is_node_synced: Arc<AtomicBool>,
+    wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K>>>>,
+    keychain_mask: Option<&SecretKey>,
+    args: PostArgs,
+    is_node_synced: Arc<AtomicBool>,
 ) -> Result<(), Error>
 where
-	L: WalletLCProvider<'static, C, K> + 'static,
-	C: NodeClient + 'static,
-	K: keychain::Keychain + 'static,
+    L: WalletLCProvider<'static, C, K> + 'static,
+    C: NodeClient + 'static,
+    K: keychain::Keychain + 'static,
 {
-	let slate = PathToSlate((&args.input).into()).get_tx()?;
+    let slate = PathToSlate((&args.input).into()).get_tx()?;
 
-	controller::owner_single_use(
-		wallet.clone(),
-		keychain_mask,
-		|api, m| {
-			api.post_tx(m, &slate.tx, args.fluff)?;
-			info!("Posted transaction");
-			return Ok(());
-		},
-		is_node_synced,
-	)?;
-	Ok(())
+    controller::owner_single_use(
+        wallet.clone(),
+        keychain_mask,
+        |api, m| {
+            api.post_tx(m, &slate.tx, args.fluff)?;
+            info!("Posted transaction");
+            return Ok(());
+        },
+        is_node_synced,
+    )?;
+    Ok(())
 }
 
 /// Repost
 pub struct RepostArgs {
-	pub id: u32,
-	pub dump_file: Option<String>,
-	pub fluff: bool,
+    pub id: u32,
+    pub dump_file: Option<String>,
+    pub fluff: bool,
 }
 
 pub fn repost<L, C, K>(
-	wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K>>>>,
-	keychain_mask: Option<&SecretKey>,
-	args: RepostArgs,
-	is_node_synced: Arc<AtomicBool>,
+    wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K>>>>,
+    keychain_mask: Option<&SecretKey>,
+    args: RepostArgs,
+    is_node_synced: Arc<AtomicBool>,
 ) -> Result<(), Error>
 where
-	L: WalletLCProvider<'static, C, K> + 'static,
-	C: NodeClient + 'static,
-	K: keychain::Keychain + 'static,
+    L: WalletLCProvider<'static, C, K> + 'static,
+    C: NodeClient + 'static,
+    K: keychain::Keychain + 'static,
 {
-	controller::owner_single_use(
-		wallet.clone(),
-		keychain_mask,
-		|api, m| {
-			let txs = api.retrieve_txs(m, true, Some(args.id), None, None, None, None)?;
-			let stored_tx = api.get_stored_tx(m, &txs.txs[0])?;
-			if stored_tx.is_none() {
-				error!(
-					"Transaction with id {} does not have transaction data. Not reposting.",
-					args.id
-				);
-				return Ok(());
-			}
-			match args.dump_file {
-				None => {
-					if txs.txs[0].confirmed {
-						error!(
-							"Transaction with id {} is confirmed. Not reposting.",
-							args.id
-						);
-						return Ok(());
-					}
-					api.post_tx(m, &stored_tx.unwrap(), args.fluff)?;
-					info!("Reposted transaction at {}", args.id);
-					return Ok(());
-				}
-				Some(f) => {
-					let mut tx_file = File::create(f.clone())?;
-					tx_file.write_all(json::to_string(&stored_tx).unwrap().as_bytes())?;
-					tx_file.sync_all()?;
-					info!("Dumped transaction data for tx {} to {}", args.id, f);
-					return Ok(());
-				}
-			}
-		},
-		is_node_synced,
-	)?;
-	Ok(())
+    controller::owner_single_use(
+        wallet.clone(),
+        keychain_mask,
+        |api, m| {
+            let txs = api.retrieve_txs(m, true, Some(args.id), None, None, None, None)?;
+            let stored_tx = api.get_stored_tx(m, &txs.txs[0])?;
+            if stored_tx.is_none() {
+                error!(
+                    "Transaction with id {} does not have transaction data. Not reposting.",
+                    args.id
+                );
+                return Ok(());
+            }
+            match args.dump_file {
+                None => {
+                    if txs.txs[0].confirmed {
+                        error!(
+                            "Transaction with id {} is confirmed. Not reposting.",
+                            args.id
+                        );
+                        return Ok(());
+                    }
+                    api.post_tx(m, &stored_tx.unwrap(), args.fluff)?;
+                    info!("Reposted transaction at {}", args.id);
+                    return Ok(());
+                }
+                Some(f) => {
+                    let mut tx_file = File::create(f.clone())?;
+                    tx_file.write_all(json::to_string(&stored_tx).unwrap().as_bytes())?;
+                    tx_file.sync_all()?;
+                    info!("Dumped transaction data for tx {} to {}", args.id, f);
+                    return Ok(());
+                }
+            }
+        },
+        is_node_synced,
+    )?;
+    Ok(())
 }
 
 /// Cancel
 pub struct CancelArgs {
-	pub tx_id: Option<u32>,
-	pub tx_slate_id: Option<Uuid>,
-	pub tx_id_string: String,
+    pub tx_id: Option<u32>,
+    pub tx_slate_id: Option<Uuid>,
+    pub tx_id_string: String,
 }
 
 pub fn cancel<L, C, K>(
-	wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K>>>>,
-	keychain_mask: Option<&SecretKey>,
-	args: CancelArgs,
-	is_node_synced: Arc<AtomicBool>,
+    wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K>>>>,
+    keychain_mask: Option<&SecretKey>,
+    args: CancelArgs,
+    is_node_synced: Arc<AtomicBool>,
 ) -> Result<(), Error>
 where
-	L: WalletLCProvider<'static, C, K> + 'static,
-	C: NodeClient + 'static,
-	K: keychain::Keychain + 'static,
+    L: WalletLCProvider<'static, C, K> + 'static,
+    C: NodeClient + 'static,
+    K: keychain::Keychain + 'static,
 {
-	controller::owner_single_use(
-		wallet.clone(),
-		keychain_mask,
-		|api, m| {
-			let result = api.cancel_tx(m, args.tx_id, args.tx_slate_id);
-			match result {
-				Ok(_) => {
-					info!("Transaction {} Cancelled", args.tx_id_string);
-					Ok(())
-				}
-				Err(e) => {
-					error!("TX Cancellation failed: {}", e);
-					Err(e)
-				}
-			}
-		},
-		is_node_synced,
-	)?;
-	Ok(())
+    controller::owner_single_use(
+        wallet.clone(),
+        keychain_mask,
+        |api, m| {
+            let result = api.cancel_tx(m, args.tx_id, args.tx_slate_id);
+            match result {
+                Ok(_) => {
+                    info!("Transaction {} Cancelled", args.tx_id_string);
+                    Ok(())
+                }
+                Err(e) => {
+                    error!("TX Cancellation failed: {}", e);
+                    Err(e)
+                }
+            }
+        },
+        is_node_synced,
+    )?;
+    Ok(())
 }
 
 /// wallet check
 pub struct CheckArgs {
-	pub delete_unconfirmed: bool,
-	pub start_height: Option<u64>,
+    pub delete_unconfirmed: bool,
+    pub start_height: Option<u64>,
 }
 
 pub fn scan<L, C, K>(
-	wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K>>>>,
-	keychain_mask: Option<&SecretKey>,
-	args: CheckArgs,
-	is_node_synced: Arc<AtomicBool>,
+    wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K>>>>,
+    keychain_mask: Option<&SecretKey>,
+    args: CheckArgs,
+    is_node_synced: Arc<AtomicBool>,
 ) -> Result<(), Error>
 where
-	L: WalletLCProvider<'static, C, K> + 'static,
-	C: NodeClient + 'static,
-	K: keychain::Keychain + 'static,
+    L: WalletLCProvider<'static, C, K> + 'static,
+    C: NodeClient + 'static,
+    K: keychain::Keychain + 'static,
 {
-	controller::owner_single_use(
-		wallet.clone(),
-		keychain_mask,
-		|api, m| {
-			warn!("Starting output scan ...",);
-			let result = api.scan(m, args.start_height, args.delete_unconfirmed);
-			match result {
-				Ok(_) => {
-					warn!("Wallet check complete",);
-					Ok(())
-				}
-				Err(e) => {
-					error!("Wallet check failed: {}", e);
-					error!("Backtrace: {}", e);
-					Err(e)
-				}
-			}
-		},
-		is_node_synced,
-	)?;
-	Ok(())
+    controller::owner_single_use(
+        wallet.clone(),
+        keychain_mask,
+        |api, m| {
+            warn!("Starting output scan ...",);
+            let result = api.scan(m, args.start_height, args.delete_unconfirmed);
+            match result {
+                Ok(_) => {
+                    warn!("Wallet check complete",);
+                    Ok(())
+                }
+                Err(e) => {
+                    error!("Wallet check failed: {}", e);
+                    error!("Backtrace: {}", e);
+                    Err(e)
+                }
+            }
+        },
+        is_node_synced,
+    )?;
+    Ok(())
 }
 
 /// Payment Proof Address
 pub fn address<L, C, K>(
-	wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K>>>>,
-	g_args: &GlobalArgs,
-	keychain_mask: Option<&SecretKey>,
-	epicbox_config: EpicboxConfig,
-	is_node_synced: Arc<AtomicBool>,
+    wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K>>>>,
+    g_args: &GlobalArgs,
+    keychain_mask: Option<&SecretKey>,
+    epicbox_config: EpicboxConfig,
+    is_node_synced: Arc<AtomicBool>,
 ) -> Result<(), Error>
 where
-	L: WalletLCProvider<'static, C, K> + 'static,
-	C: NodeClient + 'static,
-	K: keychain::Keychain + 'static,
+    L: WalletLCProvider<'static, C, K> + 'static,
+    C: NodeClient + 'static,
+    K: keychain::Keychain + 'static,
 {
-	controller::owner_single_use(
-		wallet.clone(),
-		keychain_mask,
-		|api, m| {
-			// Just address at derivation index 0 for now
-			let pub_key = api.get_public_proof_address(m, 0)?;
-			let result = address::onion_v3_from_pubkey(&pub_key);
-			let address = api.get_public_address(m, 0)?;
+    controller::owner_single_use(
+        wallet.clone(),
+        keychain_mask,
+        |api, m| {
+            // Just address at derivation index 0 for now
+            let pub_key = api.get_public_proof_address(m, 0)?;
+            let result = address::onion_v3_from_pubkey(&pub_key);
+            let address = api.get_public_address(m, 0)?;
 
-			match result {
-				Ok(a) => {
-					println!();
-					println!("Epicbox address for account - {}", g_args.account);
-					println!("-------------------------------------");
-					println!(
-						"{}@{}",
-						address.public_key,
-						epicbox_config.epicbox_domain.unwrap()
-					);
-					println!();
-					println!("Public Proof Address for account - {}", g_args.account);
-					println!("-------------------------------------");
-					println!("{}", to_hex(pub_key.as_bytes().to_vec()));
-					println!();
-					println!("TOR Onion V3 Address for account - {}", g_args.account);
-					println!("-------------------------------------");
-					println!("{}", a);
-					println!();
-					Ok(())
-				}
-				Err(e) => {
-					error!("Address retrieval failed: {}", e);
-					error!("Backtrace: {}", e);
-					Err(e)
-				}
-			}
-		},
-		is_node_synced,
-	)?;
-	Ok(())
+            match result {
+                Ok(a) => {
+                    println!();
+                    println!("Epicbox address for account - {}", g_args.account);
+                    println!("-------------------------------------");
+                    println!(
+                        "{}@{}",
+                        address.public_key,
+                        epicbox_config.epicbox_domain.unwrap()
+                    );
+                    println!();
+                    println!("Public Proof Address for account - {}", g_args.account);
+                    println!("-------------------------------------");
+                    println!("{}", to_hex(pub_key.as_bytes().to_vec()));
+                    println!();
+                    println!("TOR Onion V3 Address for account - {}", g_args.account);
+                    println!("-------------------------------------");
+                    println!("{}", a);
+                    println!();
+                    Ok(())
+                }
+                Err(e) => {
+                    error!("Address retrieval failed: {}", e);
+                    error!("Backtrace: {}", e);
+                    Err(e)
+                }
+            }
+        },
+        is_node_synced,
+    )?;
+    Ok(())
 }
 
 /// Proof Export Args
 pub struct ProofExportArgs {
-	pub output_file: String,
-	pub id: Option<u32>,
-	pub tx_slate_id: Option<Uuid>,
+    pub output_file: String,
+    pub id: Option<u32>,
+    pub tx_slate_id: Option<Uuid>,
 }
 
 pub fn proof_export<L, C, K>(
-	wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K>>>>,
-	keychain_mask: Option<&SecretKey>,
-	args: ProofExportArgs,
-	is_node_synced: Arc<AtomicBool>,
+    wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K>>>>,
+    keychain_mask: Option<&SecretKey>,
+    args: ProofExportArgs,
+    is_node_synced: Arc<AtomicBool>,
 ) -> Result<(), Error>
 where
-	L: WalletLCProvider<'static, C, K> + 'static,
-	C: NodeClient + 'static,
-	K: keychain::Keychain + 'static,
+    L: WalletLCProvider<'static, C, K> + 'static,
+    C: NodeClient + 'static,
+    K: keychain::Keychain + 'static,
 {
-	controller::owner_single_use(
-		wallet.clone(),
-		keychain_mask,
-		|api, m| {
-			let result = api.retrieve_payment_proof(m, true, args.id, args.tx_slate_id);
-			match result {
-				Ok(p) => {
-					// actually export proof
-					let mut proof_file = File::create(args.output_file.clone())?;
-					proof_file.write_all(json::to_string_pretty(&p).unwrap().as_bytes())?;
-					proof_file.sync_all()?;
-					warn!("Payment proof exported to {}", args.output_file);
-					Ok(())
-				}
-				Err(e) => {
-					error!("Proof export failed: {}", e);
-					Err(e)
-				}
-			}
-		},
-		is_node_synced,
-	)?;
-	Ok(())
+    controller::owner_single_use(
+        wallet.clone(),
+        keychain_mask,
+        |api, m| {
+            let result = api.retrieve_payment_proof(m, true, args.id, args.tx_slate_id);
+            match result {
+                Ok(p) => {
+                    // actually export proof
+                    let mut proof_file = File::create(args.output_file.clone())?;
+                    proof_file.write_all(json::to_string_pretty(&p).unwrap().as_bytes())?;
+                    proof_file.sync_all()?;
+                    warn!("Payment proof exported to {}", args.output_file);
+                    Ok(())
+                }
+                Err(e) => {
+                    error!("Proof export failed: {}", e);
+                    Err(e)
+                }
+            }
+        },
+        is_node_synced,
+    )?;
+    Ok(())
 }
 
 /// Proof Verify Args
 pub struct ProofVerifyArgs {
-	pub input_file: String,
+    pub input_file: String,
 }
 
 pub fn proof_verify<L, C, K>(
-	wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K>>>>,
-	keychain_mask: Option<&SecretKey>,
-	args: ProofVerifyArgs,
-	is_node_synced: Arc<AtomicBool>,
+    wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K>>>>,
+    keychain_mask: Option<&SecretKey>,
+    args: ProofVerifyArgs,
+    is_node_synced: Arc<AtomicBool>,
 ) -> Result<(), Error>
 where
-	L: WalletLCProvider<'static, C, K> + 'static,
-	C: NodeClient + 'static,
-	K: keychain::Keychain + 'static,
+    L: WalletLCProvider<'static, C, K> + 'static,
+    C: NodeClient + 'static,
+    K: keychain::Keychain + 'static,
 {
-	controller::owner_single_use(
-		wallet.clone(),
-		keychain_mask,
-		|api, m| {
-			let mut proof_f = match File::open(&args.input_file) {
-				Ok(p) => p,
-				Err(e) => {
-					let msg = format!("{}", e);
-					error!(
-						"Unable to open payment proof file at {}: {}",
-						args.input_file, e
-					);
-					return Err(Error::PaymentProofParsing(msg));
-				}
-			};
-			let mut proof = String::new();
-			proof_f.read_to_string(&mut proof)?;
-			// read
-			let proof: PaymentProof = match json::from_str(&proof) {
-				Ok(p) => p,
-				Err(e) => {
-					let msg = format!("{}", e);
-					error!("Unable to parse payment proof file: {}", e);
-					return Err(Error::PaymentProofParsing(msg));
-				}
-			};
-			let result = api.verify_payment_proof(m, &proof);
-			match result {
-				Ok((iam_sender, iam_recipient)) => {
-					println!("Payment proof's signatures are valid.");
-					if iam_sender {
-						println!("The proof's sender address belongs to this wallet.");
-					}
-					if iam_recipient {
-						println!("The proof's recipient address belongs to this wallet.");
-					}
-					if !iam_recipient && !iam_sender {
-						println!(
+    controller::owner_single_use(
+        wallet.clone(),
+        keychain_mask,
+        |api, m| {
+            let mut proof_f = match File::open(&args.input_file) {
+                Ok(p) => p,
+                Err(e) => {
+                    let msg = format!("{}", e);
+                    error!(
+                        "Unable to open payment proof file at {}: {}",
+                        args.input_file, e
+                    );
+                    return Err(Error::PaymentProofParsing(msg));
+                }
+            };
+            let mut proof = String::new();
+            proof_f.read_to_string(&mut proof)?;
+            // read
+            let proof: PaymentProof = match json::from_str(&proof) {
+                Ok(p) => p,
+                Err(e) => {
+                    let msg = format!("{}", e);
+                    error!("Unable to parse payment proof file: {}", e);
+                    return Err(Error::PaymentProofParsing(msg));
+                }
+            };
+            let result = api.verify_payment_proof(m, &proof);
+            match result {
+                Ok((iam_sender, iam_recipient)) => {
+                    println!("Payment proof's signatures are valid.");
+                    if iam_sender {
+                        println!("The proof's sender address belongs to this wallet.");
+                    }
+                    if iam_recipient {
+                        println!("The proof's recipient address belongs to this wallet.");
+                    }
+                    if !iam_recipient && !iam_sender {
+                        println!(
 						"Neither the proof's sender nor recipient address belongs to this wallet."
 					);
-					}
-					Ok(())
-				}
-				Err(e) => {
-					error!("Proof not valid: {}", e);
-					Err(e)
-				}
-			}
-		},
-		is_node_synced,
-	)?;
-	Ok(())
+                    }
+                    Ok(())
+                }
+                Err(e) => {
+                    error!("Proof not valid: {}", e);
+                    Err(e)
+                }
+            }
+        },
+        is_node_synced,
+    )?;
+    Ok(())
 }

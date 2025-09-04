@@ -33,137 +33,137 @@ use util::{Mutex, ZeroingString};
 
 #[macro_export]
 macro_rules! wallet_inst {
-	($wallet:ident, $w: ident) => {
-		let mut w_lock = $wallet.lock();
-		let lc = w_lock.lc_provider()?;
-		let $w = lc.wallet_inst()?;
-	};
+    ($wallet:ident, $w: ident) => {
+        let mut w_lock = $wallet.lock();
+        let lc = w_lock.lc_provider()?;
+        let $w = lc.wallet_inst()?;
+    };
 }
 
 #[macro_export]
 macro_rules! create_wallet_and_add {
-	($client:ident, $wallet: ident, $mask: ident, $test_dir: expr, $name: expr, $seed_phrase: expr, $proxy: expr, $create_mask: expr) => {
-		let $client = LocalWalletClient::new($name, $proxy.tx.clone());
-		let ($wallet, $mask) = common::create_local_wallet(
-			$test_dir,
-			$name,
-			$seed_phrase.clone(),
-			$client.clone(),
-			$create_mask,
-		);
-		$proxy.add_wallet(
-			$name,
-			$client.get_send_instance(),
-			$wallet.clone(),
-			$mask.clone(),
-		);
-	};
+    ($client:ident, $wallet: ident, $mask: ident, $test_dir: expr, $name: expr, $seed_phrase: expr, $proxy: expr, $create_mask: expr) => {
+        let $client = LocalWalletClient::new($name, $proxy.tx.clone());
+        let ($wallet, $mask) = common::create_local_wallet(
+            $test_dir,
+            $name,
+            $seed_phrase.clone(),
+            $client.clone(),
+            $create_mask,
+        );
+        $proxy.add_wallet(
+            $name,
+            $client.get_send_instance(),
+            $wallet.clone(),
+            $mask.clone(),
+        );
+    };
 }
 
 #[macro_export]
 macro_rules! open_wallet_and_add {
-	($client:ident, $wallet: ident, $mask: ident, $test_dir: expr, $name: expr, $proxy: expr, $create_mask: expr) => {
-		let $client = LocalWalletClient::new($name, $proxy.tx.clone());
-		let ($wallet, $mask) =
-			common::open_local_wallet($test_dir, $name, $client.clone(), $create_mask);
-		$proxy.add_wallet(
-			$name,
-			$client.get_send_instance(),
-			$wallet.clone(),
-			$mask.clone(),
-		);
-	};
+    ($client:ident, $wallet: ident, $mask: ident, $test_dir: expr, $name: expr, $proxy: expr, $create_mask: expr) => {
+        let $client = LocalWalletClient::new($name, $proxy.tx.clone());
+        let ($wallet, $mask) =
+            common::open_local_wallet($test_dir, $name, $client.clone(), $create_mask);
+        $proxy.add_wallet(
+            $name,
+            $client.get_send_instance(),
+            $wallet.clone(),
+            $mask.clone(),
+        );
+    };
 }
 pub fn clean_output_dir(test_dir: &str) {
-	let _ = fs::remove_dir_all(test_dir);
+    let _ = fs::remove_dir_all(test_dir);
 }
 
 pub fn setup(test_dir: &str) {
-	util::init_test_logger();
-	clean_output_dir(test_dir);
-	global::set_mining_mode(ChainTypes::AutomatedTesting);
-	global::set_foundation_path("../tests/assets/foundation_floonet.json".to_string());
+    util::init_test_logger();
+    clean_output_dir(test_dir);
+    global::set_mining_mode(ChainTypes::AutomatedTesting);
+    global::set_foundation_path("../tests/assets/foundation_floonet.json".to_string());
 }
 
 pub fn create_wallet_proxy(
-	test_dir: &str,
+    test_dir: &str,
 ) -> WalletProxy<DefaultLCProvider<LocalWalletClient, ExtKeychain>, LocalWalletClient, ExtKeychain>
 {
-	WalletProxy::new(test_dir)
+    WalletProxy::new(test_dir)
 }
 
 pub fn create_local_wallet(
-	test_dir: &str,
-	name: &str,
-	mnemonic: Option<ZeroingString>,
-	client: LocalWalletClient,
-	create_mask: bool,
+    test_dir: &str,
+    name: &str,
+    mnemonic: Option<ZeroingString>,
+    client: LocalWalletClient,
+    create_mask: bool,
 ) -> (
-	Arc<
-		Mutex<
-			Box<
-				dyn WalletInst<
-					'static,
-					DefaultLCProvider<'static, LocalWalletClient, ExtKeychain>,
-					LocalWalletClient,
-					ExtKeychain,
-				>,
-			>,
-		>,
-	>,
-	Option<SecretKey>,
+    Arc<
+        Mutex<
+            Box<
+                dyn WalletInst<
+                    'static,
+                    DefaultLCProvider<'static, LocalWalletClient, ExtKeychain>,
+                    LocalWalletClient,
+                    ExtKeychain,
+                >,
+            >,
+        >,
+    >,
+    Option<SecretKey>,
 ) {
-	let mut wallet = Box::new(DefaultWalletImpl::<LocalWalletClient>::new(client).unwrap())
-		as Box<
-			dyn WalletInst<
-				DefaultLCProvider<'static, LocalWalletClient, ExtKeychain>,
-				LocalWalletClient,
-				ExtKeychain,
-			>,
-		>;
-	let lc = wallet.lc_provider().unwrap();
-	let _ = lc.set_top_level_directory(&format!("{}/{}", test_dir, name));
-	lc.create_wallet(None, mnemonic, 32, ZeroingString::from(""), false)
-		.unwrap();
-	let mask = lc
-		.open_wallet(None, ZeroingString::from(""), create_mask, false)
-		.unwrap();
-	(Arc::new(Mutex::new(wallet)), mask)
+    let mut wallet = Box::new(DefaultWalletImpl::<LocalWalletClient>::new(client).unwrap())
+        as Box<
+            dyn WalletInst<
+                DefaultLCProvider<'static, LocalWalletClient, ExtKeychain>,
+                LocalWalletClient,
+                ExtKeychain,
+            >,
+        >;
+    let lc = wallet.lc_provider().unwrap();
+    let _ = lc.set_top_level_directory(&format!("{}/{}", test_dir, name));
+    lc.create_wallet(None, mnemonic, 32, ZeroingString::from(""), false)
+        .unwrap();
+    let mask = lc
+        .open_wallet(None, ZeroingString::from(""), create_mask, false)
+        .unwrap();
+    (Arc::new(Mutex::new(wallet)), mask)
 }
 
 #[allow(dead_code)]
 pub fn open_local_wallet(
-	test_dir: &str,
-	name: &str,
-	client: LocalWalletClient,
-	create_mask: bool,
+    test_dir: &str,
+    name: &str,
+    client: LocalWalletClient,
+    create_mask: bool,
 ) -> (
-	Arc<
-		Mutex<
-			Box<
-				dyn WalletInst<
-					'static,
-					DefaultLCProvider<'static, LocalWalletClient, ExtKeychain>,
-					LocalWalletClient,
-					ExtKeychain,
-				>,
-			>,
-		>,
-	>,
-	Option<SecretKey>,
+    Arc<
+        Mutex<
+            Box<
+                dyn WalletInst<
+                    'static,
+                    DefaultLCProvider<'static, LocalWalletClient, ExtKeychain>,
+                    LocalWalletClient,
+                    ExtKeychain,
+                >,
+            >,
+        >,
+    >,
+    Option<SecretKey>,
 ) {
-	let mut wallet = Box::new(DefaultWalletImpl::<LocalWalletClient>::new(client).unwrap())
-		as Box<
-			dyn WalletInst<
-				DefaultLCProvider<'static, LocalWalletClient, ExtKeychain>,
-				LocalWalletClient,
-				ExtKeychain,
-			>,
-		>;
-	let lc = wallet.lc_provider().unwrap();
-	let _ = lc.set_top_level_directory(&format!("{}/{}", test_dir, name));
-	let mask = lc
-		.open_wallet(None, ZeroingString::from(""), create_mask, false)
-		.unwrap();
-	(Arc::new(Mutex::new(wallet)), mask)
+    let mut wallet = Box::new(DefaultWalletImpl::<LocalWalletClient>::new(client).unwrap())
+        as Box<
+            dyn WalletInst<
+                DefaultLCProvider<'static, LocalWalletClient, ExtKeychain>,
+                LocalWalletClient,
+                ExtKeychain,
+            >,
+        >;
+    let lc = wallet.lc_provider().unwrap();
+    let _ = lc.set_top_level_directory(&format!("{}/{}", test_dir, name));
+    let mask = lc
+        .open_wallet(None, ZeroingString::from(""), create_mask, false)
+        .unwrap();
+    (Arc::new(Mutex::new(wallet)), mask)
 }

@@ -26,16 +26,16 @@ use crate::util::secp::pedersen;
 
 use futures::stream::FuturesUnordered;
 
+use crate::client_utils::json_rpc::*;
 use crate::util;
 use futures::TryStreamExt;
 use serde_json::json;
 use std::collections::HashMap;
 use std::env;
 
-use crate::client_utils::json_rpc::*;
-
 const FOREIGN_ENDPOINT: &str = "/v2/foreign";
 const OWNER_ENDPOINT: &str = "/v2/owner";
+const TOR_ENDPOINT: &str = "/v2/tor";
 
 #[derive(Debug, Deserialize)]
 pub struct GetTipResp {
@@ -169,6 +169,17 @@ impl NodeClient for HTTPNodeClient {
 	fn post_tx(&self, tx: &Transaction, fluff: bool) -> Result<(), Error> {
 		let params = json!([tx, fluff]);
 		self.send_json_request::<serde_json::Value>(FOREIGN_ENDPOINT, "push_transaction", &params)?;
+		Ok(())
+	}
+
+	/// Posts a transaction to a Tor .onion node address
+	fn post_tx_tor(&self, tx: &Transaction, tor_node_url: &str) -> Result<(), Error> {
+		let client = Client::new().expect("Failed to create HTTP client with SOCKS proxy");
+		let url = format!("{}{}", tor_node_url, TOR_ENDPOINT);
+		let params = json!([tx, false]);
+		let req = build_request("push_transaction", &params);
+		let _res = client.post::<Request, Response>(url.as_str(), self.node_api_secret(), &req);
+
 		Ok(())
 	}
 
@@ -431,6 +442,22 @@ impl NodeClient for HTTPNodeClient {
 			self.send_json_request::<OutputListing>(FOREIGN_ENDPOINT, "get_pmmr_indices", &params)?;
 
 		Ok((res.last_retrieved_index, res.highest_index))
+	}
+
+	fn get_onion_addresses(&self) -> Result<Vec<String>, Error> {
+		let params = serde_json::Value::Null;
+		let result: serde_json::Value =
+			self.send_json_request(OWNER_ENDPOINT, "get_onion_addresses", &params)?;
+
+		if let Some(arr) = result.as_array() {
+			let addresses = arr
+				.iter()
+				.filter_map(|v| v.as_str().map(|s| s.to_string()))
+				.collect();
+			Ok(addresses)
+		} else {
+			Ok(vec![])
+		}
 	}
 }
 

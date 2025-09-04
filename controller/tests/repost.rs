@@ -33,287 +33,287 @@ use common::{clean_output_dir, create_wallet_proxy, setup};
 
 /// self send impl
 fn file_repost_test_impl(test_dir: &'static str) -> Result<(), libwallet::Error> {
-	// Create a new proxy to simulate server and wallet responses
-	let mut wallet_proxy = create_wallet_proxy(test_dir);
-	let chain = wallet_proxy.chain.clone();
+    // Create a new proxy to simulate server and wallet responses
+    let mut wallet_proxy = create_wallet_proxy(test_dir);
+    let chain = wallet_proxy.chain.clone();
 
-	// Create a new wallet test client, and set its queues to communicate with the
-	// proxy
-	create_wallet_and_add!(
-		client1,
-		wallet1,
-		mask1_i,
-		test_dir,
-		"wallet1",
-		None,
-		&mut wallet_proxy,
-		false
-	);
-	let mask1 = (&mask1_i).as_ref();
-	create_wallet_and_add!(
-		client2,
-		wallet2,
-		mask2_i,
-		test_dir,
-		"wallet2",
-		None,
-		&mut wallet_proxy,
-		false
-	);
-	let mask2 = (&mask2_i).as_ref();
+    // Create a new wallet test client, and set its queues to communicate with the
+    // proxy
+    create_wallet_and_add!(
+        client1,
+        wallet1,
+        mask1_i,
+        test_dir,
+        "wallet1",
+        None,
+        &mut wallet_proxy,
+        false
+    );
+    let mask1 = (&mask1_i).as_ref();
+    create_wallet_and_add!(
+        client2,
+        wallet2,
+        mask2_i,
+        test_dir,
+        "wallet2",
+        None,
+        &mut wallet_proxy,
+        false
+    );
+    let mask2 = (&mask2_i).as_ref();
 
-	// Set the wallet proxy listener running
-	thread::spawn(move || {
-		if let Err(e) = wallet_proxy.run() {
-			error!("Wallet Proxy error: {}", e);
-		}
-	});
+    // Set the wallet proxy listener running
+    thread::spawn(move || {
+        if let Err(e) = wallet_proxy.run() {
+            error!("Wallet Proxy error: {}", e);
+        }
+    });
 
-	// few values to keep things shorter
-	let reward = consensus::reward_at_height(1);
-	let is_node_synced = Arc::new(AtomicBool::new(true));
-	// add some accounts
-	wallet::controller::owner_single_use(
-		wallet1.clone(),
-		mask1,
-		|api, m| {
-			api.create_account_path(m, "mining")?;
-			api.create_account_path(m, "listener")?;
-			Ok(())
-		},
-		is_node_synced.clone(),
-	)?;
+    // few values to keep things shorter
+    let reward = consensus::reward_at_height(1);
+    let is_node_synced = Arc::new(AtomicBool::new(true));
+    // add some accounts
+    wallet::controller::owner_single_use(
+        wallet1.clone(),
+        mask1,
+        |api, m| {
+            api.create_account_path(m, "mining")?;
+            api.create_account_path(m, "listener")?;
+            Ok(())
+        },
+        is_node_synced.clone(),
+    )?;
 
-	// add some accounts
-	wallet::controller::owner_single_use(
-		wallet2.clone(),
-		mask2,
-		|api, m| {
-			api.create_account_path(m, "account1")?;
-			api.create_account_path(m, "account2")?;
-			Ok(())
-		},
-		is_node_synced.clone(),
-	)?;
+    // add some accounts
+    wallet::controller::owner_single_use(
+        wallet2.clone(),
+        mask2,
+        |api, m| {
+            api.create_account_path(m, "account1")?;
+            api.create_account_path(m, "account2")?;
+            Ok(())
+        },
+        is_node_synced.clone(),
+    )?;
 
-	// Get some mining done
-	{
-		wallet_inst!(wallet1, w);
-		w.set_parent_key_id_by_name("mining")?;
-	}
-	let mut bh = 10u64;
-	let _ =
-		test_framework::award_blocks_to_wallet(&chain, wallet1.clone(), mask1, bh as usize, false);
+    // Get some mining done
+    {
+        wallet_inst!(wallet1, w);
+        w.set_parent_key_id_by_name("mining")?;
+    }
+    let mut bh = 10u64;
+    let _ =
+        test_framework::award_blocks_to_wallet(&chain, wallet1.clone(), mask1, bh as usize, false);
 
-	let send_file = format!("{}/part_tx_1.tx", test_dir);
-	let receive_file = format!("{}/part_tx_2.tx", test_dir);
+    let send_file = format!("{}/part_tx_1.tx", test_dir);
+    let receive_file = format!("{}/part_tx_2.tx", test_dir);
 
-	let mut slate = Slate::blank(2);
+    let mut slate = Slate::blank(2);
 
-	// Should have 5 in account1 (5 spendable), 5 in account (2 spendable)
-	wallet::controller::owner_single_use(
-		wallet1.clone(),
-		mask1,
-		|api, m| {
-			let (wallet1_refreshed, wallet1_info) = api.retrieve_summary_info(m, true, 1)?;
-			assert!(wallet1_refreshed);
-			assert_eq!(wallet1_info.last_confirmed_height, bh);
-			assert_eq!(wallet1_info.total, bh * reward);
-			// send to send
-			let args = InitTxArgs {
-				src_acct_name: Some("mining".to_owned()),
-				amount: reward * 2,
-				minimum_confirmations: 2,
-				max_outputs: 500,
-				num_change_outputs: 1,
-				selection_strategy_is_use_all: true,
-				..Default::default()
-			};
-			let slate = api.init_send_tx(m, args, is_node_synced.clone())?;
-			PathToSlate((&send_file).into()).put_tx(&slate)?;
-			api.tx_lock_outputs(m, &slate, 0, None)?;
-			Ok(())
-		},
-		is_node_synced.clone(),
-	)?;
+    // Should have 5 in account1 (5 spendable), 5 in account (2 spendable)
+    wallet::controller::owner_single_use(
+        wallet1.clone(),
+        mask1,
+        |api, m| {
+            let (wallet1_refreshed, wallet1_info) = api.retrieve_summary_info(m, true, 1)?;
+            assert!(wallet1_refreshed);
+            assert_eq!(wallet1_info.last_confirmed_height, bh);
+            assert_eq!(wallet1_info.total, bh * reward);
+            // send to send
+            let args = InitTxArgs {
+                src_acct_name: Some("mining".to_owned()),
+                amount: reward * 2,
+                minimum_confirmations: 2,
+                max_outputs: 500,
+                num_change_outputs: 1,
+                selection_strategy_is_use_all: true,
+                ..Default::default()
+            };
+            let slate = api.init_send_tx(m, args, is_node_synced.clone())?;
+            PathToSlate((&send_file).into()).put_tx(&slate)?;
+            api.tx_lock_outputs(m, &slate, 0, None)?;
+            Ok(())
+        },
+        is_node_synced.clone(),
+    )?;
 
-	let _ = test_framework::award_blocks_to_wallet(&chain, wallet1.clone(), mask1, 3, false);
-	bh += 3;
+    let _ = test_framework::award_blocks_to_wallet(&chain, wallet1.clone(), mask1, 3, false);
+    bh += 3;
 
-	// wallet 1 receives file to different account, completes
-	{
-		wallet_inst!(wallet1, w);
-		w.set_parent_key_id_by_name("listener")?;
-	}
+    // wallet 1 receives file to different account, completes
+    {
+        wallet_inst!(wallet1, w);
+        w.set_parent_key_id_by_name("listener")?;
+    }
 
-	wallet::controller::foreign_single_use(wallet1.clone(), mask1_i.clone(), |api| {
-		slate = PathToSlate((&send_file).into()).get_tx()?;
-		slate = api.receive_tx(&slate, None, None)?;
-		PathToSlate((&receive_file).into()).put_tx(&slate)?;
-		Ok(())
-	})?;
+    wallet::controller::foreign_single_use(wallet1.clone(), mask1_i.clone(), |api| {
+        slate = PathToSlate((&send_file).into()).get_tx()?;
+        slate = api.receive_tx(&slate, None, None, None)?;
+        PathToSlate((&receive_file).into()).put_tx(&slate)?;
+        Ok(())
+    })?;
 
-	// wallet 1 receives file to different account, completes
-	{
-		wallet_inst!(wallet1, w);
-		w.set_parent_key_id_by_name("mining")?;
-	}
+    // wallet 1 receives file to different account, completes
+    {
+        wallet_inst!(wallet1, w);
+        w.set_parent_key_id_by_name("mining")?;
+    }
 
-	// wallet 1 finalize
-	wallet::controller::owner_single_use(
-		wallet1.clone(),
-		mask1,
-		|api, m| {
-			slate = PathToSlate((&receive_file).into()).get_tx()?;
-			slate = api.finalize_tx(m, &slate)?;
-			Ok(())
-		},
-		is_node_synced.clone(),
-	)?;
+    // wallet 1 finalize
+    wallet::controller::owner_single_use(
+        wallet1.clone(),
+        mask1,
+        |api, m| {
+            slate = PathToSlate((&receive_file).into()).get_tx()?;
+            slate = api.finalize_tx(m, &slate)?;
+            Ok(())
+        },
+        is_node_synced.clone(),
+    )?;
 
-	// Now repost from cached
-	wallet::controller::owner_single_use(
-		wallet1.clone(),
-		mask1,
-		|api, m| {
-			let txs = api.retrieve_txs(m, true, None, Some(slate.id), None, None, None)?;
-			let stored_tx = api.get_stored_tx(m, &txs.txs[0])?;
-			api.post_tx(m, &stored_tx.unwrap(), false)?;
-			bh += 1;
-			Ok(())
-		},
-		is_node_synced.clone(),
-	)?;
+    // Now repost from cached
+    wallet::controller::owner_single_use(
+        wallet1.clone(),
+        mask1,
+        |api, m| {
+            let txs = api.retrieve_txs(m, true, None, Some(slate.id), None, None, None)?;
+            let stored_tx = api.get_stored_tx(m, &txs.txs[0])?;
+            api.post_tx(m, &stored_tx.unwrap(), false)?;
+            bh += 1;
+            Ok(())
+        },
+        is_node_synced.clone(),
+    )?;
 
-	let _ = test_framework::award_blocks_to_wallet(&chain, wallet1.clone(), mask1, 3, false);
-	bh += 3;
+    let _ = test_framework::award_blocks_to_wallet(&chain, wallet1.clone(), mask1, 3, false);
+    bh += 3;
 
-	// update/test contents of both accounts
-	wallet::controller::owner_single_use(
-		wallet1.clone(),
-		mask1,
-		|api, m| {
-			let (wallet1_refreshed, wallet1_info) = api.retrieve_summary_info(m, true, 1)?;
-			assert!(wallet1_refreshed);
-			assert_eq!(wallet1_info.last_confirmed_height, bh);
-			assert_eq!(wallet1_info.total, bh * reward - reward * 2);
-			Ok(())
-		},
-		is_node_synced.clone(),
-	)?;
+    // update/test contents of both accounts
+    wallet::controller::owner_single_use(
+        wallet1.clone(),
+        mask1,
+        |api, m| {
+            let (wallet1_refreshed, wallet1_info) = api.retrieve_summary_info(m, true, 1)?;
+            assert!(wallet1_refreshed);
+            assert_eq!(wallet1_info.last_confirmed_height, bh);
+            assert_eq!(wallet1_info.total, bh * reward - reward * 2);
+            Ok(())
+        },
+        is_node_synced.clone(),
+    )?;
 
-	{
-		wallet_inst!(wallet1, w);
-		w.set_parent_key_id_by_name("listener")?;
-	}
+    {
+        wallet_inst!(wallet1, w);
+        w.set_parent_key_id_by_name("listener")?;
+    }
 
-	wallet::controller::owner_single_use(
-		wallet1.clone(),
-		mask1,
-		|api, m| {
-			let (wallet2_refreshed, wallet2_info) = api.retrieve_summary_info(m, true, 1)?;
-			assert!(wallet2_refreshed);
-			assert_eq!(wallet2_info.last_confirmed_height, bh);
-			assert_eq!(wallet2_info.total, 2 * reward);
-			Ok(())
-		},
-		is_node_synced.clone(),
-	)?;
+    wallet::controller::owner_single_use(
+        wallet1.clone(),
+        mask1,
+        |api, m| {
+            let (wallet2_refreshed, wallet2_info) = api.retrieve_summary_info(m, true, 1)?;
+            assert!(wallet2_refreshed);
+            assert_eq!(wallet2_info.last_confirmed_height, bh);
+            assert_eq!(wallet2_info.total, 2 * reward);
+            Ok(())
+        },
+        is_node_synced.clone(),
+    )?;
 
-	// as above, but syncronously
-	{
-		wallet_inst!(wallet1, w);
-		w.set_parent_key_id_by_name("mining")?;
-	}
-	{
-		wallet_inst!(wallet2, w);
-		w.set_parent_key_id_by_name("account1")?;
-	}
+    // as above, but syncronously
+    {
+        wallet_inst!(wallet1, w);
+        w.set_parent_key_id_by_name("mining")?;
+    }
+    {
+        wallet_inst!(wallet2, w);
+        w.set_parent_key_id_by_name("account1")?;
+    }
 
-	let mut slate = Slate::blank(2);
-	let amount = 1_457_920_000;
+    let mut slate = Slate::blank(2);
+    let amount = 1_457_920_000;
 
-	wallet::controller::owner_single_use(
-		wallet1.clone(),
-		mask1,
-		|sender_api, m| {
-			// note this will increment the block count as part of the transaction "Posting"
-			let args = InitTxArgs {
-				src_acct_name: None,
-				amount: reward * 2,
-				minimum_confirmations: 2,
-				max_outputs: 500,
-				num_change_outputs: 1,
-				selection_strategy_is_use_all: true,
-				..Default::default()
-			};
-			let slate_i = sender_api.init_send_tx(m, args, is_node_synced.clone())?;
-			slate = client1.send_tx_slate_direct("wallet2", &slate_i)?;
-			sender_api.tx_lock_outputs(m, &slate, 0, None)?;
-			slate = sender_api.finalize_tx(m, &mut slate)?;
-			Ok(())
-		},
-		is_node_synced.clone(),
-	)?;
+    wallet::controller::owner_single_use(
+        wallet1.clone(),
+        mask1,
+        |sender_api, m| {
+            // note this will increment the block count as part of the transaction "Posting"
+            let args = InitTxArgs {
+                src_acct_name: None,
+                amount: reward * 2,
+                minimum_confirmations: 2,
+                max_outputs: 500,
+                num_change_outputs: 1,
+                selection_strategy_is_use_all: true,
+                ..Default::default()
+            };
+            let slate_i = sender_api.init_send_tx(m, args, is_node_synced.clone())?;
+            slate = client1.send_tx_slate_direct("wallet2", &slate_i)?;
+            sender_api.tx_lock_outputs(m, &slate, 0, None)?;
+            slate = sender_api.finalize_tx(m, &mut slate)?;
+            Ok(())
+        },
+        is_node_synced.clone(),
+    )?;
 
-	let _ = test_framework::award_blocks_to_wallet(&chain, wallet1.clone(), mask1, 3, false);
-	bh += 3;
+    let _ = test_framework::award_blocks_to_wallet(&chain, wallet1.clone(), mask1, 3, false);
+    bh += 3;
 
-	// Now repost from cached
-	wallet::controller::owner_single_use(
-		wallet1.clone(),
-		mask1,
-		|api, m| {
-			let txs = api.retrieve_txs(m, true, None, Some(slate.id), None, None, None)?;
-			let stored_tx = api.get_stored_tx(m, &txs.txs[0])?;
-			api.post_tx(m, &stored_tx.unwrap(), false)?;
-			bh += 1;
-			Ok(())
-		},
-		is_node_synced.clone(),
-	)?;
+    // Now repost from cached
+    wallet::controller::owner_single_use(
+        wallet1.clone(),
+        mask1,
+        |api, m| {
+            let txs = api.retrieve_txs(m, true, None, Some(slate.id), None, None, None)?;
+            let stored_tx = api.get_stored_tx(m, &txs.txs[0])?;
+            api.post_tx(m, &stored_tx.unwrap(), false)?;
+            bh += 1;
+            Ok(())
+        },
+        is_node_synced.clone(),
+    )?;
 
-	let _ = test_framework::award_blocks_to_wallet(&chain, wallet1.clone(), mask1, 3, false);
-	bh += 3;
-	//
-	// update/test contents of both accounts
-	wallet::controller::owner_single_use(
-		wallet1.clone(),
-		mask1,
-		|api, m| {
-			let (wallet1_refreshed, wallet1_info) = api.retrieve_summary_info(m, true, 1)?;
-			assert!(wallet1_refreshed);
-			assert_eq!(wallet1_info.last_confirmed_height, bh);
-			assert_eq!(wallet1_info.total, bh * reward - reward * 4);
-			Ok(())
-		},
-		is_node_synced.clone(),
-	)?;
+    let _ = test_framework::award_blocks_to_wallet(&chain, wallet1.clone(), mask1, 3, false);
+    bh += 3;
+    //
+    // update/test contents of both accounts
+    wallet::controller::owner_single_use(
+        wallet1.clone(),
+        mask1,
+        |api, m| {
+            let (wallet1_refreshed, wallet1_info) = api.retrieve_summary_info(m, true, 1)?;
+            assert!(wallet1_refreshed);
+            assert_eq!(wallet1_info.last_confirmed_height, bh);
+            assert_eq!(wallet1_info.total, bh * reward - reward * 4);
+            Ok(())
+        },
+        is_node_synced.clone(),
+    )?;
 
-	wallet::controller::owner_single_use(
-		wallet2.clone(),
-		mask2,
-		|api, m| {
-			let (wallet2_refreshed, wallet2_info) = api.retrieve_summary_info(m, true, 1)?;
-			assert!(wallet2_refreshed);
-			assert_eq!(wallet2_info.last_confirmed_height, bh);
-			assert_eq!(wallet2_info.total, 2 * amount);
-			Ok(())
-		},
-		is_node_synced.clone(),
-	)?;
+    wallet::controller::owner_single_use(
+        wallet2.clone(),
+        mask2,
+        |api, m| {
+            let (wallet2_refreshed, wallet2_info) = api.retrieve_summary_info(m, true, 1)?;
+            assert!(wallet2_refreshed);
+            assert_eq!(wallet2_info.last_confirmed_height, bh);
+            assert_eq!(wallet2_info.total, 2 * amount);
+            Ok(())
+        },
+        is_node_synced.clone(),
+    )?;
 
-	// let logging finish
-	thread::sleep(Duration::from_millis(200));
-	Ok(())
+    // let logging finish
+    thread::sleep(Duration::from_millis(200));
+    Ok(())
 }
 
 #[test]
 fn wallet_file_repost() {
-	let test_dir = "test_output/file_repost";
-	setup(test_dir);
-	if let Err(e) = file_repost_test_impl(test_dir) {
-		panic!("Libwallet Error: {}", e);
-	}
-	clean_output_dir(test_dir);
+    let test_dir = "test_output/file_repost";
+    setup(test_dir);
+    if let Err(e) = file_repost_test_impl(test_dir) {
+        panic!("Libwallet Error: {}", e);
+    }
+    clean_output_dir(test_dir);
 }

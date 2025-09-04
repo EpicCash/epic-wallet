@@ -13,7 +13,7 @@ edition = "2021"
 rand = "0.9"
 serde = "1"
 serde_derive = "1"
-toml = "0.8"
+toml = "0.9.4"
 dirs = "6.0"
 
 # For Release
@@ -27,12 +27,12 @@ dirs = "6.0"
 
 # For Development
 ################################################################################
-epic_core     = { git = "https://github.com/johanneshahn/epic.git", branch = "api_improvements" }
-epic_keychain = { git = "https://github.com/johanneshahn/epic.git", branch = "api_improvements" }
-epic_chain    = { git = "https://github.com/johanneshahn/epic.git", branch = "api_improvements" }
-epic_util     = { git = "https://github.com/johanneshahn/epic.git", branch = "api_improvements" }
-epic_api      = { git = "https://github.com/johanneshahn/epic.git", branch = "api_improvements" }
-epic_store    = { git = "https://github.com/johanneshahn/epic.git", branch = "api_improvements" }
+epic_core     = { git = "https://github.com/johanneshahn/epic.git", branch = "onionstem" }
+epic_keychain = { git = "https://github.com/johanneshahn/epic.git", branch = "onionstem" }
+epic_chain    = { git = "https://github.com/johanneshahn/epic.git", branch = "onionstem" }
+epic_util     = { git = "https://github.com/johanneshahn/epic.git", branch = "onionstem" }
+epic_api      = { git = "https://github.com/johanneshahn/epic.git", branch = "onionstem" }
+epic_store    = { git = "https://github.com/johanneshahn/epic.git", branch = "onionstem" }
 
 
 

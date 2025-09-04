@@ -98,6 +98,38 @@ fn real_main() -> i32 {
 		panic!("Error loading wallet configuration: {}", e);
 	});
 
+	// --- Wallet data dir and seed existence check logic ---
+	// Determine wallet data dir from config
+	let wallet_data_dir = {
+		let wallet_conf = &config.members.as_ref().unwrap().wallet;
+		if !wallet_conf.data_file_dir.is_empty() {
+			PathBuf::from(&wallet_conf.data_file_dir)
+		} else {
+			// Default: ~/.epic/main
+			let mut p = dirs::home_dir().expect("Could not determine home directory");
+			p.push(".epic");
+			p.push("main");
+			p
+		}
+	};
+
+	// Create wallet data dir if it doesn't exist
+	if !wallet_data_dir.exists() {
+		println!(
+			"Wallet data directory does not exist: {}",
+			wallet_data_dir.display()
+		);
+		println!(
+			"Creating wallet data directory at {}",
+			wallet_data_dir.display()
+		);
+		fs::create_dir_all(&wallet_data_dir).unwrap_or_else(|e| {
+			panic!("Error creating wallet data directory: {}", e);
+		});
+	}
+
+	//println!("{:?}", config);
+
 	// Load logging config
 	let l = config.members.as_mut().unwrap().logging.clone().unwrap();
 	init_logger(Some(l), None);
@@ -107,6 +139,26 @@ fn real_main() -> i32 {
 	);
 
 	log_build_info();
+
+	// Check for seed file and handle init/recover logic
+	let seed_file = wallet_data_dir.join("wallet.seed");
+	let is_init = matches!(args.subcommand(), Some(("init", _)));
+	let is_recover = match args.subcommand() {
+		Some(("init", sub_args)) => sub_args.get_flag("recover"),
+		_ => false,
+	};
+
+	if !seed_file.exists() {
+		warn!("Wallet seed file not found at: {}", seed_file.display());
+		warn!("Wallet is not initialized. Run 'epic-wallet init' to initialize or 'epic-wallet init -r' to recover from a seed.");
+		if !is_init {
+			return 1;
+		}
+	} else if is_init && !is_recover {
+		warn!("Wallet is already initialized at: {}", seed_file.display());
+		warn!("If you want to recover from a seed, use 'epic-wallet init -r'.");
+		return 1;
+	}
 
 	global::set_mining_mode(
 		config

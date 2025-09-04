@@ -30,9 +30,9 @@ use crate::internal::{keys, scan, selection, tx, updater};
 use crate::slate::{PaymentInfo, Slate};
 use crate::types::{AcctPathMapping, NodeClient, TxLogEntry, WalletBackend, WalletInfo};
 use crate::{
-	address, wallet_lock, InitTxArgs, IssueInvoiceTxArgs, NodeHeightResult, Pager, PaymentProof,
-	RetrieveOutputsResult, RetrieveTxsResult, ScannedBlockInfo, TxLogEntryType, WalletInitStatus,
-	WalletInst, WalletLCProvider,
+    address, wallet_lock, InitTxArgs, IssueInvoiceTxArgs, NodeHeightResult, Pager, PaymentProof,
+    RetrieveOutputsResult, RetrieveTxsResult, ScannedBlockInfo, TxLogEntryType, WalletInitStatus,
+    WalletInst, WalletLCProvider,
 };
 
 use crate::Error;
@@ -49,1148 +49,1179 @@ const USER_MESSAGE_MAX_LEN: usize = 256;
 /// List of accounts
 pub fn accounts<'a, T: ?Sized, C, K>(w: &mut T) -> Result<Vec<AcctPathMapping>, Error>
 where
-	T: WalletBackend<'a, C, K>,
-	C: NodeClient + 'a,
-	K: Keychain + 'a,
+    T: WalletBackend<'a, C, K>,
+    C: NodeClient + 'a,
+    K: Keychain + 'a,
 {
-	keys::accounts(&mut *w)
+    keys::accounts(&mut *w)
 }
 
 /// new account path
 pub fn create_account_path<'a, T: ?Sized, C, K>(
-	w: &mut T,
-	keychain_mask: Option<&SecretKey>,
-	label: &str,
+    w: &mut T,
+    keychain_mask: Option<&SecretKey>,
+    label: &str,
 ) -> Result<Identifier, Error>
 where
-	T: WalletBackend<'a, C, K>,
-	C: NodeClient + 'a,
-	K: Keychain + 'a,
+    T: WalletBackend<'a, C, K>,
+    C: NodeClient + 'a,
+    K: Keychain + 'a,
 {
-	keys::new_acct_path(&mut *w, keychain_mask, label)
+    keys::new_acct_path(&mut *w, keychain_mask, label)
 }
 
 /// set active account
 pub fn set_active_account<'a, T: ?Sized, C, K>(w: &mut T, label: &str) -> Result<(), Error>
 where
-	T: WalletBackend<'a, C, K>,
-	C: NodeClient + 'a,
-	K: Keychain + 'a,
+    T: WalletBackend<'a, C, K>,
+    C: NodeClient + 'a,
+    K: Keychain + 'a,
 {
-	w.set_parent_key_id_by_name(label)
+    w.set_parent_key_id_by_name(label)
 }
 
 /// Retrieve the payment proof address for the current parent key at
 /// the given index
 /// set active account
 pub fn get_public_proof_address<'a, L, C, K>(
-	wallet_inst: Arc<Mutex<Box<dyn WalletInst<'a, L, C, K>>>>,
-	keychain_mask: Option<&SecretKey>,
-	index: u32,
+    wallet_inst: Arc<Mutex<Box<dyn WalletInst<'a, L, C, K>>>>,
+    keychain_mask: Option<&SecretKey>,
+    index: u32,
 ) -> Result<DalekPublicKey, Error>
 where
-	L: WalletLCProvider<'a, C, K>,
-	C: NodeClient + 'a,
-	K: Keychain + 'a,
+    L: WalletLCProvider<'a, C, K>,
+    C: NodeClient + 'a,
+    K: Keychain + 'a,
 {
-	wallet_lock!(wallet_inst, w);
-	let parent_key_id = w.parent_key_id();
-	let k = w.keychain(keychain_mask)?;
-	let sec_addr_key = address::address_from_derivation_path(&k, &parent_key_id, index)?;
-	Ok(address::ed25519_keypair(&sec_addr_key)?.1)
+    wallet_lock!(wallet_inst, w);
+    let parent_key_id = w.parent_key_id();
+    let k = w.keychain(keychain_mask)?;
+    let sec_addr_key = address::address_from_derivation_path(&k, &parent_key_id, index)?;
+    Ok(address::ed25519_keypair(&sec_addr_key)?.1)
 }
 
 /// Retrieve the payment address for the current parent key at
 /// the given index
 /// set active account
 pub fn get_public_address<'a, L, C, K>(
-	wallet_inst: Arc<Mutex<Box<dyn WalletInst<'a, L, C, K>>>>,
-	keychain_mask: Option<&SecretKey>,
-	epicbox_config: EpicboxConfig,
-	index: u32,
+    wallet_inst: Arc<Mutex<Box<dyn WalletInst<'a, L, C, K>>>>,
+    keychain_mask: Option<&SecretKey>,
+    epicbox_config: EpicboxConfig,
+    index: u32,
 ) -> Result<EpicboxAddress, Error>
 where
-	L: WalletLCProvider<'a, C, K>,
-	C: NodeClient + 'a,
-	K: Keychain + 'a,
+    L: WalletLCProvider<'a, C, K>,
+    C: NodeClient + 'a,
+    K: Keychain + 'a,
 {
-	wallet_lock!(wallet_inst, w);
-	let parent_key_id = w.parent_key_id();
-	let k = w.keychain(keychain_mask)?;
-	let sec_addr_key = address::address_from_derivation_path(&k, &parent_key_id, index)?;
-	let pub_key = PublicKey::from_secret_key(k.secp(), &sec_addr_key).unwrap();
-	Ok(EpicboxAddress::new(
-		pub_key,
-		Some(epicbox_config.epicbox_domain.unwrap()),
-		Some(epicbox_config.epicbox_port.unwrap()),
-	))
+    wallet_lock!(wallet_inst, w);
+    let parent_key_id = w.parent_key_id();
+    let k = w.keychain(keychain_mask)?;
+    let sec_addr_key = address::address_from_derivation_path(&k, &parent_key_id, index)?;
+    let pub_key = PublicKey::from_secret_key(k.secp(), &sec_addr_key).unwrap();
+    Ok(EpicboxAddress::new(
+        pub_key,
+        Some(epicbox_config.epicbox_domain.unwrap()),
+        Some(epicbox_config.epicbox_port.unwrap()),
+    ))
 }
 
 /// retrieve outputs
 pub fn retrieve_outputs<'a, L, C, K>(
-	wallet_inst: Arc<Mutex<Box<dyn WalletInst<'a, L, C, K>>>>,
-	keychain_mask: Option<&SecretKey>,
-	status_send_channel: &Option<Sender<StatusMessage>>,
-	include_spent: bool,
-	refresh_from_node: bool,
-	show_full_history: bool,
-	tx_id: Option<u32>,
-	limit: Option<usize>,       // Number of items to return
-	offset: Option<usize>,      // Starting index
-	sort_order: Option<String>, // "asc" or "desc", default is "asc"
+    wallet_inst: Arc<Mutex<Box<dyn WalletInst<'a, L, C, K>>>>,
+    keychain_mask: Option<&SecretKey>,
+    status_send_channel: &Option<Sender<StatusMessage>>,
+    include_spent: bool,
+    refresh_from_node: bool,
+    show_full_history: bool,
+    tx_id: Option<u32>,
+    limit: Option<usize>,       // Number of items to return
+    offset: Option<usize>,      // Starting index
+    sort_order: Option<String>, // "asc" or "desc", default is "asc"
 ) -> Result<RetrieveOutputsResult, Error>
 where
-	L: WalletLCProvider<'a, C, K>,
-	C: NodeClient + 'a,
-	K: Keychain + 'a,
+    L: WalletLCProvider<'a, C, K>,
+    C: NodeClient + 'a,
+    K: Keychain + 'a,
 {
-	let mut validated = false;
-	if refresh_from_node {
-		validated = update_wallet_state(
-			wallet_inst.clone(),
-			keychain_mask,
-			status_send_channel,
-			false,
-		)?;
-	}
+    let mut validated = false;
+    if refresh_from_node {
+        validated = update_wallet_state(
+            wallet_inst.clone(),
+            keychain_mask,
+            status_send_channel,
+            false,
+        )?;
+    }
 
-	wallet_lock!(wallet_inst, w);
-	let parent_key_id = w.parent_key_id();
+    wallet_lock!(wallet_inst, w);
+    let parent_key_id = w.parent_key_id();
 
-	// Call `updater::retrieve_outputs` and unpack the new return values
-	let (records_read, total_records, outputs) = updater::retrieve_outputs(
-		&mut **w,
-		keychain_mask,
-		include_spent,
-		show_full_history,
-		tx_id,
-		Some(&parent_key_id),
-		limit,
-		offset,
-		sort_order.clone(),
-	)?;
+    // Call `updater::retrieve_outputs` and unpack the new return values
+    let (records_read, total_records, outputs) = updater::retrieve_outputs(
+        &mut **w,
+        keychain_mask,
+        include_spent,
+        show_full_history,
+        tx_id,
+        Some(&parent_key_id),
+        limit,
+        offset,
+        sort_order.clone(),
+    )?;
 
-	// Return the new values along with `validated`
-	Ok(RetrieveOutputsResult {
-		refresh_from_node: validated,
-		pager: Pager {
-			records_read,
-			total_records,
-			limit: limit.unwrap_or(0),   // Default to 0 if not provided
-			offset: offset.unwrap_or(0), // Default to 0 if not provided
-			sort_order: sort_order.unwrap_or_else(|| "asc".to_string()), // Default to "asc"
-		},
-		outputs,
-	})
+    // Return the new values along with `validated`
+    Ok(RetrieveOutputsResult {
+        refresh_from_node: validated,
+        pager: Pager {
+            records_read,
+            total_records,
+            limit: limit.unwrap_or(0),   // Default to 0 if not provided
+            offset: offset.unwrap_or(0), // Default to 0 if not provided
+            sort_order: sort_order.unwrap_or_else(|| "asc".to_string()), // Default to "asc"
+        },
+        outputs,
+    })
 }
 
 /// Retrieve txs
 pub fn retrieve_txs<'a, L, C, K>(
-	wallet_inst: Arc<Mutex<Box<dyn WalletInst<'a, L, C, K>>>>,
-	keychain_mask: Option<&SecretKey>,
-	status_send_channel: &Option<Sender<StatusMessage>>,
-	refresh_from_node: bool,
-	tx_id: Option<u32>,
-	tx_slate_id: Option<Uuid>,
-	limit: Option<usize>,       // Number of items to return
-	offset: Option<usize>,      // Starting index
-	sort_order: Option<String>, // "asc" or "desc", default is "asc"
+    wallet_inst: Arc<Mutex<Box<dyn WalletInst<'a, L, C, K>>>>,
+    keychain_mask: Option<&SecretKey>,
+    status_send_channel: &Option<Sender<StatusMessage>>,
+    refresh_from_node: bool,
+    tx_id: Option<u32>,
+    tx_slate_id: Option<Uuid>,
+    limit: Option<usize>,       // Number of items to return
+    offset: Option<usize>,      // Starting index
+    sort_order: Option<String>, // "asc" or "desc", default is "asc"
 ) -> Result<RetrieveTxsResult, Error>
 where
-	L: WalletLCProvider<'a, C, K>,
-	C: NodeClient + 'a,
-	K: Keychain + 'a,
+    L: WalletLCProvider<'a, C, K>,
+    C: NodeClient + 'a,
+    K: Keychain + 'a,
 {
-	let mut validated = false;
-	if refresh_from_node {
-		validated = update_wallet_state(
-			wallet_inst.clone(),
-			keychain_mask,
-			status_send_channel,
-			false,
-		)?;
-	}
+    let mut validated = false;
+    if refresh_from_node {
+        validated = update_wallet_state(
+            wallet_inst.clone(),
+            keychain_mask,
+            status_send_channel,
+            false,
+        )?;
+    }
 
-	wallet_lock!(wallet_inst, w);
-	let parent_key_id = w.parent_key_id();
+    wallet_lock!(wallet_inst, w);
+    let parent_key_id = w.parent_key_id();
 
-	// Call the updated `updater::retrieve_txs` with pagination and sorting
-	let (records_read, total_records, txs) = updater::retrieve_txs(
-		&mut **w,
-		tx_id,
-		tx_slate_id,
-		Some(&parent_key_id),
-		false,
-		limit,
-		offset,
-		sort_order.clone(),
-	)?;
+    // Call the updated `updater::retrieve_txs` with pagination and sorting
+    let (records_read, total_records, txs) = updater::retrieve_txs(
+        &mut **w,
+        tx_id,
+        tx_slate_id,
+        Some(&parent_key_id),
+        false,
+        limit,
+        offset,
+        sort_order.clone(),
+    )?;
 
-	// Return the new `RetrieveTxsResult` struct
-	Ok(RetrieveTxsResult {
-		refresh_from_node: validated,
-		pager: Pager {
-			records_read,
-			total_records,
-			limit: limit.unwrap_or(0),   // Default to 0 if not provided
-			offset: offset.unwrap_or(0), // Default to 0 if not provided
-			sort_order: sort_order.unwrap_or_else(|| "asc".to_string()), // Default to "asc"
-		},
-		txs,
-	})
+    // Return the new `RetrieveTxsResult` struct
+    Ok(RetrieveTxsResult {
+        refresh_from_node: validated,
+        pager: Pager {
+            records_read,
+            total_records,
+            limit: limit.unwrap_or(0),   // Default to 0 if not provided
+            offset: offset.unwrap_or(0), // Default to 0 if not provided
+            sort_order: sort_order.unwrap_or_else(|| "asc".to_string()), // Default to "asc"
+        },
+        txs,
+    })
 }
 
 /// Retrieve summary info
 pub fn retrieve_summary_info<'a, L, C, K>(
-	wallet_inst: Arc<Mutex<Box<dyn WalletInst<'a, L, C, K>>>>,
-	keychain_mask: Option<&SecretKey>,
-	status_send_channel: &Option<Sender<StatusMessage>>,
-	refresh_from_node: bool,
-	minimum_confirmations: u64,
+    wallet_inst: Arc<Mutex<Box<dyn WalletInst<'a, L, C, K>>>>,
+    keychain_mask: Option<&SecretKey>,
+    status_send_channel: &Option<Sender<StatusMessage>>,
+    refresh_from_node: bool,
+    minimum_confirmations: u64,
 ) -> Result<(bool, WalletInfo), Error>
 where
-	L: WalletLCProvider<'a, C, K>,
-	C: NodeClient + 'a,
-	K: Keychain + 'a,
+    L: WalletLCProvider<'a, C, K>,
+    C: NodeClient + 'a,
+    K: Keychain + 'a,
 {
-	let mut validated = false;
-	if refresh_from_node {
-		validated = update_wallet_state(
-			wallet_inst.clone(),
-			keychain_mask,
-			status_send_channel,
-			false,
-		)?;
-	}
+    let mut validated = false;
+    if refresh_from_node {
+        validated = update_wallet_state(
+            wallet_inst.clone(),
+            keychain_mask,
+            status_send_channel,
+            false,
+        )?;
+    }
 
-	wallet_lock!(wallet_inst, w);
-	let parent_key_id = w.parent_key_id();
-	let wallet_info = updater::retrieve_info(&mut **w, &parent_key_id, minimum_confirmations)?;
-	Ok((validated, wallet_info))
+    wallet_lock!(wallet_inst, w);
+    let parent_key_id = w.parent_key_id();
+    let wallet_info = updater::retrieve_info(&mut **w, &parent_key_id, minimum_confirmations)?;
+    Ok((validated, wallet_info))
 }
 /// Retrieve payment proof
 pub fn retrieve_payment_proof<'a, L, C, K>(
-	wallet_inst: Arc<Mutex<Box<dyn WalletInst<'a, L, C, K>>>>,
-	keychain_mask: Option<&SecretKey>,
-	status_send_channel: &Option<Sender<StatusMessage>>,
-	refresh_from_node: bool,
-	tx_id: Option<u32>,
-	tx_slate_id: Option<Uuid>,
+    wallet_inst: Arc<Mutex<Box<dyn WalletInst<'a, L, C, K>>>>,
+    keychain_mask: Option<&SecretKey>,
+    status_send_channel: &Option<Sender<StatusMessage>>,
+    refresh_from_node: bool,
+    tx_id: Option<u32>,
+    tx_slate_id: Option<Uuid>,
 ) -> Result<PaymentProof, Error>
 where
-	L: WalletLCProvider<'a, C, K>,
-	C: NodeClient + 'a,
-	K: Keychain + 'a,
+    L: WalletLCProvider<'a, C, K>,
+    C: NodeClient + 'a,
+    K: Keychain + 'a,
 {
-	if tx_id.is_none() && tx_slate_id.is_none() {
-		return Err(Error::PaymentProofRetrieval(
-			"Transaction ID or Slate UUID must be specified".into(),
-		)
-		.into());
-	}
-	let mut _validated = false;
-	if refresh_from_node {
-		_validated = update_wallet_state(
-			wallet_inst.clone(),
-			keychain_mask,
-			status_send_channel,
-			false,
-		)?;
-	}
-	let txs = retrieve_txs(
-		wallet_inst.clone(),
-		keychain_mask,
-		status_send_channel,
-		refresh_from_node,
-		tx_id,
-		tx_slate_id,
-		None,
-		None,
-		None,
-	)?;
-	if txs.txs.len() != 1 {
-		return Err(Error::PaymentProofRetrieval("Transaction doesn't exist".into()).into());
-	}
-	// Pull out all needed fields, returning an error if they're not present
-	let tx = txs.txs[0].clone();
-	let proof = match tx.payment_proof {
-		Some(p) => p,
-		None => {
-			return Err(Error::PaymentProofRetrieval(
-				"Transaction does not contain a payment proof".into(),
-			)
-			.into());
-		}
-	};
-	let amount = if tx.amount_credited >= tx.amount_debited {
-		tx.amount_credited - tx.amount_debited
-	} else {
-		let fee = match tx.fee {
-			Some(f) => f,
-			None => 0,
-		};
-		tx.amount_debited - tx.amount_credited - fee
-	};
-	let excess = match tx.kernel_excess {
-		Some(e) => e,
-		None => {
-			return Err(Error::PaymentProofRetrieval(
-				"Transaction does not contain kernel excess".into(),
-			)
-			.into());
-		}
-	};
-	let r_sig = match proof.receiver_signature {
-		Some(e) => e,
-		None => {
-			return Err(Error::PaymentProofRetrieval(
-				"Proof does not contain receiver signature ".into(),
-			)
-			.into());
-		}
-	};
-	let s_sig = match proof.sender_signature {
-		Some(e) => e,
-		None => {
-			return Err(Error::PaymentProofRetrieval(
-				"Proof does not contain sender signature ".into(),
-			)
-			.into());
-		}
-	};
-	Ok(PaymentProof {
-		amount,
-		excess,
-		recipient_address: address::onion_v3_from_pubkey(&proof.receiver_address)?,
-		recipient_sig: r_sig,
-		sender_address: address::onion_v3_from_pubkey(&proof.sender_address)?,
-		sender_sig: s_sig,
-	})
+    if tx_id.is_none() && tx_slate_id.is_none() {
+        return Err(Error::PaymentProofRetrieval(
+            "Transaction ID or Slate UUID must be specified".into(),
+        )
+        .into());
+    }
+    let mut _validated = false;
+    if refresh_from_node {
+        _validated = update_wallet_state(
+            wallet_inst.clone(),
+            keychain_mask,
+            status_send_channel,
+            false,
+        )?;
+    }
+    let txs = retrieve_txs(
+        wallet_inst.clone(),
+        keychain_mask,
+        status_send_channel,
+        refresh_from_node,
+        tx_id,
+        tx_slate_id,
+        None,
+        None,
+        None,
+    )?;
+    if txs.txs.len() != 1 {
+        return Err(Error::PaymentProofRetrieval("Transaction doesn't exist".into()).into());
+    }
+    // Pull out all needed fields, returning an error if they're not present
+    let tx = txs.txs[0].clone();
+    let proof = match tx.payment_proof {
+        Some(p) => p,
+        None => {
+            return Err(Error::PaymentProofRetrieval(
+                "Transaction does not contain a payment proof".into(),
+            )
+            .into());
+        }
+    };
+    let amount = if tx.amount_credited >= tx.amount_debited {
+        tx.amount_credited - tx.amount_debited
+    } else {
+        let fee = match tx.fee {
+            Some(f) => f,
+            None => 0,
+        };
+        tx.amount_debited - tx.amount_credited - fee
+    };
+    let excess = match tx.kernel_excess {
+        Some(e) => e,
+        None => {
+            return Err(Error::PaymentProofRetrieval(
+                "Transaction does not contain kernel excess".into(),
+            )
+            .into());
+        }
+    };
+    let r_sig = match proof.receiver_signature {
+        Some(e) => e,
+        None => {
+            return Err(Error::PaymentProofRetrieval(
+                "Proof does not contain receiver signature ".into(),
+            )
+            .into());
+        }
+    };
+    let s_sig = match proof.sender_signature {
+        Some(e) => e,
+        None => {
+            return Err(Error::PaymentProofRetrieval(
+                "Proof does not contain sender signature ".into(),
+            )
+            .into());
+        }
+    };
+    Ok(PaymentProof {
+        amount,
+        excess,
+        recipient_address: address::onion_v3_from_pubkey(&proof.receiver_address)?,
+        recipient_sig: r_sig,
+        sender_address: address::onion_v3_from_pubkey(&proof.sender_address)?,
+        sender_sig: s_sig,
+    })
 }
 
 /// Initiate tx as sender
 pub fn init_send_tx<'a, T: ?Sized, C, K>(
-	w: &mut T,
-	keychain_mask: Option<&SecretKey>,
-	args: InitTxArgs,
-	use_test_rng: bool,
+    w: &mut T,
+    keychain_mask: Option<&SecretKey>,
+    args: InitTxArgs,
+    use_test_rng: bool,
 ) -> Result<Slate, Error>
 where
-	T: WalletBackend<'a, C, K>,
-	C: NodeClient + 'a,
-	K: Keychain + 'a,
+    T: WalletBackend<'a, C, K>,
+    C: NodeClient + 'a,
+    K: Keychain + 'a,
 {
-	let parent_key_id = match args.src_acct_name {
-		Some(d) => {
-			let pm = w.get_acct_path(d)?;
-			match pm {
-				Some(p) => p.path,
-				None => w.parent_key_id(),
-			}
-		}
-		None => w.parent_key_id(),
-	};
+    let parent_key_id = match args.src_acct_name {
+        Some(d) => {
+            let pm = w.get_acct_path(d)?;
+            match pm {
+                Some(p) => p.path,
+                None => w.parent_key_id(),
+            }
+        }
+        None => w.parent_key_id(),
+    };
 
-	let message = match args.message {
-		Some(mut m) => {
-			m.truncate(USER_MESSAGE_MAX_LEN);
-			Some(m)
-		}
-		None => None,
-	};
+    let message = match args.message {
+        Some(mut m) => {
+            m.truncate(USER_MESSAGE_MAX_LEN);
+            Some(m)
+        }
+        None => None,
+    };
 
-	let mut slate = tx::new_tx_slate(&mut *w, args.amount, 2, use_test_rng, args.ttl_blocks)?;
+    let mut slate = tx::new_tx_slate(&mut *w, args.amount, 2, use_test_rng, args.ttl_blocks)?;
 
-	// if we just want to estimate, don't save a context, just send the results
-	// back
-	if let Some(true) = args.estimate_only {
-		let (total, fee) = tx::estimate_send_tx(
-			&mut *w,
-			keychain_mask,
-			args.amount,
-			args.minimum_confirmations,
-			args.max_outputs as usize,
-			args.num_change_outputs as usize,
-			args.selection_strategy_is_use_all,
-			&parent_key_id,
-		)?;
-		slate.amount = total;
-		slate.fee = fee;
-		return Ok(slate);
-	}
+    // if we just want to estimate, don't save a context, just send the results
+    // back
+    if let Some(true) = args.estimate_only {
+        let (total, fee) = tx::estimate_send_tx(
+            &mut *w,
+            keychain_mask,
+            args.amount,
+            args.minimum_confirmations,
+            args.max_outputs as usize,
+            args.num_change_outputs as usize,
+            args.selection_strategy_is_use_all,
+            &parent_key_id,
+        )?;
+        slate.amount = total;
+        slate.fee = fee;
+        return Ok(slate);
+    }
 
-	let mut context = tx::add_inputs_to_slate(
-		&mut *w,
-		keychain_mask,
-		&mut slate,
-		args.minimum_confirmations,
-		args.max_outputs as usize,
-		args.num_change_outputs as usize,
-		args.selection_strategy_is_use_all,
-		&parent_key_id,
-		0,
-		message,
-		true,
-		use_test_rng,
-	)?;
+    let mut context = tx::add_inputs_to_slate(
+        &mut *w,
+        keychain_mask,
+        &mut slate,
+        args.minimum_confirmations,
+        args.max_outputs as usize,
+        args.num_change_outputs as usize,
+        args.selection_strategy_is_use_all,
+        &parent_key_id,
+        0,
+        message,
+        true,
+        use_test_rng,
+    )?;
 
-	// Payment Proof, add addresses to slate and save address
-	// TODO: Note we only use single derivation path for now,
-	// probably want to allow sender to specify which one
-	let deriv_path = 0u32;
+    // Payment Proof, add addresses to slate and save address
+    // TODO: Note we only use single derivation path for now,
+    // probably want to allow sender to specify which one
+    let deriv_path = 0u32;
 
-	if let Some(a) = args.payment_proof_recipient_address {
-		let k = w.keychain(keychain_mask)?;
+    if let Some(a) = args.payment_proof_recipient_address {
+        let k = w.keychain(keychain_mask)?;
 
-		let sec_addr_key = address::address_from_derivation_path(&k, &parent_key_id, deriv_path)?;
-		let sender_address = address::ed25519_keypair(&sec_addr_key)?.1;
+        let sec_addr_key = address::address_from_derivation_path(&k, &parent_key_id, deriv_path)?;
+        let sender_address = address::ed25519_keypair(&sec_addr_key)?.1;
 
-		slate.payment_proof = Some(PaymentInfo {
-			sender_address,
-			receiver_address: a,
-			receiver_signature: None,
-		});
+        slate.payment_proof = Some(PaymentInfo {
+            sender_address,
+            receiver_address: a,
+            receiver_signature: None,
+        });
 
-		context.payment_proof_derivation_index = Some(deriv_path);
-	}
+        context.payment_proof_derivation_index = Some(deriv_path);
+    }
 
-	// Save the aggsig context in our DB for when we
-	// recieve the transaction back
-	{
-		let mut batch = w.batch(keychain_mask)?;
-		batch.save_private_context(slate.id.as_bytes(), 0, &context)?;
-		batch.commit()?;
-	}
-	if let Some(v) = args.target_slate_version {
-		slate.version_info.orig_version = v;
-	}
+    // Save the aggsig context in our DB for when we
+    // recieve the transaction back
+    {
+        let mut batch = w.batch(keychain_mask)?;
+        batch.save_private_context(slate.id.as_bytes(), 0, &context)?;
+        batch.commit()?;
+    }
+    if let Some(v) = args.target_slate_version {
+        slate.version_info.orig_version = v;
+    }
 
-	Ok(slate)
+    Ok(slate)
 }
 
 /// Initiate a transaction as the recipient (invoicing)
 pub fn issue_invoice_tx<'a, T: ?Sized, C, K>(
-	w: &mut T,
-	keychain_mask: Option<&SecretKey>,
-	args: IssueInvoiceTxArgs,
-	use_test_rng: bool,
+    w: &mut T,
+    keychain_mask: Option<&SecretKey>,
+    args: IssueInvoiceTxArgs,
+    use_test_rng: bool,
 ) -> Result<Slate, Error>
 where
-	T: WalletBackend<'a, C, K>,
-	C: NodeClient + 'a,
-	K: Keychain + 'a,
+    T: WalletBackend<'a, C, K>,
+    C: NodeClient + 'a,
+    K: Keychain + 'a,
 {
-	let parent_key_id = match args.dest_acct_name {
-		Some(d) => {
-			let pm = w.get_acct_path(d)?;
-			match pm {
-				Some(p) => p.path,
-				None => w.parent_key_id(),
-			}
-		}
-		None => w.parent_key_id(),
-	};
+    let parent_key_id = match args.dest_acct_name {
+        Some(d) => {
+            let pm = w.get_acct_path(d)?;
+            match pm {
+                Some(p) => p.path,
+                None => w.parent_key_id(),
+            }
+        }
+        None => w.parent_key_id(),
+    };
 
-	let message = match args.message {
-		Some(mut m) => {
-			m.truncate(USER_MESSAGE_MAX_LEN);
-			Some(m)
-		}
-		None => None,
-	};
+    let message = match args.message {
+        Some(mut m) => {
+            m.truncate(USER_MESSAGE_MAX_LEN);
+            Some(m)
+        }
+        None => None,
+    };
 
-	let mut slate = tx::new_tx_slate(&mut *w, args.amount, 2, use_test_rng, None)?;
-	let context = tx::add_output_to_slate(
-		&mut *w,
-		keychain_mask,
-		&mut slate,
-		&parent_key_id,
-		1,
-		message,
-		true,
-		use_test_rng,
-	)?;
+    let mut slate = tx::new_tx_slate(&mut *w, args.amount, 2, use_test_rng, None)?;
+    let context = tx::add_output_to_slate(
+        &mut *w,
+        keychain_mask,
+        &mut slate,
+        &parent_key_id,
+        1,
+        message,
+        true,
+        use_test_rng,
+    )?;
 
-	// Save the aggsig context in our DB for when we
-	// recieve the transaction back
-	{
-		let mut batch = w.batch(keychain_mask)?;
-		batch.save_private_context(slate.id.as_bytes(), 1, &context)?;
-		batch.commit()?;
-	}
+    // Save the aggsig context in our DB for when we
+    // recieve the transaction back
+    {
+        let mut batch = w.batch(keychain_mask)?;
+        batch.save_private_context(slate.id.as_bytes(), 1, &context)?;
+        batch.commit()?;
+    }
 
-	if let Some(v) = args.target_slate_version {
-		slate.version_info.orig_version = v;
-	}
+    if let Some(v) = args.target_slate_version {
+        slate.version_info.orig_version = v;
+    }
 
-	Ok(slate)
+    Ok(slate)
 }
 
 /// Receive an invoice tx, essentially adding inputs to whatever
 /// output was specified
 pub fn process_invoice_tx<'a, T: ?Sized, C, K>(
-	w: &mut T,
-	keychain_mask: Option<&SecretKey>,
-	slate: &Slate,
-	args: InitTxArgs,
-	use_test_rng: bool,
+    w: &mut T,
+    keychain_mask: Option<&SecretKey>,
+    slate: &Slate,
+    args: InitTxArgs,
+    use_test_rng: bool,
 ) -> Result<Slate, Error>
 where
-	T: WalletBackend<'a, C, K>,
-	C: NodeClient + 'a,
-	K: Keychain + 'a,
+    T: WalletBackend<'a, C, K>,
+    C: NodeClient + 'a,
+    K: Keychain + 'a,
 {
-	let mut ret_slate = slate.clone();
-	check_ttl(w, &ret_slate)?;
-	let parent_key_id = match args.src_acct_name {
-		Some(d) => {
-			let pm = w.get_acct_path(d.to_owned())?;
-			match pm {
-				Some(p) => p.path,
-				None => w.parent_key_id(),
-			}
-		}
-		None => w.parent_key_id(),
-	};
-	// Don't do this multiple times
-	let tx = updater::retrieve_txs(
-		&mut *w,
-		None,
-		Some(ret_slate.id),
-		Some(&parent_key_id),
-		use_test_rng,
-		None,
-		None,
-		None,
-	)?;
-	for t in &tx.2 {
-		if t.tx_type == TxLogEntryType::TxSent {
-			return Err(Error::TransactionAlreadyReceived(ret_slate.id.to_string()).into());
-		}
-	}
+    let mut ret_slate = slate.clone();
+    check_ttl(w, &ret_slate)?;
+    let parent_key_id = match args.src_acct_name {
+        Some(d) => {
+            let pm = w.get_acct_path(d.to_owned())?;
+            match pm {
+                Some(p) => p.path,
+                None => w.parent_key_id(),
+            }
+        }
+        None => w.parent_key_id(),
+    };
+    // Don't do this multiple times
+    let tx = updater::retrieve_txs(
+        &mut *w,
+        None,
+        Some(ret_slate.id),
+        Some(&parent_key_id),
+        use_test_rng,
+        None,
+        None,
+        None,
+    )?;
+    for t in &tx.2 {
+        if t.tx_type == TxLogEntryType::TxSent {
+            return Err(Error::TransactionAlreadyReceived(ret_slate.id.to_string()).into());
+        }
+    }
 
-	let message = match args.message {
-		Some(mut m) => {
-			m.truncate(USER_MESSAGE_MAX_LEN);
-			Some(m)
-		}
-		None => None,
-	};
+    let message = match args.message {
+        Some(mut m) => {
+            m.truncate(USER_MESSAGE_MAX_LEN);
+            Some(m)
+        }
+        None => None,
+    };
 
-	// update slate current height
-	ret_slate.height = w.w2n_client().get_chain_tip()?.0;
+    // update slate current height
+    ret_slate.height = w.w2n_client().get_chain_tip()?.0;
 
-	// update ttl if desired
-	if let Some(b) = args.ttl_blocks {
-		ret_slate.ttl_cutoff_height = Some(ret_slate.height + b);
-	}
+    // update ttl if desired
+    if let Some(b) = args.ttl_blocks {
+        ret_slate.ttl_cutoff_height = Some(ret_slate.height + b);
+    }
 
-	let context = tx::add_inputs_to_slate(
-		&mut *w,
-		keychain_mask,
-		&mut ret_slate,
-		args.minimum_confirmations,
-		args.max_outputs as usize,
-		args.num_change_outputs as usize,
-		args.selection_strategy_is_use_all,
-		&parent_key_id,
-		0,
-		message,
-		false,
-		use_test_rng,
-	)?;
+    let context = tx::add_inputs_to_slate(
+        &mut *w,
+        keychain_mask,
+        &mut ret_slate,
+        args.minimum_confirmations,
+        args.max_outputs as usize,
+        args.num_change_outputs as usize,
+        args.selection_strategy_is_use_all,
+        &parent_key_id,
+        0,
+        message,
+        false,
+        use_test_rng,
+    )?;
 
-	// Save the aggsig context in our DB for when we
-	// recieve the transaction back
-	{
-		let mut batch = w.batch(keychain_mask)?;
-		batch.save_private_context(slate.id.as_bytes(), 0, &context)?;
-		batch.commit()?;
-	}
+    // Save the aggsig context in our DB for when we
+    // recieve the transaction back
+    {
+        let mut batch = w.batch(keychain_mask)?;
+        batch.save_private_context(slate.id.as_bytes(), 0, &context)?;
+        batch.commit()?;
+    }
 
-	if let Some(v) = args.target_slate_version {
-		ret_slate.version_info.orig_version = v;
-	}
+    if let Some(v) = args.target_slate_version {
+        ret_slate.version_info.orig_version = v;
+    }
 
-	Ok(ret_slate)
+    Ok(ret_slate)
 }
 
 /// Lock sender outputs
 pub fn tx_lock_outputs<'a, T: ?Sized, C, K>(
-	w: &mut T,
-	keychain_mask: Option<&SecretKey>,
-	slate: &Slate,
-	participant_id: usize,
-	addr_to: Option<String>,
+    w: &mut T,
+    keychain_mask: Option<&SecretKey>,
+    slate: &Slate,
+    participant_id: usize,
+    addr_to: Option<String>,
 ) -> Result<(), Error>
 where
-	T: WalletBackend<'a, C, K>,
-	C: NodeClient + 'a,
-	K: Keychain + 'a,
+    T: WalletBackend<'a, C, K>,
+    C: NodeClient + 'a,
+    K: Keychain + 'a,
 {
-	let context = w.get_private_context(keychain_mask, slate.id.as_bytes(), participant_id)?;
-	selection::lock_tx_context(&mut *w, keychain_mask, slate, &context, addr_to)
+    let context = w.get_private_context(keychain_mask, slate.id.as_bytes(), participant_id)?;
+    selection::lock_tx_context(&mut *w, keychain_mask, slate, &context, addr_to)
 }
 
 /// Finalize slate
 pub fn finalize_tx<'a, T: ?Sized, C, K>(
-	w: &mut T,
-	keychain_mask: Option<&SecretKey>,
-	slate: &Slate,
+    w: &mut T,
+    keychain_mask: Option<&SecretKey>,
+    slate: &Slate,
 ) -> Result<Slate, Error>
 where
-	T: WalletBackend<'a, C, K>,
-	C: NodeClient + 'a,
-	K: Keychain + 'a,
+    T: WalletBackend<'a, C, K>,
+    C: NodeClient + 'a,
+    K: Keychain + 'a,
 {
-	let mut sl = slate.clone();
-	check_ttl(w, &sl)?;
-	let context = w.get_private_context(keychain_mask, sl.id.as_bytes(), 0)?;
-	let parent_key_id = w.parent_key_id();
-	tx::complete_tx(&mut *w, keychain_mask, &mut sl, 0, &context)?;
-	tx::verify_slate_payment_proof(&mut *w, keychain_mask, &parent_key_id, &context, &sl)?;
-	tx::update_stored_tx(&mut *w, keychain_mask, &context, &mut sl, false)?;
-	tx::update_message(&mut *w, keychain_mask, &mut sl)?;
+    let mut sl = slate.clone();
+    check_ttl(w, &sl)?;
+    let context = w.get_private_context(keychain_mask, sl.id.as_bytes(), 0)?;
+    let parent_key_id = w.parent_key_id();
+    tx::complete_tx(&mut *w, keychain_mask, &mut sl, 0, &context)?;
+    tx::verify_slate_payment_proof(&mut *w, keychain_mask, &parent_key_id, &context, &sl)?;
+    tx::update_stored_tx(&mut *w, keychain_mask, &context, &mut sl, false)?;
+    tx::update_message(&mut *w, keychain_mask, &mut sl)?;
 
-	{
-		let mut batch = w.batch(keychain_mask)?;
-		batch.delete_private_context(sl.id.as_bytes(), 0)?;
-		batch.commit()?;
-	}
+    {
+        let mut batch = w.batch(keychain_mask)?;
+        batch.delete_private_context(sl.id.as_bytes(), 0)?;
+        batch.commit()?;
+    }
 
-	Ok(sl)
+    Ok(sl)
 }
 
 /// Wrapper for tx::update_mempool_status
 pub fn update_mempool_status<'a, T: ?Sized, C, K>(
-	wallet: &mut T,
-	keychain_mask: Option<&SecretKey>,
-	slate: &Slate,
+    wallet: &mut T,
+    keychain_mask: Option<&SecretKey>,
+    slate: &Slate,
 ) -> Result<(), Error>
 where
-	T: WalletBackend<'a, C, K>,
-	C: NodeClient + 'a,
-	K: Keychain + 'a,
+    T: WalletBackend<'a, C, K>,
+    C: NodeClient + 'a,
+    K: Keychain + 'a,
 {
-	tx::update_mempool_status(wallet, keychain_mask, slate)
+    tx::update_mempool_status(wallet, keychain_mask, slate)
 }
 
 /// Polls the node mempool for the given transaction and marks it as TxSentMempool if found.
-pub fn wait_for_tx_in_mempool<'a, T: ?Sized, C, K>(
-	wallet: &mut T,
-	keychain_mask: Option<&SecretKey>,
-	tx_slate_id: &uuid::Uuid,
-	poll_interval_secs: u64,
-	max_attempts: u32,
+pub fn wait_for_tx_in_mempool<'a, L, C, K>(
+    wallet_inst: Arc<Mutex<Box<dyn WalletInst<'a, L, C, K>>>>,
+    keychain_mask: Option<&SecretKey>,
+    tx_slate_id: &uuid::Uuid,
+    poll_interval_secs: u64,
+    max_attempts: u32,
 ) -> Result<bool, Error>
 where
-	T: WalletBackend<'a, C, K>,
-	C: NodeClient + 'a,
-	K: Keychain + 'a,
+    L: WalletLCProvider<'a, C, K>,
+    C: NodeClient + 'a,
+    K: Keychain + 'a,
 {
-	for _ in 0..max_attempts {
-		// Get mempool entries from node
-		let mempool = wallet.w2n_client().get_mempool()?;
-		// Get the tx log entry for this slate id
-		let mut txs = wallet.tx_log_iter().collect::<Vec<_>>();
-		if let Some(entry) = txs.iter_mut().find(|e| e.tx_slate_id == Some(*tx_slate_id)) {
-			// Check if any mempool entry matches this transaction (by kernel, id, etc.)
-			let found = mempool.iter().any(|pool_entry| {
-				// You may want to match by kernel_excess, tx hash, or another unique property
-				entry.kernel_excess.is_some()
-					&& pool_entry
-						.tx
-						.kernels()
-						.iter()
-						.any(|k| Some(k.excess()) == entry.kernel_excess)
-			});
-			if found {
-				entry.tx_type = TxLogEntryType::TxSentMempool;
-				let parent_key_id = wallet.parent_key_id();
-				let mut batch = wallet.batch(keychain_mask)?;
-				batch.save_tx_log_entry(entry.clone(), &parent_key_id)?;
-				batch.commit()?;
-				return Ok(true);
-			}
-		}
-		thread::sleep(Duration::from_secs(poll_interval_secs));
-	}
-	Ok(false)
+    for _ in 0..max_attempts {
+        let mempool = {
+            wallet_lock!(wallet_inst, w);
+            w.w2n_client().get_mempool()?
+            // wallet is unlocked here, at the end of this block
+        };
+
+        // Get mempool entries from node
+
+        // Get the tx log entry for this slate id
+        let mut txs = {
+            wallet_lock!(wallet_inst, w);
+            w.tx_log_iter().collect::<Vec<_>>()
+            // wallet is unlocked here, at the end of this block
+        };
+        let mut updated = false;
+        for entry in txs
+            .iter_mut()
+            .filter(|e| e.tx_slate_id == Some(*tx_slate_id))
+        {
+            let found = mempool.iter().any(|pool_entry| {
+                entry.kernel_excess.is_some()
+                    && pool_entry
+                        .tx
+                        .kernels()
+                        .iter()
+                        .any(|k| Some(k.excess()) == entry.kernel_excess)
+            });
+            if found {
+                wallet_lock!(wallet_inst, w);
+                match entry.tx_type {
+                    TxLogEntryType::TxSent | TxLogEntryType::TxSentCreated => {
+                        entry.tx_type = TxLogEntryType::TxSentMempool;
+                    }
+                    TxLogEntryType::TxReceived => {
+                        entry.tx_type = TxLogEntryType::TxReceivedMempool;
+                    }
+                    _ => {}
+                }
+                let parent_key_id = w.parent_key_id();
+                let mut batch = w.batch(keychain_mask)?;
+                batch.save_tx_log_entry(entry.clone(), &parent_key_id)?;
+                batch.commit()?;
+                updated = true;
+            }
+        }
+        if updated {
+            return Ok(true);
+        }
+        thread::sleep(Duration::from_secs(poll_interval_secs));
+    }
+    Ok(false)
 }
 
 /// cancel tx
 pub fn cancel_tx<'a, L, C, K>(
-	wallet_inst: Arc<Mutex<Box<dyn WalletInst<'a, L, C, K>>>>,
-	keychain_mask: Option<&SecretKey>,
-	status_send_channel: &Option<Sender<StatusMessage>>,
-	tx_id: Option<u32>,
-	tx_slate_id: Option<Uuid>,
+    wallet_inst: Arc<Mutex<Box<dyn WalletInst<'a, L, C, K>>>>,
+    keychain_mask: Option<&SecretKey>,
+    status_send_channel: &Option<Sender<StatusMessage>>,
+    tx_id: Option<u32>,
+    tx_slate_id: Option<Uuid>,
 ) -> Result<(), Error>
 where
-	L: WalletLCProvider<'a, C, K>,
-	C: NodeClient + 'a,
-	K: Keychain + 'a,
+    L: WalletLCProvider<'a, C, K>,
+    C: NodeClient + 'a,
+    K: Keychain + 'a,
 {
-	if !update_wallet_state(
-		wallet_inst.clone(),
-		keychain_mask,
-		status_send_channel,
-		false,
-	)? {
-		return Err(Error::TransactionCancellationError(
-			"Can't contact running Epic node. Not Cancelling.",
-		))?;
-	}
-	wallet_lock!(wallet_inst, w);
-	let parent_key_id = w.parent_key_id();
-	tx::cancel_tx(&mut **w, keychain_mask, &parent_key_id, tx_id, tx_slate_id)
+    if !update_wallet_state(
+        wallet_inst.clone(),
+        keychain_mask,
+        status_send_channel,
+        false,
+    )? {
+        return Err(Error::TransactionCancellationError(
+            "Can't contact running Epic node. Not Cancelling.",
+        ))?;
+    }
+    wallet_lock!(wallet_inst, w);
+    let parent_key_id = w.parent_key_id();
+    tx::cancel_tx(&mut **w, keychain_mask, &parent_key_id, tx_id, tx_slate_id)
 }
 
 /// get stored tx
 pub fn get_stored_tx<'a, T: ?Sized, C, K>(
-	w: &T,
-	entry: &TxLogEntry,
+    w: &T,
+    entry: &TxLogEntry,
 ) -> Result<Option<Transaction>, Error>
 where
-	T: WalletBackend<'a, C, K>,
-	C: NodeClient + 'a,
-	K: Keychain + 'a,
+    T: WalletBackend<'a, C, K>,
+    C: NodeClient + 'a,
+    K: Keychain + 'a,
 {
-	w.get_stored_tx(entry)
-}
-
-/// Update the tx log entry to indicate the transaction is in the mempool
-/// take a client impl instead of wallet so as not to have to lock the wallet
-pub fn get_mempool_status<'a, C>(client: &C, _tx: &Transaction) -> Result<(), Error>
-where
-	C: NodeClient + 'a,
-{
-	let txs = client.get_mempool();
-	println!("txs in mempool: {:?}", txs);
-	Ok(())
+    w.get_stored_tx(entry)
 }
 
 /// Posts a transaction to the chain
 /// take a client impl instead of wallet so as not to have to lock the wallet
 pub fn post_tx<'a, C>(client: &C, tx: &Transaction, fluff: bool) -> Result<(), Error>
 where
-	C: NodeClient + 'a,
+    C: NodeClient + 'a,
 {
-	let res = client.post_tx(&tx, fluff);
+    let res = client.post_tx(&tx, fluff);
 
-	if let Err(e) = res {
-		error!("api: post_tx: failed with error: {}", e);
-		Err(e)
-	} else {
-		debug!(
-			"api: post_tx: successfully posted tx: {}, fluff? {}",
-			tx.hash(),
-			fluff
-		);
-		Ok(())
-	}
+    if let Err(e) = res {
+        error!("Failed posting tx: {} with error: {}", tx.hash(), e);
+        Err(e)
+    } else {
+        debug!("Successfully posted tx: {}, fluff? {}", tx.hash(), fluff);
+        Ok(())
+    }
+}
+
+/// Posts a transaction to a Tor .onion node mempool
+/// take a client impl instead of wallet so as not to have to lock the wallet
+pub fn post_tx_tor<'a, C>(client: &C, tx: &Transaction, tor_node_url: &str) -> Result<(), Error>
+where
+    C: NodeClient + 'a,
+{
+    let res = client.post_tx_tor(tx, tor_node_url);
+
+    if let Err(e) = res {
+        error!("Failed posting tx: {} with error: {}", tx.hash(), e);
+        Err(e)
+    } else {
+        info!(
+            "Successfully posted tx: {} via tor, to {}",
+            tx.hash(),
+            tor_node_url
+        );
+        Ok(())
+    }
 }
 
 /// verify slate messages
 pub fn verify_slate_messages(slate: &Slate) -> Result<(), Error> {
-	slate.verify_messages()
+    slate.verify_messages()
 }
 
 /// check repair
 /// Accepts a wallet inst instead of a raw wallet so it can
 /// lock as little as possible
 pub fn scan<'a, L, C, K>(
-	wallet_inst: Arc<Mutex<Box<dyn WalletInst<'a, L, C, K>>>>,
-	keychain_mask: Option<&SecretKey>,
-	start_height: Option<u64>,
-	delete_unconfirmed: bool,
-	status_send_channel: &Option<Sender<StatusMessage>>,
+    wallet_inst: Arc<Mutex<Box<dyn WalletInst<'a, L, C, K>>>>,
+    keychain_mask: Option<&SecretKey>,
+    start_height: Option<u64>,
+    delete_unconfirmed: bool,
+    status_send_channel: &Option<Sender<StatusMessage>>,
 ) -> Result<(), Error>
 where
-	L: WalletLCProvider<'a, C, K>,
-	C: NodeClient + 'a,
-	K: Keychain + 'a,
+    L: WalletLCProvider<'a, C, K>,
+    C: NodeClient + 'a,
+    K: Keychain + 'a,
 {
-	update_outputs(wallet_inst.clone(), keychain_mask, true)?;
-	let tip = {
-		wallet_lock!(wallet_inst, w);
-		w.w2n_client().get_chain_tip()?
-	};
+    update_outputs(wallet_inst.clone(), keychain_mask, true)?;
+    let tip = {
+        wallet_lock!(wallet_inst, w);
+        w.w2n_client().get_chain_tip()?
+    };
 
-	let start_height = match start_height {
-		Some(h) => h,
-		None => 1,
-	};
+    let start_height = match start_height {
+        Some(h) => h,
+        None => 1,
+    };
 
-	let mut info = scan::scan(
-		wallet_inst.clone(),
-		keychain_mask,
-		delete_unconfirmed,
-		start_height,
-		tip.0,
-		status_send_channel,
-	)?;
-	info.hash = tip.1;
+    let mut info = scan::scan(
+        wallet_inst.clone(),
+        keychain_mask,
+        delete_unconfirmed,
+        start_height,
+        tip.0,
+        status_send_channel,
+    )?;
+    info.hash = tip.1;
 
-	wallet_lock!(wallet_inst, w);
-	let mut batch = w.batch(keychain_mask)?;
-	batch.save_last_scanned_block(info)?;
-	batch.commit()?;
+    wallet_lock!(wallet_inst, w);
+    let mut batch = w.batch(keychain_mask)?;
+    batch.save_last_scanned_block(info)?;
+    batch.commit()?;
 
-	Ok(())
+    Ok(())
 }
 
 /// node height
 pub fn node_height<'a, L, C, K>(
-	wallet_inst: Arc<Mutex<Box<dyn WalletInst<'a, L, C, K>>>>,
-	keychain_mask: Option<&SecretKey>,
+    wallet_inst: Arc<Mutex<Box<dyn WalletInst<'a, L, C, K>>>>,
+    keychain_mask: Option<&SecretKey>,
 ) -> Result<NodeHeightResult, Error>
 where
-	L: WalletLCProvider<'a, C, K>,
-	C: NodeClient + 'a,
-	K: Keychain + 'a,
+    L: WalletLCProvider<'a, C, K>,
+    C: NodeClient + 'a,
+    K: Keychain + 'a,
 {
-	let res = {
-		wallet_lock!(wallet_inst, w);
-		w.w2n_client().get_chain_tip()
-	};
-	match res {
-		Ok(r) => Ok(NodeHeightResult {
-			height: r.0,
-			header_hash: r.1,
-			updated_from_node: true,
-		}),
-		Err(_) => {
-			let outputs = retrieve_outputs(
-				wallet_inst,
-				keychain_mask,
-				&None,
-				true,
-				false,
-				false,
-				None,
-				None,
-				None,
-				None,
-			)?;
-			let height = match outputs.outputs.iter().map(|m| m.output.height).max() {
-				Some(height) => height,
-				None => 0,
-			};
-			Ok(NodeHeightResult {
-				height,
-				header_hash: "".to_owned(),
-				updated_from_node: false,
-			})
-		}
-	}
+    let res = {
+        wallet_lock!(wallet_inst, w);
+        w.w2n_client().get_chain_tip()
+    };
+    match res {
+        Ok(r) => Ok(NodeHeightResult {
+            height: r.0,
+            header_hash: r.1,
+            updated_from_node: true,
+        }),
+        Err(_) => {
+            let outputs = retrieve_outputs(
+                wallet_inst,
+                keychain_mask,
+                &None,
+                true,
+                false,
+                false,
+                None,
+                None,
+                None,
+                None,
+            )?;
+            let height = match outputs.outputs.iter().map(|m| m.output.height).max() {
+                Some(height) => height,
+                None => 0,
+            };
+            Ok(NodeHeightResult {
+                height,
+                header_hash: "".to_owned(),
+                updated_from_node: false,
+            })
+        }
+    }
 }
 /// Experimental, wrap the entire definition of how a wallet's state is updated
 pub fn update_wallet_state<'a, L, C, K>(
-	wallet_inst: Arc<Mutex<Box<dyn WalletInst<'a, L, C, K>>>>,
-	keychain_mask: Option<&SecretKey>,
-	status_send_channel: &Option<Sender<StatusMessage>>,
-	update_all: bool,
+    wallet_inst: Arc<Mutex<Box<dyn WalletInst<'a, L, C, K>>>>,
+    keychain_mask: Option<&SecretKey>,
+    status_send_channel: &Option<Sender<StatusMessage>>,
+    update_all: bool,
 ) -> Result<bool, Error>
 where
-	L: WalletLCProvider<'a, C, K>,
-	C: NodeClient + 'a,
-	K: Keychain + 'a,
+    L: WalletLCProvider<'a, C, K>,
+    C: NodeClient + 'a,
+    K: Keychain + 'a,
 {
-	let parent_key_id = {
-		wallet_lock!(wallet_inst, w);
-		w.parent_key_id().clone()
-	};
-	let client = {
-		wallet_lock!(wallet_inst, w);
-		w.w2n_client().clone()
-	};
+    let parent_key_id = {
+        wallet_lock!(wallet_inst, w);
+        w.parent_key_id().clone()
+    };
+    let client = {
+        wallet_lock!(wallet_inst, w);
+        w.w2n_client().clone()
+    };
 
-	// Step 1: Update outputs and transactions purely based on UTXO state
-	if let Some(ref s) = status_send_channel {
-		let _ = s.send(StatusMessage::UpdatingOutputs(
-			"Updating outputs from node".to_owned(),
-		));
-	}
-	let mut result = update_outputs(wallet_inst.clone(), keychain_mask, update_all)?;
+    // Step 1: Update outputs and transactions purely based on UTXO state
+    if let Some(ref s) = status_send_channel {
+        let _ = s.send(StatusMessage::UpdatingOutputs(
+            "Updating outputs from node".to_owned(),
+        ));
+    }
+    let mut result = update_outputs(wallet_inst.clone(), keychain_mask, update_all)?;
 
-	if !result {
-		if let Some(ref s) = status_send_channel {
-			let _ = s.send(StatusMessage::UpdateWarning(
-				"Updater Thread unable to contact node".to_owned(),
-			));
-		}
-		return Ok(result);
-	}
+    if !result {
+        if let Some(ref s) = status_send_channel {
+            let _ = s.send(StatusMessage::UpdateWarning(
+                "Updater Thread unable to contact node".to_owned(),
+            ));
+        }
+        return Ok(result);
+    }
 
-	if let Some(ref s) = status_send_channel {
-		let _ = s.send(StatusMessage::UpdatingTransactions(
-			"Updating transactions".to_owned(),
-		));
-	}
+    if let Some(ref s) = status_send_channel {
+        let _ = s.send(StatusMessage::UpdatingTransactions(
+            "Updating transactions".to_owned(),
+        ));
+    }
 
-	// Step 2: Update outstanding transactions with no change outputs by kernel
-	let mut txs = {
-		wallet_lock!(wallet_inst, w);
-		updater::retrieve_txs(
-			&mut **w,
-			None,
-			None,
-			Some(&parent_key_id),
-			true,
-			None,
-			None,
-			None,
-		)?
-	};
-	result = update_txs_via_kernel(wallet_inst.clone(), keychain_mask, &mut txs.2)?;
-	if !result {
-		if let Some(ref s) = status_send_channel {
-			let _ = s.send(StatusMessage::UpdateWarning(
-				"Updater Thread unable to contact node".to_owned(),
-			));
-		}
-		return Ok(result);
-	}
+    // Step 2: Update outstanding transactions with no change outputs by kernel
+    let mut txs = {
+        wallet_lock!(wallet_inst, w);
+        updater::retrieve_txs(
+            &mut **w,
+            None,
+            None,
+            Some(&parent_key_id),
+            true,
+            None,
+            None,
+            None,
+        )?
+    };
+    result = update_txs_via_kernel(wallet_inst.clone(), keychain_mask, &mut txs.2)?;
+    if !result {
+        if let Some(ref s) = status_send_channel {
+            let _ = s.send(StatusMessage::UpdateWarning(
+                "Updater Thread unable to contact node".to_owned(),
+            ));
+        }
+        return Ok(result);
+    }
 
-	// Step 3: Scan back a bit on the chain
-	let res = client.get_chain_tip();
-	// if we can't get the tip, don't continue
-	let tip = match res {
-		Ok(t) => t,
-		Err(_) => {
-			if let Some(ref s) = status_send_channel {
-				let _ = s.send(StatusMessage::UpdateWarning(
-					"Updater Thread unable to contact node".to_owned(),
-				));
-			}
-			return Ok(false);
-		}
-	};
+    // Step 3: Scan back a bit on the chain
+    let res = client.get_chain_tip();
+    // if we can't get the tip, don't continue
+    let tip = match res {
+        Ok(t) => t,
+        Err(_) => {
+            if let Some(ref s) = status_send_channel {
+                let _ = s.send(StatusMessage::UpdateWarning(
+                    "Updater Thread unable to contact node".to_owned(),
+                ));
+            }
+            return Ok(false);
+        }
+    };
 
-	// Check if this is a restored wallet that needs a full scan
-	let last_scanned_block = {
-		wallet_lock!(wallet_inst, w);
-		match w.init_status()? {
-			WalletInitStatus::InitNeedsScanning => ScannedBlockInfo {
-				height: 0,
-				hash: "".to_owned(),
-				start_pmmr_index: 0,
-				last_pmmr_index: 0,
-			},
-			WalletInitStatus::InitNoScanning => ScannedBlockInfo {
-				height: tip.clone().0,
-				hash: tip.clone().1,
-				start_pmmr_index: 0,
-				last_pmmr_index: 0,
-			},
-			WalletInitStatus::InitComplete => w.last_scanned_block()?,
-		}
-	};
+    // Check if this is a restored wallet that needs a full scan
+    let last_scanned_block = {
+        wallet_lock!(wallet_inst, w);
+        match w.init_status()? {
+            WalletInitStatus::InitNeedsScanning => ScannedBlockInfo {
+                height: 0,
+                hash: "".to_owned(),
+                start_pmmr_index: 0,
+                last_pmmr_index: 0,
+            },
+            WalletInitStatus::InitNoScanning => ScannedBlockInfo {
+                height: tip.clone().0,
+                hash: tip.clone().1,
+                start_pmmr_index: 0,
+                last_pmmr_index: 0,
+            },
+            WalletInitStatus::InitComplete => w.last_scanned_block()?,
+        }
+    };
 
-	let start_index = last_scanned_block.height.saturating_sub(100);
+    let start_index = last_scanned_block.height.saturating_sub(100);
 
-	if last_scanned_block.height == 0 {
-		let msg = format!("This wallet has not been scanned against the current chain. Beginning full scan... (this first scan may take a while, but subsequent scans will be much quicker)");
-		if let Some(ref s) = status_send_channel {
-			let _ = s.send(StatusMessage::FullScanWarn(msg));
-		}
-	}
+    if last_scanned_block.height == 0 {
+        let msg = format!("This wallet has not been scanned against the current chain. Beginning full scan... (this first scan may take a while, but subsequent scans will be much quicker)");
+        if let Some(ref s) = status_send_channel {
+            let _ = s.send(StatusMessage::FullScanWarn(msg));
+        }
+    }
 
-	let mut info = scan::scan(
-		wallet_inst.clone(),
-		keychain_mask,
-		false,
-		start_index,
-		tip.0,
-		status_send_channel,
-	)?;
+    let mut info = scan::scan(
+        wallet_inst.clone(),
+        keychain_mask,
+        false,
+        start_index,
+        tip.0,
+        status_send_channel,
+    )?;
 
-	info.hash = tip.1;
+    info.hash = tip.1;
 
-	{
-		wallet_lock!(wallet_inst, w);
-		let mut batch = w.batch(keychain_mask)?;
-		batch.save_last_scanned_block(info)?;
-		// init considered complete after first successful update
-		batch.save_init_status(WalletInitStatus::InitComplete)?;
-		batch.commit()?;
-	}
+    {
+        wallet_lock!(wallet_inst, w);
+        let mut batch = w.batch(keychain_mask)?;
+        batch.save_last_scanned_block(info)?;
+        // init considered complete after first successful update
+        batch.save_init_status(WalletInitStatus::InitComplete)?;
+        batch.commit()?;
+    }
 
-	// Step 5: Cancel any transactions with an expired TTL
-	for tx in txs.2 {
-		if let Some(e) = tx.ttl_cutoff_height {
-			if tip.0 >= e {
-				wallet_lock!(wallet_inst, w);
-				let parent_key_id = w.parent_key_id();
-				tx::cancel_tx(&mut **w, keychain_mask, &parent_key_id, Some(tx.id), None)?;
-			}
-		}
-	}
+    // Step 5: Cancel any transactions with an expired TTL
+    for tx in txs.2 {
+        if let Some(e) = tx.ttl_cutoff_height {
+            if tip.0 >= e {
+                wallet_lock!(wallet_inst, w);
+                let parent_key_id = w.parent_key_id();
+                tx::cancel_tx(&mut **w, keychain_mask, &parent_key_id, Some(tx.id), None)?;
+            }
+        }
+    }
 
-	Ok(result)
+    Ok(result)
 }
 
 /// Check TTL
 pub fn check_ttl<'a, T: ?Sized, C, K>(w: &mut T, slate: &Slate) -> Result<(), Error>
 where
-	T: WalletBackend<'a, C, K>,
-	C: NodeClient + 'a,
-	K: Keychain + 'a,
+    T: WalletBackend<'a, C, K>,
+    C: NodeClient + 'a,
+    K: Keychain + 'a,
 {
-	// Refuse if TTL is expired
-	let last_confirmed_height = w.last_confirmed_height()?;
-	if let Some(e) = slate.ttl_cutoff_height {
-		if last_confirmed_height >= e {
-			return Err(Error::TransactionExpired)?;
-		}
-	}
-	Ok(())
+    // Refuse if TTL is expired
+    let last_confirmed_height = w.last_confirmed_height()?;
+    if let Some(e) = slate.ttl_cutoff_height {
+        if last_confirmed_height >= e {
+            return Err(Error::TransactionExpired)?;
+        }
+    }
+    Ok(())
 }
 /// Verify/validate arbitrary payment proof
 /// Returns (whether this wallet is the sender, whether this wallet is the recipient)
 pub fn verify_payment_proof<'a, L, C, K>(
-	wallet_inst: Arc<Mutex<Box<dyn WalletInst<'a, L, C, K>>>>,
-	keychain_mask: Option<&SecretKey>,
-	proof: &PaymentProof,
+    wallet_inst: Arc<Mutex<Box<dyn WalletInst<'a, L, C, K>>>>,
+    keychain_mask: Option<&SecretKey>,
+    proof: &PaymentProof,
 ) -> Result<(bool, bool), Error>
 where
-	L: WalletLCProvider<'a, C, K>,
-	C: NodeClient + 'a,
-	K: Keychain + 'a,
+    L: WalletLCProvider<'a, C, K>,
+    C: NodeClient + 'a,
+    K: Keychain + 'a,
 {
-	let sender_pubkey = address::pubkey_from_onion_v3(&proof.sender_address)?;
-	let msg = tx::payment_proof_message(proof.amount, &proof.excess, sender_pubkey)?;
+    let sender_pubkey = address::pubkey_from_onion_v3(&proof.sender_address)?;
+    let msg = tx::payment_proof_message(proof.amount, &proof.excess, sender_pubkey)?;
 
-	let (mut client, parent_key_id, keychain) = {
-		wallet_lock!(wallet_inst, w);
-		(
-			w.w2n_client().clone(),
-			w.parent_key_id(),
-			w.keychain(keychain_mask)?,
-		)
-	};
+    let (mut client, parent_key_id, keychain) = {
+        wallet_lock!(wallet_inst, w);
+        (
+            w.w2n_client().clone(),
+            w.parent_key_id(),
+            w.keychain(keychain_mask)?,
+        )
+    };
 
-	// Check kernel exists
-	match client.get_kernel(&proof.excess, None, None) {
-		Err(e) => {
-			return Err(Error::PaymentProof(
-				format!("Error retrieving kernel from chain: {}", e).to_owned(),
-			))?;
-		}
-		Ok(None) => {
-			return Err(Error::PaymentProof(
-				format!(
-					"Transaction kernel with excess {:?} not found on chain",
-					proof.excess
-				)
-				.to_owned(),
-			))?;
-		}
-		Ok(Some(_)) => {}
-	};
+    // Check kernel exists
+    match client.get_kernel(&proof.excess, None, None) {
+        Err(e) => {
+            return Err(Error::PaymentProof(
+                format!("Error retrieving kernel from chain: {}", e).to_owned(),
+            ))?;
+        }
+        Ok(None) => {
+            return Err(Error::PaymentProof(
+                format!(
+                    "Transaction kernel with excess {:?} not found on chain",
+                    proof.excess
+                )
+                .to_owned(),
+            ))?;
+        }
+        Ok(Some(_)) => {}
+    };
 
-	// Check Sigs
-	let recipient_pubkey = address::pubkey_from_onion_v3(&proof.recipient_address)?;
-	if let Err(_) = recipient_pubkey.verify(&msg, &proof.recipient_sig) {
-		return Err(Error::PaymentProof(
-			"Invalid recipient signature".to_owned(),
-		))?;
-	};
+    // Check Sigs
+    let recipient_pubkey = address::pubkey_from_onion_v3(&proof.recipient_address)?;
+    if let Err(_) = recipient_pubkey.verify(&msg, &proof.recipient_sig) {
+        return Err(Error::PaymentProof(
+            "Invalid recipient signature".to_owned(),
+        ))?;
+    };
 
-	let sender_pubkey = address::pubkey_from_onion_v3(&proof.sender_address)?;
-	if let Err(_) = sender_pubkey.verify(&msg, &proof.sender_sig) {
-		return Err(Error::PaymentProof("Invalid sender signature".to_owned()))?;
-	};
+    let sender_pubkey = address::pubkey_from_onion_v3(&proof.sender_address)?;
+    if let Err(_) = sender_pubkey.verify(&msg, &proof.sender_sig) {
+        return Err(Error::PaymentProof("Invalid sender signature".to_owned()))?;
+    };
 
-	// for now, simple test as to whether one of the addresses belongs to this wallet
-	let sec_key = address::address_from_derivation_path(&keychain, &parent_key_id, 0)?;
+    // for now, simple test as to whether one of the addresses belongs to this wallet
+    let sec_key = address::address_from_derivation_path(&keychain, &parent_key_id, 0)?;
 
-	let d_skey = DalekSecretKey::from_bytes(&sec_key.0);
+    let d_skey = DalekSecretKey::from_bytes(&sec_key.0);
 
-	let my_address_pubkey: DalekPublicKey = (&d_skey).into();
+    let my_address_pubkey: DalekPublicKey = (&d_skey).into();
 
-	let sender_mine = my_address_pubkey == sender_pubkey;
-	let recipient_mine = my_address_pubkey == recipient_pubkey;
+    let sender_mine = my_address_pubkey == sender_pubkey;
+    let recipient_mine = my_address_pubkey == recipient_pubkey;
 
-	Ok((sender_mine, recipient_mine))
+    Ok((sender_mine, recipient_mine))
 }
 
 /// Attempt to update outputs in wallet, return whether it was successful
 fn update_outputs<'a, L, C, K>(
-	wallet_inst: Arc<Mutex<Box<dyn WalletInst<'a, L, C, K>>>>,
-	keychain_mask: Option<&SecretKey>,
-	update_all: bool,
+    wallet_inst: Arc<Mutex<Box<dyn WalletInst<'a, L, C, K>>>>,
+    keychain_mask: Option<&SecretKey>,
+    update_all: bool,
 ) -> Result<bool, Error>
 where
-	L: WalletLCProvider<'a, C, K>,
-	C: NodeClient + 'a,
-	K: Keychain + 'a,
+    L: WalletLCProvider<'a, C, K>,
+    C: NodeClient + 'a,
+    K: Keychain + 'a,
 {
-	wallet_lock!(wallet_inst, w);
-	let parent_key_id = w.parent_key_id();
-	match updater::refresh_outputs(&mut **w, keychain_mask, &parent_key_id, update_all) {
-		Ok(_) => Ok(true),
-		Err(e) => {
-			if let Error::InvalidKeychainMask = e {
-				return Err(e);
-			}
-			Ok(false)
-		}
-	}
+    wallet_lock!(wallet_inst, w);
+    let parent_key_id = w.parent_key_id();
+    match updater::refresh_outputs(&mut **w, keychain_mask, &parent_key_id, update_all) {
+        Ok(_) => Ok(true),
+        Err(e) => {
+            if let Error::InvalidKeychainMask = e {
+                return Err(e);
+            }
+            Ok(false)
+        }
+    }
 }
 
 /// Update transactions that need to be validated via kernel lookup
 fn update_txs_via_kernel<'a, L, C, K>(
-	wallet_inst: Arc<Mutex<Box<dyn WalletInst<'a, L, C, K>>>>,
-	keychain_mask: Option<&SecretKey>,
-	txs: &mut Vec<TxLogEntry>,
+    wallet_inst: Arc<Mutex<Box<dyn WalletInst<'a, L, C, K>>>>,
+    keychain_mask: Option<&SecretKey>,
+    txs: &mut Vec<TxLogEntry>,
 ) -> Result<bool, Error>
 where
-	L: WalletLCProvider<'a, C, K>,
-	C: NodeClient + 'a,
-	K: Keychain + 'a,
+    L: WalletLCProvider<'a, C, K>,
+    C: NodeClient + 'a,
+    K: Keychain + 'a,
 {
-	let parent_key_id = {
-		wallet_lock!(wallet_inst, w);
-		w.parent_key_id().clone()
-	};
+    let parent_key_id = {
+        wallet_lock!(wallet_inst, w);
+        w.parent_key_id().clone()
+    };
 
-	let mut client = {
-		wallet_lock!(wallet_inst, w);
-		w.w2n_client().clone()
-	};
+    let mut client = {
+        wallet_lock!(wallet_inst, w);
+        w.w2n_client().clone()
+    };
 
-	let height = match client.get_chain_tip() {
-		Ok(h) => h.0,
-		Err(_) => return Ok(false),
-	};
+    let height = match client.get_chain_tip() {
+        Ok(h) => h.0,
+        Err(_) => return Ok(false),
+    };
 
-	for tx in txs.iter_mut() {
-		if tx.confirmed {
-			continue;
-		}
-		if tx.amount_debited != 0 && tx.amount_credited != 0 {
-			continue;
-		}
-		if let Some(e) = tx.kernel_excess {
-			let res = client.get_kernel(&e, tx.kernel_lookup_min_height, Some(height));
-			let kernel = match res {
-				Ok(k) => k,
-				Err(_) => return Ok(false),
-			};
-			if let Some(k) = kernel {
-				debug!("Kernel Retrieved: {:?}", k);
-				wallet_lock!(wallet_inst, w);
-				let mut batch = w.batch(keychain_mask)?;
-				tx.confirmed = true;
-				tx.update_confirmation_ts();
-				batch.save_tx_log_entry(tx.clone(), &parent_key_id)?;
-				batch.commit()?;
-			}
-		} else {
-			warn!("Attempted to update via kernel excess for transaction {:?}, but kernel excess was not stored", tx.tx_slate_id);
-		}
-	}
-	Ok(true)
+    for tx in txs.iter_mut() {
+        if tx.confirmed {
+            continue;
+        }
+        if tx.amount_debited != 0 && tx.amount_credited != 0 {
+            continue;
+        }
+        if let Some(e) = tx.kernel_excess {
+            let res = client.get_kernel(&e, tx.kernel_lookup_min_height, Some(height));
+            let kernel = match res {
+                Ok(k) => k,
+                Err(_) => return Ok(false),
+            };
+            if let Some(k) = kernel {
+                debug!("Kernel Retrieved: {:?}", k);
+                wallet_lock!(wallet_inst, w);
+                let mut batch = w.batch(keychain_mask)?;
+                tx.confirmed = true;
+                tx.update_confirmation_ts();
+                tx.confirmation_height = Some(height);
+                batch.save_tx_log_entry(tx.clone(), &parent_key_id)?;
+                batch.commit()?;
+            }
+        } else {
+            warn!("Attempted to update via kernel excess for transaction {:?}, but kernel excess was not stored", tx.tx_slate_id);
+        }
+    }
+    Ok(true)
 }

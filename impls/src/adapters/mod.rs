@@ -27,7 +27,7 @@ pub use self::epicbox::{EpicboxChannel, EpicboxListenChannel};
 pub use self::file::PathToSlate;
 pub use self::http::HttpSlateSender;
 pub use self::keybase::{KeybaseAllChannels, KeybaseChannel};
-use crate::config::{TorConfig, WalletConfig};
+use crate::config::WalletConfig;
 use crate::libwallet::{Error, NodeClient, Slate, WalletInst, WalletLCProvider};
 use crate::tor::config::complete_tor_address;
 
@@ -77,7 +77,6 @@ pub trait SlateGetter {
 pub fn create_sender(
 	method: &str,
 	dest: &str,
-	tor_config: Option<TorConfig>,
 	is_node_synced: Arc<AtomicBool>,
 ) -> Result<Box<dyn SlateSender>, Error> {
 	let invalid = || {
@@ -103,21 +102,9 @@ pub fn create_sender(
 		"http" => {
 			Box::new(HttpSlateSender::new(&dest, is_node_synced.clone()).map_err(|_| invalid())?)
 		}
-
-		"tor" => match tor_config {
-			None => {
-				return Err(Error::WalletComms("Tor Configuration required".to_string()).into());
-			}
-			Some(tc) => Box::new(
-				HttpSlateSender::with_socks_proxy(
-					&dest,
-					&tc.socks_proxy_addr,
-					&tc.send_config_dir,
-					is_node_synced,
-				)
-				.map_err(|_| invalid())?,
-			),
-		},
+		"tor" => {
+			Box::new(HttpSlateSender::new(&dest, is_node_synced.clone()).map_err(|_| invalid())?)
+		}
 		"keybase" => Box::new(KeybaseChannel::new(dest.to_owned())?),
 
 		"self" => {

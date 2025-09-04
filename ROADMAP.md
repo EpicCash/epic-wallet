@@ -11,13 +11,13 @@
 ## 2: API Improvements & Stability
 **Goal:** Improve API communication and error handling
 
-1. 🟧 Add missing Wallet API endpoints and implement error handling
+1. ✅ Add missing Wallet API endpoints and implement error handling
 
 ## 3: Peer & Wallet Enhancements
 **Goal:** Improve network stability and wallet functionalities
 
-1. 🟧 Update the scan method for sub-accounts
-2. 🟧 Improve wallet transaction behavior
+1. ✅ Update the scan method for sub-accounts
+2. ✅ Improve wallet transaction behavior
 
 ## 4: Automation & CLI Wizard
 **Goal:** Enhance automation and usability
@@ -29,7 +29,7 @@
 ## 5: Long-Term Features & Documentation
 **Goal:** Implement import/export functionality, update documentation, and plan future improvements
 
-1. ⬜ Implement Wallet transaction import/export functionality
+1. ✅ Implement Wallet transaction import/export functionality
 2. 🟧 Update comments and documentation for missing transaction types and functionalities
 
 ---

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::config::EpicboxConfig;
+use crate::config::{EpicboxConfig, TorConfig};
 use crate::epicbox::protocol::{
 	ProtocolError, ProtocolRequest, ProtocolRequestV2, ProtocolResponseV2,
 };
@@ -43,12 +43,15 @@ use crate::libwallet::api_impl::foreign;
 use crate::libwallet::api_impl::owner;
 
 use epic_wallet_util::epic_core::core::amount_to_hr_string;
+use rand::rng;
+use rand::seq::SliceRandom;
 use std::env;
 use std::net::TcpStream;
 use std::string::ToString;
 use std::sync::atomic::AtomicBool;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::thread::spawn;
+
 use tungstenite::connect;
 use tungstenite::Error as tungsteniteError;
 use tungstenite::{protocol::WebSocket, stream::MaybeTlsStream};
@@ -123,6 +126,7 @@ impl EpicboxListenChannel {
 		epicbox_config: EpicboxConfig,
 		reconnections: &mut u32,
 		is_node_synced: Arc<AtomicBool>,
+		tor_config: TorConfig,
 	) -> Result<(), Error>
 	where
 		L: WalletLCProvider<'static, C, K> + 'static,
@@ -182,11 +186,17 @@ impl EpicboxListenChannel {
 		let cpublisher = publisher.clone();
 		let mask = keychain_mask.lock();
 		let km = mask.clone();
-		let controller = EpicboxController::new(container, cpublisher, wallet, km, reconnections)
-			.expect("Could not init epicbox listener!");
+		let controller = EpicboxController::new(
+			container,
+			cpublisher,
+			wallet,
+			km,
+			reconnections,
+			tor_config.clone(),
+		)
+		.expect("Could not init epicbox listener!");
 
 		info!("Starting epicbox listener for: {}", address);
-
 		subscriber.start(controller)
 	}
 }
@@ -208,6 +218,7 @@ impl EpicboxChannel {
 		keychain_mask: Option<SecretKey>,
 		slate: &Slate,
 		is_node_synced: Arc<AtomicBool>,
+		tor_config: TorConfig,
 	) -> Result<Slate, Error>
 	where
 		L: WalletLCProvider<'static, C, K> + 'static,
@@ -229,6 +240,7 @@ impl EpicboxChannel {
 			config,
 			tx,
 			is_node_synced,
+			tor_config.clone(),
 		)?;
 
 		container
@@ -259,6 +271,7 @@ pub fn start_epicbox<L, C, K>(
 	config: EpicboxConfig,
 	tx: Sender<bool>,
 	is_node_synced: Arc<AtomicBool>,
+	tor_config: TorConfig,
 ) -> Result<Box<dyn Listener>, Error>
 where
 	L: WalletLCProvider<'static, C, K> + 'static,
@@ -315,6 +328,7 @@ where
 			wallet,
 			keychain_mask,
 			&mut reconnections,
+			tor_config.clone(),
 		)
 		.expect("Could not init epicbox controller!");
 
@@ -416,6 +430,7 @@ where
 	/// Keychain mask
 	pub keychain_mask: Option<SecretKey>,
 	pub reconnections: &'a mut u32,
+	pub tor_config: TorConfig,
 }
 pub struct Container {
 	pub config: EpicboxConfig,
@@ -473,12 +488,14 @@ where
 		wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K> + 'static>>>,
 		keychain_mask: Option<SecretKey>,
 		reconnections: &'a mut u32,
+		tor_config: TorConfig,
 	) -> Result<Self, Error> {
 		Ok(Self {
 			publisher,
 			wallet,
 			keychain_mask,
 			reconnections,
+			tor_config,
 		})
 	}
 
@@ -488,16 +505,13 @@ where
 		slate: &mut Slate,
 		_tx_proof: Option<&mut TxProof>,
 	) -> Result<bool, Error> {
-		/* build owner and foreign here */
-		//let wallet = self.wallet.clone();
-
-		wallet_lock!(self.wallet, w);
-
+		// Case 1: Receiving a new transaction (not finalized)
 		if slate.num_participants > slate.participant_data.len() {
-			if slate.tx.inputs().len() == 0 {
+			if slate.tx.inputs().is_empty() {
 				// TODO: invoicing
 			} else {
 				info!("Receive new transaction (foreign::receive_tx)");
+				wallet_lock!(self.wallet, w);
 				match foreign::receive_tx(
 					&mut **w,
 					self.keychain_mask.as_ref(),
@@ -513,39 +527,69 @@ where
 					Err(e) => return Err(Error::EpicboxReceiveTx(format!("{:?}", e)).into()),
 				};
 			}
-
-			Ok(false)
-		} else {
-			info!("Finalize transaction (owner::finalize_tx)");
-			let slate = owner::finalize_tx(&mut **w, self.keychain_mask.as_ref(), slate)?;
-
-			info!("Post transaction to the network (owner::post_tx)");
-			owner::post_tx(w.w2n_client(), &slate.tx, false)?;
-
-			// --- Blocking mempool observation after post_tx ---
-			let tx_slate_id = slate.id;
-			let found = owner::wait_for_tx_in_mempool(
-				&mut **w,
-				self.keychain_mask.as_ref(),
-				&tx_slate_id,
-				1,   // poll every 1 second
-				240, // up to 240 attempts (4 minutes)
-			);
-			if let Ok(true) = found {
-				owner::update_mempool_status(&mut **w, self.keychain_mask.as_ref(), &slate)?;
-				info!(
-					"Transaction with slate_id {} found in mempool and marked as TxSentMempool.",
-					tx_slate_id
-				);
-			} else {
-				warn!(
-					"Transaction with slate_id {} not found in mempool after waiting.",
-					tx_slate_id
-				);
-			}
-
-			Ok(true)
+			return Ok(false);
 		}
+
+		// Case 2: Finalizing and posting the transaction
+		info!("Finalize transaction (owner::finalize_tx)");
+		let (finalized_slate, mut onion_addresses, node_client) = {
+			wallet_lock!(self.wallet, w);
+			let finalized_slate = owner::finalize_tx(&mut **w, self.keychain_mask.as_ref(), slate)?;
+			// Get onion addresses and node client while wallet is still locked
+			let onion_addresses = w.w2n_client().get_onion_addresses().unwrap_or_default();
+			let node_client = w.w2n_client().clone();
+			(finalized_slate, onion_addresses, node_client)
+		};
+
+		onion_addresses.shuffle(&mut rng());
+
+		if let Some(tor_node_url) = onion_addresses.first() {
+			if self.tor_config.use_tor_listener {
+				info!("Post transaction to Tor address: {}", tor_node_url);
+				match owner::post_tx_tor(&node_client, &finalized_slate.tx, tor_node_url) {
+					Ok(_) => {}
+					Err(_) => {
+						owner::post_tx(&node_client, &finalized_slate.tx, false)?;
+					}
+				}
+			} else {
+				// Tor not enabled, use Dandelion/HTTP fallback
+				owner::post_tx(&node_client, &finalized_slate.tx, false)?;
+			}
+		} else {
+			owner::post_tx(&node_client, &finalized_slate.tx, false)?;
+		}
+
+		// --- Blocking mempool observation after post_tx ---
+		let tx_slate_id = finalized_slate.id;
+		let found = owner::wait_for_tx_in_mempool(
+			self.wallet.clone(),
+			self.keychain_mask.as_ref(),
+			&tx_slate_id,
+			1,   // poll every 1 second
+			240, // up to 240 attempts (4 minutes)
+		);
+		if let Ok(true) = found {
+			{
+				wallet_lock!(self.wallet, w);
+				owner::update_mempool_status(
+					&mut **w,
+					self.keychain_mask.as_ref(),
+					&finalized_slate,
+				)?;
+			}
+			info!(
+				"Transaction with slate_id {} found in mempool and marked as TxSentMempool.",
+				tx_slate_id
+			);
+		} else {
+			warn!(
+				"Transaction with slate_id {} not found in mempool after waiting.",
+				tx_slate_id
+			);
+		}
+
+		Ok(true)
 	}
 }
 pub trait SubscriptionHandler: Send {
@@ -766,9 +810,9 @@ impl EpicboxBroker {
 									signature,
 								};
 
-								let _ = client
-									.send(&request_sub)
-									.map_err(|_| error!("Error attempting to send Subscribe"));
+								let _ = client.send(&request_sub).map_err(|e| {
+									error!("Error attempting to send Subscribe {:?}", e)
+								});
 							}
 							ProtocolResponseV2::Slate {
 								from,
