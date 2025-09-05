@@ -26,15 +26,14 @@ use crate::store::{to_key, to_key_u64};
 use crate::util::secp::constants::SECRET_KEY_SIZE;
 use crate::util::secp::key::SecretKey;
 use crate::util::{self, secp};
+use rand::rng;
 use rand::rngs::mock::StepRng;
-use rand::thread_rng;
 use std::cell::RefCell;
 use std::fs::File;
 use std::io::{Read, Write};
 use std::marker::PhantomData;
 use std::path::Path;
 use std::{fs, path};
-use uuid::Uuid;
 
 pub const DB_DIR: &'static str = "db";
 const SQLITE_DIR: &'static str = "sqlite";
@@ -200,7 +199,7 @@ where
 							let mut test_rng = StepRng::new(1234567890u64, 1);
 							secp::key::SecretKey::new(&k.secp(), &mut test_rng)
 						}
-						false => secp::key::SecretKey::new(&k.secp(), &mut thread_rng()),
+						false => secp::key::SecretKey::new(&k.secp(), &mut rng()),
 					};
 					k.mask_master_key(&mask_value)?;
 					Some(mask_value)
@@ -327,7 +326,7 @@ where
 		Box::new(serializables.into_iter().map(|x| x))
 	}
 
-	fn get_tx_log_entry(&self, u: &Uuid) -> Result<Option<TxLogEntry>, Error> {
+	fn get_tx_log_entry(&self, u: &uuid::Uuid) -> Result<Option<TxLogEntry>, Error> {
 		let key = to_key(TX_LOG_ENTRY_PREFIX, &mut u.as_bytes().to_vec());
 
 		Ok(match self.db.get(&key) {

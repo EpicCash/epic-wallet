@@ -50,7 +50,6 @@ extern crate regex;
 extern crate timer;
 
 use regex::Regex;
-use std::env;
 use std::fs::{self, File};
 use std::io;
 use std::io::Write;
@@ -59,12 +58,12 @@ use std::path::{Path, MAIN_SEPARATOR};
 use std::process::{Child, ChildStdout, Command, Stdio};
 use std::sync::mpsc::channel;
 use std::thread;
-use sysinfo::{Process, ProcessExt, Signal};
+use sysinfo::{Pid, Process};
 
 #[cfg(windows)]
-const TOR_EXE_NAME: &'static str = "tor.exe";
+const TOR_EXE_NAME: &'static str = "tor/tor.exe";
 #[cfg(not(windows))]
-const TOR_EXE_NAME: &'static str = "tor";
+const TOR_EXE_NAME: &'static str = "tor/tor";
 
 #[derive(Debug)]
 pub enum Error {
@@ -79,14 +78,20 @@ pub enum Error {
 	Timeout,
 }
 
-#[cfg(windows)]
-fn get_process(pid: i32) -> Process {
-	Process::new(pid as usize, None, 0)
+pub struct ProcessManager {
+	system: sysinfo::System,
 }
 
-#[cfg(not(windows))]
-fn get_process(pid: i32) -> Process {
-	Process::new(pid, None, 0)
+impl ProcessManager {
+	pub fn new() -> Self {
+		let mut system = sysinfo::System::new_all();
+		system.refresh_all();
+		ProcessManager { system }
+	}
+
+	pub fn get_process(&self, pid: i32) -> Option<&Process> {
+		self.system.process(Pid::from(pid as usize))
+	}
 }
 
 pub struct TorProcess {
@@ -98,6 +103,7 @@ pub struct TorProcess {
 	working_dir: Option<String>,
 	pub stdout: Option<BufReader<ChildStdout>>,
 	pub process: Option<Child>,
+	process_manager: ProcessManager,
 }
 
 impl TorProcess {
@@ -111,6 +117,7 @@ impl TorProcess {
 			working_dir: None,
 			stdout: None,
 			process: None,
+			process_manager: ProcessManager::new(),
 		}
 	}
 
@@ -154,11 +161,10 @@ impl TorProcess {
 	// The tor process will have its stdout piped, so if the stdout lines are not consumed they
 	// will keep accumulating over time, increasing the consumed memory.
 	pub fn launch(&mut self) -> Result<&mut Self, Error> {
-		let mut tor_exe_dir = env::current_exe().unwrap();
-		tor_exe_dir.pop();
-		tor_exe_dir.push(&self.tor_cmd);
-
-		let mut tor = Command::new(tor_exe_dir);
+		let mut tor_exe_path = std::env::current_exe().expect("Failed to get current exe path");
+		tor_exe_path.pop(); // remove the executable filename
+		tor_exe_path.push(&self.tor_cmd); // append "tor/tor" or "tor/tor.exe"
+		let mut tor = Command::new(tor_exe_path);
 
 		if let Some(ref d) = self.working_dir {
 			tor.current_dir(&d);
@@ -169,23 +175,27 @@ impl TorProcess {
 				let pid = pid
 					.parse::<i32>()
 					.map_err(|err| Error::PID(format!("{:?}", err)))?;
-				let process = get_process(pid);
-				let _ = process.kill(Signal::Kill);
+				if let Some(process) = self.process_manager.get_process(pid) {
+					let _ = process.kill();
+				}
 			}
 		}
 		if let Some(ref torrc_path) = self.torrc_path {
 			tor.args(&vec!["-f", torrc_path]);
 		}
 		let mut tor_process = tor
-			.args(&self.args)
-			.stdin(Stdio::piped())
-			.stdout(Stdio::piped())
-			.stderr(Stdio::piped())
-			.spawn()
-			.map_err(|err| {
-				let msg = format!("TOR executable (`{}`) not found. Please ensure TOR is installed and on the path: {:?}", TOR_EXE_NAME, err);
-				Error::Process(msg)
-			})?;
+            .args(&self.args)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(|err| {
+                let msg = format!(
+                    "TOR executable (`{}`) not found. Please ensure TOR is installed and on the path: {:?}",
+                    TOR_EXE_NAME, err
+                );
+                Error::Process(msg)
+            })?;
 
 		if let Some(ref d) = self.working_dir {
 			// split out the process id, so if we don't exit cleanly
@@ -250,7 +260,7 @@ impl TorProcess {
 				}
 				let timestamp = &raw_line[..timestamp_len];
 				let line = &raw_line[timestamp_len + 1..raw_line.len() - 1];
-				debug!("{} {}", timestamp, line);
+				info!("{} {}", timestamp, line);
 				match line.split(' ').nth(0) {
 					Some("[notice]") => {
 						if let Some("Bootstrapped") = line.split(' ').nth(1) {
@@ -285,7 +295,8 @@ impl TorProcess {
 		}
 	}
 }
-// This is copied from [here](https://github.com/rust-lang/rust/blob/d3cba254e464303a6495942f3a831c2bbd7f1768/src/libstd/io/mod.rs#L2495),
+
+// This is copied from https://github.com/rust-lang/rust/blob/d3cba254e464303a6495942f3a831c2bbd7f1768/src/libstd/io/mod.rs#L2495,
 // but converted into a "lossy" version
 #[derive(Debug)]
 pub struct LossyLines<B> {
@@ -337,7 +348,7 @@ impl<T: BufRead> BufReadLossy for T {}
 impl Drop for TorProcess {
 	// kill the child
 	fn drop(&mut self) {
-		trace!("DROPPING TOR PROCESS");
 		self.kill().unwrap_or(());
+		info!("Tor thread stopped");
 	}
 }

@@ -18,13 +18,14 @@ use crate::util::secp::key::{PublicKey, SecretKey};
 
 use crate::util::from_hex;
 use crate::util::to_hex;
-use base64;
-use ed25519_dalek::PublicKey as DalekPublicKey;
+
+use base64::{engine::general_purpose, Engine as _};
+use ed25519_dalek::VerifyingKey as DalekPublicKey;
 
 use serde_json::{self, Value};
 use std::collections::HashMap;
 
-use rand::{thread_rng, Rng};
+use rand::{rng, Rng};
 use ring::aead;
 
 /// Wrapper for API Tokens
@@ -73,7 +74,7 @@ impl EncryptedBody {
 			.as_bytes()
 			.to_vec();
 
-		let nonce: [u8; 12] = thread_rng().gen();
+		let nonce: [u8; 12] = rng().random();
 
 		let unbound_key = aead::UnboundKey::new(&aead::AES_256_GCM, &enc_key.0).unwrap();
 		let sealing_key: aead::LessSafeKey = aead::LessSafeKey::new(unbound_key);
@@ -89,7 +90,7 @@ impl EncryptedBody {
 
 		Ok(EncryptedBody {
 			nonce: to_hex(nonce.to_vec()),
-			body_enc: base64::encode(&to_encrypt),
+			body_enc: general_purpose::STANDARD.encode(&to_encrypt),
 		})
 	}
 
@@ -112,11 +113,13 @@ impl EncryptedBody {
 
 	/// Return original request
 	pub fn decrypt(&self, dec_key: &SecretKey) -> Result<Value, Error> {
-		let mut to_decrypt = base64::decode(&self.body_enc).map_err(|_| {
-			Error::APIEncryption(
-				"EncryptedBody Dec: Encrypted request contains invalid Base64".to_string(),
-			)
-		})?;
+		let mut to_decrypt = general_purpose::STANDARD
+			.decode(&self.body_enc)
+			.map_err(|_| {
+				Error::APIEncryption(
+					"EncryptedBody Dec: Encrypted request contains invalid Base64".to_string(),
+				)
+			})?;
 		let nonce = from_hex(self.nonce.clone())
 			.map_err(|_| Error::APIEncryption("EncryptedBody Dec: Invalid Nonce".to_string()))?;
 		if nonce.len() < 12 {

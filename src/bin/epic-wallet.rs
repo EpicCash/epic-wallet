@@ -15,25 +15,18 @@
 //! Main for building the binary of a Epic Reference Wallet
 
 #[macro_use]
-extern crate clap;
-
-#[macro_use]
 extern crate log;
+use crate::cmd::built_info;
 use crate::core::global;
 use crate::util::init_logger;
-use clap::App;
 use epic_wallet::cmd;
+use epic_wallet::cmd::wallet_args;
 use epic_wallet_config as config;
 use epic_wallet_util::epic_core as core;
 use epic_wallet_util::epic_util as util;
 use std::env;
 use std::fs;
 use std::path::PathBuf;
-
-// include build information
-pub mod built_info {
-	include!(concat!(env!("OUT_DIR"), "/built.rs"));
-}
 
 pub fn info_strings() -> (String, String) {
 	(
@@ -66,22 +59,19 @@ fn main() {
 }
 
 fn real_main() -> i32 {
-	let yml = load_yaml!("epic-wallet.yml");
-	let args = App::from_yaml(yml)
-		.version(built_info::PKG_VERSION)
-		.get_matches();
+	let args = wallet_args::build_cli().get_matches();
 
-	let chain_type = if args.is_present("floonet") {
+	let chain_type = if args.get_flag("floonet") {
 		global::ChainTypes::Floonet
-	} else if args.is_present("usernet") {
+	} else if args.get_flag("usernet") {
 		global::ChainTypes::UserTesting
 	} else {
 		global::ChainTypes::Mainnet
 	};
 
 	let mut current_dir = None;
-	if let Some(_path) = args.value_of("current_dir") {
-		let current_dir_exist = PathBuf::from(&_path);
+	if let Some(_path) = args.get_one::<String>("current_dir") {
+		let current_dir_exist = PathBuf::from(_path);
 		if !current_dir_exist.exists() {
 			fs::create_dir_all(current_dir_exist.clone()).unwrap_or_else(|e| {
 				panic!("Error creating current_dir: {:?}", e);
@@ -91,9 +81,9 @@ fn real_main() -> i32 {
 	}
 	// special cases for certain lifecycle commands
 	match args.subcommand() {
-		("init", Some(init_args)) => {
+		Some(("init", init_args)) => {
 			// Use current working directory as the top wallet data directory
-			if init_args.is_present("here") {
+			if init_args.get_flag("cwd") {
 				current_dir = Some(env::current_dir().unwrap_or_else(|e| {
 					panic!("Error creating config file: {}", e);
 				}));
@@ -108,6 +98,38 @@ fn real_main() -> i32 {
 		panic!("Error loading wallet configuration: {}", e);
 	});
 
+	// --- Wallet data dir and seed existence check logic ---
+	// Determine wallet data dir from config
+	let wallet_data_dir = {
+		let wallet_conf = &config.members.as_ref().unwrap().wallet;
+		if !wallet_conf.data_file_dir.is_empty() {
+			PathBuf::from(&wallet_conf.data_file_dir)
+		} else {
+			// Default: ~/.epic/main
+			let mut p = dirs::home_dir().expect("Could not determine home directory");
+			p.push(".epic");
+			p.push("main");
+			p
+		}
+	};
+
+	// Create wallet data dir if it doesn't exist
+	if !wallet_data_dir.exists() {
+		println!(
+			"Wallet data directory does not exist: {}",
+			wallet_data_dir.display()
+		);
+		println!(
+			"Creating wallet data directory at {}",
+			wallet_data_dir.display()
+		);
+		fs::create_dir_all(&wallet_data_dir).unwrap_or_else(|e| {
+			panic!("Error creating wallet data directory: {}", e);
+		});
+	}
+
+	//println!("{:?}", config);
+
 	// Load logging config
 	let l = config.members.as_mut().unwrap().logging.clone().unwrap();
 	init_logger(Some(l), None);
@@ -117,6 +139,26 @@ fn real_main() -> i32 {
 	);
 
 	log_build_info();
+
+	// Check for seed file and handle init/recover logic
+	let seed_file = wallet_data_dir.join("wallet.seed");
+	let is_init = matches!(args.subcommand(), Some(("init", _)));
+	let is_recover = match args.subcommand() {
+		Some(("init", sub_args)) => sub_args.get_flag("recover"),
+		_ => false,
+	};
+
+	if !seed_file.exists() {
+		warn!("Wallet seed file not found at: {}", seed_file.display());
+		warn!("Wallet is not initialized. Run 'epic-wallet init' to initialize or 'epic-wallet init -r' to recover from a seed.");
+		if !is_init {
+			return 1;
+		}
+	} else if is_init && !is_recover {
+		warn!("Wallet is already initialized at: {}", seed_file.display());
+		warn!("If you want to recover from a seed, use 'epic-wallet init -r'.");
+		return 1;
+	}
 
 	global::set_mining_mode(
 		config

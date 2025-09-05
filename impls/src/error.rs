@@ -18,36 +18,39 @@ use crate::core::libtx;
 use crate::keychain;
 use crate::libwallet;
 use crate::util::secp;
-
+use thiserror::Error;
 /// Wallet errors, mostly wrappers around underlying crypto or I/O errors.
-#[derive(Clone, thiserror::Error, Eq, PartialEq, Debug)]
+#[derive(Error, Debug, Deserialize)]
 pub enum Error {
 	/// LibTX Error
 	#[error("LibTx Error")]
-	LibTX(libtx::ErrorKind),
+	LibTX(#[from] libtx::Error),
 
 	/// LibWallet Error
-	#[error("LibWallet Error")]
-	LibWallet(libwallet::Error),
+	#[error("LibWallet Error: {0}")]
+	#[serde(skip)]
+	LibWallet(#[from] libwallet::Error),
 
 	/// Keychain error
-	#[error("Keychain error")]
-	Keychain(keychain::Error),
+	#[error("Keychain error: {0}")]
+	Keychain(#[from] keychain::Error),
 
-	/// Error when formatting json
-	#[error("IO error")]
-	IO,
+	/// Error for std::io::Error
+	#[error("Std IO error: {0}")]
+	#[serde(skip)]
+	IO(#[from] std::io::Error),
 
 	/// Secp Error
-	#[error("Secp error")]
-	Secp(secp::Error),
+	#[error("Secp error: {0}")]
+	Secp(#[from] secp::Error),
 
 	/// Error when formatting json
-	#[error("Serde JSON error")]
-	Format,
+	#[error("Serde JSON error: {0}")]
+	#[serde(skip)]
+	Format(#[from] serde_json::Error),
 
 	/// Wallet seed already exists
-	#[error("Wallet seed file exists: {}", _0)]
+	#[error("Wallet seed file exists: {0}")]
 	WalletSeedExists(String),
 
 	/// Wallet seed doesn't exist
@@ -55,7 +58,7 @@ pub enum Error {
 	WalletSeedDoesntExist,
 
 	/// Wallet seed doesn't exist
-	#[error("Wallet doesn't exist at {}. {}", _0, _1)]
+	#[error("Wallet doesn't exist at {0}. {1}")]
 	WalletDoesntExist(String, String),
 
 	/// Enc/Decryption Error
@@ -67,58 +70,49 @@ pub enum Error {
 	Mnemonic,
 
 	/// Command line argument error
-	#[error("{}", _0)]
+	#[error("ArgumentError {0}")]
 	ArgumentError(String),
 
 	/// Generating ED25519 Public Key
-	#[error("Error generating ed25519 secret key: {}", _0)]
+	#[error("Error generating ed25519 secret key: {0}")]
 	ED25519Key(String),
 
 	/// Checking for onion address
-	#[error("Address is not an Onion v3 Address: {}", _0)]
+	#[error("Address is not an Onion v3 Address: {0}")]
 	NotOnion(String),
 
-	/// SQLite Errors
-	#[error("SQLite Error")]
-	SQLiteError(String),
+	/// Tor Process error
+	#[error("Tor Process Error: {0}")]
+	TorProcess(String),
+
+	/// Tor Configuration Error
+	#[error("Tor Config Error: {0}")]
+	TorConfig(String),
+
+	/// From sqlite::Error
+	#[error("SQLite Error: {0}")]
+	#[serde(skip)]
+	FromSqlite(#[from] sqlite::Error),
 
 	/// Other
-	#[error("Generic error: {}", _0)]
+	#[error("Generic error: {0}")]
 	GenericError(String),
 
-	#[error("Epicbox Error {}", _0)]
+	#[error("Epicbox Error: {0}")]
 	EpicboxTungstenite(String),
 
-	#[error("No listener on {}", 0)]
+	#[error("No listener on: {0}")]
 	NoListener(String),
 
 	#[error("Epicbox websocket terminated unexpectedly")]
 	EpicboxWebsocketAbnormalTermination,
 
-	#[error("Epicbox ReceiveTx {}", _0)]
+	#[error("Epicbox ReceiveTx: {0}")]
 	EpicboxReceiveTx(String),
 }
 
-impl From<libwallet::Error> for Error {
-	fn from(error: libwallet::Error) -> Error {
-		Error::LibWallet(error)
-	}
-}
-
-impl From<sqlite::Error> for Error {
-	fn from(error: sqlite::Error) -> Error {
-		Error::SQLiteError(error.to_string())
-	}
-}
-
-impl From<Error> for epic_wallet_libwallet::Error {
-	fn from(error: Error) -> epic_wallet_libwallet::Error {
-		epic_wallet_libwallet::Error::LibWallet(error.to_string())
-	}
-}
-
-impl From<epic_wallet_util::epic_keychain::Error> for Error {
-	fn from(error: epic_wallet_util::epic_keychain::Error) -> Error {
-		Error::Keychain(error)
+impl From<Error> for crate::libwallet::Error {
+	fn from(error: Error) -> crate::libwallet::Error {
+		crate::libwallet::Error::LibWallet(format!("{error}"))
 	}
 }

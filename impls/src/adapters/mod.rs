@@ -25,15 +25,16 @@ pub use self::epicbox::{
 };
 pub use self::epicbox::{EpicboxChannel, EpicboxListenChannel};
 pub use self::file::PathToSlate;
-pub use self::http::{HttpSlateSender, SchemeNotHttp};
+pub use self::http::HttpSlateSender;
 pub use self::keybase::{KeybaseAllChannels, KeybaseChannel};
-use crate::config::{TorConfig, WalletConfig};
+use crate::config::WalletConfig;
 use crate::libwallet::{Error, NodeClient, Slate, WalletInst, WalletLCProvider};
 use crate::tor::config::complete_tor_address;
 
 use crate::keychain::Keychain;
 use crate::util::secp::key::SecretKey;
 use crate::util::Mutex;
+use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
 /// Sends transactions to a corresponding SlateReceiver
@@ -52,6 +53,7 @@ pub trait SlateReceiver {
 		wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K> + 'static>>>,
 		keychain_mask: Arc<Mutex<Option<SecretKey>>>,
 		config: WalletConfig,
+		is_node_synced: Arc<AtomicBool>,
 	) -> Result<(), Error>
 	where
 		L: WalletLCProvider<'static, C, K> + 'static,
@@ -75,7 +77,7 @@ pub trait SlateGetter {
 pub fn create_sender(
 	method: &str,
 	dest: &str,
-	tor_config: Option<TorConfig>,
+	is_node_synced: Arc<AtomicBool>,
 ) -> Result<Box<dyn SlateSender>, Error> {
 	let invalid = || {
 		Error::WalletComms(format!(
@@ -97,17 +99,12 @@ pub fn create_sender(
 	};
 
 	Ok(match method {
-		"http" => Box::new(HttpSlateSender::new(&dest).map_err(|_| invalid())?),
-
-		"tor" => match tor_config {
-			None => {
-				return Err(Error::WalletComms("Tor Configuration required".to_string()).into());
-			}
-			Some(tc) => Box::new(
-				HttpSlateSender::with_socks_proxy(&dest, &tc.socks_proxy_addr, &tc.send_config_dir)
-					.map_err(|_| invalid())?,
-			),
-		},
+		"http" => {
+			Box::new(HttpSlateSender::new(&dest, is_node_synced.clone()).map_err(|_| invalid())?)
+		}
+		"tor" => {
+			Box::new(HttpSlateSender::new(&dest, is_node_synced.clone()).map_err(|_| invalid())?)
+		}
 		"keybase" => Box::new(KeybaseChannel::new(dest.to_owned())?),
 
 		"self" => {

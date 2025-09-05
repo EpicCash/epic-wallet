@@ -8,26 +8,29 @@ repository = "https://github.com/EpicCash/epic-wallet"
 keywords = ["crypto", "epic", "mimblewimble"]
 exclude = ["**/*.epic", "**/*.epic2"]
 edition = "2021"
+workspace = ".."
 
 [dependencies]
-thiserror = "1"
+csv = "1"
+thiserror = "2.0"
 futures = "0.3"
-hyper = { version = "0.14.27", features = ["full"]}
-rand = "0.5"
+hyper = { version = "1.6", features = ["full"]}
+http-body-util = "0.1"
+hyper-util = { version = "0.1", features = ["server", "tokio"] }
+rand = "0.9"
 serde = "1"
 serde_derive = "1"
-serde_json = "1.0.69"
+serde_json = "1"
 log = "0.4"
 prettytable-rs = "0.10"
-ring = "0.16.20"
-term = "0.5"
+ring = "0.17"
+term = "1.0"
+bytes = "1.10"
+tokio = { version = "1", features = ["full"] }
 
-tokio = { version = "1.32", features = ["full"] }
-
-uuid = { version = "0.7", features = ["serde", "v4"] }
-url = "1.7.0"
-chrono = { version = "0.4.4", features = ["serde"] }
-easy-jsonrpc-mw = "0.5.4"
+uuid = { version = "1.16", features = ["serde", "v4"] }
+chrono = { version = "0.4", features = ["serde"] }
+easy-jsonrpc-mw = "0.5"
 lazy_static = "1"
 tungstenite = {version="*", features = ["native-tls"] }
 

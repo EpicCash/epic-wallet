@@ -20,7 +20,7 @@ use epic_wallet_util::epic_keychain::{
 };
 use epic_wallet_util::epic_util::secp;
 use epic_wallet_util::epic_util::secp::key::{PublicKey, SecretKey};
-use rand::thread_rng;
+use rand::rng;
 
 fn kernel_sig_msg() -> secp::Message {
 	transaction::KernelFeatures::Plain { fee: 0 }
@@ -244,7 +244,7 @@ fn aggsig_sender_receiver_interaction_offset() {
 	// This is the kernel offset that we use to split the key
 	// Summing these at the block level prevents the
 	// kernels from being used to reconstruct (or identify) individual transactions
-	let kernel_offset = SecretKey::new(&sender_keychain.secp(), &mut thread_rng());
+	let kernel_offset = SecretKey::new(&sender_keychain.secp(), &mut rng());
 
 	// Calculate the kernel excess here for convenience.
 	// Normally this would happen during transaction building.

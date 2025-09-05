@@ -47,6 +47,10 @@ args:
       short: r
       long: api_server_address
       takes_value: true
+  - offline_mode:
+      help: Run the wallet in offline mode, skipping node sync checks
+      long: offline_mode
+      takes_value: false
 subcommands:
   - account:
       about: List wallet accounts or create a new account
@@ -296,6 +300,24 @@ subcommands:
             short: f
             long: show_full_history
             takes_value: false
+        - limit:
+            help: Limit the number of transactions to display
+            short: l
+            long: limit
+            takes_value: true
+        - offset:
+            help: Skip the first N transactions
+            short: o
+            long: offset
+            takes_value: true
+        - sort_order:
+            help: Sort transactions by creation time, either 'asc' or 'desc' (default is 'desc')
+            short: s
+            long: sort_order
+            takes_value: true
+            possible_values:
+              - asc
+              - desc
   - txs:
       about: Display transaction information
       args:
@@ -309,6 +331,24 @@ subcommands:
             short: t
             long: txid
             takes_value: true
+        - limit:
+            help: Limit the number of transactions to display
+            short: l
+            long: limit
+            takes_value: true
+        - offset:
+            help: Skip the first N transactions
+            short: o
+            long: offset
+            takes_value: true
+        - sort_order:
+            help: Sort transactions by creation time, either 'asc' or 'desc' (default is 'desc')
+            short: s
+            long: sort_order
+            takes_value: true
+            possible_values:
+              - asc
+              - desc
   - post:
       about: Posts a finalized transaction to the chain
       args:

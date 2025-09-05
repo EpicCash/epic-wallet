@@ -23,6 +23,9 @@ use crate::epic_util::Mutex;
 use crate::internal::{keys, updater};
 use crate::types::*;
 use crate::{wallet_lock, Error, OutputCommitMapping};
+// Adjusted import path for CommitmentWrapper
+use crate::internal::scan::api::CommitmentWrapper;
+use epic_wallet_util::epic_api as api;
 use std::cmp;
 use std::collections::HashMap;
 use std::sync::mpsc::Sender;
@@ -104,9 +107,15 @@ where
 			*height
 		};
 
+		// Use CommitmentWrapper to convert commit to hex
+		let commit_wrapper = CommitmentWrapper(*commit);
+
 		let msg = format!(
-			"Output found: {:?}, amount: {:?}, key_id: {:?}, mmr_index: {},",
-			commit, amount, key_id, mmr_index,
+			"\nOutput found:\ncommit: {},\namount: {},\nkeyid: {},\nmmr index: {}\n",
+			commit_wrapper.to_hex(), // Convert commitment to hex string
+			amount as f64 / 1e8,     // Convert amount to human-readable format with 8 decimals
+			key_id.to_hex(),         // Convert key_id to hex string
+			mmr_index,               // Keep mmr_index as is
 		);
 
 		if let Some(ref s) = status_send_channel {
@@ -134,6 +143,7 @@ where
 	Ok(wallet_outputs)
 }
 
+/// Collect outputs from the chain, starting at a given start and end index
 fn collect_chain_outputs<'a, C, K>(
 	keychain: &K,
 	client: C,
@@ -159,10 +169,11 @@ where
 		let perc_complete = cmp::min(((progress / range) * 100.0) as u8, 99);
 
 		let msg = format!(
-			"Checking {} outputs, up to index {}. (Highest index: {})",
+			"Checking {} outputs (from PMMR index {} to {}, highest: {}).",
 			outputs.len(),
-			highest_index,
+			start_index,
 			last_retrieved_index,
+			highest_index,
 		);
 		if let Some(ref s) = status_send_channel {
 			let _ = s.send(StatusMessage::Scanning(msg, perc_complete));
@@ -227,6 +238,7 @@ where
 		t.confirmed = true;
 		t.amount_credited = output.value;
 		t.num_outputs = 1;
+		t.public_addr = Some("Restore".to_string());
 		t.update_confirmation_ts();
 		batch.save_tx_log_entry(t, &parent_key_id)?;
 		log_id
@@ -290,11 +302,14 @@ where
 			None,
 			Some(&parent_key_id),
 			false,
+			None,
+			None,
+			None,
 		)?;
-		if entries.len() > 0 {
-			let mut entry = entries[0].clone();
+		if entries.2.len() > 0 {
+			let mut entry = entries.2[0].clone();
 			match entry.tx_type {
-				TxLogEntryType::TxSent => entry.tx_type = TxLogEntryType::TxSentCancelled,
+				TxLogEntryType::TxSentCreated => entry.tx_type = TxLogEntryType::TxSentCancelled,
 				TxLogEntryType::TxReceived => entry.tx_type = TxLogEntryType::TxReceivedCancelled,
 				_ => {}
 			}
@@ -329,7 +344,6 @@ where
 	C: NodeClient + 'a,
 	K: Keychain + 'a,
 {
-	// First, get a definitive list of outputs we own from the chain
 	if let Some(ref s) = status_send_channel {
 		let _ = s.send(StatusMessage::Scanning("Starting UTXO scan".to_owned(), 0));
 	}
@@ -353,14 +367,26 @@ where
 		chain_outs.len(),
 	);
 
-	if let Some(ref s) = status_send_channel {
-		let _ = s.send(StatusMessage::Scanning(msg, 99));
+	if chain_outs.len() > 0 {
+		if let Some(ref s) = status_send_channel {
+			let _ = s.send(StatusMessage::Scanning(msg, 99));
+		}
 	}
 
 	// Now, get all outputs owned by this wallet (regardless of account)
 	let wallet_outputs = {
 		wallet_lock!(wallet_inst, w);
-		updater::retrieve_outputs(&mut **w, keychain_mask, true, false, None, None)?
+		updater::retrieve_outputs(
+			&mut **w,
+			keychain_mask,
+			true,
+			false,
+			None,
+			None,
+			None,
+			None,
+			None,
+		)?
 	};
 
 	let mut missing_outs = vec![];
@@ -369,9 +395,24 @@ where
 
 	// check all definitive outputs exist in the wallet outputs
 	for deffo in chain_outs.into_iter() {
-		let matched_out = wallet_outputs.iter().find(|wo| wo.commit == deffo.commit);
+		let matched_out = wallet_outputs.2.iter().find(|wo| wo.commit == deffo.commit);
 		match matched_out {
 			Some(s) => {
+				// Update mmr_index if needed
+				if s.output.mmr_index != Some(deffo.mmr_index) {
+					let mut o = s.output.clone();
+					o.mmr_index = Some(deffo.mmr_index);
+					wallet_lock!(wallet_inst, w);
+					let mut batch = w.batch(keychain_mask)?;
+
+					// Delete old output with mmr_index == None and replace with new output
+					if s.output.mmr_index.is_none() {
+						batch.delete(&o.key_id, &None, &o.tx_log_entry)?;
+					}
+
+					batch.save(o)?;
+					batch.commit()?;
+				}
 				if s.output.status == OutputStatus::Spent {
 					accidental_spend_outs.push((s.output.clone(), deffo.clone()));
 				}
@@ -445,6 +486,7 @@ where
 		}
 
 		let unconfirmed_outs: Vec<&OutputCommitMapping> = wallet_outputs
+			.2
 			.iter()
 			.filter(|o| o.output.status == OutputStatus::Unconfirmed)
 			.collect();
@@ -468,10 +510,15 @@ where
 	}
 
 	// restore labels, account paths and child derivation indices
-	wallet_lock!(wallet_inst, w);
+
 	let label_base = "account";
-	let accounts: Vec<Identifier> = w.acct_path_iter().map(|m| m.path).collect();
+	// Only lock to get the list of accounts
+	let accounts: Vec<Identifier> = {
+		wallet_lock!(wallet_inst, w);
+		w.acct_path_iter().map(|m| m.path).collect()
+	};
 	let mut acct_index = accounts.len();
+
 	for (path, max_child_index) in found_parents.iter() {
 		// Only restore paths that don't exist
 		if !accounts.contains(path) {
@@ -480,11 +527,18 @@ where
 			if let Some(ref s) = status_send_channel {
 				let _ = s.send(StatusMessage::Scanning(msg, 99));
 			}
+			// Lock only for setting account path
+			wallet_lock!(wallet_inst, w);
 			keys::set_acct_path(&mut **w, keychain_mask, &label, path)?;
 			acct_index += 1;
 		}
-		let current_child_index = w.current_child_index(&path)?;
+		// Lock only for reading/updating child index
+		let current_child_index = {
+			wallet_lock!(wallet_inst, w);
+			w.current_child_index(&path)?
+		};
 		if *max_child_index >= current_child_index {
+			wallet_lock!(wallet_inst, w);
 			let mut batch = w.batch(keychain_mask)?;
 			debug!("Next child for account {} is {}", path, max_child_index + 1);
 			batch.save_child_index(path, max_child_index + 1)?;

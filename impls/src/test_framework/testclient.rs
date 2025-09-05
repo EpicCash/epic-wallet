@@ -27,13 +27,18 @@ use crate::keychain::Keychain;
 use crate::libwallet;
 use crate::libwallet::api_impl::foreign;
 use crate::libwallet::slate_versions::v3::SlateV3;
-use crate::libwallet::{NodeClient, NodeVersionInfo, Slate, WalletInst, WalletLCProvider};
+use crate::libwallet::{
+	NodeClient, NodeStatus, NodeVersionInfo, Slate, Tip, WalletInst, WalletLCProvider,
+};
+use epic_wallet_libwallet::{PoolEntry, TxSource};
+
 use crate::util;
 use crate::util::secp::key::SecretKey;
 use crate::util::secp::pedersen;
 use crate::util::secp::pedersen::Commitment;
 use crate::util::Mutex;
 
+use crate::test_framework::pow::PoWType;
 use serde_json;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -41,6 +46,10 @@ use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
+
+use serde_json::json;
+
+use chrono::Utc;
 
 /// Messages to simulate wallet requests/responses
 #[derive(Clone, Debug)]
@@ -83,6 +92,8 @@ where
 	pub rx: Receiver<WalletProxyMessage>,
 	/// queue control
 	pub running: Arc<AtomicBool>,
+	/// last posted transaction
+	pub last_posted_tx: Option<Transaction>,
 }
 
 impl<'a, L, C, K> WalletProxy<'a, L, C, K>
@@ -112,6 +123,7 @@ where
 			rx,
 			wallets: HashMap::new(),
 			running: Arc::new(AtomicBool::new(false)),
+			last_posted_tx: None,
 		};
 		retval
 	}
@@ -140,7 +152,7 @@ where
 			thread::sleep(Duration::from_millis(10));
 			// read queue
 			let m = self.rx.recv().unwrap();
-			trace!("Wallet Client Proxy Received: {:?}", m);
+			println!("Wallet Client Proxy Received: {:?}", m);
 			let resp = match m.method.as_ref() {
 				"get_chain_tip" => self.get_chain_tip(m)?,
 				"get_outputs_from_node" => self.get_outputs_from_node(m)?,
@@ -149,6 +161,8 @@ where
 				"send_tx_slate" => self.send_tx_slate(m)?,
 				"post_tx" => self.post_tx(m)?,
 				"get_kernel" => self.get_kernel(m)?,
+				"get_status" => self.get_status(m)?,
+				"get_mempool" => self.get_mempool(m)?,
 				_ => panic!("Unknown Wallet Proxy Message"),
 			};
 
@@ -157,6 +171,32 @@ where
 				return Ok(());
 			}
 		}
+	}
+
+	// Add this method to your WalletProxy impl:
+	fn get_mempool(
+		&mut self,
+		m: WalletProxyMessage,
+	) -> Result<WalletProxyMessage, libwallet::Error> {
+		// Build a minimal valid Transaction for testing
+		let entries = if let Some(ref tx) = self.last_posted_tx {
+			vec![PoolEntry {
+				src: TxSource::PushApi,
+				tx_at: Utc::now(),
+				tx: tx.clone(),
+			}]
+		} else {
+			vec![]
+		};
+
+		let response = serde_json::to_string(&entries).unwrap();
+
+		Ok(WalletProxyMessage {
+			sender_id: "node".to_owned(),
+			dest: m.sender_id,
+			method: m.method,
+			body: response,
+		})
 	}
 
 	/// Return a message to a given wallet client
@@ -178,7 +218,7 @@ where
 		let tx: Transaction = serde_json::from_str(&m.body).map_err(|_| {
 			libwallet::Error::ClientCallback("Error parsing Transaction".to_owned())
 		})?;
-
+		self.last_posted_tx = Some(tx.clone());
 		super::award_block_to_wallet(
 			&self.chain,
 			vec![&tx],
@@ -331,7 +371,37 @@ where
 			body: serde_json::to_string(&ol).unwrap(),
 		})
 	}
+	fn get_status(
+		&mut self,
+		m: WalletProxyMessage,
+	) -> Result<WalletProxyMessage, libwallet::Error> {
+		let height = self.chain.head().unwrap().height;
+		let nodestatus = NodeStatus {
+			protocol_version: 1,                          // Example protocol version
+			user_agent: "Epic Test Node 1.0".to_string(), // Example user agent
+			connections: 8,                               // Example number of connections
+			tip: Tip {
+				height: height, // Example block height
+				last_block_pushed:
+					"0000000000000000000000000000000000000000000000000000000000000001".to_string(),
+				prev_block_to_last:
+					"0000000000000000000000000000000000000000000000000000000000000000".to_string(),
+				total_difficulty: HashMap::from([(PoWType::Cuckaroo, 1000000)]), // Example difficulty
+			},
+			sync_status: "no_sync".to_string(), // Example sync status
+			sync_info: Some(json!({
+				"current_height": height,
+				"highest_height": height,
+			})), // Example sync info
+		};
 
+		Ok(WalletProxyMessage {
+			sender_id: "node".to_owned(),
+			dest: m.sender_id,
+			method: m.method,
+			body: serde_json::to_string(&nodestatus).unwrap(),
+		})
+	}
 	/// get kernel
 	fn get_kernel(
 		&mut self,
@@ -431,6 +501,30 @@ impl NodeClient for LocalWalletClient {
 	fn get_version_info(&mut self) -> Option<NodeVersionInfo> {
 		None
 	}
+	/// Optionally get onion addresses from the node (owner API)
+	fn get_onion_addresses(&self) -> Result<Vec<String>, libwallet::Error> {
+		Ok(vec![])
+	}
+	fn get_node_status(&self) -> Result<NodeStatus, libwallet::Error> {
+		let m = WalletProxyMessage {
+			sender_id: self.id.clone(),
+			dest: self.node_url().to_owned(),
+			method: "get_status".to_owned(),
+			body: "".to_owned(),
+		};
+		{
+			let p = self.proxy_tx.lock();
+			p.send(m)
+				.map_err(|_| libwallet::Error::ClientCallback("Get status send".to_owned()))?;
+		}
+		let r = self.rx.lock();
+		let m = r.recv().unwrap();
+		trace!("Received get_status response: {:?}", m.clone());
+		let res: NodeStatus = serde_json::from_str(&m.body).map_err(|_| {
+			libwallet::Error::ClientCallback("Parsing get_status response".to_owned())
+		})?;
+		Ok(res)
+	}
 	/// Posts a transaction to a epic node
 	/// In this case it will create a new block with award rewarded to
 	fn post_tx(&self, tx: &Transaction, _fluff: bool) -> Result<(), libwallet::Error> {
@@ -451,6 +545,43 @@ impl NodeClient for LocalWalletClient {
 		let m = r.recv().unwrap();
 		trace!("Received post_tx response: {:?}", m.clone());
 		Ok(())
+	}
+
+	fn post_tx_tor(&self, tx: &Transaction, tor_url: &str) -> Result<(), libwallet::Error> {
+		let m = WalletProxyMessage {
+			sender_id: self.id.clone(),
+			dest: tor_url.to_owned(),
+			method: "post_tx_tor".to_owned(),
+			body: serde_json::to_string(tx).unwrap(),
+		};
+
+		{
+			let p = self.proxy_tx.lock();
+			p.send(m)
+				.map_err(|_| libwallet::Error::ClientCallback("post_tx_tor send".to_owned()))?;
+		}
+		Ok(())
+	}
+
+	fn get_mempool(&self) -> Result<Vec<PoolEntry>, libwallet::Error> {
+		let m = WalletProxyMessage {
+			sender_id: self.id.clone(),
+			dest: self.node_url().to_owned(),
+			method: "get_mempool".to_owned(),
+			body: "".to_owned(),
+		};
+		{
+			let p = self.proxy_tx.lock();
+			p.send(m)
+				.map_err(|_| libwallet::Error::ClientCallback("Get mempool send".to_owned()))?;
+		}
+		let r = self.rx.lock();
+		let m = r.recv().unwrap();
+		trace!("Received get_mempool response: {:?}", m.clone());
+		let res: Vec<PoolEntry> = serde_json::from_str(&m.body).map_err(|_| {
+			libwallet::Error::ClientCallback("Parsing get_mempool response".to_owned())
+		})?;
+		Ok(res)
 	}
 
 	/// Return the chain tip from a given node

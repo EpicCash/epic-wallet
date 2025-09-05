@@ -14,3 +14,34 @@ test_output
 .idea/
 /build/
 release/
+
+*.swp
+.DS_Store
+.epic*
+node*
+debug/
+!node_clients
+!node_clients.rs
+target
+*/Cargo.lock
+*.iml
+epic.log
+wallet.seed
+test_output
+wallet_data
+wallet/db
+.idea/
+/build/
+release/
+
+# Standard Rust exclusions
+/target/
+/**/target/
+/Cargo.lock
+**/*.rs.bk
+
+# Standard Visual Studio Code exclusions
+.vscode/
+.vscode/*
+*.code-workspace
+

@@ -12,51 +12,26 @@
 // limitations under the License.
 
 #[macro_use]
-extern crate clap;
-
-#[macro_use]
 extern crate log;
 
 extern crate epic_wallet;
 
-use clap::App;
 use epic_wallet_impls::test_framework::{self, LocalWalletClient, WalletProxy};
-use epic_wallet_util::epic_core::core::feijoada;
-use epic_wallet_util::epic_core::global::{self, ChainTypes};
+
 use std::thread;
 use std::time::Duration;
 
 use epic_wallet_impls::DefaultLCProvider;
 use epic_wallet_util::epic_keychain::ExtKeychain;
 
-use epic_wallet_util::epic_util as util;
-
 #[macro_use]
 mod common;
 use common::{execute_command, initial_setup_wallet, instantiate_wallet};
-
-// Development testing helper for tor/socks investigation.
-// Not (yet) to be run as part of automated testing
-
-fn setup_no_clean() {
-	util::init_test_logger();
-	global::set_mining_mode(ChainTypes::AutomatedTesting);
-	global::set_foundation_path("../tests/assets/foundation.json".to_string());
-	let mut policies: feijoada::Policy = feijoada::get_bottles_default();
-	policies.insert(feijoada::PoWType::Cuckatoo, 100);
-	global::set_policy_config(feijoada::PolicyConfig {
-		policies: vec![policies.clone()],
-		..Default::default()
-	});
-}
 
 #[ignore]
 #[test]
 fn socks_tor() -> Result<(), epic_wallet_controller::Error> {
 	let test_dir = "target/test_output/socks_tor";
-	let yml = load_yaml!("../src/bin/epic-wallet.yml");
-	let app = App::from_yaml(yml);
-	setup_no_clean();
 
 	setup_proxy!(test_dir, chain, wallet1, client1, mask1, wallet2, client2, _mask2);
 
@@ -77,9 +52,7 @@ fn socks_tor() -> Result<(), epic_wallet_controller::Error> {
 	let arg_vec = vec!["epic-wallet", "-p", "password", "listen"];
 	// Set owner listener running
 	thread::spawn(move || {
-		let yml = load_yaml!("../src/bin/epic-wallet.yml");
-		let app = App::from_yaml(yml);
-		execute_command(&app, test_dir, "wallet2", &client2, arg_vec.clone()).unwrap();
+		execute_command(test_dir, "wallet2", &client2, arg_vec.clone()).unwrap();
 	});
 
 	// dumb pause for now, hidden service should already be running
@@ -102,7 +75,7 @@ fn socks_tor() -> Result<(), epic_wallet_controller::Error> {
 		onion_address,
 		"10",
 	];
-	execute_command(&app, test_dir, "wallet1", &client1, arg_vec).unwrap();
+	execute_command(test_dir, "wallet1", &client1, arg_vec).unwrap();
 
 	Ok(())
 }

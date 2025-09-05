@@ -14,29 +14,29 @@
 
 //! Controller for wallet.. instantiates and handles listeners (or single-run
 //! invocations) as needed.
-use crate::api::{self, ApiServer, BasicAuthMiddleware, ResponseFuture, Router, TLSConfig};
+use crate::api::{
+	self, boxed_body, ApiServer, BasicAuthMiddleware, BoxBodyType, ResponseFuture, Router,
+	TLSConfig,
+};
 use crate::config::{EpicboxConfig, TorConfig};
 use crate::keychain::Keychain;
 use crate::libwallet::{
-	address, Error, NodeClient, NodeVersionInfo, Slate, WalletInst, WalletLCProvider,
+	Error, NodeClient, NodeVersionInfo, Slate, WalletInst, WalletLCProvider,
 	EPIC_BLOCK_HEADER_VERSION,
 };
-
 use crate::util::secp::key::SecretKey;
 use crate::util::{from_hex, static_secp_instance, to_base64, Mutex};
+use http_body_util::Full;
 
-use hyper::body::Buf;
+use bytes::Bytes;
+use http_body_util::BodyExt;
 use hyper::header::HeaderValue;
-use hyper::{Body, Request, Response, StatusCode};
+use hyper::{Request, Response, StatusCode};
 use serde::{Deserialize, Serialize};
 use serde_json;
 use std::collections::HashMap;
 use std::net::SocketAddr;
-
 use std::sync::Arc;
-
-use crate::impls::tor::config as tor_config;
-use crate::impls::tor::process as tor_process;
 
 use crate::apiwallet::{
 	EncryptedRequest, EncryptedResponse, EncryptionErrorResponse, Foreign,
@@ -44,7 +44,7 @@ use crate::apiwallet::{
 };
 use easy_jsonrpc_mw;
 use easy_jsonrpc_mw::{Handler, MaybeReply};
-
+use std::sync::atomic::{AtomicBool, Ordering};
 lazy_static! {
 	pub static ref EPIC_OWNER_BASIC_REALM: HeaderValue =
 		HeaderValue::from_str("Basic realm=EpicOwnerAPI").unwrap();
@@ -77,53 +77,13 @@ fn check_middleware(
 	}
 }
 
-/// initiate the tor listener
-fn init_tor_listener<L, C, K>(
-	wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K> + 'static>>>,
-	keychain_mask: Arc<Mutex<Option<SecretKey>>>,
-	addr: &str,
-) -> Result<tor_process::TorProcess, Error>
-where
-	L: WalletLCProvider<'static, C, K> + 'static,
-	C: NodeClient + 'static,
-	K: Keychain + 'static,
-{
-	let mut process = tor_process::TorProcess::new();
-	let mask = keychain_mask.lock();
-	// eventually want to read a list of service config keys
-	let mut w_lock = wallet.lock();
-	let lc = w_lock.lc_provider()?;
-	let w_inst = lc.wallet_inst()?;
-	let k = w_inst.keychain((&mask).as_ref())?;
-	let parent_key_id = w_inst.parent_key_id();
-	let tor_dir = format!("{}/tor/listener", lc.get_top_level_directory()?);
-	let sec_key = address::address_from_derivation_path(&k, &parent_key_id, 0)
-		.map_err(|e| Error::TorConfig(format!("{:?}", e).into()))?;
-	let onion_address = tor_config::onion_address_from_seckey(&sec_key)
-		.map_err(|e| Error::TorConfig(format!("{:?}", e).into()))?;
-	warn!(
-		"Starting TOR Hidden Service for API listener at address {}, binding to {}",
-		onion_address, addr
-	);
-	tor_config::output_tor_listener_config(&tor_dir, addr, &vec![sec_key])
-		.map_err(|e| Error::TorConfig(format!("{:?}", e).into()))?;
-	// Start TOR process
-	process
-		.torrc_path(&format!("{}/torrc", tor_dir))
-		.working_dir(&tor_dir)
-		.timeout(20)
-		.completion_percent(100)
-		.launch()
-		.map_err(|e| Error::TorProcess(format!("{:?}", e).into()))?;
-	Ok(process)
-}
-
 /// Instantiate wallet Owner API for a single-use (command line) call
 /// Return a function containing a loaded API context to call
 pub fn owner_single_use<L, F, C, K>(
 	wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K>>>>,
 	keychain_mask: Option<&SecretKey>,
 	f: F,
+	is_node_synced: Arc<AtomicBool>,
 ) -> Result<(), Error>
 where
 	L: WalletLCProvider<'static, C, K> + 'static,
@@ -131,7 +91,7 @@ where
 	C: NodeClient + 'static,
 	K: Keychain + 'static,
 {
-	f(&mut Owner::new(wallet, None), keychain_mask)?;
+	f(&mut Owner::new(wallet, None, is_node_synced), keychain_mask)?;
 	Ok(())
 }
 
@@ -169,6 +129,7 @@ pub fn owner_listener<L, C, K>(
 	owner_api_include_foreign: Option<bool>,
 	tor_config: Option<TorConfig>,
 	epicbox_config: Option<EpicboxConfig>,
+	is_node_synced: Arc<AtomicBool>,
 ) -> Result<(), Error>
 where
 	L: WalletLCProvider<'static, C, K> + 'static,
@@ -197,6 +158,7 @@ where
 		tor_config.clone(),
 		epicbox_config.clone(),
 		running_foreign,
+		is_node_synced.clone(),
 	);
 	let api_handler_v3 = OwnerAPIHandlerV3::new(
 		wallet.clone(),
@@ -204,6 +166,7 @@ where
 		tor_config,
 		epicbox_config,
 		running_foreign,
+		is_node_synced.clone(),
 	);
 
 	router
@@ -216,15 +179,16 @@ where
 
 	// If so configured, add the foreign API to the same port
 	if running_foreign {
-		warn!("Starting HTTP Foreign API on Owner server at {}.", addr);
-		let foreign_api_handler_v2 = ForeignAPIHandlerV2::new(wallet, keychain_mask);
+		warn!("Add Foreign API at {}.", addr);
+		let foreign_api_handler_v2 =
+			ForeignAPIHandlerV2::new(wallet, keychain_mask, is_node_synced);
 		router
 			.add_route("/v2/foreign", Arc::new(foreign_api_handler_v2))
 			.map_err(|_| Error::GenericError("Router failed to add route".to_string()))?;
 	}
 
 	let mut apis = ApiServer::new();
-	warn!("Starting HTTP Owner API server at {}.", addr);
+	warn!("Starting Owner API at {}.", addr);
 	let socket_addr: SocketAddr = addr.parse().expect("unable to parse socket address");
 	let api_chan: &'static mut (
 		tokio::sync::oneshot::Sender<()>,
@@ -234,7 +198,7 @@ where
 	let api_thread = apis
 		.start(socket_addr, router, tls_config, api_chan)
 		.map_err(|_| Error::GenericError("API thread failed to start".to_string()))?;
-	warn!("HTTP Owner listener started.");
+	warn!("Owner API started.");
 	api_thread
 		.join()
 		.map_err(|e| Error::GenericError(format!("API thread panicked :{:?}", e)).into())
@@ -247,28 +211,14 @@ pub fn foreign_listener<L, C, K>(
 	keychain_mask: Arc<Mutex<Option<SecretKey>>>,
 	addr: &str,
 	tls_config: Option<TLSConfig>,
-	use_tor: bool,
+	is_node_synced: Arc<AtomicBool>,
 ) -> Result<(), Error>
 where
 	L: WalletLCProvider<'static, C, K> + 'static,
 	C: NodeClient + 'static,
 	K: Keychain + 'static,
 {
-	// need to keep in scope while the main listener is running
-	let _tor_process = match use_tor {
-		true => match init_tor_listener(wallet.clone(), keychain_mask.clone(), addr) {
-			Ok(tp) => Some(tp),
-			Err(e) => {
-				warn!("Unable to start TOR listener; Check that TOR executable is installed and on your path");
-				warn!("Tor Error: {}", e);
-				warn!("Listener will be available via HTTP only");
-				None
-			}
-		},
-		false => None,
-	};
-
-	let api_handler_v2 = ForeignAPIHandlerV2::new(wallet, keychain_mask);
+	let api_handler_v2 = ForeignAPIHandlerV2::new(wallet, keychain_mask, is_node_synced);
 	let mut router = Router::new();
 
 	router
@@ -311,6 +261,7 @@ where
 	/// Whether we're running the foreign API on the same port, and therefore
 	/// have to store the mask in-process
 	pub running_foreign: bool,
+	pub is_node_synced: Arc<AtomicBool>,
 }
 
 impl<L, C, K> OwnerAPIHandlerV2<L, C, K>
@@ -326,8 +277,9 @@ where
 		tor_config: Option<TorConfig>,
 		epicbox_config: Option<EpicboxConfig>,
 		running_foreign: bool,
+		is_node_synced: Arc<AtomicBool>,
 	) -> OwnerAPIHandlerV2<L, C, K> {
-		let owner_api = Owner::new(wallet.clone(), None);
+		let owner_api = Owner::new(wallet.clone(), None, is_node_synced.clone());
 		owner_api.set_tor_config(tor_config);
 		owner_api.set_epicbox_config(epicbox_config);
 
@@ -337,11 +289,12 @@ where
 			owner_api,
 			keychain_mask,
 			running_foreign,
+			is_node_synced,
 		}
 	}
 
 	async fn call_api(
-		req: Request<Body>,
+		req: Request<hyper::body::Incoming>,
 
 		api: Arc<Owner<L, C, K>>,
 	) -> Result<serde_json::Value, Error> {
@@ -358,21 +311,21 @@ where
 	}
 
 	async fn handle_post_request(
-		req: Request<Body>,
+		req: Request<hyper::body::Incoming>,
 		api: Arc<Owner<L, C, K>>,
-	) -> Result<Response<Body>, Error> {
+	) -> Result<Response<BoxBodyType>, Error> {
 		let res = Self::call_api(req, api).await?;
 		Ok(json_response_pretty(&res))
 	}
 }
 
-impl<L, C, K> api::Handler for OwnerAPIHandlerV2<L, C, K>
+impl<L, C, K> api::Handler<Full<Bytes>> for OwnerAPIHandlerV2<L, C, K>
 where
 	L: WalletLCProvider<'static, C, K> + 'static,
 	C: NodeClient + 'static,
 	K: Keychain + 'static,
 {
-	fn post(&self, req: hyper::Request<Body>) -> ResponseFuture {
+	fn post(&self, req: hyper::Request<hyper::body::Incoming>) -> ResponseFuture {
 		let api = self.owner_api.clone();
 
 		Box::pin(async move {
@@ -386,7 +339,7 @@ where
 		})
 	}
 
-	fn options(&self, _req: Request<Body>) -> ResponseFuture {
+	fn options(&self, _req: Request<hyper::body::Incoming>) -> ResponseFuture {
 		Box::pin(async { Ok(create_ok_response("{}")) })
 	}
 }
@@ -414,6 +367,8 @@ where
 	/// Whether we're running the foreign API on the same port, and therefore
 	/// have to store the mask in-process
 	pub running_foreign: bool,
+	/// Whether we're running the foreign API on the same port, and therefore
+	pub is_node_synced: Arc<AtomicBool>,
 }
 
 pub struct OwnerV3Helpers;
@@ -644,8 +599,9 @@ where
 		tor_config: Option<TorConfig>,
 		epicbox_config: Option<EpicboxConfig>,
 		running_foreign: bool,
+		is_node_synced: Arc<AtomicBool>,
 	) -> OwnerAPIHandlerV3<L, C, K> {
-		let owner_api = Owner::new(wallet.clone(), None);
+		let owner_api = Owner::new(wallet.clone(), None, is_node_synced.clone());
 		owner_api.set_tor_config(tor_config);
 		owner_api.set_epicbox_config(epicbox_config);
 		let owner_api = Arc::new(owner_api);
@@ -655,11 +611,12 @@ where
 			shared_key: Arc::new(Mutex::new(None)),
 			keychain_mask,
 			running_foreign,
+			is_node_synced,
 		}
 	}
 
 	async fn call_api(
-		req: Request<Body>,
+		req: Request<hyper::body::Incoming>,
 		key: Arc<Mutex<Option<SecretKey>>>,
 		mask: Arc<Mutex<Option<SecretKey>>>,
 		running_foreign: bool,
@@ -725,24 +682,24 @@ where
 	}
 
 	async fn handle_post_request(
-		req: Request<Body>,
+		req: Request<hyper::body::Incoming>,
 		key: Arc<Mutex<Option<SecretKey>>>,
 		mask: Arc<Mutex<Option<SecretKey>>>,
 		running_foreign: bool,
 		api: Arc<Owner<L, C, K>>,
-	) -> Result<Response<Body>, Error> {
+	) -> Result<Response<BoxBodyType>, Error> {
 		let res = Self::call_api(req, key, mask, running_foreign, api).await?;
 		Ok(json_response_pretty(&res))
 	}
 }
 
-impl<L, C, K> api::Handler for OwnerAPIHandlerV3<L, C, K>
+impl<L, C, K> api::Handler<Full<Bytes>> for OwnerAPIHandlerV3<L, C, K>
 where
 	L: WalletLCProvider<'static, C, K> + 'static,
 	C: NodeClient + 'static,
 	K: Keychain + 'static,
 {
-	fn post(&self, req: Request<Body>) -> ResponseFuture {
+	fn post(&self, req: Request<hyper::body::Incoming>) -> ResponseFuture {
 		let key = self.shared_key.clone();
 		let mask = self.keychain_mask.clone();
 		let running_foreign = self.running_foreign;
@@ -759,7 +716,7 @@ where
 		})
 	}
 
-	fn options(&self, _req: Request<Body>) -> ResponseFuture {
+	fn options(&self, _req: Request<hyper::body::Incoming>) -> ResponseFuture {
 		Box::pin(async { Ok(create_ok_response("{}")) })
 	}
 }
@@ -774,6 +731,7 @@ where
 	pub wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K> + 'static>>>,
 	/// Keychain mask
 	pub keychain_mask: Arc<Mutex<Option<SecretKey>>>,
+	pub is_node_synced: Arc<AtomicBool>,
 }
 
 impl<L, C, K> ForeignAPIHandlerV2<L, C, K>
@@ -786,15 +744,17 @@ where
 	pub fn new(
 		wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K> + 'static>>>,
 		keychain_mask: Arc<Mutex<Option<SecretKey>>>,
+		is_node_synced: Arc<AtomicBool>,
 	) -> ForeignAPIHandlerV2<L, C, K> {
 		ForeignAPIHandlerV2 {
 			wallet,
 			keychain_mask,
+			is_node_synced,
 		}
 	}
 
 	async fn call_api(
-		req: Request<Body>,
+		req: Request<hyper::body::Incoming>,
 		api: Foreign<'static, L, C, K>,
 	) -> Result<serde_json::Value, Error> {
 		let val: serde_json::Value = parse_body(req).await?;
@@ -810,10 +770,10 @@ where
 	}
 
 	async fn handle_post_request(
-		req: Request<Body>,
+		req: Request<hyper::body::Incoming>,
 		mask: Option<SecretKey>,
 		wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K> + 'static>>>,
-	) -> Result<Response<Body>, Error> {
+	) -> Result<Response<BoxBodyType>, Error> {
 		let api = Foreign::new(wallet, mask, Some(check_middleware));
 
 		let res = Self::call_api(req, api).await?;
@@ -821,17 +781,25 @@ where
 	}
 }
 
-impl<L, C, K> api::Handler for ForeignAPIHandlerV2<L, C, K>
+impl<L, C, K> api::Handler<Full<Bytes>> for ForeignAPIHandlerV2<L, C, K>
 where
 	L: WalletLCProvider<'static, C, K> + 'static,
 	C: NodeClient + 'static,
 	K: Keychain + 'static,
 {
-	fn post(&self, req: Request<Body>) -> ResponseFuture {
+	fn post(&self, req: Request<hyper::body::Incoming>) -> ResponseFuture {
 		let mask = self.keychain_mask.lock().clone();
 		let wallet = self.wallet.clone();
+		let is_node_synced = self.is_node_synced.clone();
 
 		Box::pin(async move {
+			if !is_node_synced.load(Ordering::SeqCst) {
+				// Node is not synced, return 503
+				return Ok(response(
+					StatusCode::SERVICE_UNAVAILABLE,
+					"Node not synchronized",
+				));
+			}
 			match Self::handle_post_request(req, mask, wallet).await {
 				Ok(v) => Ok(v),
 				Err(e) => {
@@ -842,14 +810,14 @@ where
 		})
 	}
 
-	fn options(&self, _req: Request<Body>) -> ResponseFuture {
+	fn options(&self, _req: Request<hyper::body::Incoming>) -> ResponseFuture {
 		Box::pin(async { Ok(create_ok_response("{}")) })
 	}
 }
 
 // Utility to serialize a struct into JSON and produce a sensible Response
 // out of it.
-fn _json_response<T>(s: &T) -> Response<Body>
+fn _json_response<T>(s: &T) -> Response<BoxBodyType>
 where
 	T: Serialize,
 {
@@ -860,7 +828,7 @@ where
 }
 
 // pretty-printed version of above
-fn json_response_pretty<T>(s: &T) -> Response<Body>
+fn json_response_pretty<T>(s: &T) -> Response<BoxBodyType>
 where
 	T: Serialize,
 {
@@ -870,7 +838,9 @@ where
 	}
 }
 
-fn create_error_response(e: Error) -> Response<Body> {
+fn create_error_response(e: Error) -> Response<BoxBodyType> {
+	let body = boxed_body(e.to_string());
+
 	hyper::Response::builder()
 		.status(StatusCode::INTERNAL_SERVER_ERROR)
 		.header("access-control-allow-origin", "*")
@@ -878,11 +848,14 @@ fn create_error_response(e: Error) -> Response<Body> {
 			"access-control-allow-headers",
 			"Content-Type, Authorization",
 		)
-		.body(format!("{}", e).into())
+		.body(body)
 		.unwrap()
+	//no handler found
 }
 
-fn create_ok_response(json: &str) -> Response<Body> {
+fn create_ok_response(json: &str) -> Response<BoxBodyType> {
+	let body = boxed_body(json.to_owned());
+
 	hyper::Response::builder()
 		.status(StatusCode::OK)
 		.header("access-control-allow-origin", "*")
@@ -891,7 +864,7 @@ fn create_ok_response(json: &str) -> Response<Body> {
 			"Content-Type, Authorization",
 		)
 		.header(hyper::header::CONTENT_TYPE, "application/json")
-		.body(json.to_string().into())
+		.body(body)
 		.unwrap()
 }
 
@@ -899,7 +872,7 @@ fn create_ok_response(json: &str) -> Response<Body> {
 ///
 /// Whenever the status code is `StatusCode::OK` the text parameter should be
 /// valid JSON as the content type header will be set to `application/json'
-fn response<T: Into<Body>>(status: StatusCode, text: T) -> Response<Body> {
+fn response(status: StatusCode, text: impl Into<Bytes>) -> Response<BoxBodyType> {
 	let mut res = hyper::Response::builder()
 		.status(status)
 		.header("access-control-allow-origin", "*")
@@ -912,19 +885,23 @@ fn response<T: Into<Body>>(status: StatusCode, text: T) -> Response<Body> {
 		res = res.header(hyper::header::CONTENT_TYPE, "application/json");
 	}
 
-	res.body(text.into()).unwrap()
+	let body = boxed_body(text);
+
+	res.body(body).unwrap()
 }
 
-async fn parse_body<T>(req: Request<Body>) -> Result<T, Error>
+pub async fn parse_body<T>(req: Request<hyper::body::Incoming>) -> Result<T, Error>
 where
 	for<'de> T: Deserialize<'de> + Send + 'static,
 {
 	// Aggregate the body...
-	let whole_body = hyper::body::aggregate(req)
+	let body_bytes = req
+		.collect()
 		.await
-		.map_err(|e| Error::RequestError(format!("Failed to read request: {}", e)))?;
+		.map_err(|e| Error::RequestError(format!("Failed to read request: {}", e)))?
+		.to_bytes();
 
 	// Decode as JSON...
-	serde_json::from_reader(whole_body.reader())
+	serde_json::from_slice(&body_bytes)
 		.map_err(|e| Error::RequestError(format!("Invalid request body: {}", e)))
 }

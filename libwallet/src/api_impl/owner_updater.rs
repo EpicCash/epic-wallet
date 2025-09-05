@@ -73,7 +73,7 @@ pub fn start_updater_log_thread(
 					StatusMessage::FullScanWarn(s) => warn!("{}", s),
 					StatusMessage::Scanning(s, m) => {
 						debug!("{}", s);
-						warn!("Scanning - {}% complete", m);
+						info!("Update UTXO outputs {}% complete. {}", m, s);
 					}
 					StatusMessage::ScanningComplete(s) => warn!("{}", s),
 					StatusMessage::UpdateWarning(s) => warn!("{}", s),

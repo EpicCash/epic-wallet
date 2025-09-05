@@ -29,7 +29,6 @@ use epic_wallet_util::epic_util as util;
 extern crate epic_wallet_impls as impls;
 extern crate epic_wallet_libwallet as libwallet;
 
-extern crate failure_derive;
 #[macro_use]
 extern crate serde_derive;
 extern crate serde_json;

@@ -7,33 +7,19 @@ license = "Apache-2.0"
 repository = "https://github.com/mimblewimble/epic"
 keywords = [ "crypto", "epic", "mimblewimble" ]
 workspace = ".."
-edition = "2018"
+edition = "2021"
 
 [dependencies]
-hyper = { version = "0.14.27", features = ["full"]}
+hyper = { version = "1.6", features = ["full"]}
 futures = "0.3"
-http = "0.2"
-itertools = "0.7"
-rand = "0.5"
+http = "1.3"
+itertools = "0.14"
+rand = "0.9.0"
 serde = "1"
 log = "0.4"
 serde_derive = "1"
 serde_json = "1"
-chrono = "0.4.4"
-tokio =  "0.1.11"
+chrono = "0.4"
+tokio =  "1"
 blake2-rfc = "0.2"
 bufstream = "0.1"
-
-#epic_apiwallet = { path = "../apiwallet", version = "1.1.0" }
-#epic_libwallet = { path = "../libwallet", version = "1.1.0" }
-#epic_refwallet = { path = "../refwallet", version = "1.1.0" }
-#epic_wallet_config = { path = "../config", version = "1.1.0" }
-
-#epic_core = { git = "https://github.com/mimblewimble/epic", branch = "milestone/1.1.0" }
-#epic_keychain = { git = "https://github.com/mimblewimble/epic", branch = "milestone/1.1.0" }
-#epic_chain = { git = "https://github.com/mimblewimble/epic", branch = "milestone/1.1.0" }
-#epic_util = { git = "https://github.com/mimblewimble/epic", branch = "milestone/1.1.0" }
-#epic_api = { git = "https://github.com/mimblewimble/epic", branch = "milestone/1.1.0" }
-#epic_store = { git = "https://github.com/mimblewimble/epic", branch = "milestone/1.1.0" }
-#epic_p2p = { git = "https://github.com/mimblewimble/epic", branch = "milestone/1.1.0" }
-#epic_servers = { git = "https://github.com/mimblewimble/epic", branch = "milestone/1.1.0" }

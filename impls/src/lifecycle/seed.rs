@@ -18,7 +18,8 @@ use std::path::Path;
 use std::path::MAIN_SEPARATOR;
 
 use crate::blake2;
-use rand::{thread_rng, Rng};
+use rand::rng;
+use rand::Rng;
 use ring::aead;
 use ring::pbkdf2;
 use serde_json;
@@ -75,9 +76,9 @@ impl WalletSeed {
 
 	pub fn init_new(seed_length: usize) -> WalletSeed {
 		let mut seed: Vec<u8> = vec![];
-		let mut rng = thread_rng();
+		let mut rng = rng();
 		for _ in 0..seed_length {
-			seed.push(rng.gen());
+			seed.push(rng.random());
 		}
 		WalletSeed(seed)
 	}
@@ -135,10 +136,9 @@ impl WalletSeed {
 		}
 		let seed = WalletSeed::from_mnemonic(word_list)?;
 		let enc_seed = EncryptedWalletSeed::from_seed(&seed, password)?;
-		let enc_seed_json = serde_json::to_string_pretty(&enc_seed).map_err(|_| Error::Format)?;
-		let mut file = File::create(seed_file_path).map_err(|_| Error::IO)?;
-		file.write_all(&enc_seed_json.as_bytes())
-			.map_err(|_| Error::IO)?;
+		let enc_seed_json = serde_json::to_string_pretty(&enc_seed)?;
+		let mut file = File::create(seed_file_path)?;
+		file.write_all(&enc_seed_json.as_bytes())?;
 		warn!("Seed created from word list");
 		Ok(())
 	}
@@ -150,7 +150,7 @@ impl WalletSeed {
 		password: util::ZeroingString,
 	) -> Result<WalletSeed, Error> {
 		// create directory if it doesn't exist
-		fs::create_dir_all(data_file_dir).map_err(|_| Error::IO)?;
+		fs::create_dir_all(data_file_dir)?;
 
 		let seed_file_path = &format!("{}{}{}", data_file_dir, MAIN_SEPARATOR, SEED_FILE,);
 
@@ -167,10 +167,9 @@ impl WalletSeed {
 		};
 
 		let enc_seed = EncryptedWalletSeed::from_seed(&seed, password)?;
-		let enc_seed_json = serde_json::to_string_pretty(&enc_seed).map_err(|_| Error::Format)?;
-		let mut file = File::create(seed_file_path).map_err(|_| Error::IO)?;
-		file.write_all(&enc_seed_json.as_bytes())
-			.map_err(|_| Error::IO)?;
+		let enc_seed_json = serde_json::to_string_pretty(&enc_seed)?;
+		let mut file = File::create(seed_file_path)?;
+		file.write_all(&enc_seed_json.as_bytes())?;
 		Ok(seed)
 	}
 
@@ -179,18 +178,17 @@ impl WalletSeed {
 		password: util::ZeroingString,
 	) -> Result<WalletSeed, Error> {
 		// create directory if it doesn't exist
-		fs::create_dir_all(data_file_dir).map_err(|_| Error::IO)?;
+		fs::create_dir_all(data_file_dir)?;
 
 		let seed_file_path = &format!("{}{}{}", data_file_dir, MAIN_SEPARATOR, SEED_FILE,);
 
 		debug!("Using wallet seed file at: {}", seed_file_path);
 
 		if Path::new(seed_file_path).exists() {
-			let mut file = File::open(seed_file_path).map_err(|_| Error::IO)?;
+			let mut file = File::open(seed_file_path)?;
 			let mut buffer = String::new();
-			file.read_to_string(&mut buffer).map_err(|_| Error::IO)?;
-			let enc_seed: EncryptedWalletSeed =
-				serde_json::from_str(&buffer).map_err(|_| Error::Format)?;
+			file.read_to_string(&mut buffer)?;
+			let enc_seed: EncryptedWalletSeed = serde_json::from_str(&buffer)?;
 			let wallet_seed = enc_seed.decrypt(&password)?;
 			Ok(wallet_seed)
 		} else {
@@ -207,7 +205,7 @@ impl WalletSeed {
 		let seed_file_path = &format!("{}{}{}", data_file_dir, MAIN_SEPARATOR, SEED_FILE,);
 		if Path::new(seed_file_path).exists() {
 			debug!("Deleting wallet seed file at: {}", seed_file_path);
-			fs::remove_file(seed_file_path).map_err(|_| Error::IO)?;
+			fs::remove_file(seed_file_path)?;
 		}
 		Ok(())
 	}
@@ -231,8 +229,8 @@ impl EncryptedWalletSeed {
 		seed: &WalletSeed,
 		password: util::ZeroingString,
 	) -> Result<EncryptedWalletSeed, Error> {
-		let salt: [u8; 8] = thread_rng().gen();
-		let nonce: [u8; 12] = thread_rng().gen();
+		let salt: [u8; 8] = rng().random();
+		let nonce: [u8; 12] = rng().random();
 		let password = password.as_bytes();
 		let mut key = [0; 32];
 		pbkdf2::derive(

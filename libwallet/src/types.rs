@@ -29,107 +29,162 @@ use crate::error::Error;
 use crate::slate::ParticipantMessages;
 use crate::slate_versions::ser as dalek_ser;
 use chrono::prelude::*;
-use ed25519_dalek::PublicKey as DalekPublicKey;
+
 use ed25519_dalek::Signature as DalekSignature;
+use ed25519_dalek::VerifyingKey as DalekPublicKey;
 use serde;
 use serde_json;
 use std::collections::HashMap;
 use std::fmt;
 
+use crate::epic_core::core::feijoada::PoWType;
 use uuid::Uuid;
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Tip {
+    pub height: u64,
+    pub last_block_pushed: String,
+    pub prev_block_to_last: String,
+    pub total_difficulty: HashMap<PoWType, u64>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SyncInfo {
+    pub current_height: u64,
+    pub highest_height: u64,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct NodeStatus {
+    pub protocol_version: u32,
+    pub user_agent: String,
+    pub connections: u32,
+    pub tip: Tip,
+    pub sync_status: String,
+    // Additional sync information
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sync_info: Option<serde_json::Value>,
+}
+
+/// Represents a single entry in the pool.
+/// A single (possibly aggregated) transaction.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PoolEntry {
+    /// Info on where this tx originated from.
+    pub src: TxSource,
+    /// Timestamp of when this tx was originally added to the pool.
+    pub tx_at: DateTime<Utc>,
+    /// The transaction itself.
+    pub tx: Transaction,
+}
+
+/// Used to make decisions based on transaction acceptance priority from
+/// various sources. For example, a node may want to bypass pool size
+/// restrictions when accepting a transaction from a local wallet.
+/// Most likely this will evolve to contain some sort of network identifier,
+/// once we get a better sense of what transaction building might look like.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub enum TxSource {
+    PushApi,
+    Broadcast,
+    Fluff,
+    EmbargoExpired,
+    Deaggregate,
+}
 
 /// Combined trait to allow dynamic wallet dispatch
 pub trait WalletInst<'a, L, C, K>: Send + Sync
 where
-	L: WalletLCProvider<'a, C, K> + Send + Sync,
-	C: NodeClient + 'a,
-	K: Keychain + 'a,
+    L: WalletLCProvider<'a, C, K> + Send + Sync,
+    C: NodeClient + 'a,
+    K: Keychain + 'a,
 {
-	/// Return the stored instance
-	fn lc_provider(&mut self) -> Result<&mut (dyn WalletLCProvider<'a, C, K> + 'a), Error>;
+    /// Return the stored instance
+    fn lc_provider(&mut self) -> Result<&mut (dyn WalletLCProvider<'a, C, K> + 'a), Error>;
 }
 
 /// Trait for a provider of wallet lifecycle methods
 pub trait WalletLCProvider<'a, C, K>: Send + Sync
 where
-	C: NodeClient + 'a,
-	K: Keychain + 'a,
+    C: NodeClient + 'a,
+    K: Keychain + 'a,
 {
-	/// Sets the top level system wallet directory
-	/// default is assumed to be ~/.epic/main/wallet_data (or floonet equivalent)
-	fn set_top_level_directory(&mut self, dir: &str) -> Result<(), Error>;
+    /// Sets the top level system wallet directory
+    /// default is assumed to be ~/.epic/main/wallet_data (or floonet equivalent)
+    fn set_top_level_directory(&mut self, dir: &str) -> Result<(), Error>;
 
-	/// Sets the top level system wallet directory
-	/// default is assumed to be ~/.epic/main/wallet_data (or floonet equivalent)
-	fn get_top_level_directory(&self) -> Result<String, Error>;
+    /// Sets the top level system wallet directory
+    /// default is assumed to be ~/.epic/main/wallet_data (or floonet equivalent)
+    fn get_top_level_directory(&self) -> Result<String, Error>;
 
-	/// Output a epic-wallet.toml file into the current top-level system wallet directory
-	fn create_config(
-		&self,
-		chain_type: &global::ChainTypes,
-		file_name: &str,
-		wallet_config: Option<WalletConfig>,
-		logging_config: Option<LoggingConfig>,
-		tor_config: Option<TorConfig>,
-		epicbox_config: Option<EpicboxConfig>,
-	) -> Result<(), Error>;
+    /// Output a epic-wallet.toml file into the current top-level system wallet directory
+    fn create_config(
+        &self,
+        chain_type: &global::ChainTypes,
+        file_name: &str,
+        wallet_config: Option<WalletConfig>,
+        logging_config: Option<LoggingConfig>,
+        tor_config: Option<TorConfig>,
+        epicbox_config: Option<EpicboxConfig>,
+    ) -> Result<(), Error>;
 
-	///
-	fn create_wallet(
-		&mut self,
-		name: Option<&str>,
-		mnemonic: Option<ZeroingString>,
-		mnemonic_length: usize,
-		password: ZeroingString,
-		test_mode: bool,
-	) -> Result<(), Error>;
+    ///
+    fn create_wallet(
+        &mut self,
+        name: Option<&str>,
+        mnemonic: Option<ZeroingString>,
+        mnemonic_length: usize,
+        password: ZeroingString,
+        test_mode: bool,
+    ) -> Result<(), Error>;
 
-	///
-	fn open_wallet(
-		&mut self,
-		name: Option<&str>,
-		password: ZeroingString,
-		create_mask: bool,
-		use_test_rng: bool,
-	) -> Result<Option<SecretKey>, Error>;
+    ///
+    fn open_wallet(
+        &mut self,
+        name: Option<&str>,
+        password: ZeroingString,
+        create_mask: bool,
+        use_test_rng: bool,
+    ) -> Result<Option<SecretKey>, Error>;
 
-	///
-	fn close_wallet(&mut self, name: Option<&str>) -> Result<(), Error>;
+    ///
+    fn close_wallet(&mut self, name: Option<&str>) -> Result<(), Error>;
 
-	/// whether a wallet exists at the given directory
-	fn wallet_exists(&self, name: Option<&str>) -> Result<bool, Error>;
+    /// whether a wallet exists at the given directory
+    fn wallet_exists(&self, name: Option<&str>) -> Result<bool, Error>;
 
-	/// return mnemonic of given wallet
-	fn get_mnemonic(
-		&self,
-		name: Option<&str>,
-		password: ZeroingString,
-	) -> Result<ZeroingString, Error>;
+    /// return mnemonic of given wallet
+    fn get_mnemonic(
+        &self,
+        name: Option<&str>,
+        password: ZeroingString,
+    ) -> Result<ZeroingString, Error>;
 
-	/// Check whether a provided mnemonic string is valid
-	fn validate_mnemonic(&self, mnemonic: ZeroingString) -> Result<(), Error>;
+    /// Check whether a provided mnemonic string is valid
+    fn validate_mnemonic(&self, mnemonic: ZeroingString) -> Result<(), Error>;
 
-	/// Recover a seed from phrase, without destroying existing data
-	/// should back up seed
-	fn recover_from_mnemonic(
-		&self,
-		mnemonic: ZeroingString,
-		password: ZeroingString,
-	) -> Result<(), Error>;
+    /// Recover a seed from phrase, without destroying existing data
+    /// should back up seed
+    fn recover_from_mnemonic(
+        &self,
+        mnemonic: ZeroingString,
+        password: ZeroingString,
+    ) -> Result<(), Error>;
 
-	/// changes password
-	fn change_password(
-		&self,
-		name: Option<&str>,
-		old: ZeroingString,
-		new: ZeroingString,
-	) -> Result<(), Error>;
+    /// changes password
+    fn change_password(
+        &self,
+        name: Option<&str>,
+        old: ZeroingString,
+        new: ZeroingString,
+        remove_backup: bool,
+    ) -> Result<(), Error>;
 
-	/// deletes wallet
-	fn delete_wallet(&self, name: Option<&str>) -> Result<(), Error>;
+    /// deletes wallet
+    fn delete_wallet(&self, name: Option<&str>) -> Result<(), Error>;
 
-	/// return wallet instance
-	fn wallet_inst(&mut self) -> Result<&mut Box<dyn WalletBackend<'a, C, K> + 'a>, Error>;
+    /// return wallet instance
+    fn wallet_inst(&mut self) -> Result<&mut Box<dyn WalletBackend<'a, C, K> + 'a>, Error>;
 }
 
 /// TODO:
@@ -138,106 +193,106 @@ where
 /// whatever credentials it needs
 pub trait WalletBackend<'ck, C, K>: Send + Sync
 where
-	C: NodeClient + 'ck,
-	K: Keychain + 'ck,
+    C: NodeClient + 'ck,
+    K: Keychain + 'ck,
 {
-	/// Set the keychain, which should already be initialized
-	/// Optionally return a token value used to XOR the stored
-	/// key value
-	fn set_keychain(
-		&mut self,
-		k: Box<K>,
-		mask: bool,
-		use_test_rng: bool,
-	) -> Result<Option<SecretKey>, Error>;
+    /// Set the keychain, which should already be initialized
+    /// Optionally return a token value used to XOR the stored
+    /// key value
+    fn set_keychain(
+        &mut self,
+        k: Box<K>,
+        mask: bool,
+        use_test_rng: bool,
+    ) -> Result<Option<SecretKey>, Error>;
 
-	/// Close wallet and remove any stored credentials (TBD)
-	fn close(&mut self) -> Result<(), Error>;
+    /// Close wallet and remove any stored credentials (TBD)
+    fn close(&mut self) -> Result<(), Error>;
 
-	/// Return the keychain being used. Ensure a cloned copy so it will be dropped
-	/// and zeroized by the caller
-	/// Can optionally take a mask value
-	fn keychain(&self, mask: Option<&SecretKey>) -> Result<K, Error>;
+    /// Return the keychain being used. Ensure a cloned copy so it will be dropped
+    /// and zeroized by the caller
+    /// Can optionally take a mask value
+    fn keychain(&self, mask: Option<&SecretKey>) -> Result<K, Error>;
 
-	/// Return the client being used to communicate with the node
-	fn w2n_client(&mut self) -> &mut C;
+    /// Return the client being used to communicate with the node
+    fn w2n_client(&mut self) -> &mut C;
 
-	/// return the commit for caching if allowed, none otherwise
-	fn calc_commit_for_cache(
-		&mut self,
-		keychain_mask: Option<&SecretKey>,
-		amount: u64,
-		id: &Identifier,
-	) -> Result<Option<String>, Error>;
+    /// return the commit for caching if allowed, none otherwise
+    fn calc_commit_for_cache(
+        &mut self,
+        keychain_mask: Option<&SecretKey>,
+        amount: u64,
+        id: &Identifier,
+    ) -> Result<Option<String>, Error>;
 
-	/// Set parent key id by stored account name
-	fn set_parent_key_id_by_name(&mut self, label: &str) -> Result<(), Error>;
+    /// Set parent key id by stored account name
+    fn set_parent_key_id_by_name(&mut self, label: &str) -> Result<(), Error>;
 
-	/// The BIP32 path of the parent path to use for all output-related
-	/// functions, (essentially 'accounts' within a wallet.
-	fn set_parent_key_id(&mut self, _: Identifier);
+    /// The BIP32 path of the parent path to use for all output-related
+    /// functions, (essentially 'accounts' within a wallet.
+    fn set_parent_key_id(&mut self, _: Identifier);
 
-	/// return the parent path
-	fn parent_key_id(&mut self) -> Identifier;
+    /// return the parent path
+    fn parent_key_id(&mut self) -> Identifier;
 
-	/// Iterate over all output data stored by the backend
-	fn iter<'a>(&'a self) -> Box<dyn Iterator<Item = OutputData> + 'a>;
+    /// Iterate over all output data stored by the backend
+    fn iter<'a>(&'a self) -> Box<dyn Iterator<Item = OutputData> + 'a>;
 
-	/// Iterate over all outputs available in the output history table
-	fn history_iter<'a>(&'a self) -> Box<dyn Iterator<Item = OutputData> + 'a>;
+    /// Iterate over all outputs available in the output history table
+    fn history_iter<'a>(&'a self) -> Box<dyn Iterator<Item = OutputData> + 'a>;
 
-	/// Get output data by id
-	fn get(&self, id: &Identifier, mmr_index: &Option<u64>) -> Result<OutputData, Error>;
+    /// Get output data by id
+    fn get(&self, id: &Identifier, mmr_index: &Option<u64>) -> Result<OutputData, Error>;
 
-	/// Get an (Optional) tx log entry by uuid
-	fn get_tx_log_entry(&self, uuid: &Uuid) -> Result<Option<TxLogEntry>, Error>;
+    /// Get an (Optional) tx log entry by uuid
+    fn get_tx_log_entry(&self, uuid: &uuid::Uuid) -> Result<Option<TxLogEntry>, Error>;
 
-	/// Retrieves the private context associated with a given slate id
-	fn get_private_context(
-		&mut self,
-		keychain_mask: Option<&SecretKey>,
-		slate_id: &[u8],
-		participant_id: usize,
-	) -> Result<Context, Error>;
+    /// Retrieves the private context associated with a given slate id
+    fn get_private_context(
+        &mut self,
+        keychain_mask: Option<&SecretKey>,
+        slate_id: &[u8],
+        participant_id: usize,
+    ) -> Result<Context, Error>;
 
-	/// Iterate over all output data stored by the backend
-	fn tx_log_iter<'a>(&'a self) -> Box<dyn Iterator<Item = TxLogEntry> + 'a>;
+    /// Iterate over all output data stored by the backend
+    fn tx_log_iter<'a>(&'a self) -> Box<dyn Iterator<Item = TxLogEntry> + 'a>;
 
-	/// Iterate over all stored account paths
-	fn acct_path_iter<'a>(&'a self) -> Box<dyn Iterator<Item = AcctPathMapping> + 'a>;
+    /// Iterate over all stored account paths
+    fn acct_path_iter<'a>(&'a self) -> Box<dyn Iterator<Item = AcctPathMapping> + 'a>;
 
-	/// Gets an account path for a given label
-	fn get_acct_path(&self, label: String) -> Result<Option<AcctPathMapping>, Error>;
+    /// Gets an account path for a given label
+    fn get_acct_path(&self, label: String) -> Result<Option<AcctPathMapping>, Error>;
 
-	/// Stores a transaction
-	fn store_tx(&self, uuid: &str, tx: &Transaction) -> Result<(), Error>;
+    /// Stores a transaction
+    fn store_tx(&self, uuid: &str, tx: &Transaction) -> Result<(), Error>;
 
-	/// Retrieves a stored transaction from a TxLogEntry
-	fn get_stored_tx(&self, entry: &TxLogEntry) -> Result<Option<Transaction>, Error>;
+    /// Retrieves a stored transaction from a TxLogEntry
+    fn get_stored_tx(&self, entry: &TxLogEntry) -> Result<Option<Transaction>, Error>;
 
-	/// Create a new write batch to update or remove output data
-	fn batch<'a>(
-		&'a mut self,
-		keychain_mask: Option<&SecretKey>,
-	) -> Result<Box<dyn WalletOutputBatch<K> + 'a>, Error>;
+    /// Create a new write batch to update or remove output data
+    fn batch<'a>(
+        &'a mut self,
+        keychain_mask: Option<&SecretKey>,
+    ) -> Result<Box<dyn WalletOutputBatch<K> + 'a>, Error>;
 
-	/// Batch for use when keychain isn't available or required
-	fn batch_no_mask<'a>(&'a mut self) -> Result<Box<dyn WalletOutputBatch<K> + 'a>, Error>;
+    /// Batch for use when keychain isn't available or required
+    fn batch_no_mask<'a>(&'a mut self) -> Result<Box<dyn WalletOutputBatch<K> + 'a>, Error>;
 
-	/// Return the current child Index
-	fn current_child_index<'a>(&mut self, parent_key_id: &Identifier) -> Result<u32, Error>;
+    /// Return the current child Index
+    fn current_child_index<'a>(&mut self, parent_key_id: &Identifier) -> Result<u32, Error>;
 
-	/// Next child ID when we want to create a new output, based on current parent
-	fn next_child<'a>(&mut self, keychain_mask: Option<&SecretKey>) -> Result<Identifier, Error>;
+    /// Next child ID when we want to create a new output, based on current parent
+    fn next_child<'a>(&mut self, keychain_mask: Option<&SecretKey>) -> Result<Identifier, Error>;
 
-	/// last verified height of outputs directly descending from the given parent key
-	fn last_confirmed_height<'a>(&mut self) -> Result<u64, Error>;
+    /// last verified height of outputs directly descending from the given parent key
+    fn last_confirmed_height<'a>(&mut self) -> Result<u64, Error>;
 
-	/// last block scanned during scan or restore
-	fn last_scanned_block<'a>(&mut self) -> Result<ScannedBlockInfo, Error>;
+    /// last block scanned during scan or restore
+    fn last_scanned_block<'a>(&mut self) -> Result<ScannedBlockInfo, Error>;
 
-	/// Flag whether the wallet needs a full UTXO scan on next update attempt
-	fn init_status<'a>(&mut self) -> Result<WalletInitStatus, Error>;
+    /// Flag whether the wallet needs a full UTXO scan on next update attempt
+    fn init_status<'a>(&mut self) -> Result<WalletInitStatus, Error>;
 }
 
 /// Batch trait to update the output data backend atomically. Trying to use a
@@ -247,169 +302,180 @@ where
 /// tx_log entries and meta/details?
 pub trait WalletOutputBatch<K>
 where
-	K: Keychain,
+    K: Keychain,
 {
-	/// Return the keychain being used
-	fn keychain(&mut self) -> &mut K;
+    /// Return the keychain being used
+    fn keychain(&mut self) -> &mut K;
 
-	/// Add or update data about an output to the backend
-	fn save(&mut self, out: OutputData) -> Result<(), Error>;
+    /// Add or update data about an output to the backend
+    fn save(&mut self, out: OutputData) -> Result<(), Error>;
 
-	/// Add data about an output in the output history table
-	fn save_output_history(&mut self, out: OutputData) -> Result<(), Error>;
+    /// Add data about an output in the output history table
+    fn save_output_history(&mut self, out: OutputData) -> Result<(), Error>;
 
-	/// Gets output data by id
-	fn get(&self, id: &Identifier, mmr_index: &Option<u64>) -> Result<OutputData, Error>;
+    /// Gets output data by id
+    fn get(&self, id: &Identifier, mmr_index: &Option<u64>) -> Result<OutputData, Error>;
 
-	/// Iterate over all output data stored by the backend
-	fn iter(&self) -> Box<dyn Iterator<Item = OutputData>>;
+    /// Iterate over all output data stored by the backend
+    fn iter(&self) -> Box<dyn Iterator<Item = OutputData>>;
 
-	/// Iterate over all outputs available in the output history table
-	fn history_iter(&self) -> Box<dyn Iterator<Item = OutputData>>;
+    /// Iterate over all outputs available in the output history table
+    fn history_iter(&self) -> Box<dyn Iterator<Item = OutputData>>;
 
-	/// Delete data about an output from the backend
-	fn delete(
-		&mut self,
-		id: &Identifier,
-		mmr_index: &Option<u64>,
-		tx_id: &Option<u32>,
-	) -> Result<(), Error>;
+    /// Delete data about an output from the backend
+    fn delete(
+        &mut self,
+        id: &Identifier,
+        mmr_index: &Option<u64>,
+        tx_id: &Option<u32>,
+    ) -> Result<(), Error>;
 
-	/// Save last stored child index of a given parent
-	fn save_child_index(&mut self, parent_key_id: &Identifier, child_n: u32) -> Result<(), Error>;
+    /// Save last stored child index of a given parent
+    fn save_child_index(&mut self, parent_key_id: &Identifier, child_n: u32) -> Result<(), Error>;
 
-	/// Save last confirmed height of outputs for a given parent
-	fn save_last_confirmed_height(
-		&mut self,
-		parent_key_id: &Identifier,
-		height: u64,
-	) -> Result<(), Error>;
+    /// Save last confirmed height of outputs for a given parent
+    fn save_last_confirmed_height(
+        &mut self,
+        parent_key_id: &Identifier,
+        height: u64,
+    ) -> Result<(), Error>;
 
-	/// Save the last PMMR index that was scanned via a scan operation
-	fn save_last_scanned_block(&mut self, block: ScannedBlockInfo) -> Result<(), Error>;
+    /// Save the last PMMR index that was scanned via a scan operation
+    fn save_last_scanned_block(&mut self, block: ScannedBlockInfo) -> Result<(), Error>;
 
-	/// Save flag indicating whether wallet needs a full UTXO scan
-	fn save_init_status<'a>(&mut self, value: WalletInitStatus) -> Result<(), Error>;
+    /// Save flag indicating whether wallet needs a full UTXO scan
+    fn save_init_status<'a>(&mut self, value: WalletInitStatus) -> Result<(), Error>;
 
-	/// get next output history table id
-	fn next_output_history_id(&mut self) -> Result<u32, Error>;
+    /// get next output history table id
+    fn next_output_history_id(&mut self) -> Result<u32, Error>;
 
-	/// get next tx log entry for the parent
-	fn next_tx_log_id(&mut self, parent_key_id: &Identifier) -> Result<u32, Error>;
+    /// get next tx log entry for the parent
+    fn next_tx_log_id(&mut self, parent_key_id: &Identifier) -> Result<u32, Error>;
 
-	/// Iterate over tx log data stored by the backend
-	fn tx_log_iter(&self) -> Box<dyn Iterator<Item = TxLogEntry>>;
+    /// Iterate over tx log data stored by the backend
+    fn tx_log_iter(&self) -> Box<dyn Iterator<Item = TxLogEntry>>;
 
-	/// save a tx log entry
-	fn save_tx_log_entry(&mut self, t: TxLogEntry, parent_id: &Identifier) -> Result<(), Error>;
+    /// save a tx log entry
+    fn save_tx_log_entry(&mut self, t: TxLogEntry, parent_id: &Identifier) -> Result<(), Error>;
 
-	/// save an account label -> path mapping
-	fn save_acct_path(&mut self, mapping: AcctPathMapping) -> Result<(), Error>;
+    /// save an account label -> path mapping
+    fn save_acct_path(&mut self, mapping: AcctPathMapping) -> Result<(), Error>;
 
-	/// Iterate over account names stored in backend
-	fn acct_path_iter(&self) -> Box<dyn Iterator<Item = AcctPathMapping>>;
+    /// Iterate over account names stored in backend
+    fn acct_path_iter(&self) -> Box<dyn Iterator<Item = AcctPathMapping>>;
 
-	/// Save an output as locked in the backend
-	fn lock_output(&mut self, out: &mut OutputData) -> Result<(), Error>;
+    /// Save an output as locked in the backend
+    fn lock_output(&mut self, out: &mut OutputData) -> Result<(), Error>;
 
-	/// Saves the private context associated with a slate id
-	fn save_private_context(
-		&mut self,
-		slate_id: &[u8],
-		participant_id: usize,
-		ctx: &Context,
-	) -> Result<(), Error>;
+    /// Saves the private context associated with a slate id
+    fn save_private_context(
+        &mut self,
+        slate_id: &[u8],
+        participant_id: usize,
+        ctx: &Context,
+    ) -> Result<(), Error>;
 
-	/// Delete the private context associated with the slate id
-	fn delete_private_context(
-		&mut self,
-		slate_id: &[u8],
-		participant_id: usize,
-	) -> Result<(), Error>;
+    /// Delete the private context associated with the slate id
+    fn delete_private_context(
+        &mut self,
+        slate_id: &[u8],
+        participant_id: usize,
+    ) -> Result<(), Error>;
 
-	/// Write the wallet data to backend file
-	fn commit(&self) -> Result<(), Error>;
+    /// Write the wallet data to backend file
+    fn commit(&self) -> Result<(), Error>;
 }
 
 /// Encapsulate all wallet-node communication functions. No functions within libwallet
 /// should care about communication details
 pub trait NodeClient: Send + Sync + Clone {
-	/// Return the URL of the check node
-	fn node_url(&self) -> &str;
+    /// Return the URL of the check node
+    fn node_url(&self) -> &str;
 
-	/// Set the node URL
-	fn set_node_url(&mut self, node_url: &str);
+    /// Set the node URL
+    fn set_node_url(&mut self, node_url: &str);
 
-	/// Return the node api secret
-	fn node_api_secret(&self) -> Option<String>;
+    /// Return the node api secret
+    fn node_api_secret(&self) -> Option<String>;
 
-	/// Change the API secret
-	fn set_node_api_secret(&mut self, node_api_secret: Option<String>);
+    /// Change the API secret
+    fn set_node_api_secret(&mut self, node_api_secret: Option<String>);
 
-	/// Posts a transaction to a epic node
-	fn post_tx(&self, tx: &Transaction, fluff: bool) -> Result<(), Error>;
+    /// Posts a transaction to a epic node
+    fn post_tx(&self, tx: &Transaction, fluff: bool) -> Result<(), Error>;
+    /// Posts a transaction to a epic node via Tor
+    fn post_tx_tor(&self, tx: &Transaction, tor_url: &str) -> Result<(), Error>;
 
-	/// Returns the api version string and block header version as reported
-	/// by the node. Result can be cached for later use
-	fn get_version_info(&mut self) -> Option<NodeVersionInfo>;
+    /// Get a transaction from node mempool
+    fn get_mempool(&self) -> Result<Vec<PoolEntry>, Error>;
 
-	/// retrieves the current tip (height, hash) from the specified epic node
-	fn get_chain_tip(&self) -> Result<(u64, String), Error>;
+    /// Returns the api version string and block header version as reported
+    /// by the node. Result can be cached for later use
+    fn get_version_info(&mut self) -> Option<NodeVersionInfo>;
 
-	/// Get a kernel and the height of the block it's included in. Returns
-	/// (tx_kernel, height, mmr_index)
-	fn get_kernel(
-		&mut self,
-		excess: &pedersen::Commitment,
-		min_height: Option<u64>,
-		max_height: Option<u64>,
-	) -> Result<Option<(TxKernel, u64, u64)>, Error>;
+    /// retrieves the current tip (height, hash) from the specified epic node
+    fn get_chain_tip(&self) -> Result<(u64, String), Error>;
 
-	/// retrieve a list of outputs from the specified epic node
-	/// need "by_height" and "by_id" variants
-	fn get_outputs_from_node(
-		&self,
-		wallet_outputs: Vec<pedersen::Commitment>,
-	) -> Result<HashMap<pedersen::Commitment, (String, u64, u64)>, Error>;
+    /// Get a kernel and the height of the block it's included in. Returns
+    /// (tx_kernel, height, mmr_index)
+    fn get_kernel(
+        &mut self,
+        excess: &pedersen::Commitment,
+        min_height: Option<u64>,
+        max_height: Option<u64>,
+    ) -> Result<Option<(TxKernel, u64, u64)>, Error>;
 
-	/// Get a list of outputs from the node by traversing the UTXO
-	/// set in PMMR index order.
-	/// Returns
-	/// (last available output index, last insertion index retrieved,
-	/// outputs(commit, proof, is_coinbase, height, mmr_index))
-	fn get_outputs_by_pmmr_index(
-		&self,
-		start_height: u64,
-		end_height: Option<u64>,
-		max_outputs: u64,
-	) -> Result<
-		(
-			u64,
-			u64,
-			Vec<(pedersen::Commitment, pedersen::RangeProof, bool, u64, u64)>,
-		),
-		Error,
-	>;
+    /// retrieve a list of outputs from the specified epic node
+    /// need "by_height" and "by_id" variants
+    fn get_outputs_from_node(
+        &self,
+        wallet_outputs: Vec<pedersen::Commitment>,
+    ) -> Result<HashMap<pedersen::Commitment, (String, u64, u64)>, Error>;
 
-	/// Return the pmmr indices representing the outputs between a given
-	/// set of block heights
-	/// (start pmmr index, end pmmr index)
-	fn height_range_to_pmmr_indices(
-		&self,
-		start_height: u64,
-		end_height: Option<u64>,
-	) -> Result<(u64, u64), Error>;
+    /// Retrieves the status of the node
+    fn get_node_status(&self) -> Result<NodeStatus, Error>;
+
+    /// Get a list of outputs from the node by traversing the UTXO
+    /// set in PMMR index order.
+    /// Returns
+    /// (last available output index, last insertion index retrieved,
+    /// outputs(commit, proof, is_coinbase, height, mmr_index))
+    fn get_outputs_by_pmmr_index(
+        &self,
+        start_height: u64,
+        end_height: Option<u64>,
+        max_outputs: u64,
+    ) -> Result<
+        (
+            u64,
+            u64,
+            Vec<(pedersen::Commitment, pedersen::RangeProof, bool, u64, u64)>,
+        ),
+        Error,
+    >;
+
+    /// Return the pmmr indices representing the outputs between a given
+    /// set of block heights
+    /// (start pmmr index, end pmmr index)
+    fn height_range_to_pmmr_indices(
+        &self,
+        start_height: u64,
+        end_height: Option<u64>,
+    ) -> Result<(u64, u64), Error>;
+
+    /// Optionally get onion addresses from the node (owner API)
+    fn get_onion_addresses(&self) -> Result<Vec<String>, Error>;
 }
 
 /// Node version info
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct NodeVersionInfo {
-	/// Semver version string
-	pub node_version: String,
-	/// block header verson
-	pub block_header_version: u16,
-	/// Whether this version info was successfully verified from a node
-	pub verified: Option<bool>,
+    /// Semver version string
+    pub node_version: String,
+    /// block header verson
+    pub block_header_version: u16,
+    /// Whether this version info was successfully verified from a node
+    pub verified: Option<bool>,
 }
 
 /// Information about an output that's being tracked by the wallet. Must be
@@ -418,108 +484,108 @@ pub struct NodeVersionInfo {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, PartialOrd, Eq, Ord)]
 pub struct OutputData {
-	/// Root key_id that the key for this output is derived from
-	pub root_key_id: Identifier,
-	/// Derived key for this output
-	pub key_id: Identifier,
-	/// How many derivations down from the root key
-	pub n_child: u32,
-	/// The actual commit, optionally stored
-	pub commit: Option<String>,
-	/// PMMR Index, used on restore in case of duplicate wallets using the same
-	/// key_id (2 wallets using same seed, for instance
-	#[serde(with = "secp_ser::opt_string_or_u64")]
-	pub mmr_index: Option<u64>,
-	/// Value of the output, necessary to rebuild the commitment
-	#[serde(with = "secp_ser::string_or_u64")]
-	pub value: u64,
-	/// Current status of the output
-	pub status: OutputStatus,
-	/// Height of the output
-	#[serde(with = "secp_ser::string_or_u64")]
-	pub height: u64,
-	/// Height we are locked until
-	#[serde(with = "secp_ser::string_or_u64")]
-	pub lock_height: u64,
-	/// Is this a coinbase output? Is it subject to coinbase locktime?
-	pub is_coinbase: bool,
-	/// Optional corresponding internal entry in tx entry log
-	pub tx_log_entry: Option<u32>,
+    /// Root key_id that the key for this output is derived from
+    pub root_key_id: Identifier,
+    /// Derived key for this output
+    pub key_id: Identifier,
+    /// How many derivations down from the root key
+    pub n_child: u32,
+    /// The actual commit, optionally stored
+    pub commit: Option<String>,
+    /// PMMR Index, used on restore in case of duplicate wallets using the same
+    /// key_id (2 wallets using same seed, for instance
+    #[serde(with = "secp_ser::opt_string_or_u64")]
+    pub mmr_index: Option<u64>,
+    /// Value of the output, necessary to rebuild the commitment
+    #[serde(with = "secp_ser::string_or_u64")]
+    pub value: u64,
+    /// Current status of the output
+    pub status: OutputStatus,
+    /// Height of the output
+    #[serde(with = "secp_ser::string_or_u64")]
+    pub height: u64,
+    /// Height we are locked until
+    #[serde(with = "secp_ser::string_or_u64")]
+    pub lock_height: u64,
+    /// Is this a coinbase output? Is it subject to coinbase locktime?
+    pub is_coinbase: bool,
+    /// Optional corresponding internal entry in tx entry log
+    pub tx_log_entry: Option<u32>,
 }
 
 impl ser::Writeable for OutputData {
-	fn write<W: ser::Writer>(&self, writer: &mut W) -> Result<(), ser::Error> {
-		writer.write_bytes(&serde_json::to_vec(self).map_err(|_| ser::Error::CorruptedData)?)
-	}
+    fn write<W: ser::Writer>(&self, writer: &mut W) -> Result<(), ser::Error> {
+        writer.write_bytes(&serde_json::to_vec(self).map_err(|_| ser::Error::CorruptedData)?)
+    }
 }
 
 impl ser::Readable for OutputData {
-	fn read(reader: &mut dyn ser::Reader) -> Result<OutputData, ser::Error> {
-		let data = reader.read_bytes_len_prefix()?;
-		serde_json::from_slice(&data[..]).map_err(|_| ser::Error::CorruptedData)
-	}
+    fn read(reader: &mut dyn ser::Reader) -> Result<OutputData, ser::Error> {
+        let data = reader.read_bytes_len_prefix()?;
+        serde_json::from_slice(&data[..]).map_err(|_| ser::Error::CorruptedData)
+    }
 }
 
 impl OutputData {
-	/// Lock a given output to avoid conflicting use
-	pub fn lock(&mut self) {
-		self.status = OutputStatus::Locked;
-	}
+    /// Lock a given output to avoid conflicting use
+    pub fn lock(&mut self) {
+        self.status = OutputStatus::Locked;
+    }
 
-	/// How many confirmations has this output received?
-	/// If height == 0 then we are either Unconfirmed or the output was
-	/// cut-through
-	/// so we do not actually know how many confirmations this output had (and
-	/// never will).
-	pub fn num_confirmations(&self, current_height: u64) -> u64 {
-		if self.height > current_height {
-			return 0;
-		}
-		if self.status == OutputStatus::Unconfirmed {
-			0
-		} else {
-			// if an output has height n and we are at block n
-			// then we have a single confirmation (the block it originated in)
-			1 + (current_height - self.height)
-		}
-	}
+    /// How many confirmations has this output received?
+    /// If height == 0 then we are either Unconfirmed or the output was
+    /// cut-through
+    /// so we do not actually know how many confirmations this output had (and
+    /// never will).
+    pub fn num_confirmations(&self, current_height: u64) -> u64 {
+        if self.height > current_height {
+            return 0;
+        }
+        if self.status == OutputStatus::Unconfirmed {
+            0
+        } else {
+            // if an output has height n and we are at block n
+            // then we have a single confirmation (the block it originated in)
+            1 + (current_height - self.height)
+        }
+    }
 
-	/// Check if output is eligible to spend based on state and height and
-	/// confirmations
-	pub fn eligible_to_spend(&self, current_height: u64, minimum_confirmations: u64) -> bool {
-		if [OutputStatus::Spent, OutputStatus::Locked].contains(&self.status) {
-			return false;
-		} else if self.status == OutputStatus::Unconfirmed && self.is_coinbase {
-			return false;
-		} else if self.lock_height > current_height {
-			return false;
-		} else if self.status == OutputStatus::Unspent
-			&& self.num_confirmations(current_height) >= minimum_confirmations
-		{
-			return true;
-		} else if self.status == OutputStatus::Unconfirmed && minimum_confirmations == 0 {
-			return true;
-		} else {
-			return false;
-		}
-	}
+    /// Check if output is eligible to spend based on state and height and
+    /// confirmations
+    pub fn eligible_to_spend(&self, current_height: u64, minimum_confirmations: u64) -> bool {
+        if [OutputStatus::Spent, OutputStatus::Locked].contains(&self.status) {
+            return false;
+        } else if self.status == OutputStatus::Unconfirmed && self.is_coinbase {
+            return false;
+        } else if self.lock_height > current_height {
+            return false;
+        } else if self.status == OutputStatus::Unspent
+            && self.num_confirmations(current_height) >= minimum_confirmations
+        {
+            return true;
+        } else if self.status == OutputStatus::Unconfirmed && minimum_confirmations == 0 {
+            return true;
+        } else {
+            return false;
+        }
+    }
 
-	/// Marks this output as unspent if it was previously unconfirmed
-	pub fn mark_unspent(&mut self) {
-		match self.status {
-			OutputStatus::Unconfirmed => self.status = OutputStatus::Unspent,
-			_ => (),
-		}
-	}
+    /// Marks this output as unspent if it was previously unconfirmed
+    pub fn mark_unspent(&mut self) {
+        match self.status {
+            OutputStatus::Unconfirmed => self.status = OutputStatus::Unspent,
+            _ => (),
+        }
+    }
 
-	/// Mark an output as spent
-	pub fn mark_spent(&mut self) {
-		match self.status {
-			OutputStatus::Unspent => self.status = OutputStatus::Spent,
-			OutputStatus::Locked => self.status = OutputStatus::Spent,
-			_ => (),
-		}
-	}
+    /// Mark an output as spent
+    pub fn mark_spent(&mut self) {
+        match self.status {
+            OutputStatus::Unspent => self.status = OutputStatus::Spent,
+            OutputStatus::Locked => self.status = OutputStatus::Spent,
+            _ => (),
+        }
+    }
 }
 /// Status of an output that's being tracked by the wallet. Can either be
 /// unconfirmed, spent, unspent, or locked (when it's been used to generate
@@ -527,130 +593,130 @@ impl OutputData {
 /// broadcasted or mined).
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Ord, PartialOrd)]
 pub enum OutputStatus {
-	/// Unconfirmed
-	Unconfirmed,
-	/// Unspent
-	Unspent,
-	/// Locked
-	Locked,
-	/// Spent
-	Spent,
-	/// Deleted
-	Deleted,
+    /// Unconfirmed
+    Unconfirmed,
+    /// Unspent
+    Unspent,
+    /// Locked
+    Locked,
+    /// Spent
+    Spent,
+    /// Deleted
+    Deleted,
 }
 
 impl fmt::Display for OutputStatus {
-	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-		match *self {
-			OutputStatus::Unconfirmed => write!(f, "Unconfirmed"),
-			OutputStatus::Unspent => write!(f, "Unspent"),
-			OutputStatus::Locked => write!(f, "Locked"),
-			OutputStatus::Spent => write!(f, "Spent"),
-			OutputStatus::Deleted => write!(f, "Deleted"),
-		}
-	}
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match *self {
+            OutputStatus::Unconfirmed => write!(f, "Unconfirmed"),
+            OutputStatus::Unspent => write!(f, "Unspent"),
+            OutputStatus::Locked => write!(f, "Locked"),
+            OutputStatus::Spent => write!(f, "Spent"),
+            OutputStatus::Deleted => write!(f, "Deleted"),
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 /// Holds the context for a single aggsig transaction
 pub struct Context {
-	/// Parent key id
-	pub parent_key_id: Identifier,
-	/// Secret key (of which public is shared)
-	pub sec_key: SecretKey,
-	/// Secret nonce (of which public is shared)
-	/// (basically a SecretKey)
-	pub sec_nonce: SecretKey,
-	/// store my outputs + amounts between invocations
-	/// Id, mmr_index (if known), amount
-	pub output_ids: Vec<(Identifier, Option<u64>, u64)>,
-	/// store my inputs
-	/// Id, mmr_index (if known), amount
-	pub input_ids: Vec<(Identifier, Option<u64>, u64)>,
-	/// store the calculated fee
-	pub fee: u64,
-	/// keep track of the participant id
-	pub participant_id: usize,
-	/// Payment proof sender address derivation path, if needed
-	pub payment_proof_derivation_index: Option<u32>,
+    /// Parent key id
+    pub parent_key_id: Identifier,
+    /// Secret key (of which public is shared)
+    pub sec_key: SecretKey,
+    /// Secret nonce (of which public is shared)
+    /// (basically a SecretKey)
+    pub sec_nonce: SecretKey,
+    /// store my outputs + amounts between invocations
+    /// Id, mmr_index (if known), amount
+    pub output_ids: Vec<(Identifier, Option<u64>, u64)>,
+    /// store my inputs
+    /// Id, mmr_index (if known), amount
+    pub input_ids: Vec<(Identifier, Option<u64>, u64)>,
+    /// store the calculated fee
+    pub fee: u64,
+    /// keep track of the participant id
+    pub participant_id: usize,
+    /// Payment proof sender address derivation path, if needed
+    pub payment_proof_derivation_index: Option<u32>,
 }
 
 impl Context {
-	/// Create a new context with defaults
-	pub fn new(
-		secp: &secp::Secp256k1,
-		sec_key: SecretKey,
-		parent_key_id: &Identifier,
-		use_test_rng: bool,
-		participant_id: usize,
-	) -> Context {
-		let sec_nonce = match use_test_rng {
-			false => aggsig::create_secnonce(secp).unwrap(),
-			true => SecretKey::from_slice(secp, &[1; 32]).unwrap(),
-		};
-		Context {
-			parent_key_id: parent_key_id.clone(),
-			sec_key,
-			sec_nonce,
-			input_ids: vec![],
-			output_ids: vec![],
-			fee: 0,
-			participant_id,
-			payment_proof_derivation_index: None,
-		}
-	}
+    /// Create a new context with defaults
+    pub fn new(
+        secp: &secp::Secp256k1,
+        sec_key: SecretKey,
+        parent_key_id: &Identifier,
+        use_test_rng: bool,
+        participant_id: usize,
+    ) -> Context {
+        let sec_nonce = match use_test_rng {
+            false => aggsig::create_secnonce(secp).unwrap(),
+            true => SecretKey::from_slice(secp, &[1; 32]).unwrap(),
+        };
+        Context {
+            parent_key_id: parent_key_id.clone(),
+            sec_key,
+            sec_nonce,
+            input_ids: vec![],
+            output_ids: vec![],
+            fee: 0,
+            participant_id,
+            payment_proof_derivation_index: None,
+        }
+    }
 }
 
 impl Context {
-	/// Tracks an output contributing to my excess value (if it needs to
-	/// be kept between invocations
-	pub fn add_output(&mut self, output_id: &Identifier, mmr_index: &Option<u64>, amount: u64) {
-		self.output_ids
-			.push((output_id.clone(), mmr_index.clone(), amount));
-	}
+    /// Tracks an output contributing to my excess value (if it needs to
+    /// be kept between invocations
+    pub fn add_output(&mut self, output_id: &Identifier, mmr_index: &Option<u64>, amount: u64) {
+        self.output_ids
+            .push((output_id.clone(), mmr_index.clone(), amount));
+    }
 
-	/// Returns all stored outputs
-	pub fn get_outputs(&self) -> Vec<(Identifier, Option<u64>, u64)> {
-		self.output_ids.clone()
-	}
+    /// Returns all stored outputs
+    pub fn get_outputs(&self) -> Vec<(Identifier, Option<u64>, u64)> {
+        self.output_ids.clone()
+    }
 
-	/// Tracks IDs of my inputs into the transaction
-	/// be kept between invocations
-	pub fn add_input(&mut self, input_id: &Identifier, mmr_index: &Option<u64>, amount: u64) {
-		self.input_ids
-			.push((input_id.clone(), mmr_index.clone(), amount));
-	}
+    /// Tracks IDs of my inputs into the transaction
+    /// be kept between invocations
+    pub fn add_input(&mut self, input_id: &Identifier, mmr_index: &Option<u64>, amount: u64) {
+        self.input_ids
+            .push((input_id.clone(), mmr_index.clone(), amount));
+    }
 
-	/// Returns all stored input identifiers
-	pub fn get_inputs(&self) -> Vec<(Identifier, Option<u64>, u64)> {
-		self.input_ids.clone()
-	}
+    /// Returns all stored input identifiers
+    pub fn get_inputs(&self) -> Vec<(Identifier, Option<u64>, u64)> {
+        self.input_ids.clone()
+    }
 
-	/// Returns private key, private nonce
-	pub fn get_private_keys(&self) -> (SecretKey, SecretKey) {
-		(self.sec_key.clone(), self.sec_nonce.clone())
-	}
+    /// Returns private key, private nonce
+    pub fn get_private_keys(&self) -> (SecretKey, SecretKey) {
+        (self.sec_key.clone(), self.sec_nonce.clone())
+    }
 
-	/// Returns public key, public nonce
-	pub fn get_public_keys(&self, secp: &Secp256k1) -> (PublicKey, PublicKey) {
-		(
-			PublicKey::from_secret_key(secp, &self.sec_key).unwrap(),
-			PublicKey::from_secret_key(secp, &self.sec_nonce).unwrap(),
-		)
-	}
+    /// Returns public key, public nonce
+    pub fn get_public_keys(&self, secp: &Secp256k1) -> (PublicKey, PublicKey) {
+        (
+            PublicKey::from_secret_key(secp, &self.sec_key).unwrap(),
+            PublicKey::from_secret_key(secp, &self.sec_nonce).unwrap(),
+        )
+    }
 }
 
 impl ser::Writeable for Context {
-	fn write<W: ser::Writer>(&self, writer: &mut W) -> Result<(), ser::Error> {
-		writer.write_bytes(&serde_json::to_vec(self).map_err(|_| ser::Error::CorruptedData)?)
-	}
+    fn write<W: ser::Writer>(&self, writer: &mut W) -> Result<(), ser::Error> {
+        writer.write_bytes(&serde_json::to_vec(self).map_err(|_| ser::Error::CorruptedData)?)
+    }
 }
 
 impl ser::Readable for Context {
-	fn read(reader: &mut dyn ser::Reader) -> Result<Context, ser::Error> {
-		let data = reader.read_bytes_len_prefix()?;
-		serde_json::from_slice(&data[..]).map_err(|_| ser::Error::CorruptedData)
-	}
+    fn read(reader: &mut dyn ser::Reader) -> Result<Context, ser::Error> {
+        let data = reader.read_bytes_len_prefix()?;
+        serde_json::from_slice(&data[..]).map_err(|_| ser::Error::CorruptedData)
+    }
 }
 
 /// Block Identifier
@@ -658,110 +724,119 @@ impl ser::Readable for Context {
 pub struct BlockIdentifier(pub Hash);
 
 impl BlockIdentifier {
-	/// return hash
-	pub fn hash(&self) -> Hash {
-		self.0
-	}
+    /// return hash
+    pub fn hash(&self) -> Hash {
+        self.0
+    }
 
-	/// convert to hex string
-	pub fn from_hex(hex: &str) -> Result<BlockIdentifier, Error> {
-		let hash =
-			Hash::from_hex(hex).map_err(|_e| Error::GenericError("Invalid hex".to_owned()))?;
-		Ok(BlockIdentifier(hash))
-	}
+    /// convert to hex string
+    pub fn from_hex(hex: &str) -> Result<BlockIdentifier, Error> {
+        let hash =
+            Hash::from_hex(hex).map_err(|_e| Error::GenericError("Invalid hex".to_owned()))?;
+        Ok(BlockIdentifier(hash))
+    }
 }
 
 impl serde::ser::Serialize for BlockIdentifier {
-	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-	where
-		S: serde::ser::Serializer,
-	{
-		serializer.serialize_str(&self.0.to_hex())
-	}
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::ser::Serializer,
+    {
+        serializer.serialize_str(&self.0.to_hex())
+    }
 }
 
 impl<'de> serde::de::Deserialize<'de> for BlockIdentifier {
-	fn deserialize<D>(deserializer: D) -> Result<BlockIdentifier, D::Error>
-	where
-		D: serde::de::Deserializer<'de>,
-	{
-		deserializer.deserialize_str(BlockIdentifierVisitor)
-	}
+    fn deserialize<D>(deserializer: D) -> Result<BlockIdentifier, D::Error>
+    where
+        D: serde::de::Deserializer<'de>,
+    {
+        deserializer.deserialize_str(BlockIdentifierVisitor)
+    }
 }
 
 struct BlockIdentifierVisitor;
 
 impl<'de> serde::de::Visitor<'de> for BlockIdentifierVisitor {
-	type Value = BlockIdentifier;
+    type Value = BlockIdentifier;
 
-	fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-		formatter.write_str("a block hash")
-	}
+    fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("a block hash")
+    }
 
-	fn visit_str<E>(self, s: &str) -> Result<Self::Value, E>
-	where
-		E: serde::de::Error,
-	{
-		let block_hash = Hash::from_hex(s).unwrap();
-		Ok(BlockIdentifier(block_hash))
-	}
+    fn visit_str<E>(self, s: &str) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        let block_hash = Hash::from_hex(s).unwrap();
+        Ok(BlockIdentifier(block_hash))
+    }
 }
 
 /// a contained wallet info struct, so automated tests can parse wallet info
 /// can add more fields here over time as needed
 #[derive(Serialize, Eq, PartialEq, Deserialize, Debug, Clone)]
 pub struct WalletInfo {
-	/// height from which info was taken
-	#[serde(with = "secp_ser::string_or_u64")]
-	pub last_confirmed_height: u64,
-	/// Minimum number of confirmations for an output to be treated as "spendable".
-	#[serde(with = "secp_ser::string_or_u64")]
-	pub minimum_confirmations: u64,
-	/// total amount in the wallet
-	#[serde(with = "secp_ser::string_or_u64")]
-	pub total: u64,
-	/// amount awaiting finalization
-	#[serde(with = "secp_ser::string_or_u64")]
-	pub amount_awaiting_finalization: u64,
-	/// amount awaiting confirmation
-	#[serde(with = "secp_ser::string_or_u64")]
-	pub amount_awaiting_confirmation: u64,
-	/// coinbases waiting for lock height
-	#[serde(with = "secp_ser::string_or_u64")]
-	pub amount_immature: u64,
-	/// amount currently spendable
-	#[serde(with = "secp_ser::string_or_u64")]
-	pub amount_currently_spendable: u64,
-	/// amount locked via previous transactions
-	#[serde(with = "secp_ser::string_or_u64")]
-	pub amount_locked: u64,
+    /// height from which info was taken
+    #[serde(with = "secp_ser::string_or_u64")]
+    pub last_confirmed_height: u64,
+    /// Minimum number of confirmations for an output to be treated as "spendable".
+    #[serde(with = "secp_ser::string_or_u64")]
+    pub minimum_confirmations: u64,
+    /// total amount in the wallet
+    #[serde(with = "secp_ser::string_or_u64")]
+    pub total: u64,
+    /// amount awaiting finalization
+    #[serde(with = "secp_ser::string_or_u64")]
+    pub amount_awaiting_finalization: u64,
+    /// amount awaiting confirmation
+    #[serde(with = "secp_ser::string_or_u64")]
+    pub amount_awaiting_confirmation: u64,
+    /// coinbases waiting for lock height
+    #[serde(with = "secp_ser::string_or_u64")]
+    pub amount_immature: u64,
+    /// amount currently spendable
+    #[serde(with = "secp_ser::string_or_u64")]
+    pub amount_currently_spendable: u64,
+    /// amount locked via previous transactions
+    #[serde(with = "secp_ser::string_or_u64")]
+    pub amount_locked: u64,
 }
 
 /// Types of transactions that can be contained within a TXLog entry
 #[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 pub enum TxLogEntryType {
-	/// A coinbase transaction becomes confirmed
-	ConfirmedCoinbase,
-	/// Outputs created when a transaction is received
-	TxReceived,
-	/// Inputs locked + change outputs when a transaction is created
-	TxSent,
-	/// Received transaction that was rolled back by user
-	TxReceivedCancelled,
-	/// Sent transaction that was rolled back by user
-	TxSentCancelled,
+    /// A coinbase transaction becomes confirmed
+    ConfirmedCoinbase,
+    /// Outputs created when a transaction is received
+    TxReceived,
+    /// Inputs locked + change outputs when a transaction is created
+    TxSent,
+    /// Received transaction that was rolled back by user
+    TxReceivedCancelled,
+    /// Sent transaction that was rolled back by user
+    TxSentCancelled,
+    /// Transaction sent to mempool, waiting to be mined
+    TxSentMempool,
+    /// Received transaction found in mempool, waiting to be mined
+    TxReceivedMempool,
+    /// Transaction created, but not yet sent to the node
+    TxSentCreated,
 }
 
 impl fmt::Display for TxLogEntryType {
-	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-		match *self {
-			TxLogEntryType::ConfirmedCoinbase => write!(f, "Confirmed \nCoinbase"),
-			TxLogEntryType::TxReceived => write!(f, "Received Tx"),
-			TxLogEntryType::TxSent => write!(f, "Sent Tx"),
-			TxLogEntryType::TxReceivedCancelled => write!(f, "Received Tx\n- Cancelled"),
-			TxLogEntryType::TxSentCancelled => write!(f, "Sent Tx\n- Cancelled"),
-		}
-	}
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match *self {
+            TxLogEntryType::ConfirmedCoinbase => write!(f, "Coinbase Confirmed"),
+            TxLogEntryType::TxReceived => write!(f, "Received"),
+            TxLogEntryType::TxSent => write!(f, "Sent"),
+            TxLogEntryType::TxReceivedCancelled => write!(f, "Received (Cancelled)"),
+            TxLogEntryType::TxSentCancelled => write!(f, "Sent (Cancelled)"),
+            TxLogEntryType::TxSentMempool => write!(f, "Sent (Mempool)"),
+            TxLogEntryType::TxReceivedMempool => write!(f, "Received (Mempool)"),
+            TxLogEntryType::TxSentCreated => write!(f, "Sent (Created)"),
+        }
+    }
 }
 
 /// Optional transaction information, recorded when an event happens
@@ -769,199 +844,204 @@ impl fmt::Display for TxLogEntryType {
 /// maps to one or many outputs
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct TxLogEntry {
-	/// BIP32 account path used for creating this tx
-	pub parent_key_id: Identifier,
-	/// Local id for this transaction (distinct from a slate transaction id)
-	pub id: u32,
-	/// Slate transaction this entry is associated with, if any
-	pub tx_slate_id: Option<Uuid>,
-	/// Transaction type (as above)
-	pub tx_type: TxLogEntryType,
-	/// Time this tx entry was created
-	/// #[serde(with = "tx_date_format")]
-	pub creation_ts: DateTime<Utc>,
-	/// Time this tx was confirmed (by this wallet)
-	/// #[serde(default, with = "opt_tx_date_format")]
-	pub confirmation_ts: Option<DateTime<Utc>>,
-	/// Whether the inputs+outputs involved in this transaction have been
-	/// confirmed (In all cases either all outputs involved in a tx should be
-	/// confirmed, or none should be; otherwise there's a deeper problem)
-	pub confirmed: bool,
-	/// number of inputs involved in TX
-	pub num_inputs: usize,
-	/// number of outputs involved in TX
-	pub num_outputs: usize,
-	/// Amount credited via this transaction
-	#[serde(with = "secp_ser::string_or_u64")]
-	pub amount_credited: u64,
-	/// Amount debited via this transaction
-	#[serde(with = "secp_ser::string_or_u64")]
-	pub amount_debited: u64,
-	/// Fee
-	#[serde(with = "secp_ser::opt_string_or_u64")]
-	pub fee: Option<u64>,
-	/// Cutoff block height
-	#[serde(with = "secp_ser::opt_string_or_u64")]
-	#[serde(default)]
-	pub ttl_cutoff_height: Option<u64>,
-	/// Message data, stored as json
-	pub messages: Option<ParticipantMessages>,
-	/// Location of the store transaction, (reference or resending)
-	pub stored_tx: Option<String>,
-	/// Associated kernel excess, for later lookup if necessary
-	#[serde(with = "secp_ser::option_commitment_serde")]
-	#[serde(default)]
-	pub kernel_excess: Option<pedersen::Commitment>,
-	/// Height reported when transaction was created, if lookup
-	/// of kernel is necessary
-	#[serde(default)]
-	pub kernel_lookup_min_height: Option<u64>,
-	/// Additional info needed to stored payment proof
-	#[serde(default)]
-	pub payment_proof: Option<StoredProofInfo>,
-	/// From or To Address tx was send/received
-	pub public_addr: Option<String>,
+    /// Block height when transaction was created (for all tx types)
+    #[serde(default)]
+    pub confirmation_height: Option<u64>,
+    /// BIP32 account path used for creating this tx
+    pub parent_key_id: Identifier,
+    /// Local id for this transaction (distinct from a slate transaction id)
+    pub id: u32,
+    /// Slate transaction this entry is associated with, if any
+    pub tx_slate_id: Option<Uuid>,
+    /// Transaction type (as above)
+    pub tx_type: TxLogEntryType,
+    /// Time this tx entry was created
+    /// #[serde(with = "tx_date_format")]
+    pub creation_ts: DateTime<Utc>,
+    /// Time this tx was confirmed (by this wallet)
+    /// #[serde(default, with = "opt_tx_date_format")]
+    pub confirmation_ts: Option<DateTime<Utc>>,
+    /// Whether the inputs+outputs involved in this transaction have been
+    /// confirmed (In all cases either all outputs involved in a tx should be
+    /// confirmed, or none should be; otherwise there's a deeper problem)
+    pub confirmed: bool,
+    /// number of inputs involved in TX
+    pub num_inputs: usize,
+    /// number of outputs involved in TX
+    pub num_outputs: usize,
+    /// Amount credited via this transaction
+    #[serde(with = "secp_ser::string_or_u64")]
+    pub amount_credited: u64,
+    /// Amount debited via this transaction
+    #[serde(with = "secp_ser::string_or_u64")]
+    pub amount_debited: u64,
+    /// Fee
+    #[serde(with = "secp_ser::opt_string_or_u64")]
+    pub fee: Option<u64>,
+    /// Cutoff block height
+    #[serde(with = "secp_ser::opt_string_or_u64")]
+    #[serde(default)]
+    pub ttl_cutoff_height: Option<u64>,
+    /// Message data, stored as json
+    pub messages: Option<ParticipantMessages>,
+    /// Location of the store transaction, (reference or resending)
+    pub stored_tx: Option<String>,
+    /// Associated kernel excess, for later lookup if necessary
+    #[serde(with = "secp_ser::option_commitment_serde")]
+    #[serde(default)]
+    pub kernel_excess: Option<pedersen::Commitment>,
+    /// Height reported when transaction was created, if lookup
+    /// of kernel is necessary
+    #[serde(default)]
+    pub kernel_lookup_min_height: Option<u64>,
+    /// Additional info needed to stored payment proof
+    #[serde(default)]
+    pub payment_proof: Option<StoredProofInfo>,
+    /// From or To Address tx was send/received
+    #[serde(default)]
+    pub public_addr: Option<String>,
 }
 
 impl ser::Writeable for TxLogEntry {
-	fn write<W: ser::Writer>(&self, writer: &mut W) -> Result<(), ser::Error> {
-		writer.write_bytes(&serde_json::to_vec(self).map_err(|_| ser::Error::CorruptedData)?)
-	}
+    fn write<W: ser::Writer>(&self, writer: &mut W) -> Result<(), ser::Error> {
+        writer.write_bytes(&serde_json::to_vec(self).map_err(|_| ser::Error::CorruptedData)?)
+    }
 }
 
 impl ser::Readable for TxLogEntry {
-	fn read(reader: &mut dyn ser::Reader) -> Result<TxLogEntry, ser::Error> {
-		let data = reader.read_bytes_len_prefix()?;
-		serde_json::from_slice(&data[..]).map_err(|_| ser::Error::CorruptedData)
-	}
+    fn read(reader: &mut dyn ser::Reader) -> Result<TxLogEntry, ser::Error> {
+        let data = reader.read_bytes_len_prefix()?;
+        serde_json::from_slice(&data[..]).map_err(|_| ser::Error::CorruptedData)
+    }
 }
 
 impl TxLogEntry {
-	/// Return a new blank with TS initialised with next entry
-	pub fn new(parent_key_id: Identifier, t: TxLogEntryType, id: u32) -> Self {
-		TxLogEntry {
-			parent_key_id,
-			tx_type: t,
-			id,
-			tx_slate_id: None,
-			creation_ts: Utc::now(),
-			confirmation_ts: None,
-			confirmed: false,
-			amount_credited: 0,
-			amount_debited: 0,
-			num_inputs: 0,
-			num_outputs: 0,
-			fee: None,
-			ttl_cutoff_height: None,
-			messages: None,
-			stored_tx: None,
-			kernel_excess: None,
-			kernel_lookup_min_height: None,
-			payment_proof: None,
-			public_addr: None,
-		}
-	}
+    /// Return a new blank with TS initialised with next entry
+    pub fn new(parent_key_id: Identifier, t: TxLogEntryType, id: u32) -> Self {
+        TxLogEntry {
+            parent_key_id,
+            tx_type: t,
+            id,
+            tx_slate_id: None,
+            creation_ts: Utc::now(),
+            confirmation_ts: None,
+            confirmed: false,
+            amount_credited: 0,
+            amount_debited: 0,
+            num_inputs: 0,
+            num_outputs: 0,
+            fee: None,
+            ttl_cutoff_height: None,
+            messages: None,
+            stored_tx: None,
+            kernel_excess: None,
+            kernel_lookup_min_height: None,
+            payment_proof: None,
+            public_addr: None,
+            confirmation_height: None,
+        }
+    }
 
-	/// Given a vec of TX log entries, return credited + debited sums
-	pub fn sum_confirmed(txs: &Vec<TxLogEntry>) -> (u64, u64) {
-		txs.iter().fold((0, 0), |acc, tx| match tx.confirmed {
-			true => (acc.0 + tx.amount_credited, acc.1 + tx.amount_debited),
-			false => acc,
-		})
-	}
+    /// Given a vec of TX log entries, return credited + debited sums
+    pub fn sum_confirmed(txs: &Vec<TxLogEntry>) -> (u64, u64) {
+        txs.iter().fold((0, 0), |acc, tx| match tx.confirmed {
+            true => (acc.0 + tx.amount_credited, acc.1 + tx.amount_debited),
+            false => acc,
+        })
+    }
 
-	/// Update confirmation TS with now
-	pub fn update_confirmation_ts(&mut self) {
-		self.confirmation_ts = Some(Utc::now());
-	}
+    /// Update confirmation TS with now
+    pub fn update_confirmation_ts(&mut self) {
+        self.confirmation_ts = Some(Utc::now());
+    }
 }
 
 /// Payment proof information. Differs from what is sent via
 /// the slate
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct StoredProofInfo {
-	/// receiver address
-	#[serde(with = "dalek_ser::dalek_pubkey_serde")]
-	pub receiver_address: DalekPublicKey,
-	#[serde(with = "dalek_ser::option_dalek_sig_serde")]
-	/// receiver signature
-	pub receiver_signature: Option<DalekSignature>,
-	/// sender address derivation path index
-	pub sender_address_path: u32,
-	/// sender address
-	#[serde(with = "dalek_ser::dalek_pubkey_serde")]
-	pub sender_address: DalekPublicKey,
-	/// sender signature
-	#[serde(with = "dalek_ser::option_dalek_sig_serde")]
-	pub sender_signature: Option<DalekSignature>,
+    /// receiver address
+    #[serde(with = "dalek_ser::dalek_pubkey_serde")]
+    pub receiver_address: DalekPublicKey,
+    #[serde(with = "dalek_ser::option_dalek_sig_serde")]
+    /// receiver signature
+    pub receiver_signature: Option<DalekSignature>,
+    /// sender address derivation path index
+    pub sender_address_path: u32,
+    /// sender address
+    #[serde(with = "dalek_ser::dalek_pubkey_serde")]
+    pub sender_address: DalekPublicKey,
+    /// sender signature
+    #[serde(with = "dalek_ser::option_dalek_sig_serde")]
+    pub sender_signature: Option<DalekSignature>,
 }
 
 impl ser::Writeable for StoredProofInfo {
-	fn write<W: ser::Writer>(&self, writer: &mut W) -> Result<(), ser::Error> {
-		writer.write_bytes(&serde_json::to_vec(self).map_err(|_| ser::Error::CorruptedData)?)
-	}
+    fn write<W: ser::Writer>(&self, writer: &mut W) -> Result<(), ser::Error> {
+        writer.write_bytes(&serde_json::to_vec(self).map_err(|_| ser::Error::CorruptedData)?)
+    }
 }
 
 impl ser::Readable for StoredProofInfo {
-	fn read(reader: &mut dyn ser::Reader) -> Result<StoredProofInfo, ser::Error> {
-		let data = reader.read_bytes_len_prefix()?;
-		serde_json::from_slice(&data[..]).map_err(|_| ser::Error::CorruptedData)
-	}
+    fn read(reader: &mut dyn ser::Reader) -> Result<StoredProofInfo, ser::Error> {
+        let data = reader.read_bytes_len_prefix()?;
+        serde_json::from_slice(&data[..]).map_err(|_| ser::Error::CorruptedData)
+    }
 }
 
 /// Map of named accounts to BIP32 paths
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AcctPathMapping {
-	/// label used by user
-	pub label: String,
-	/// Corresponding parent BIP32 derivation path
-	pub path: Identifier,
+    /// label used by user
+    pub label: String,
+    /// Corresponding parent BIP32 derivation path
+    pub path: Identifier,
 }
 
 impl ser::Writeable for AcctPathMapping {
-	fn write<W: ser::Writer>(&self, writer: &mut W) -> Result<(), ser::Error> {
-		writer.write_bytes(&serde_json::to_vec(self).map_err(|_| ser::Error::CorruptedData)?)
-	}
+    fn write<W: ser::Writer>(&self, writer: &mut W) -> Result<(), ser::Error> {
+        writer.write_bytes(&serde_json::to_vec(self).map_err(|_| ser::Error::CorruptedData)?)
+    }
 }
 
 impl ser::Readable for AcctPathMapping {
-	fn read(reader: &mut dyn ser::Reader) -> Result<AcctPathMapping, ser::Error> {
-		let data = reader.read_bytes_len_prefix()?;
-		serde_json::from_slice(&data[..]).map_err(|_| ser::Error::CorruptedData)
-	}
+    fn read(reader: &mut dyn ser::Reader) -> Result<AcctPathMapping, ser::Error> {
+        let data = reader.read_bytes_len_prefix()?;
+        serde_json::from_slice(&data[..]).map_err(|_| ser::Error::CorruptedData)
+    }
 }
 
 /// Dummy wrapper for the hex-encoded serialized transaction.
 #[derive(Serialize, Deserialize)]
 pub struct TxWrapper {
-	/// hex representation of transaction
-	pub tx_hex: String,
+    /// hex representation of transaction
+    pub tx_hex: String,
 }
 
 /// Store details of the last scanned block
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ScannedBlockInfo {
-	/// Node chain height (corresponding to the last PMMR index scanned)
-	pub height: u64,
-	/// Hash of tip
-	pub hash: String,
-	/// Starting PMMR Index
-	pub start_pmmr_index: u64,
-	/// Last PMMR Index
-	pub last_pmmr_index: u64,
+    /// Node chain height (corresponding to the last PMMR index scanned)
+    pub height: u64,
+    /// Hash of tip
+    pub hash: String,
+    /// Starting PMMR Index
+    pub start_pmmr_index: u64,
+    /// Last PMMR Index
+    pub last_pmmr_index: u64,
 }
 
 impl ser::Writeable for ScannedBlockInfo {
-	fn write<W: ser::Writer>(&self, writer: &mut W) -> Result<(), ser::Error> {
-		writer.write_bytes(&serde_json::to_vec(self).map_err(|_| ser::Error::CorruptedData)?)
-	}
+    fn write<W: ser::Writer>(&self, writer: &mut W) -> Result<(), ser::Error> {
+        writer.write_bytes(&serde_json::to_vec(self).map_err(|_| ser::Error::CorruptedData)?)
+    }
 }
 
 impl ser::Readable for ScannedBlockInfo {
-	fn read(reader: &mut dyn ser::Reader) -> Result<ScannedBlockInfo, ser::Error> {
-		let data = reader.read_bytes_len_prefix()?;
-		serde_json::from_slice(&data[..]).map_err(|_| ser::Error::CorruptedData)
-	}
+    fn read(reader: &mut dyn ser::Reader) -> Result<ScannedBlockInfo, ser::Error> {
+        let data = reader.read_bytes_len_prefix()?;
+        serde_json::from_slice(&data[..]).map_err(|_| ser::Error::CorruptedData)
+    }
 }
 
 /// Wrapper for reward output and kernel used when building a coinbase for a mining node.
@@ -969,34 +1049,34 @@ impl ser::Readable for ScannedBlockInfo {
 /// before serializing to json to ensure compatibility with mining node.
 #[derive(Debug, Clone)]
 pub struct CbData {
-	/// Output
-	pub output: Output,
-	/// Kernel
-	pub kernel: TxKernel,
-	/// Key Id
-	pub key_id: Option<Identifier>,
+    /// Output
+    pub output: Output,
+    /// Kernel
+    pub kernel: TxKernel,
+    /// Key Id
+    pub key_id: Option<Identifier>,
 }
 
 /// Enum to determine what amount of scanning is required for a new wallet
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum WalletInitStatus {
-	/// Wallet is newly created and needs scanning
-	InitNeedsScanning,
-	/// Wallet is new but doesn't need scanning
-	InitNoScanning,
-	/// Wallet scan checks have been completed
-	InitComplete,
+    /// Wallet is newly created and needs scanning
+    InitNeedsScanning,
+    /// Wallet is new but doesn't need scanning
+    InitNoScanning,
+    /// Wallet scan checks have been completed
+    InitComplete,
 }
 
 impl ser::Writeable for WalletInitStatus {
-	fn write<W: ser::Writer>(&self, writer: &mut W) -> Result<(), ser::Error> {
-		writer.write_bytes(&serde_json::to_vec(self).map_err(|_| ser::Error::CorruptedData)?)
-	}
+    fn write<W: ser::Writer>(&self, writer: &mut W) -> Result<(), ser::Error> {
+        writer.write_bytes(&serde_json::to_vec(self).map_err(|_| ser::Error::CorruptedData)?)
+    }
 }
 
 impl ser::Readable for WalletInitStatus {
-	fn read(reader: &mut dyn ser::Reader) -> Result<WalletInitStatus, ser::Error> {
-		let data = reader.read_bytes_len_prefix()?;
-		serde_json::from_slice(&data[..]).map_err(|_| ser::Error::CorruptedData)
-	}
+    fn read(reader: &mut dyn ser::Reader) -> Result<WalletInitStatus, ser::Error> {
+        let data = reader.read_bytes_len_prefix()?;
+        serde_json::from_slice(&data[..]).map_err(|_| ser::Error::CorruptedData)
+    }
 }

@@ -15,7 +15,7 @@
 //! Owner API External Definition
 
 use chrono::prelude::*;
-use ed25519_dalek::PublicKey as DalekPublicKey;
+
 use uuid::Uuid;
 
 use crate::config::{EpicboxConfig, TorConfig, WalletConfig};
@@ -28,13 +28,14 @@ use crate::libwallet::api_impl::owner_updater::{start_updater_log_thread, Status
 use crate::libwallet::api_impl::{owner, owner_updater};
 use crate::libwallet::{
 	address, AcctPathMapping, EpicboxAddress, Error, InitTxArgs, IssueInvoiceTxArgs, NodeClient,
-	NodeHeightResult, OutputCommitMapping, PaymentProof, Slate, TxLogEntry, WalletInfo, WalletInst,
-	WalletLCProvider,
+	NodeHeightResult, PaymentProof, RetrieveOutputsResult, RetrieveTxsResult, Slate, TxLogEntry,
+	WalletInfo, WalletInst, WalletLCProvider,
 };
 
 use crate::util::logger::LoggingConfig;
 use crate::util::secp::key::SecretKey;
 use crate::util::{from_hex, static_secp_instance, Mutex, ZeroingString};
+use ed25519_dalek::VerifyingKey as DalekPublicKey;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{channel, Sender};
 use std::sync::Arc;
@@ -81,6 +82,8 @@ where
 	tor_config: Mutex<Option<TorConfig>>,
 	/// epicbox configuration, holding epicbox relay server settings
 	epicbox_config: Mutex<Option<EpicboxConfig>>,
+	///
+	pub is_node_synced: Arc<AtomicBool>,
 }
 
 impl<L, C, K> Owner<L, C, K>
@@ -123,7 +126,7 @@ where
 	/// use config::WalletConfig;
 	/// use impls::{DefaultWalletImpl, DefaultLCProvider, HTTPNodeClient};
 	/// use libwallet::WalletInst;
-	///
+	/// use std::sync::atomic::AtomicBool;
 	/// let mut wallet_config = WalletConfig::default();
 	/// # let dir = tempdir().map_err(|e| format!("{:#?}", e)).unwrap();
 	/// # let dir = dir
@@ -159,7 +162,7 @@ where
 	/// // All wallet functions operate on an Arc::Mutex to allow multithreading where needed
 	/// let mut wallet = Arc::new(Mutex::new(wallet));
 	///
-	/// let api_owner = Owner::new(wallet.clone(), None);
+	/// let api_owner = Owner::new(wallet.clone(), None, Arc::new(AtomicBool::new(true)));
 	/// // .. perform wallet operations
 	///
 	/// ```
@@ -167,6 +170,7 @@ where
 	pub fn new(
 		wallet_inst: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K>>>>,
 		custom_channel: Option<Sender<StatusMessage>>,
+		is_node_synced: Arc<AtomicBool>,
 	) -> Self {
 		let updater_running = Arc::new(AtomicBool::new(false));
 		let updater = Arc::new(Mutex::new(owner_updater::Updater::new(
@@ -194,6 +198,7 @@ where
 			updater_messages,
 			tor_config: Mutex::new(None),
 			epicbox_config: Mutex::new(None),
+			is_node_synced,
 		}
 	}
 
@@ -245,7 +250,8 @@ where
 	/// ```
 	/// # epic_wallet_api::doctest_helper_setup_doc_env!(wallet, wallet_config);
 	///
-	/// let api_owner = Owner::new(wallet.clone(), None);
+	/// use std::sync::atomic::AtomicBool;
+	/// let api_owner = Owner::new(wallet.clone(), None, Arc::new(AtomicBool::new(true)));
 	///
 	/// let result = api_owner.accounts(None);
 	///
@@ -296,7 +302,8 @@ where
 	/// ```
 	/// # epic_wallet_api::doctest_helper_setup_doc_env!(wallet, wallet_config);
 	///
-	/// let api_owner = Owner::new(wallet.clone(), None);
+	/// use std::sync::atomic::AtomicBool;
+	/// let api_owner = Owner::new(wallet.clone(), None, Arc::new(AtomicBool::new(true)));
 	///
 	/// let result = api_owner.create_account_path(None, "account1");
 	///
@@ -343,7 +350,8 @@ where
 	/// ```
 	/// # epic_wallet_api::doctest_helper_setup_doc_env!(wallet, wallet_config);
 	///
-	/// let api_owner = Owner::new(wallet.clone(), None);
+	/// use std::sync::atomic::AtomicBool;
+	/// let api_owner = Owner::new(wallet.clone(), None, Arc::new(AtomicBool::new(true)));
 	///
 	/// let result = api_owner.create_account_path(None, "account1");
 	///
@@ -371,43 +379,68 @@ where
 	/// * `keychain_mask` - Wallet secret mask to XOR against the stored wallet seed before using, if
 	/// being used.
 	/// * `include_spent` - If `true`, outputs that have been marked as 'spent'
-	/// in the wallet will be returned. If `false`, spent outputs will omitted
+	/// in the wallet will be returned. If `false`, spent outputs will be omitted
 	/// from the results.
 	/// * `refresh_from_node` - If true, the wallet will attempt to contact
 	/// a node (via the [`NodeClient`](../epic_wallet_libwallet/types/trait.NodeClient.html)
 	/// provided during wallet instantiation). If `false`, the results will
 	/// contain output information that may be out-of-date (from the last time
 	/// the wallet's output set was refreshed against the node).
-	/// Note this setting is ignored if the updater process is running via a call to
-	/// [`start_updater`](struct.Owner.html#method.start_updater)
+	/// * `show_full_history` - If `true`, all outputs will be returned, including those
+	/// that are no longer spendable (e.g., spent or locked outputs).
 	/// * `tx_id` - If `Some(i)`, only return the outputs associated with
 	/// the transaction log entry of id `i`.
+	/// * `limit` - Maximum number of outputs to return. If `None`, return all.
+	/// * `offset` - Starting index for outputs. Defaults to `0` if `None`.
+	/// * `sort_order` - Sort order for outputs, either `"asc"` or `"desc"`. Defaults to `"asc"`.
 	///
 	/// # Returns
-	/// * `(bool, Vec<OutputCommitMapping>)` - A tuple:
-	/// * The first `bool` element indicates whether the data was successfully
-	/// refreshed from the node (note this may be false even if the `refresh_from_node`
-	/// argument was set to `true`.
-	/// * The second element contains a vector of
-	/// [OutputCommitMapping](../epic_wallet_libwallet/types/struct.OutputCommitMapping.html)
-	/// of which each element is a mapping between the wallet's internal
-	/// [OutputData](../epic_wallet_libwallet/types/struct.Output.html)
-	/// and the Output commitment as identified in the chain's UTXO set
-	///
+	/// A `RetrieveOutputsResult` struct containing:
+	/// - `refresh_from_node`: A boolean indicating whether the data was successfully refreshed from the node.
+	/// - `pager`: A `Pager` struct containing pagination metadata:
+	///   - `records_read`: The number of records returned after pagination.
+	///   - `total_records`: The total number of records available before pagination.
+	///   - `limit`: The limit used for pagination.
+	///   - `offset`: The offset used for pagination.
+	///   - `sort_order`: The sort order used for pagination.
+	/// - `outputs`: A vector of [`OutputCommitMapping`](../epic_wallet_libwallet/types/struct.OutputCommitMapping.html)
+	///   objects, where each element is a mapping between the wallet's internal
+	///   [`OutputData`](../epic_wallet_libwallet/types/struct.Output.html)
+	///   and the output commitment as identified in the chain's UTXO set.
+
 	/// # Example
 	/// Set up as in [`new`](struct.Owner.html#method.new) method above.
 	/// ```
 	/// # epic_wallet_api::doctest_helper_setup_doc_env!(wallet, wallet_config);
 	///
-	/// let api_owner = Owner::new(wallet.clone(), None);
+	/// use std::sync::atomic::AtomicBool;
+	/// let api_owner = Owner::new(wallet.clone(), None, Arc::new(AtomicBool::new(true)));
 	/// let show_spent = false;
 	/// let update_from_node = true;
 	/// let tx_id = None;
 	///
-	/// let result = api_owner.retrieve_outputs(None, show_spent, update_from_node, false, tx_id);
+	/// let result = api_owner.retrieve_outputs(
+	///     None,           // keychain_mask
+	///     show_spent,     // include_spent
+	///     update_from_node, // refresh_from_node
+	///     false,          // show_full_history
+	///     tx_id,          // tx_id
+	///     Some(10),       // limit
+	///     Some(0),        // offset
+	///     Some("desc".to_string()), // sort_order
+	/// );
 	///
-	/// if let Ok((was_updated, output_mappings)) = result {
-	///		//...
+	/// if let Ok(outputs_result) = result {
+	///     println!("Was updated: {}", outputs_result.refresh_from_node);
+	///     println!("Records read: {}", outputs_result.pager.records_read);
+	///     println!("Total records: {}", outputs_result.pager.total_records);
+	///     println!("Limit: {}", outputs_result.pager.limit);
+	///     println!("Offset: {}", outputs_result.pager.offset);
+	///     println!("Sort order: {}", outputs_result.pager.sort_order);
+	///
+	///     for output in outputs_result.outputs {
+	///         println!("{:?}", output);
+	///     }
 	/// }
 	/// ```
 
@@ -418,7 +451,10 @@ where
 		refresh_from_node: bool,
 		show_full_history: bool,
 		tx_id: Option<u32>,
-	) -> Result<(bool, Vec<OutputCommitMapping>), Error> {
+		limit: Option<usize>,
+		offset: Option<usize>,
+		sort_order: Option<String>,
+	) -> Result<RetrieveOutputsResult, Error> {
 		let tx = {
 			let t = self.status_tx.lock();
 			t.clone()
@@ -435,11 +471,13 @@ where
 			refresh_from_node,
 			show_full_history,
 			tx_id,
+			limit,
+			offset,
+			sort_order,
 		)
 	}
 
-	/// Returns a list of [Transaction Log Entries](../epic_wallet_libwallet/types/struct.TxLogEntry.html)
-	/// from the active account in the wallet.
+	/// Returns a list of transaction log entries from the active account in the wallet.
 	///
 	/// # Arguments
 	/// * `keychain_mask` - Wallet secret mask to XOR against the stored wallet seed before using, if
@@ -449,36 +487,57 @@ where
 	/// provided during wallet instantiation). If `false`, the results will
 	/// contain transaction information that may be out-of-date (from the last time
 	/// the wallet's output set was refreshed against the node).
-	/// Note this setting is ignored if the updater process is running via a call to
-	/// [`start_updater`](struct.Owner.html#method.start_updater)
-	/// * `tx_id` - If `Some(i)`, only return the transactions associated with
-	/// the transaction log entry of id `i`.
+	/// * `tx_id` - If `Some(i)`, only return the transaction log entry of id `i`.
 	/// * `tx_slate_id` - If `Some(uuid)`, only return transactions associated with
 	/// the given [`Slate`](../epic_wallet_libwallet/slate/struct.Slate.html) uuid.
+	/// * `limit` - Maximum number of transactions to return. If `None`, return all.
+	/// * `offset` - Starting index for transactions. Defaults to `0` if `None`.
+	/// * `sort_order` - Sort order for transactions, either `"asc"` or `"desc"`. Defaults to `"asc"`.
 	///
 	/// # Returns
-	/// * `(bool, Vec<TxLogEntry)` - A tuple:
-	/// * The first `bool` element indicates whether the data was successfully
-	/// refreshed from the node (note this may be false even if the `refresh_from_node`
-	/// argument was set to `true`.
-	/// * The second element contains the set of retrieved
-	/// [TxLogEntries](../epic_wallet_libwallet/types/struct.TxLogEntry.html)
+	/// A `RetrieveTxsResult` struct containing:
+	/// - `refresh_from_node`: A boolean indicating whether the data was successfully refreshed from the node.
+	/// - `pager`: A `Pager` struct containing pagination metadata:
+	///   - `records_read`: The number of records returned after pagination.
+	///   - `total_records`: The total number of records available before pagination.
+	///   - `limit`: The limit used for pagination.
+	///   - `offset`: The offset used for pagination.
+	///   - `sort_order`: The sort order used for pagination.
+	/// - `txs`: A vector of [`TxLogEntry`](../epic_wallet_libwallet/types/struct.TxLogEntry.html)
+	///   objects, where each element represents a transaction log entry.
 	///
 	/// # Example
 	/// Set up as in [`new`](struct.Owner.html#method.new) method above.
 	/// ```
 	/// # epic_wallet_api::doctest_helper_setup_doc_env!(wallet, wallet_config);
 	///
-	/// let api_owner = Owner::new(wallet.clone(), None);
+	/// use std::sync::atomic::AtomicBool;
+	/// let api_owner = Owner::new(wallet.clone(), None, Arc::new(AtomicBool::new(true)));
 	/// let update_from_node = true;
 	/// let tx_id = None;
 	/// let tx_slate_id = None;
 	///
-	/// // Return all TxLogEntries
-	/// let result = api_owner.retrieve_txs(None, update_from_node, tx_id, tx_slate_id);
+	/// let result = api_owner.retrieve_txs(
+	///     None,           // keychain_mask
+	///     update_from_node, // refresh_from_node
+	///     tx_id,          // tx_id
+	///     tx_slate_id,    // tx_slate_id
+	///     Some(10),       // limit
+	///     Some(0),        // offset
+	///     Some("asc".to_string()), // sort_order
+	/// );
 	///
-	/// if let Ok((was_updated, tx_log_entries)) = result {
-	///		//...
+	/// if let Ok(txs_result) = result {
+	///     println!("Was updated: {}", txs_result.refresh_from_node);
+	///     println!("Records read: {}", txs_result.pager.records_read);
+	///     println!("Total records: {}", txs_result.pager.total_records);
+	///     println!("Limit: {}", txs_result.pager.limit);
+	///     println!("Offset: {}", txs_result.pager.offset);
+	///     println!("Sort order: {}", txs_result.pager.sort_order);
+	///
+	///     for tx in txs_result.txs {
+	///         println!("{:?}", tx);
+	///     }
 	/// }
 	/// ```
 
@@ -488,7 +547,10 @@ where
 		refresh_from_node: bool,
 		tx_id: Option<u32>,
 		tx_slate_id: Option<Uuid>,
-	) -> Result<(bool, Vec<TxLogEntry>), Error> {
+		limit: Option<usize>,
+		offset: Option<usize>,
+		sort_order: Option<String>,
+	) -> Result<RetrieveTxsResult, Error> {
 		let tx = {
 			let t = self.status_tx.lock();
 			t.clone()
@@ -497,6 +559,8 @@ where
 			true => false,
 			false => refresh_from_node,
 		};
+
+		// Call the updated `owner::retrieve_txs` with pagination and sorting
 		let mut res = owner::retrieve_txs(
 			self.wallet_inst.clone(),
 			keychain_mask,
@@ -504,10 +568,14 @@ where
 			refresh_from_node,
 			tx_id,
 			tx_slate_id,
+			limit,
+			offset,
+			sort_order,
 		)?;
+
 		if self.doctest_mode {
-			res.1 = res
-				.1
+			res.txs = res
+				.txs
 				.into_iter()
 				.map(|mut t| {
 					t.confirmation_ts = Some(Utc.with_ymd_and_hms(2019, 1, 15, 16, 1, 26).unwrap());
@@ -546,7 +614,8 @@ where
 	/// ```
 	/// # epic_wallet_api::doctest_helper_setup_doc_env!(wallet, wallet_config);
 	///
-	/// let mut api_owner = Owner::new(wallet.clone(), None);
+	/// use std::sync::atomic::AtomicBool;
+	/// let mut api_owner = Owner::new(wallet.clone(), None, Arc::new(AtomicBool::new(true)));
 	/// let update_from_node = true;
 	/// let minimum_confirmations=10;
 	///
@@ -632,7 +701,8 @@ where
 	/// ```
 	/// # epic_wallet_api::doctest_helper_setup_doc_env!(wallet, wallet_config);
 	///
-	/// let mut api_owner = Owner::new(wallet.clone(), None);
+	/// use std::sync::atomic::AtomicBool;
+	/// let mut api_owner = Owner::new(wallet.clone(), None, Arc::new(AtomicBool::new(true)));
 	/// // Attempt to create a transaction using the 'default' account
 	/// let args = InitTxArgs {
 	/// 	src_acct_name: None,
@@ -647,13 +717,14 @@ where
 	/// let result = api_owner.init_send_tx(
 	/// 	None,
 	/// 	args,
+	///  	Arc::new(AtomicBool::new(true))
 	/// );
 	///
 	/// if let Ok(slate) = result {
 	/// 	// Send slate somehow
 	/// 	// ...
 	/// 	// Lock our outputs if we're happy the slate was (or is being) sent
-	/// 	api_owner.tx_lock_outputs(None, &slate, 0);
+	/// 	api_owner.tx_lock_outputs(None, &slate, 0, None);
 	/// }
 	/// ```
 
@@ -661,6 +732,7 @@ where
 		&self,
 		keychain_mask: Option<&SecretKey>,
 		args: InitTxArgs,
+		is_node_synced: Arc<AtomicBool>,
 	) -> Result<Slate, Error> {
 		let send_args = args.send_args.clone();
 		let mut slate = {
@@ -695,11 +767,18 @@ where
 						None => None,
 						Some(&m) => Some(m.to_owned()),
 					};
-					slate = epicbox_channel.send(wallet, km, &slate)?;
+
+					slate = epicbox_channel.send(
+						wallet,
+						km,
+						&slate,
+						self.is_node_synced.clone(),
+						tor_config_lock.clone().unwrap_or_default(),
+					)?;
 					self.tx_lock_outputs(keychain_mask, &slate, 0, Some(sa.dest))?;
 					return Ok(slate);
 				} else {
-					let comm_adapter = create_sender(&sa.method, &sa.dest, tor_config_lock.clone())
+					let comm_adapter = create_sender(&sa.method, &sa.dest, is_node_synced)
 						.map_err(|e| Error::GenericError(format!("{}", e)))?;
 					slate = comm_adapter.send_tx(&slate)?;
 				}
@@ -741,7 +820,8 @@ where
 	/// ```
 	/// # epic_wallet_api::doctest_helper_setup_doc_env!(wallet, wallet_config);
 	///
-	/// let mut api_owner = Owner::new(wallet.clone(), None);
+	/// use std::sync::atomic::AtomicBool;
+	/// let mut api_owner = Owner::new(wallet.clone(), None, Arc::new(AtomicBool::new(true)));
 	///
 	/// let args = IssueInvoiceTxArgs {
 	/// 	amount: 60_000_000_000,
@@ -796,7 +876,8 @@ where
 	/// ```
 	/// # epic_wallet_api::doctest_helper_setup_doc_env!(wallet, wallet_config);
 	///
-	/// let mut api_owner = Owner::new(wallet.clone(), None);
+	/// use std::sync::atomic::AtomicBool;
+	/// let mut api_owner = Owner::new(wallet.clone(), None, Arc::new(AtomicBool::new(true)));
 	///
 	/// // . . .
 	/// // The slate has been recieved from the invoicer, somehow
@@ -862,7 +943,8 @@ where
 	/// ```
 	/// # epic_wallet_api::doctest_helper_setup_doc_env!(wallet, wallet_config);
 	///
-	/// let mut api_owner = Owner::new(wallet.clone(), None);
+	/// use std::sync::atomic::AtomicBool;
+	/// let mut api_owner = Owner::new(wallet.clone(), None, Arc::new(AtomicBool::new(true)));
 	/// let args = InitTxArgs {
 	/// 	src_acct_name: None,
 	/// 	amount: 2_000_000_000,
@@ -876,6 +958,7 @@ where
 	/// let result = api_owner.init_send_tx(
 	/// 	None,
 	/// 	args,
+	/// 	Arc::new(AtomicBool::new(true))
 	/// );
 	///
 	/// if let Ok(slate) = result {
@@ -927,7 +1010,8 @@ where
 	/// ```
 	/// # epic_wallet_api::doctest_helper_setup_doc_env!(wallet, wallet_config);
 	///
-	/// let mut api_owner = Owner::new(wallet.clone(), None);
+	/// use std::sync::atomic::AtomicBool;
+	/// let mut api_owner = Owner::new(wallet.clone(), None, Arc::new(AtomicBool::new(true)));
 	/// let args = InitTxArgs {
 	/// 	src_acct_name: None,
 	/// 	amount: 2_000_000_000,
@@ -941,13 +1025,14 @@ where
 	/// let result = api_owner.init_send_tx(
 	/// 	None,
 	/// 	args,
+	/// 	Arc::new(AtomicBool::new(true))
 	/// );
 	///
 	/// if let Ok(slate) = result {
 	///		// Send slate somehow
 	///		// ...
 	///		// Lock our outputs if we're happy the slate was (or is being) sent
-	///		let res = api_owner.tx_lock_outputs(None, &slate, 0);
+	///		let res = api_owner.tx_lock_outputs(None, &slate, 0, None);
 	///		//
 	///		// Retrieve slate back from recipient
 	///		//
@@ -987,7 +1072,8 @@ where
 	/// ```
 	/// # epic_wallet_api::doctest_helper_setup_doc_env!(wallet, wallet_config);
 	///
-	/// let mut api_owner = Owner::new(wallet.clone(), None);
+	/// use std::sync::atomic::AtomicBool;
+	/// let mut api_owner = Owner::new(wallet.clone(), None, Arc::new(AtomicBool::new(true)));
 	/// let args = InitTxArgs {
 	/// 	src_acct_name: None,
 	/// 	amount: 2_000_000_000,
@@ -1001,13 +1087,14 @@ where
 	/// let result = api_owner.init_send_tx(
 	/// 	None,
 	/// 	args,
+	/// 	Arc::new(AtomicBool::new(true))
 	/// );
 	///
 	/// if let Ok(slate) = result {
 	///		// Send slate somehow
 	///		// ...
 	///		// Lock our outputs if we're happy the slate was (or is being) sent
-	///		let res = api_owner.tx_lock_outputs(None, &slate, 0);
+	///		let res = api_owner.tx_lock_outputs(None, &slate, 0, None);
 	///		//
 	///		// Retrieve slate back from recipient
 	///		//
@@ -1031,6 +1118,62 @@ where
 		};
 
 		owner::post_tx(&client, tx, fluff)
+	}
+
+	/// Posts a completed transaction to a Tor .onion node for validation and inclusion in a block.
+	///
+	/// # Arguments
+	/// * `keychain_mask` - Wallet secret mask to XOR against the stored wallet seed before using, if being used.
+	/// * `tx` - A completed [`Transaction`](../epic_core/core/transaction/struct.Transaction.html).
+	/// * `tor_node_url` - The Tor .onion address of the node (e.g. "http://abc123.onion")
+	///
+	/// # Returns
+	/// * `Ok(())` if successful
+	/// * or [`libwallet::Error`](../epic_wallet_libwallet/struct.Error.html) if an error is encountered.
+	///
+	/// # Example
+	/// Set up as in [`new`](struct.Owner.html#method.new) method above.
+	/// ```
+	/// # epic_wallet_api::doctest_helper_setup_doc_env!(wallet, wallet_config);
+	///
+	/// use std::sync::atomic::AtomicBool;
+	/// let mut api_owner = Owner::new(wallet.clone(), None, Arc::new(AtomicBool::new(true)));
+	/// let args = epic_wallet_libwallet::InitTxArgs {
+	///     src_acct_name: None,
+	///     amount: 2_000_000_000,
+	///     minimum_confirmations: 10,
+	///     max_outputs: 500,
+	///     num_change_outputs: 1,
+	///     selection_strategy_is_use_all: false,
+	///     message: Some("Post this tx via Tor".to_owned()),
+	///     ..Default::default()
+	/// };
+	/// let result = api_owner.init_send_tx(
+	///     None,
+	///     args,
+	///     Arc::new(AtomicBool::new(true))
+	/// );
+	///
+	/// if let Ok(slate) = result {
+	///     // ... finalize and get the transaction ...
+	///     let tor_url = "http://exampleonionaddress.onion:3413";
+	///     let res = api_owner.post_tx_tor(None, &slate.tx, tor_url);
+	/// }
+	/// ```
+	pub fn post_tx_tor(
+		&self,
+		keychain_mask: Option<&SecretKey>,
+		tx: &Transaction,
+		tor_node_url: &str,
+	) -> Result<(), Error> {
+		let client = {
+			let mut w_lock = self.wallet_inst.lock();
+			let w = w_lock.lc_provider()?.wallet_inst()?;
+			let _ = w.keychain(keychain_mask)?;
+			w.w2n_client().clone()
+		};
+
+		owner::post_tx_tor(&client, tx, tor_node_url)
 	}
 
 	/// Cancels a transaction. This entails:
@@ -1060,7 +1203,8 @@ where
 	/// ```
 	/// # epic_wallet_api::doctest_helper_setup_doc_env!(wallet, wallet_config);
 	///
-	/// let mut api_owner = Owner::new(wallet.clone(), None);
+	///	use std::sync::atomic::AtomicBool;
+	/// let mut api_owner = Owner::new(wallet.clone(), None, Arc::new(AtomicBool::new(true)));
 	/// let args = InitTxArgs {
 	/// 	src_acct_name: None,
 	/// 	amount: 2_000_000_000,
@@ -1074,13 +1218,14 @@ where
 	/// let result = api_owner.init_send_tx(
 	/// 	None,
 	/// 	args,
+	/// 	Arc::new(AtomicBool::new(true))
 	/// );
 	///
 	/// if let Ok(slate) = result {
 	///		// Send slate somehow
 	///		// ...
 	///		// Lock our outputs if we're happy the slate was (or is being) sent
-	///		let res = api_owner.tx_lock_outputs(None, &slate, 0);
+	///		let res = api_owner.tx_lock_outputs(None, &slate, 0, None);
 	///		//
 	///		// We didn't get the slate back, or something else went wrong
 	///		//
@@ -1126,16 +1271,17 @@ where
 	/// ```
 	/// # epic_wallet_api::doctest_helper_setup_doc_env!(wallet, wallet_config);
 	///
-	/// let api_owner = Owner::new(wallet.clone(), None);
+	/// use std::sync::atomic::AtomicBool;
+	/// let api_owner = Owner::new(wallet.clone(), None, Arc::new(AtomicBool::new(true)));
 	/// let update_from_node = true;
 	/// let tx_id = None;
 	/// let tx_slate_id = None;
 	///
 	/// // Return all TxLogEntries
-	/// let result = api_owner.retrieve_txs(None, update_from_node, tx_id, tx_slate_id);
+	/// let result = api_owner.retrieve_txs(None, update_from_node, tx_id, tx_slate_id, None, None, None);
 	///
-	/// if let Ok((was_updated, tx_log_entries)) = result {
-	///		let stored_tx = api_owner.get_stored_tx(None, &tx_log_entries[0]).unwrap();
+	/// if let Ok(txs_result) = result {
+	///		let stored_tx = api_owner.get_stored_tx(None, &txs_result.txs[0]).unwrap();
 	///		//...
 	/// }
 	/// ```
@@ -1176,8 +1322,8 @@ where
 	/// Set up as in [`new`](struct.Owner.html#method.new) method above.
 	/// ```
 	/// # epic_wallet_api::doctest_helper_setup_doc_env!(wallet, wallet_config);
-	///
-	/// let mut api_owner = Owner::new(wallet.clone(), None);
+	/// use std::sync::atomic::AtomicBool;
+	/// let mut api_owner = Owner::new(wallet.clone(), None, Arc::new(AtomicBool::new(true)));
 	/// let args = InitTxArgs {
 	/// 	src_acct_name: None,
 	/// 	amount: 2_000_000_000,
@@ -1186,18 +1332,19 @@ where
 	/// 	num_change_outputs: 1,
 	/// 	selection_strategy_is_use_all: false,
 	/// 	message: Some("Just verify messages".to_owned()),
-	/// 	..Default::default()
+	/// 		..Default::default()
 	/// };
 	/// let result = api_owner.init_send_tx(
 	/// 	None,
 	/// 	args,
+	/// 	Arc::new(AtomicBool::new(true))
 	/// );
 	///
 	/// if let Ok(slate) = result {
 	///		// Send slate somehow
 	///		// ...
 	///		// Lock our outputs if we're happy the slate was (or is being) sent
-	///		let res = api_owner.tx_lock_outputs(None, &slate, 0);
+	///		let res = api_owner.tx_lock_outputs(None, &slate, 0, None);
 	///		//
 	///		// Retrieve slate back from recipient
 	///		//
@@ -1256,8 +1403,9 @@ where
 	/// Set up as in [`new`](struct.Owner.html#method.new) method above.
 	/// ```
 	/// # epic_wallet_api::doctest_helper_setup_doc_env!(wallet, wallet_config);
+	/// use std::sync::atomic::AtomicBool;
 	///
-	/// let mut api_owner = Owner::new(wallet.clone(), None);
+	/// let mut api_owner = Owner::new(wallet.clone(), None, Arc::new(AtomicBool::new(true)));
 	/// let result = api_owner.scan(
 	/// 	None,
 	/// 	Some(20000),
@@ -1315,7 +1463,8 @@ where
 	/// ```
 	/// # epic_wallet_api::doctest_helper_setup_doc_env!(wallet, wallet_config);
 	///
-	/// let api_owner = Owner::new(wallet.clone(), None);
+	/// use std::sync::atomic::AtomicBool;
+	/// let api_owner = Owner::new(wallet.clone(), None, Arc::new(AtomicBool::new(true)));
 	/// let result = api_owner.node_height(None);
 	///
 	/// if let Ok(node_height_result) = result {
@@ -1372,7 +1521,8 @@ where
 	/// ```
 	/// # epic_wallet_api::doctest_helper_setup_doc_env!(wallet, wallet_config);
 	///
-	/// let api_owner = Owner::new(wallet.clone(), None);
+	/// use std::sync::atomic::AtomicBool;
+	/// let api_owner = Owner::new(wallet.clone(), None, Arc::new(AtomicBool::new(true)));
 	/// let result = api_owner.get_top_level_directory();
 	///
 	/// if let Ok(dir) = result {
@@ -1411,6 +1561,8 @@ where
 	/// ```
 	/// # epic_wallet_api::doctest_helper_setup_doc_env!(wallet, wallet_config);
 	///
+	/// use std::sync::atomic::AtomicBool;
+	///
 	/// let dir = "path/to/wallet/dir";
 	///
 	/// # let dir = tempdir().map_err(|e| format!("{:#?}", e)).unwrap();
@@ -1420,7 +1572,7 @@ where
 	/// # 	.ok_or("Failed to convert tmpdir path to string.".to_owned())
 	/// # 	.unwrap();
 	///
-	/// let api_owner = Owner::new(wallet.clone(), None);
+	/// let api_owner = Owner::new(wallet.clone(), None, Arc::new(AtomicBool::new(true)));
 	/// let result = api_owner.set_top_level_directory(dir);
 	///
 	/// if let Ok(dir) = result {
@@ -1460,7 +1612,7 @@ where
 	/// # epic_wallet_api::doctest_helper_setup_doc_env!(wallet, wallet_config);
 	///
 	/// use epic_core::global::ChainTypes;
-	///
+	/// use std::sync::atomic::AtomicBool;
 	/// let dir = "path/to/wallet/dir";
 	///
 	/// # let dir = tempdir().map_err(|e| format!("{:#?}", e)).unwrap();
@@ -1470,7 +1622,7 @@ where
 	/// # 	.ok_or("Failed to convert tmpdir path to string.".to_owned())
 	/// # 	.unwrap();
 	///
-	/// let api_owner = Owner::new(wallet.clone(), None);
+	/// let api_owner = Owner::new(wallet.clone(), None, Arc::new(AtomicBool::new(true)));
 	/// let _ = api_owner.set_top_level_directory(dir);
 	///
 	/// let result = api_owner.create_config(&ChainTypes::Mainnet, None, None, None, None);
@@ -1529,7 +1681,7 @@ where
 	/// # epic_wallet_api::doctest_helper_setup_doc_env!(wallet, wallet_config);
 	///
 	/// use epic_core::global::ChainTypes;
-	///
+	/// use std::sync::atomic::AtomicBool;
 	///	// note that the WalletInst struct does not necessarily need to contain an
 	///	// instantiated wallet
 	///
@@ -1541,7 +1693,7 @@ where
 	/// # 	.to_str()
 	/// # 	.ok_or("Failed to convert tmpdir path to string.".to_owned())
 	/// # 	.unwrap();
-	/// let api_owner = Owner::new(wallet.clone(), None);
+	/// let api_owner = Owner::new(wallet.clone(), None, Arc::new(AtomicBool::new(true)));
 	/// let _ = api_owner.set_top_level_directory(dir);
 	///
 	/// // Create configuration
@@ -1597,7 +1749,7 @@ where
 	/// # epic_wallet_api::doctest_helper_setup_doc_env!(wallet, wallet_config);
 	///
 	/// use epic_core::global::ChainTypes;
-	///
+	///	use std::sync::atomic::AtomicBool;
 	///	// note that the WalletInst struct does not necessarily need to contain an
 	///	// instantiated wallet
 	/// let dir = "path/to/wallet/dir";
@@ -1608,7 +1760,7 @@ where
 	/// # 	.to_str()
 	/// # 	.ok_or("Failed to convert tmpdir path to string.".to_owned())
 	/// # 	.unwrap();
-	/// let api_owner = Owner::new(wallet.clone(), None);
+	/// let api_owner = Owner::new(wallet.clone(), None, Arc::new(AtomicBool::new(true)));
 	/// let _ = api_owner.set_top_level_directory(dir);
 	///
 	/// // Create configuration
@@ -1669,9 +1821,9 @@ where
 	/// # epic_wallet_api::doctest_helper_setup_doc_env!(wallet, wallet_config);
 	///
 	/// use epic_core::global::ChainTypes;
-	///
+	///	use std::sync::atomic::AtomicBool;
 	///	// Set up as above
-	/// # let api_owner = Owner::new(wallet.clone(), None);
+	/// # let api_owner = Owner::new(wallet.clone(), None, Arc::new(AtomicBool::new(true)));
 	///
 	/// let res = api_owner.close_wallet(None);
 	///
@@ -1705,9 +1857,9 @@ where
 	/// # epic_wallet_api::doctest_helper_setup_doc_env!(wallet, wallet_config);
 	///
 	/// use epic_core::global::ChainTypes;
-	///
+	///	use std::sync::atomic::AtomicBool;
 	///	// Set up as above
-	/// # let api_owner = Owner::new(wallet.clone(), None);
+	/// let api_owner = Owner::new(wallet.clone(), None, Arc::new(AtomicBool::new(true)));
 	///
 	///	let pw = ZeroingString::from("my_password");
 	/// let res = api_owner.get_mnemonic(None, pw);
@@ -1750,13 +1902,13 @@ where
 	/// # epic_wallet_api::doctest_helper_setup_doc_env!(wallet, wallet_config);
 	///
 	/// use epic_core::global::ChainTypes;
-	///
+	///	use std::sync::atomic::AtomicBool;
 	///	// Set up as above
-	/// # let api_owner = Owner::new(wallet.clone(), None);
+	/// let api_owner = Owner::new(wallet.clone(), None, Arc::new(AtomicBool::new(true)));
 	///
 	///	let old = ZeroingString::from("my_password");
 	///	let new = ZeroingString::from("new_password");
-	/// let res = api_owner.change_password(None, old, new);
+	/// let res = api_owner.change_password(None, old, new, false);
 	///
 	/// if let Ok(mne) = res {
 	///		// ...
@@ -1767,10 +1919,11 @@ where
 		name: Option<&str>,
 		old: ZeroingString,
 		new: ZeroingString,
+		remove_backup: bool,
 	) -> Result<(), Error> {
 		let mut w_lock = self.wallet_inst.lock();
 		let lc = w_lock.lc_provider()?;
-		lc.change_password(name, old, new)
+		lc.change_password(name, old, new, remove_backup)
 	}
 
 	/// Deletes a wallet, removing the config file, seed file and all data files.
@@ -1793,9 +1946,9 @@ where
 	/// # epic_wallet_api::doctest_helper_setup_doc_env!(wallet, wallet_config);
 	///
 	/// use epic_core::global::ChainTypes;
-	///
+	/// use std::sync::atomic::AtomicBool;
 	///	// Set up as above
-	/// # let api_owner = Owner::new(wallet.clone(), None);
+	/// let api_owner = Owner::new(wallet.clone(), None, Arc::new(AtomicBool::new(true)));
 	///
 	/// let res = api_owner.delete_wallet(None);
 	///
@@ -1847,11 +2000,11 @@ where
 	/// # epic_wallet_api::doctest_helper_setup_doc_env!(wallet, wallet_config);
 	///
 	/// use epic_core::global::ChainTypes;
-	///
+	/// use std::sync::atomic::AtomicBool;
 	/// use std::time::Duration;
 	///
 	/// // Set up as above
-	/// # let api_owner = Owner::new(wallet.clone(), None);
+	/// let api_owner = Owner::new(wallet.clone(), None, Arc::new(AtomicBool::new(true)));
 	///
 	/// let res = api_owner.start_updater(None, Duration::from_secs(60));
 	///
@@ -1903,11 +2056,11 @@ where
 	/// # epic_wallet_api::doctest_helper_setup_doc_env!(wallet, wallet_config);
 	///
 	/// use epic_core::global::ChainTypes;
-	///
+	/// use std::sync::atomic::AtomicBool;
 	/// use std::time::Duration;
 	///
 	/// // Set up as above
-	/// # let api_owner = Owner::new(wallet.clone(), None);
+	/// let api_owner = Owner::new(wallet.clone(), None, Arc::new(AtomicBool::new(true)));
 	///
 	/// let res = api_owner.start_updater(None, Duration::from_secs(60));
 	///
@@ -1945,11 +2098,11 @@ where
 	/// # epic_wallet_api::doctest_helper_setup_doc_env!(wallet, wallet_config);
 	///
 	/// use epic_core::global::ChainTypes;
-	///
+	/// use std::sync::atomic::AtomicBool;
 	/// use std::time::Duration;
 	///
 	/// // Set up as above
-	/// # let api_owner = Owner::new(wallet.clone(), None);
+	/// let api_owner = Owner::new(wallet.clone(), None, Arc::new(AtomicBool::new(true)));
 	///
 	/// let res = api_owner.start_updater(None, Duration::from_secs(60));
 	///
@@ -2009,11 +2162,11 @@ where
 	/// # epic_wallet_api::doctest_helper_setup_doc_env!(wallet, wallet_config);
 	///
 	/// use epic_core::global::ChainTypes;
-	///
+	/// use std::sync::atomic::AtomicBool;
 	/// use std::time::Duration;
 	///
 	/// // Set up as above
-	/// # let api_owner = Owner::new(wallet.clone(), None);
+	/// let api_owner = Owner::new(wallet.clone(), None, Arc::new(AtomicBool::new(true)));
 	///
 	/// let res = api_owner.get_public_address(None, 0);
 	///
@@ -2091,11 +2244,11 @@ where
 	/// # epic_wallet_api::doctest_helper_setup_doc_env!(wallet, wallet_config);
 	///
 	/// use epic_core::global::ChainTypes;
-	///
+	/// use std::sync::atomic::AtomicBool;
 	/// use std::time::Duration;
 	///
 	/// // Set up as above
-	/// # let api_owner = Owner::new(wallet.clone(), None);
+	/// let api_owner = Owner::new(wallet.clone(), None, Arc::new(AtomicBool::new(true)));
 	///
 	/// let res = api_owner.get_public_proof_address(None, 0);
 	///
@@ -2137,11 +2290,11 @@ where
 	/// # epic_wallet_api::doctest_helper_setup_doc_env!(wallet, wallet_config);
 	///
 	/// use epic_core::global::ChainTypes;
-	///
+	/// use std::sync::atomic::AtomicBool;
 	/// use std::time::Duration;
 	///
 	/// // Set up as above
-	/// # let api_owner = Owner::new(wallet.clone(), None);
+	/// let api_owner = Owner::new(wallet.clone(), None, Arc::new(AtomicBool::new(true)));
 	///
 	/// let res = api_owner.proof_address_from_onion_v3(
 	///  "2a6at2obto3uvkpkitqp4wxcg6u36qf534eucbskqciturczzc5suyid"
@@ -2189,7 +2342,8 @@ where
 	/// ```
 	/// # epic_wallet_api::doctest_helper_setup_doc_env!(wallet, wallet_config);
 	///
-	/// let api_owner = Owner::new(wallet.clone(), None);
+	/// use std::sync::atomic::AtomicBool;
+	/// let api_owner = Owner::new(wallet.clone(), None, Arc::new(AtomicBool::new(true)));
 	/// let update_from_node = true;
 	/// let tx_id = None;
 	/// let tx_slate_id = Some(Uuid::parse_str("0436430c-2b02-624c-2032-570501212b00").unwrap());
@@ -2257,8 +2411,8 @@ where
 	/// Set up as in [`new`](struct.Owner.html#method.new) method above.
 	/// ```
 	/// # epic_wallet_api::doctest_helper_setup_doc_env!(wallet, wallet_config);
-	///
-	/// let api_owner = Owner::new(wallet.clone(), None);
+	///	use std::sync::atomic::AtomicBool;
+	/// let api_owner = Owner::new(wallet.clone(), None, Arc::new(AtomicBool::new(true)));
 	/// let update_from_node = true;
 	/// let tx_id = None;
 	/// let tx_slate_id = Some(Uuid::parse_str("0436430c-2b02-624c-2032-570501212b00").unwrap());
@@ -2282,6 +2436,34 @@ where
 		proof: &PaymentProof,
 	) -> Result<(bool, bool), Error> {
 		owner::verify_payment_proof(self.wallet_inst.clone(), keychain_mask, proof)
+	}
+
+	/// Updates the mempool status for a given slate.
+	pub fn update_mempool_status(
+		&self,
+		keychain_mask: Option<&SecretKey>,
+		slate: &Slate,
+	) -> Result<(), Error> {
+		let mut w_lock = self.wallet_inst.lock();
+		let w = w_lock.lc_provider()?.wallet_inst()?;
+		crate::libwallet::api_impl::owner::update_mempool_status(&mut **w, keychain_mask, slate)
+	}
+
+	/// Wait for a transaction to appear in the mempool.
+	pub fn wait_for_tx_in_mempool(
+		&self,
+		mask: Option<&SecretKey>,
+		tx_slate_id: &Uuid,
+		poll_interval_secs: u64,
+		max_attempts: u32,
+	) -> Result<bool, Error> {
+		crate::libwallet::api_impl::owner::wait_for_tx_in_mempool(
+			self.wallet_inst.clone(),
+			mask,
+			tx_slate_id,
+			poll_interval_secs,
+			max_attempts,
+		)
 	}
 }
 
@@ -2324,7 +2506,7 @@ macro_rules! doctest_helper_setup_doc_env {
 			DefaultWalletImpl::<'static, HTTPNodeClient>::new(node_client.clone()).unwrap(),
 		)
 			as Box<
-				WalletInst<
+				dyn WalletInst<
 					'static,
 					DefaultLCProvider<HTTPNodeClient, ExtKeychain>,
 					HTTPNodeClient,

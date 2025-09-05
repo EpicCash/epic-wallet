@@ -12,9 +12,6 @@
 // limitations under the License.
 
 #[macro_use]
-extern crate clap;
-
-#[macro_use]
 extern crate log;
 
 extern crate epic_wallet;
@@ -22,7 +19,6 @@ extern crate epic_wallet;
 use epic_wallet_api::{ECDHPubkey, RpcId};
 use epic_wallet_impls::test_framework::{self, LocalWalletClient, WalletProxy};
 
-use clap::App;
 use std::thread;
 use std::time::Duration;
 
@@ -33,6 +29,7 @@ use serde_json;
 
 use epic_wallet_util::epic_util::Mutex;
 use std::path::PathBuf;
+use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
 #[macro_use]
@@ -47,9 +44,6 @@ use common::{
 fn owner_v3_lifecycle() -> Result<(), epic_wallet_controller::Error> {
 	let test_dir = "target/test_output/owner_v3_lifecycle";
 	setup(test_dir);
-
-	let yml = load_yaml!("../src/bin/epic-wallet.yml");
-	let app = App::from_yaml(yml);
 
 	// Create a new proxy to simulate server and wallet responses
 	let wallet_proxy_a: Arc<
@@ -68,8 +62,8 @@ fn owner_v3_lifecycle() -> Result<(), epic_wallet_controller::Error> {
 		// Create wallet 2 manually, which will mine a bit and insert some
 		// epics into the equation
 		let client2 = LocalWalletClient::new("wallet2", wallet_proxy.tx.clone());
-		let arg_vec = vec!["epic-wallet", "-p", "password", "init", "-h"];
-		execute_command(&app, test_dir, "wallet2", &client2, arg_vec.clone()).unwrap();
+		let arg_vec = vec!["epic-wallet", "-p", "password", "init", "-w"];
+		execute_command(test_dir, "wallet2", &client2, arg_vec.clone()).unwrap();
 
 		let config2 = initial_setup_wallet(test_dir, "wallet2");
 		let wallet_config2 = config2.clone().members.unwrap().wallet;
@@ -95,10 +89,7 @@ fn owner_v3_lifecycle() -> Result<(), epic_wallet_controller::Error> {
 		let p = wallet_proxy_a.clone();
 
 		thread::spawn(move || {
-			let yml = load_yaml!("../src/bin/epic-wallet.yml");
-			let app = App::from_yaml(yml);
 			execute_command_no_setup(
-				&app,
 				test_dir,
 				"wallet1",
 				&client1,
@@ -121,6 +112,7 @@ fn owner_v3_lifecycle() -> Result<(), epic_wallet_controller::Error> {
 	thread::sleep(Duration::from_millis(500));
 	let mask2 = (&mask2_i).as_ref();
 	let wallet_proxy = wallet_proxy_a.clone();
+	let is_node_synced = Arc::new(AtomicBool::new(true));
 
 	// Set the wallet proxy listener running
 	thread::spawn(move || {
@@ -393,23 +385,28 @@ fn owner_v3_lifecycle() -> Result<(), epic_wallet_controller::Error> {
 	let mut slate: Slate = res.unwrap().into();
 
 	// give this slate over to wallet 2 manually
-	epic_wallet_controller::controller::owner_single_use(wallet2.clone(), mask2, |api, m| {
-		let args = InitTxArgs {
-			src_acct_name: None,
-			amount: slate.amount,
-			minimum_confirmations: 1,
-			max_outputs: 500,
-			num_change_outputs: 1,
-			selection_strategy_is_use_all: false,
-			..Default::default()
-		};
-		let res = api.process_invoice_tx(m, &slate, args);
-		assert!(res.is_ok());
-		slate = res.unwrap();
-		api.tx_lock_outputs(m, &slate, 0, None)?;
+	epic_wallet_controller::controller::owner_single_use(
+		wallet2.clone(),
+		mask2,
+		|api, m| {
+			let args = InitTxArgs {
+				src_acct_name: None,
+				amount: slate.amount,
+				minimum_confirmations: 1,
+				max_outputs: 500,
+				num_change_outputs: 1,
+				selection_strategy_is_use_all: false,
+				..Default::default()
+			};
+			let res = api.process_invoice_tx(m, &slate, args);
+			assert!(res.is_ok());
+			slate = res.unwrap();
+			api.tx_lock_outputs(m, &slate, 0, None)?;
 
-		Ok(())
-	})
+			Ok(())
+		},
+		is_node_synced.clone(),
+	)
 	.unwrap();
 
 	//16) Finalize the invoice tx (to foreign api)

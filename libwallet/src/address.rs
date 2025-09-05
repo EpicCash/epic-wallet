@@ -21,8 +21,8 @@ use crate::Error;
 use epic_wallet_util::epic_keychain::{ChildNumber, Identifier, Keychain, SwitchCommitmentType};
 
 use data_encoding::BASE32;
-use ed25519_dalek::PublicKey as DalekPublicKey;
-use ed25519_dalek::SecretKey as DalekSecretKey;
+use ed25519_dalek::SigningKey as DalekSecretKey;
+use ed25519_dalek::VerifyingKey as DalekPublicKey;
 
 use sha3::{Digest, Sha3_256};
 
@@ -47,9 +47,7 @@ where
 	key_path.depth = key_path.depth + 1;
 	key_path.path[key_path.depth as usize - 1] = ChildNumber::from(index);
 	let key_id = Identifier::from_path(&key_path);
-	let sec_key = keychain
-		.derive_key(0, &key_id, &SwitchCommitmentType::None)
-		.map_err(|e| Error::Keychain(e).to_owned())?;
+	let sec_key = keychain.derive_key(0, &key_id, &SwitchCommitmentType::None)?;
 	let hashed = blake2b(32, &[], &sec_key.0[..]);
 	Ok(SecretKey::from_slice(
 		&keychain.secp(),
@@ -59,12 +57,8 @@ where
 
 /// Output ed25519 keypair given an rust_secp256k1 SecretKey
 pub fn ed25519_keypair(sec_key: &SecretKey) -> Result<(DalekSecretKey, DalekPublicKey), Error> {
-	let d_skey = match DalekSecretKey::from_bytes(&sec_key.0) {
-		Ok(k) => k,
-		Err(e) => {
-			return Err(Error::ED25519Key(format!("{}", e)).to_owned())?;
-		}
-	};
+	let d_skey = DalekSecretKey::from_bytes(&sec_key.0);
+
 	let d_pub_key: DalekPublicKey = (&d_skey).into();
 	Ok((d_skey, d_pub_key))
 }
@@ -73,10 +67,17 @@ pub fn ed25519_keypair(sec_key: &SecretKey) -> Result<(DalekSecretKey, DalekPubl
 pub fn ed25519_parse_pubkey(pub_key: &str) -> Result<DalekPublicKey, Error> {
 	let bytes =
 		from_hex(pub_key.to_owned()).map_err(|e| Error::AddressDecoding(format!("{}", e)))?;
-	match DalekPublicKey::from_bytes(&bytes) {
+
+	// Ensure the bytes vector has exactly 32 bytes
+	let array: &[u8; 32] = bytes
+		.as_slice()
+		.try_into()
+		.map_err(|_| Error::AddressDecoding("Public key must be 32 bytes".to_owned()))?;
+
+	match DalekPublicKey::from_bytes(array) {
 		Ok(k) => Ok(k),
 		Err(_) => {
-			return Err(Error::AddressDecoding("Not a valid public key".to_owned()).to_owned())?;
+			return Err(Error::AddressDecoding("Not a valid public key".to_owned()))?;
 		}
 	}
 }
@@ -98,19 +99,26 @@ pub fn pubkey_from_onion_v3(onion_address: &str) -> Result<DalekPublicKey, Error
 			"Input address is wrong length".into(),
 		))?;
 	}
+
 	let mut address = BASE32
 		.decode(input.as_bytes())
 		.map_err(|_| Error::AddressDecoding("Input address is not base 32".into()))?
 		.to_vec();
 
 	let _ = address.split_off(32);
-	let key = match DalekPublicKey::from_bytes(&address) {
+
+	// Ensure the bytes vector has exactly 32 bytes
+	let array: &[u8; 32] = address
+		.as_slice()
+		.try_into()
+		.map_err(|_| Error::AddressDecoding("Public key must be 32 bytes".to_owned()))?;
+
+	let key = match DalekPublicKey::from_bytes(array) {
 		Ok(k) => k,
 		Err(_) => {
 			return Err(Error::AddressDecoding(
 				"Provided onion V3 address is invalid (parsing key)".to_owned(),
-			)
-			.to_owned())?;
+			))?;
 		}
 	};
 	let test_v3 = match onion_v3_from_pubkey(&key) {
@@ -118,16 +126,14 @@ pub fn pubkey_from_onion_v3(onion_address: &str) -> Result<DalekPublicKey, Error
 		Err(_) => {
 			return Err(Error::AddressDecoding(
 				"Provided onion V3 address is invalid (converting from pubkey)".to_owned(),
-			)
-			.to_owned())?;
+			))?;
 		}
 	};
 
 	if test_v3.to_uppercase() != orig_address_raw.to_uppercase() {
 		return Err(Error::AddressDecoding(
 			"Provided onion V3 address is invalid (no match)".to_owned(),
-		)
-		.to_owned())?;
+		))?;
 	}
 	Ok(key)
 }
@@ -136,10 +142,10 @@ pub fn pubkey_from_onion_v3(onion_address: &str) -> Result<DalekPublicKey, Error
 pub fn onion_v3_from_pubkey(pub_key: &DalekPublicKey) -> Result<String, Error> {
 	// calculate checksum
 	let mut hasher = Sha3_256::new();
-	hasher.input(b".onion checksum");
-	hasher.input(pub_key.as_bytes());
-	hasher.input([0x03u8]);
-	let checksum = hasher.result();
+	hasher.update(b".onion checksum");
+	hasher.update(pub_key.as_bytes());
+	hasher.update([0x03u8]);
+	let checksum = hasher.finalize();
 
 	let mut address_bytes = pub_key.as_bytes().to_vec();
 	address_bytes.push(checksum[0]);

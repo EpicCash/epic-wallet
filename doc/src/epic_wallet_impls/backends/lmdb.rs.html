@@ -773,7 +773,7 @@
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::util</span>::{<span class="self">self</span>, <span class="ident">secp</span>};
 
 <span class="kw">use</span> <span class="ident">rand::rngs::mock::StepRng</span>;
-<span class="kw">use</span> <span class="ident">rand::thread_rng</span>;
+<span class="kw">use</span> <span class="ident">rand::rng</span>;
 
 <span class="kw">pub</span> <span class="kw">const</span> <span class="ident">DB_DIR</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span> <span class="op">=</span> <span class="string">&quot;db&quot;</span>;
 <span class="kw">pub</span> <span class="kw">const</span> <span class="ident">TX_SAVE_DIR</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span> <span class="op">=</span> <span class="string">&quot;saved_txs&quot;</span>;
@@ -937,7 +937,7 @@
 							<span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">test_rng</span> <span class="op">=</span> <span class="ident">StepRng::new</span>(<span class="number">1234567890u64</span>, <span class="number">1</span>);
 							<span class="ident">secp::key::SecretKey::new</span>(<span class="kw-2">&amp;</span><span class="ident">k</span>.<span class="ident">secp</span>(), <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">test_rng</span>)
 						}
-						<span class="bool-val">false</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">secp::key::SecretKey::new</span>(<span class="kw-2">&amp;</span><span class="ident">k</span>.<span class="ident">secp</span>(), <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">thread_rng</span>()),
+						<span class="bool-val">false</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">secp::key::SecretKey::new</span>(<span class="kw-2">&amp;</span><span class="ident">k</span>.<span class="ident">secp</span>(), <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">rng</span>()),
 					};
 					<span class="ident">k</span>.<span class="ident">mask_master_key</span>(<span class="kw-2">&amp;</span><span class="ident">mask_value</span>)<span class="question-mark">?</span>;
 					<span class="prelude-val">Some</span>(<span class="ident">mask_value</span>)

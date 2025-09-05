@@ -30,6 +30,7 @@ use std::time::{Duration, Instant};
 
 use crate::keychain::Keychain;
 use crate::util::secp::key::SecretKey;
+use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
 const TTL: u16 = 60; // TODO: Pass this as a parameter
@@ -353,6 +354,7 @@ impl SlateReceiver for KeybaseAllChannels {
 		wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K> + 'static>>>,
 		keychain_mask: Arc<Mutex<Option<SecretKey>>>,
 		config: WalletConfig,
+		is_node_synced: Arc<AtomicBool>,
 	) -> Result<(), Error>
 	where
 		L: WalletLCProvider<'static, C, K> + 'static,
@@ -367,6 +369,13 @@ impl SlateReceiver for KeybaseAllChannels {
 
 		info!("Listening for transactions on keybase ...");
 		loop {
+			// Check if node is synced before listening
+			if !is_node_synced.load(std::sync::atomic::Ordering::Relaxed) {
+				error!("Node is not synced, exiting keybase listener");
+				sleep(LISTEN_SLEEP_DURATION);
+				continue;
+			}
+
 			// listen for messages from all channels with topic SLATE_NEW
 			let unread = get_unread(SLATE_NEW);
 			if unread.is_err() {

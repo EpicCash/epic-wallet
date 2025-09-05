@@ -19,9 +19,9 @@ use crate::epic_util::secp::pedersen;
 use crate::slate_versions::ser as dalek_ser;
 use crate::slate_versions::SlateVersion;
 use crate::types::OutputData;
-
-use ed25519_dalek::PublicKey as DalekPublicKey;
+use crate::types::TxLogEntry;
 use ed25519_dalek::Signature as DalekSignature;
+use ed25519_dalek::VerifyingKey as DalekPublicKey;
 
 pub use crate::epic_core::core::block_fees::BlockFees;
 /// Send TX API Args
@@ -169,7 +169,42 @@ impl Default for IssueInvoiceTxArgs {
 		}
 	}
 }
+/// Struct to encapsulate the result of `retrieve_outputs`
+#[derive(Serialize, Deserialize, Debug)]
+pub struct RetrieveOutputsResult {
+	/// Indicates whether the data was refreshed from the node
+	pub refresh_from_node: bool,
+	/// Pagination metadata
+	pub pager: Pager,
+	/// The actual outputs     
+	pub outputs: Vec<OutputCommitMapping>,
+}
 
+/// Struct to encapsulate the result of `retrieve_txs`
+#[derive(Serialize, Deserialize, Debug)]
+pub struct RetrieveTxsResult {
+	/// Indicates whether the data was refreshed from the node
+	pub refresh_from_node: bool,
+	/// Pagination metadata
+	pub pager: Pager,
+	/// The actual transaction log entries
+	pub txs: Vec<TxLogEntry>,
+}
+
+/// Struct to encapsulate pagination metadata
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Pager {
+	/// Number of records returned after pagination
+	pub records_read: usize,
+	/// Total number of records available before pagination
+	pub total_records: usize,
+	/// Limit used for pagination
+	pub limit: usize,
+	/// Offset used for pagination      
+	pub offset: usize,
+	/// Sort order used for pagination ("asc" or "desc")     
+	pub sort_order: String,
+}
 /// Map Outputdata to commits
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct OutputCommitMapping {
