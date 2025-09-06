@@ -32,6 +32,9 @@ pub struct WalletConfig {
     pub api_listen_port: u16,
     /// The port this wallet's owner API will run on
     pub owner_api_listen_port: Option<u16>,
+    /// The owner api interface is 127.0.0.1 by default.
+    /// Do not expose to 0.0.0.0 unless you need to.
+    pub owner_api_interface: Option<String>,
     /// Location of the secret for basic auth on the Owner API
     pub api_secret_path: Option<String>,
     /// Location of the node api secret for basic auth on the Epic API
@@ -59,11 +62,16 @@ pub struct WalletConfig {
 
 impl Default for WalletConfig {
     fn default() -> WalletConfig {
+        //TODO:
+        /*
+        used? dark_background_color_scheme
+        */
         WalletConfig {
             chain_type: Some(ChainTypes::Mainnet),
             api_listen_interface: "127.0.0.1".to_string(),
             api_listen_port: 3415,
             owner_api_listen_port: Some(WalletConfig::default_owner_api_listen_port()),
+            owner_api_interface: Some(WalletConfig::default_owner_api_interface()),
             api_secret_path: Some(".owner_api_secret".to_string()),
             node_api_secret_path: Some(".api_secret".to_string()),
             check_node_api_http_addr: "http://127.0.0.1:3413".to_string(),
@@ -95,9 +103,27 @@ impl WalletConfig {
             .unwrap_or(WalletConfig::default_owner_api_listen_port())
     }
 
+    /// default interface address of owner_api
+    pub fn default_owner_api_interface() -> String {
+        "127.0.0.1".to_string()
+    }
+
+    /// return owner_api interface default 127.0.0.1
+    pub fn owner_api_interface(&self) -> String {
+        if let Some(ref iface) = self.owner_api_interface {
+            iface.clone()
+        } else {
+            WalletConfig::default_owner_api_interface()
+        }
+    }
+
     /// Owner API listen address
     pub fn owner_api_listen_addr(&self) -> String {
-        format!("127.0.0.1:{}", self.owner_api_listen_port())
+        format!(
+            "{}:{}",
+            self.owner_api_interface(),
+            self.owner_api_listen_port()
+        )
     }
 }
 /// Error type wrapping config errors.
