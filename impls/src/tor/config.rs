@@ -380,8 +380,8 @@ mod tests {
 	use ed25519_dalek::{Signer, Verifier};
 
 	use rand::rng;
-	use rand::{SeedableRng, rngs::StdRng};
 
+	use crate::mock_rng::StepRng;
 	use crate::util::{self, secp, static_secp_instance};
 
 	pub fn clean_output_dir(test_dir: &str) {
@@ -397,7 +397,7 @@ mod tests {
 	fn gen_ed25519_pub_key() -> Result<(), Error> {
 		let secp_inst = static_secp_instance();
 		let secp = secp_inst.lock();
-		let mut test_rng = StdRng::seed_from_u64(1234567890u64);
+		let mut test_rng = StepRng::new(1234567890u64, 1);
 		let sec_key = secp::key::SecretKey::new(&secp, &mut test_rng);
 		println!("{:?}", sec_key);
 		let (_, d_pub_key) = address::ed25519_keypair(&sec_key)?;
@@ -414,7 +414,7 @@ mod tests {
 	fn gen_onion_address() -> Result<(), Error> {
 		let secp_inst = static_secp_instance();
 		let secp = secp_inst.lock();
-		let mut test_rng = StdRng::seed_from_u64(1234567890u64);
+		let mut test_rng = StepRng::new(1234567890u64, 1);
 		let sec_key = secp::key::SecretKey::new(&secp, &mut test_rng);
 		println!("{:?}", sec_key);
 		let (_, d_pub_key) = address::ed25519_keypair(&sec_key)?;
@@ -433,7 +433,7 @@ mod tests {
 		setup(test_dir);
 		let secp_inst = static_secp_instance();
 		let secp = secp_inst.lock();
-		let mut test_rng = StdRng::seed_from_u64(1234567890u64);
+		let mut test_rng = StepRng::new(1234567890u64, 1);
 		let sec_key = secp::key::SecretKey::new(&secp, &mut test_rng);
 		output_onion_service_config(test_dir, &sec_key)?;
 		clean_output_dir(test_dir);
@@ -446,7 +446,7 @@ mod tests {
 		setup(test_dir);
 		let secp_inst = static_secp_instance();
 		let secp = secp_inst.lock();
-		let mut test_rng = StdRng::seed_from_u64(1234567890u64);
+		let mut test_rng = StepRng::new(1234567890u64, 1);
 		let sec_key = secp::key::SecretKey::new(&secp, &mut test_rng);
 		output_tor_listener_config(test_dir, "127.0.0.1:3415", &vec![sec_key])?;
 		clean_output_dir(test_dir);
@@ -510,7 +510,7 @@ mod tests {
 	fn test_ed25519_keypair_deterministic() -> Result<(), Error> {
 		let secp_inst = static_secp_instance();
 		let secp = secp_inst.lock();
-		let mut test_rng = StdRng::seed_from_u64(1234567890u64);
+		let mut test_rng = StepRng::new(1234567890u64, 1);
 		let sec_key = secp::key::SecretKey::new(&secp, &mut test_rng);
 
 		// Call ed25519_keypair multiple times with the same sec_key
@@ -600,7 +600,7 @@ mod tests {
 		// Test that our current wallet key generation is compatible with Ed25519 standard
 		let secp_inst = static_secp_instance();
 		let secp = secp_inst.lock();
-		let mut test_rng = StdRng::seed_from_u64(1234567890u64);
+		let mut test_rng = StepRng::new(1234567890u64, 1);
 		let sec_key = secp::key::SecretKey::new(&secp, &mut test_rng);
 
 		// Generate keys using our wallet's method

@@ -27,13 +27,13 @@ use crate::util::secp::constants::SECRET_KEY_SIZE;
 use crate::util::secp::key::SecretKey;
 use crate::util::{self, secp};
 use rand::rng;
-use rand::{SeedableRng, rngs::StdRng};
 use std::cell::RefCell;
 use std::fs::File;
 use std::io::{Read, Write};
 use std::marker::PhantomData;
 use std::path::Path;
 use std::{fs, path};
+use crate::mock_rng::StepRng;
 
 pub const DB_DIR: &'static str = "db";
 const SQLITE_DIR: &'static str = "sqlite";
@@ -196,7 +196,7 @@ where
 					// before it is used
 					let mask_value = match use_test_rng {
 						true => {		
-							let mut test_rng = StdRng::seed_from_u64(1234567890u64);
+							let mut test_rng = StepRng::new(1234567890u64, 1);
 							secp::key::SecretKey::new(&k.secp(), &mut test_rng)
 						}
 						false => secp::key::SecretKey::new(&k.secp(), &mut rng()),
