@@ -27,7 +27,7 @@ use crate::util::secp::constants::SECRET_KEY_SIZE;
 use crate::util::secp::key::SecretKey;
 use crate::util::{self, secp};
 use rand::rng;
-use rand::rngs::mock::StepRng;
+use rand::{SeedableRng, rngs::StdRng};
 use std::cell::RefCell;
 use std::fs::File;
 use std::io::{Read, Write};
@@ -195,8 +195,8 @@ where
 					// Random value that must be XORed against the stored wallet seed
 					// before it is used
 					let mask_value = match use_test_rng {
-						true => {
-							let mut test_rng = StepRng::new(1234567890u64, 1);
+						true => {		
+							let mut test_rng = StdRng::seed_from_u64(1234567890u64);
 							secp::key::SecretKey::new(&k.secp(), &mut test_rng)
 						}
 						false => secp::key::SecretKey::new(&k.secp(), &mut rng()),

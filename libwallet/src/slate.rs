@@ -36,7 +36,7 @@ use ed25519_dalek::Signature as DalekSignature;
 use ed25519_dalek::VerifyingKey as DalekPublicKey;
 
 use rand::rng;
-use rand::rngs::mock::StepRng;
+use rand::{SeedableRng, rngs::StdRng};
 use serde::ser::{Serialize, Serializer};
 use serde_json;
 use std::fmt;
@@ -517,8 +517,8 @@ impl Slate {
 		self.tx.offset = match use_test_rng {
 			false => BlindingFactor::from_secret_key(SecretKey::new(&keychain.secp(), &mut rng())),
 			true => {
-				// allow for consistent test results
-				let mut test_rng = StepRng::new(1234567890u64, 1);
+				// allow for consistent test results		
+				let mut test_rng = StdRng::seed_from_u64(1234567890u64);
 				BlindingFactor::from_secret_key(SecretKey::new(&keychain.secp(), &mut test_rng))
 			}
 		};
