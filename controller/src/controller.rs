@@ -15,7 +15,7 @@
 //! Controller for wallet.. instantiates and handles listeners (or single-run
 //! invocations) as needed.
 use crate::api::{
-	self, boxed_body, ApiServer, BasicAuthMiddleware, BoxBodyType, ResponseFuture, Router,
+	self, boxed_body, BasicAuthURIMiddleware, ApiServer, BoxBodyType, ResponseFuture, Router,
 	TLSConfig,
 };
 use crate::config::{EpicboxConfig, TorConfig};
@@ -140,10 +140,10 @@ where
 	if api_secret.is_some() {
 		let api_basic_auth =
 			"Basic ".to_string() + &to_base64(&("epic:".to_string() + &api_secret.unwrap()));
-		let basic_auth_middleware = Arc::new(BasicAuthMiddleware::new(
+		let basic_auth_middleware = Arc::new(BasicAuthURIMiddleware::new(
 			api_basic_auth,
 			&EPIC_OWNER_BASIC_REALM,
-			Some("/v2/foreign".into()),
+			"/v2/foreign".to_string(),
 		));
 		router.add_middleware(basic_auth_middleware);
 	}

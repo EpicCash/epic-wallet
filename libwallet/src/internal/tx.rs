@@ -625,8 +625,7 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
-    use rand::rngs::mock::StepRng;
-
+    use rand::{SeedableRng, rngs::StdRng};
     use crate::epic_core::core::KernelFeatures;
     use crate::epic_core::libtx::{build, ProofBuilder};
     use crate::epic_keychain::{
@@ -665,7 +664,7 @@ mod test {
     fn payment_proof_construction() {
         let secp_inst = static_secp_instance();
         let secp = secp_inst.lock();
-        let mut test_rng = StepRng::new(1234567890u64, 1);
+        let mut test_rng = StdRng::seed_from_u64(1234567890u64);
         let sec_key = secp::key::SecretKey::new(&secp, &mut test_rng);
         let d_skey = DalekSecretKey::from_bytes(&sec_key.0);
 

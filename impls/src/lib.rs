@@ -31,6 +31,7 @@ use epic_wallet_util::epic_core as core;
 use epic_wallet_util::epic_keychain as keychain;
 use epic_wallet_util::epic_store as store;
 use epic_wallet_util::epic_util as util;
+use epic_wallet_util::mock_rng as mock_rng;
 
 mod adapters;
 mod backends;

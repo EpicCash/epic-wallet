@@ -160,8 +160,8 @@ pub mod option_dalek_sig_serde {
 #[cfg(test)]
 mod test {
 	use super::*;
-	use rand::rngs::mock::StepRng;
 
+	use epic_wallet_util::mock_rng::StepRng;
 	use crate::epic_util::{secp, static_secp_instance};
 
 	use ed25519_dalek::Signature as DalekSignature;
@@ -189,6 +189,7 @@ mod test {
 			let secp_inst = static_secp_instance();
 			let secp = secp_inst.lock();
 			let mut test_rng = StepRng::new(1234567890u64, 1);
+			
 
 			// Generate a secp256k1 secret key
 			let sec_key = secp::key::SecretKey::new(&secp, &mut test_rng);

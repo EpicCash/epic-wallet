@@ -380,8 +380,8 @@ mod tests {
 	use ed25519_dalek::{Signer, Verifier};
 
 	use rand::rng;
-	use rand::rngs::mock::StepRng;
 
+	use crate::mock_rng::StepRng;
 	use crate::util::{self, secp, static_secp_instance};
 
 	pub fn clean_output_dir(test_dir: &str) {

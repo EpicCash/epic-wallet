@@ -26,3 +26,5 @@ pub use epic_core;
 pub use epic_keychain;
 pub use epic_store;
 pub use epic_util;
+/// Mock random number generator utilities for tests.
+pub mod mock_rng;
