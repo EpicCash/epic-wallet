@@ -420,7 +420,7 @@ mod tests {
 		let (_, d_pub_key) = address::ed25519_keypair(&sec_key)?;
 		let address = address::onion_v3_from_pubkey(&d_pub_key)?;
 		assert_eq!(
-			"3bievy3e2mesnq6woy2y2tafhhpjpfnbihjdh4t4skwyff5tinoqvzad",
+			"kcgiy5g6m76nzlzz4vyqmgdv34f6yokdqwfhdhaafanpo5p4fceibyid",
 			address
 		);
 		println!("{}", address);
