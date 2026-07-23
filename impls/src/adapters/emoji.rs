@@ -1103,7 +1103,7 @@ impl EmojiSlate {
 	}
 
 	fn translate2string(&self, emoji_string: &str) -> String {
-		let mut content = "".to_owned();
+		let mut content: Vec<u8> = Vec::new();
 		let mut bit_vec: BitVec = BitVec::new();
 
 		for i in 0..emoji_string.len() {
@@ -1140,10 +1140,10 @@ impl EmojiSlate {
 			for j in i..(i + 8) {
 				bit_vec_8b_slice.push(bit_vec[j]);
 			}
-			content.push(self.bitvec2byte(bit_vec_8b_slice) as char);
+			content.push(self.bitvec2byte(bit_vec_8b_slice));
 		}
 
-		return content;
+		return String::from_utf8(content).unwrap();
 	}
 
 	pub fn encode(&self, slate: &Slate) -> String {
