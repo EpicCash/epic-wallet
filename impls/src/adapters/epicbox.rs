@@ -597,12 +597,9 @@ impl Listener for EpicboxListener {
 
 		listener.subscriber.stop();
 
-		/*
-		 Do not indefinitely block the Dart FFI caller while waiting for a
-		 network-reader thread. The configured read timeout should allow the
-		 detached thread to observe `stopping` and exit shortly afterward.
-		*/
-		drop(listener.handle);
+		if listener.handle.join().is_err() {
+			warn!("Epicbox subscriber thread panicked during shutdown");
+		}
 
 		Ok(())
 	}
@@ -1091,9 +1088,17 @@ impl EpicboxBroker {
 				.load(std::sync::atomic::Ordering::SeqCst)
 			{
 				debug!("Subscriber loop ending after stop()");
-				handler.lock().on_close(
-					CloseReason::Normal,
-				);
+
+				match client.sender.lock().close(None) {
+					Ok(_) => {
+						debug!("Epicbox websocket close frame sent");
+					}
+					Err(e) => {
+						debug!("Unable to send Epicbox websocket close frame: {:?}", e);
+					}
+			}
+
+				handler.lock().on_close(CloseReason::Normal);
 				break Ok(());
 			}
 
@@ -1571,6 +1576,7 @@ impl EpicboxBroker {
 
 		Ok(())
 	}
+
 
 	fn stop(&self) {
 		self.stopping.store(true, std::sync::atomic::Ordering::SeqCst);
