@@ -759,7 +759,6 @@ where
 				let epicbox_config_lock = self.epicbox_config.lock();
 
 				if sa.method == "epicbox" {
-					self.tx_lock_outputs(keychain_mask, &slate, 0, Some(sa.dest))?;
 
 					let epicbox_channel =
 						Box::new(EpicboxChannel::new(&sa.dest, epicbox_config_lock.clone()))
@@ -769,6 +768,8 @@ where
 						None => None,
 						Some(&m) => Some(m.to_owned()),
 					};
+
+					self.tx_lock_outputs(keychain_mask, &slate, 0, Some(sa.dest))?;
 
 					slate = epicbox_channel.send(
 						wallet,

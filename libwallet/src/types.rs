@@ -858,7 +858,7 @@ pub struct TxLogEntry {
     /// queued slates on the relay. None for non-epicbox txs, txs relayed
     /// to foreign epicbox domains, or records created before this field.
     #[serde(default)]
-    pub epicbox_msg_id: Option<String>,
+    pub epicbox_tx_id: Option<String>,
     /// Transaction type (as above)
     pub tx_type: TxLogEntryType,
     /// Time this tx entry was created
@@ -929,7 +929,7 @@ impl TxLogEntry {
             tx_type: t,
             id,
             tx_slate_id: None,
-            epicbox_msg_id: None,
+            epicbox_tx_id: None,
             creation_ts: Utc::now(),
             confirmation_ts: None,
             confirmed: false,
