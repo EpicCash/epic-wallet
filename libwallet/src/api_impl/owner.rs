@@ -48,7 +48,7 @@ const USER_MESSAGE_MAX_LEN: usize = 256;
 
 /// Shape check for a relay uid(32): exactly 32 characters from
 /// `[A-Za-z0-9_-]`, matching the relay's validation.
-fn is_epicbox_msg_id(s: &str) -> bool {
+fn is_epicbox_tx_id(s: &str) -> bool {
     s.len() == 32
         && s.bytes()
             .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
@@ -672,7 +672,7 @@ where
 /// Atomically associates the stable Epicbox transaction ID with every tx log
 /// entry for the given Slate UUID.
 ///
-/// The database field is still named `epicbox_msg_id` for storage compatibility,
+/// The database field is still named `epicbox_tx_id` for storage compatibility,
 /// but it now contains the stable transaction-wide `epicboxtxid`, not a
 /// per-message `epicboxmsgid`.
 ///
@@ -683,7 +683,7 @@ where
 /// corruption and no changes are committed.
 ///
 /// Locks internally. Callers must not already hold the wallet lock.
-pub fn set_tx_epicbox_msg_id_if_empty<'a, L, C, K>(
+pub fn set_tx_epicbox_tx_id_if_empty<'a, L, C, K>(
     wallet_inst: Arc<Mutex<Box<dyn WalletInst<'a, L, C, K>>>>,
     keychain_mask: Option<&SecretKey>,
     tx_slate_id: &Uuid,
@@ -694,7 +694,7 @@ where
     C: NodeClient + 'a,
     K: Keychain + 'a,
 {
-    if !is_epicbox_msg_id(candidate_epicboxtxid) {
+    if !is_epicbox_tx_id(candidate_epicboxtxid) {
         return Err(Error::GenericError(format!(
             "Invalid epicboxtxid (expected 32 characters from [A-Za-z0-9_-]): {}",
             candidate_epicboxtxid
@@ -721,11 +721,11 @@ where
     let mut existing_epicboxtxid: Option<String> = None;
 
     for entry in &entries {
-        let Some(stored) = entry.epicbox_msg_id.as_ref() else {
+        let Some(stored) = entry.epicbox_tx_id.as_ref() else {
             continue;
         };
 
-        if !is_epicbox_msg_id(stored) {
+        if !is_epicbox_tx_id(stored) {
             return Err(Error::GenericError(format!(
                 "Invalid stored epicboxtxid [{}] for Slate {}",
                 stored, tx_slate_id
@@ -764,8 +764,8 @@ where
     let mut changed_entries = Vec::new();
 
     for mut entry in entries {
-        if entry.epicbox_msg_id.is_none() {
-            entry.epicbox_msg_id = Some(effective_epicboxtxid.clone());
+        if entry.epicbox_tx_id.is_none() {
+            entry.epicbox_tx_id = Some(effective_epicboxtxid.clone());
             changed_entries.push(entry);
         }
     }
@@ -787,7 +787,7 @@ where
 ///
 /// This now has set-if-empty semantics so no caller can accidentally replace
 /// the stable transaction-wide Epicbox ID with a later per-message ID.
-pub fn set_tx_epicbox_msg_id<'a, L, C, K>(
+pub fn set_tx_epicbox_tx_id<'a, L, C, K>(
     wallet_inst: Arc<Mutex<Box<dyn WalletInst<'a, L, C, K>>>>,
     keychain_mask: Option<&SecretKey>,
     tx_slate_id: &Uuid,
@@ -798,7 +798,7 @@ where
     C: NodeClient + 'a,
     K: Keychain + 'a,
 {
-    set_tx_epicbox_msg_id_if_empty(
+    set_tx_epicbox_tx_id_if_empty(
         wallet_inst,
         keychain_mask,
         tx_slate_id,
@@ -808,7 +808,7 @@ where
 }
 
 /// Cancels a tx (for use with epicbox, does not have internal lock).
-/// Accepts the 32 char message id (epicboxmsgid) stored via set_tx_epicbox_msg_id.
+/// Accepts the 32 char message id (epicboxtxid) stored via set_tx_epicbox_tx_id.
 /// This is used to fetch slate UUID internally, followed by traditional cancel.
 /// Txs without relay linkage can be cancelled optionally using fallback_slate_id
 /// for cases where we disconnected before receivng TransactionCancelled repsonse.
@@ -820,7 +820,7 @@ where
 pub fn cancel_epicbox_tx<'a, L, C, K>(
 	wallet_inst: Arc<Mutex<Box<dyn WalletInst<'a, L, C, K>>>>,
 	keychain_mask: Option<&SecretKey>,
-	epicbox_msg_id: &String,
+	epicbox_tx_id: &String,
 	fallback_slate_id: Option<Uuid>,
 ) -> Result<(), Error>
 where
@@ -837,10 +837,10 @@ where
 		warn!("cancel_epicbox_tx called with fallback_slate_id=Some(..); not yet supported policy");
 	}
 
-	if !is_epicbox_msg_id(epicbox_msg_id) {
+	if !is_epicbox_tx_id(epicbox_tx_id) {
 		return Err(Error::GenericError(format!(
-			"Invalid epicboxmsgid (expected 32 alphanumeric chars): {}",
-			epicbox_msg_id
+			"Invalid epicbox_tx_id (expected 32 alphanumeric chars): {}",
+			epicbox_tx_id
 		)));
 	}
 
@@ -849,7 +849,7 @@ where
 
 	let targets: Vec<(u32, Option<Uuid>)> = w
 		.tx_log_iter()
-		.filter(|e| e.epicbox_msg_id.as_deref() == Some(epicbox_msg_id.as_str()))
+		.filter(|e| e.epicbox_tx_id.as_deref() == Some(epicbox_tx_id.as_str()))
 		.map(|e| (e.id, e.tx_slate_id))
 		.collect();
 
@@ -857,15 +857,15 @@ where
 		return match fallback_slate_id {
 			Some(uuid) => {
 				warn!(
-					"No relay linkage for epicboxmsgid [{}]; falling back to \
+					"No relay linkage for epicbox_tx_id [{}]; falling back to \
 					 direct cancel of slate [{}] (relay state unknown)",
-					epicbox_msg_id, uuid
+					epicbox_tx_id, uuid
 				);
 				tx::cancel_tx(&mut **w, keychain_mask, &parent_key_id, None, Some(uuid))
 			}
 			None => Err(Error::GenericError(format!(
-				"No local tx found for epicboxmsgid [{}]; nothing to cancel.",
-				epicbox_msg_id
+				"No local tx found for epicbox_tx_id [{}]; nothing to cancel.",
+				epicbox_tx_id
 			))),
 		};
 	}
@@ -878,15 +878,15 @@ where
 		match tx::cancel_tx(&mut **w, keychain_mask, &parent_key_id, use_tx_id, use_slate_id) {
 			Ok(_) => {
 				info!(
-					"Transaction for epicboxmsgid [{}] marked as cancelled",
-					epicbox_msg_id
+					"Transaction for epicbox_tx_id [{}] marked as cancelled",
+					epicbox_tx_id
 				);
 			}
 			Err(e) => {
 				// non-fatal. may already be finalized/cancelled
 				warn!(
-					"Cancel tx for epicboxmsgid [{}] failed (may already be finalized/cancelled): {:?}",
-					epicbox_msg_id, e
+					"Cancel tx for epicbox_tx_id [{}] failed (may already be finalized/cancelled): {:?}",
+					epicbox_tx_id, e
 				);
 			}
 		}

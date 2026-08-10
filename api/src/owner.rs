@@ -759,6 +759,8 @@ where
 				let epicbox_config_lock = self.epicbox_config.lock();
 
 				if sa.method == "epicbox" {
+					self.tx_lock_outputs(keychain_mask, &slate, 0, Some(sa.dest))?;
+
 					let epicbox_channel =
 						Box::new(EpicboxChannel::new(&sa.dest, epicbox_config_lock.clone()))
 							.map_err(|e| Error::GenericError(format!("{}", e)))?;
@@ -768,10 +770,6 @@ where
 						Some(&m) => Some(m.to_owned()),
 					};
 
-					//TODO: can we avoid locking until we know that server has confirmed
-					// receipt of the slate? We need to cancel manually if it fails, in this ordering
-					self.tx_lock_outputs(keychain_mask, &slate, 0, Some(sa.dest))?;
-
 					slate = epicbox_channel.send(
 						wallet,
 						km,
@@ -779,8 +777,6 @@ where
 						self.is_node_synced.clone(),
 						tor_config_lock.clone().unwrap_or_default(),
 					)?;
-					//TODO: original location of lock
-					//self.tx_lock_outputs(keychain_mask, &slate, 0, Some(sa.dest))?;
 					return Ok(slate);
 				} else {
 					let comm_adapter = create_sender(&sa.method, &sa.dest, is_node_synced)
@@ -1262,22 +1258,22 @@ where
 		&self,
 		keychain_mask: Option<&SecretKey>,
 		tx_id: Option<u32>,
-		epicbox_msg_id: Option<String>,
+		epicbox_tx_id: Option<String>,
 		slate_uuid: Option<Uuid>,
 	) -> Result<(), Error> {
-		let msgid = match (epicbox_msg_id, tx_id, slate_uuid) {
+		let msgid = match (epicbox_tx_id, tx_id, slate_uuid) {
 			(Some(e), None, None) => {
-				// epic-wallet cancel -e <epicbox_msg_id> path. checks that epicboxmsgid exists
+				// epic-wallet cancel -e <epicbox_tx_id> path. checks that epicboxmsgid exists
                                 // before any interaction with networked code
 				let res =
 					self.retrieve_txs(keychain_mask, false, None, None, None, None, None)?;
 				let found = res
 					.txs
 					.iter()
-					.any(|t| t.epicbox_msg_id.as_deref() == Some(e.as_str()));
+					.any(|t| t.epicbox_tx_id.as_deref() == Some(e.as_str()));
 				if !found {
 					return Err(Error::GenericError(format!(
-						"No local transaction matches epicbox_msg_id [{}]; nothing to cancel.",
+						"No local transaction matches epicbox_tx_id [{}]; nothing to cancel.",
 						e
 					)));
 				}
@@ -1291,7 +1287,7 @@ where
 				let entry = res.txs.into_iter().next().ok_or_else(|| {
 					Error::GenericError(format!("Transaction with id {} not found", id))
 				})?;
-				entry.epicbox_msg_id.ok_or_else(|| {
+				entry.epicbox_tx_id.ok_or_else(|| {
 					Error::GenericError(format!(
 						"Transaction with numerical id {} has no stored epicbox message id; it cannot be \
 						 cancelled via the relay. Use the standard cancel for a local cancel.",
@@ -1310,8 +1306,8 @@ where
 					))
 				})?;
 
-				match entry.epicbox_msg_id {
-					Some(epicbox_msg_id) => epicbox_msg_id,
+				match entry.epicbox_tx_id {
+					Some(epicbox_tx_id) => epicbox_tx_id,
 
 					None => {
 						let tx = {
@@ -1339,7 +1335,7 @@ where
 			}
 			_ => {
 				return Err(Error::GenericError(
-					"Exactly one of tx_id or epicbox_msg_id must be provided".to_owned(),
+					"Exactly one of tx_id or epicbox_tx_id must be provided".to_owned(),
 				))
 			}
 		};
