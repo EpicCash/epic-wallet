@@ -669,229 +669,212 @@ where
     Ok(sl)
 }
 
-/// Atomically associates the stable Epicbox transaction ID with every tx log
-/// entry for the given Slate UUID.
+/// Ensures that the single local transaction for this Slate is associated
+/// with the stable sender-generated Epicbox transaction ID.
 ///
-/// The database field is still named `epicbox_tx_id` for storage compatibility,
-/// but it now contains the stable transaction-wide `epicboxtxid`, not a
-/// per-message `epicboxmsgid`.
-///
-/// If no matching entry has an ID, `candidate_epicboxtxid` is stored.
-/// If an ID is already present, it is preserved and returned. Empty sibling
-/// entries for the same Slate UUID are normalized to that existing ID.
-/// Distinct existing IDs for the same Slate UUID are treated as database
-/// corruption and no changes are committed.
+/// If no ID is stored yet, `epicboxtxid` is stored.
+/// If the same ID is already stored, this returns success.
+/// Any conflicting ID or duplicate Slate entry is an error.
 ///
 /// Locks internally. Callers must not already hold the wallet lock.
-pub fn set_tx_epicbox_tx_id_if_empty<'a, L, C, K>(
+pub fn ensure_epicbox_tx_id<'a, L, C, K>(
     wallet_inst: Arc<Mutex<Box<dyn WalletInst<'a, L, C, K>>>>,
     keychain_mask: Option<&SecretKey>,
     tx_slate_id: &Uuid,
-    candidate_epicboxtxid: &str,
+    epicboxtxid: &str,
 ) -> Result<String, Error>
 where
     L: WalletLCProvider<'a, C, K>,
     C: NodeClient + 'a,
     K: Keychain + 'a,
 {
-    if !is_epicbox_tx_id(candidate_epicboxtxid) {
+    if !is_epicbox_tx_id(epicboxtxid) {
         return Err(Error::GenericError(format!(
-            "Invalid epicboxtxid (expected 32 characters from [A-Za-z0-9_-]): {}",
-            candidate_epicboxtxid
+            "Invalid epicboxtxid \
+             (expected 32 characters from [A-Za-z0-9_-]): {}",
+            epicboxtxid,
         )));
     }
 
     wallet_lock!(wallet_inst, w);
-    let parent_key_id = w.parent_key_id();
 
-    let entries: Vec<TxLogEntry> = w
+    let mut entries: Vec<TxLogEntry> = w
         .tx_log_iter()
-        .filter(|entry| entry.tx_slate_id == Some(*tx_slate_id))
+        .filter(|entry| {
+            entry.tx_slate_id == Some(*tx_slate_id)
+        })
         .collect();
 
-    if entries.is_empty() {
-        return Err(Error::GenericError(format!(
-            "No tx log entry found for Slate {}",
-            tx_slate_id
-        )));
-    }
+    let mut entry = match entries.len() {
+        1 => entries.remove(0),
 
-    // Determine whether a stable ID has already been stored. There may be
-    // multiple tx log entries for one Slate UUID, but they must not disagree.
-    let mut existing_epicboxtxid: Option<String> = None;
-
-    for entry in &entries {
-        let Some(stored) = entry.epicbox_tx_id.as_ref() else {
-            continue;
-        };
-
-        if !is_epicbox_tx_id(stored) {
+        0 => {
             return Err(Error::GenericError(format!(
-                "Invalid stored epicboxtxid [{}] for Slate {}",
-                stored, tx_slate_id
+                "No tx log entry found for Slate {}",
+                tx_slate_id,
             )));
         }
 
-        match existing_epicboxtxid.as_ref() {
-            None => {
-                existing_epicboxtxid = Some(stored.clone());
-            }
-            Some(existing) if existing == stored => {}
-            Some(existing) => {
-                return Err(Error::GenericError(format!(
-                    "Conflicting epicboxtxids for Slate {}: [{}] and [{}]",
-                    tx_slate_id, existing, stored
-                )));
-            }
+        count => {
+            return Err(Error::GenericError(format!(
+                "Found {} tx log entries for Slate {}; expected exactly one",
+                count,
+                tx_slate_id,
+            )));
         }
-    }
+    };
 
-    let effective_epicboxtxid = existing_epicboxtxid
-        .unwrap_or_else(|| candidate_epicboxtxid.to_string());
-
-    if effective_epicboxtxid != candidate_epicboxtxid {
-        warn!(
-            "Preserving existing epicboxtxid [{}] for Slate [{}]; \
-             ignoring later candidate [{}]",
-            effective_epicboxtxid,
-            tx_slate_id,
-            candidate_epicboxtxid
-        );
-    }
-
-    // Normalize only entries whose field is empty. Never overwrite A with a
-    // later per-message ID or with a conflicting candidate from another relay.
-    let mut changed_entries = Vec::new();
-
-    for mut entry in entries {
-        if entry.epicbox_tx_id.is_none() {
-            entry.epicbox_tx_id = Some(effective_epicboxtxid.clone());
-            changed_entries.push(entry);
-        }
-    }
-
-    if !changed_entries.is_empty() {
-        let mut batch = w.batch(keychain_mask)?;
-
-        for entry in changed_entries {
-            batch.save_tx_log_entry(entry, &parent_key_id)?;
+    match entry.epicbox_tx_id.as_deref() {
+        Some(stored) if stored == epicboxtxid => {
+            return Ok(stored.to_owned());
         }
 
-        batch.commit()?;
+        Some(stored) => {
+            return Err(Error::GenericError(format!(
+                "Conflicting epicboxtxid for Slate {}: \
+                 stored [{}], received [{}]",
+                tx_slate_id,
+                stored,
+                epicboxtxid,
+            )));
+        }
+
+        None => {}
     }
 
-    Ok(effective_epicboxtxid)
+    entry.epicbox_tx_id = Some(epicboxtxid.to_owned());
+
+    let parent_key_id = entry.parent_key_id.clone();
+
+    let mut batch = w.batch(keychain_mask)?;
+    batch.save_tx_log_entry(entry, &parent_key_id)?;
+    batch.commit()?;
+
+    Ok(epicboxtxid.to_owned())
 }
 
-/// Compatibility wrapper for existing callers.
-///
-/// This now has set-if-empty semantics so no caller can accidentally replace
-/// the stable transaction-wide Epicbox ID with a later per-message ID.
-pub fn set_tx_epicbox_tx_id<'a, L, C, K>(
+pub fn cancel_epicbox_tx<'a, L, C, K>(
     wallet_inst: Arc<Mutex<Box<dyn WalletInst<'a, L, C, K>>>>,
     keychain_mask: Option<&SecretKey>,
-    tx_slate_id: &Uuid,
-    epicboxtxid: &str,
+    epicboxtxid: Option<&str>,
+    fallback_slate_id: Option<Uuid>,
 ) -> Result<(), Error>
 where
     L: WalletLCProvider<'a, C, K>,
     C: NodeClient + 'a,
     K: Keychain + 'a,
 {
-    set_tx_epicbox_tx_id_if_empty(
-        wallet_inst,
-        keychain_mask,
-        tx_slate_id,
-        epicboxtxid,
-    )
-    .map(|_| ())
-}
 
-/// Cancels a tx (for use with epicbox, does not have internal lock).
-/// Accepts the 32 char message id (epicboxtxid) stored via set_tx_epicbox_tx_id.
-/// This is used to fetch slate UUID internally, followed by traditional cancel.
-/// Txs without relay linkage can be cancelled optionally using fallback_slate_id
-/// for cases where we disconnected before receivng TransactionCancelled repsonse.
-/// Locks internally. Callers must not hold the lock (e.g. epicbox adapter).
-/// Caller should pass None for fallback_slate_id when strictly relying on epicbox
-/// protocol messages. This tx cancellation function is largely stateless. It does
-/// not communicate state to epicbox, and epicbox will not passthrough cancels
-/// to other instances. It is a 1-way request to clear a slate from epicbox DB.
-pub fn cancel_epicbox_tx<'a, L, C, K>(
-	wallet_inst: Arc<Mutex<Box<dyn WalletInst<'a, L, C, K>>>>,
-	keychain_mask: Option<&SecretKey>,
-	epicbox_tx_id: &String,
-	fallback_slate_id: Option<Uuid>,
-) -> Result<(), Error>
-where
-	L: WalletLCProvider<'a, C, K>,
-	C: NodeClient + 'a,
-	K: Keychain + 'a,
-{
-	if fallback_slate_id.is_some() {
-		debug_assert!(
-			false,
-			"cancel_epicbox_tx fallback_slate_id is reserved for a future \
-			 feature and must be None from current callers"
-		);
-		warn!("cancel_epicbox_tx called with fallback_slate_id=Some(..); not yet supported policy");
-	}
+    if fallback_slate_id.is_some() {
+        debug_assert!(
+           false,
+           "cancel_epicbox_tx fallback_slate_id is reserved for a future \
+           feature and must be None from current callers"
+        );
+        warn!("cancel_epicbox_tx called with fallback_slate_id=Some(..); not yet supported policy");
+    }
 
-	if !is_epicbox_tx_id(epicbox_tx_id) {
-		return Err(Error::GenericError(format!(
-			"Invalid epicbox_tx_id (expected 32 alphanumeric chars): {}",
-			epicbox_tx_id
-		)));
-	}
+    wallet_lock!(wallet_inst, w);
 
-	wallet_lock!(wallet_inst, w);
-	let parent_key_id = w.parent_key_id();
+    match epicboxtxid {
+        Some(epicboxtxid) => {
+            if !is_epicbox_tx_id(epicboxtxid) {
+                return Err(Error::GenericError(format!(
+                    "Invalid epicboxtxid: {}",
+                    epicboxtxid,
+                )));
+            }
 
-	let targets: Vec<(u32, Option<Uuid>)> = w
-		.tx_log_iter()
-		.filter(|e| e.epicbox_tx_id.as_deref() == Some(epicbox_tx_id.as_str()))
-		.map(|e| (e.id, e.tx_slate_id))
-		.collect();
+            let mut entries: Vec<TxLogEntry> = w
+                .tx_log_iter()
+                .filter(|entry| {
+                    entry.epicbox_tx_id.as_deref()
+                        == Some(epicboxtxid)
+                })
+                .collect();
 
-	if targets.is_empty() {
-		return match fallback_slate_id {
-			Some(uuid) => {
-				warn!(
-					"No relay linkage for epicbox_tx_id [{}]; falling back to \
-					 direct cancel of slate [{}] (relay state unknown)",
-					epicbox_tx_id, uuid
-				);
-				tx::cancel_tx(&mut **w, keychain_mask, &parent_key_id, None, Some(uuid))
-			}
-			None => Err(Error::GenericError(format!(
-				"No local tx found for epicbox_tx_id [{}]; nothing to cancel.",
-				epicbox_tx_id
-			))),
-		};
-	}
+            //TODO: we can remove the duplicate entry checking here, shouldn't ever happen
+            // once I fix the misused key creating dups
+            let entry = match entries.len() {
+                1 => entries.remove(0),
 
-	for (tx_id, tx_slate_id) in targets {
-		let (use_tx_id, use_slate_id) = match tx_slate_id {
-			Some(u) => (None, Some(u)),
-			None => (Some(tx_id), None),
-		};
-		match tx::cancel_tx(&mut **w, keychain_mask, &parent_key_id, use_tx_id, use_slate_id) {
-			Ok(_) => {
-				info!(
-					"Transaction for epicbox_tx_id [{}] marked as cancelled",
-					epicbox_tx_id
-				);
-			}
-			Err(e) => {
-				// non-fatal. may already be finalized/cancelled
-				warn!(
-					"Cancel tx for epicbox_tx_id [{}] failed (may already be finalized/cancelled): {:?}",
-					epicbox_tx_id, e
-				);
-			}
-		}
-	}
-	Ok(())
+                0 => {
+                    return Err(Error::GenericError(format!(
+                        "No local transaction found for \
+                         epicboxtxid [{}]",
+                        epicboxtxid,
+                    )));
+                }
+
+                count => {
+                    return Err(Error::GenericError(format!(
+                        "Found {} local transactions for \
+                         epicboxtxid [{}]; expected exactly one",
+                        count,
+                        epicboxtxid,
+                    )));
+                }
+            };
+
+            let parent_key_id = entry.parent_key_id.clone();
+
+            tx::cancel_tx(
+                &mut **w,
+                keychain_mask,
+                &parent_key_id,
+                Some(entry.id),
+                None,
+            )
+        }
+
+        None => {
+            let slate_id = fallback_slate_id.ok_or_else(|| {
+                Error::GenericError(
+                    "Transaction has neither an epicboxtxid \
+                     nor a fallback Slate UUID"
+                        .to_owned(),
+                )
+            })?;
+
+            let mut entries: Vec<TxLogEntry> = w
+                .tx_log_iter()
+                .filter(|entry| {
+                    entry.tx_slate_id == Some(slate_id)
+                })
+                .collect();
+
+            let entry = match entries.len() {
+                1 => entries.remove(0),
+
+                0 => {
+                    return Err(Error::GenericError(format!(
+                        "No local transaction found for \
+                         legacy Slate [{}]",
+                        slate_id,
+                    )));
+                }
+
+                count => {
+                    return Err(Error::GenericError(format!(
+                        "Found {} local transactions for \
+                         legacy Slate [{}]; expected exactly one",
+                        count,
+                        slate_id,
+                    )));
+                }
+            };
+
+            let parent_key_id = entry.parent_key_id.clone();
+
+            tx::cancel_tx(
+                &mut **w,
+                keychain_mask,
+                &parent_key_id,
+                Some(entry.id),
+                None,
+            )
+        }
+    }
 }
 
 /// Wrapper for tx::update_mempool_status

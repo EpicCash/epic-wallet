@@ -302,7 +302,7 @@ impl EpicboxChannel {
 		let candidate_epicboxtxid = Uuid::new_v4()
 			.to_string()
 			.replace('-', "");
-		let epicboxtxid = owner::set_tx_epicbox_tx_id_if_empty(
+		let epicboxtxid = owner::ensure_epicbox_tx_id(
 			wallet.clone(),
 			keychain_mask.as_ref(),
 			&slate.id,
@@ -765,7 +765,7 @@ where
 		match owner::cancel_epicbox_tx(
 			self.wallet.clone(),
 			self.keychain_mask.as_ref(),
-			&epicboxtxid.to_string(),
+			Some(&epicboxtxid.to_string()),
 			None, // Relay-confirmed path; never fall back to a Slate UUID.
 		) {
 			Ok(_) => {
@@ -935,7 +935,7 @@ where
 
 		// Atomically preserve the transaction-wide ID already associated with
 		// this Slate. Every protocol state is required to carry the same A.
-		let stable_epicboxtxid = owner::set_tx_epicbox_tx_id_if_empty(
+		let stable_epicboxtxid = owner::ensure_epicbox_tx_id(
 			self.wallet.clone(),
 			self.keychain_mask.as_ref(),
 			&tx_slate_id,
