@@ -27,6 +27,7 @@ use epic_wallet_impls::{PathToSlate, SlateGetter as _};
 use epic_wallet_libwallet::{
     address, Error, IssueInvoiceTxArgs, NodeClient, Slate, WalletInst, WalletLCProvider,
 };
+use epic_wallet_libwallet::epicbox_txid::EpicboxTxId;
 use epic_wallet_util::epic_core as core;
 use epic_wallet_util::epic_core::core::amount_to_hr_string;
 use epic_wallet_util::epic_core::global;
@@ -610,13 +611,6 @@ fn parse_required<'a>(args: &'a ArgMatches, name: &str) -> Result<&'a str, Error
             Err(Error::ArgumentError(msg))
         }
     }
-}
-
-//TODO: (Biz) consolidate duplicate code, we have 4 of these i think
-fn is_epicbox_tx_id(s: &str) -> bool {
-    s.len() == 32
-        && s.bytes()
-            .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
 }
 
 // parses a number, or throws error with message otherwise
@@ -1232,16 +1226,13 @@ pub fn parse_cancel_args(args: &ArgMatches) -> Result<command::CancelArgs, Error
 
     // epicbox flags
     let epicbox_tx_id = match args.get_one::<String>("epicbox_tx_id") {
-        None => None,
-        Some(e) => {
-            if !is_epicbox_tx_id(e) {
-                let msg = format!(
-                    "Invalid epicbox_tx_id '{}': expected exactly 32 characters (the relay message id, not the wallet slate UUID).",
-                    e
-                );
-                return Err(Error::ArgumentError(msg));
-            }
-            Some(e.to_owned())
+         None => None,
+         Some(e) => {
+            let epicbox_tx_id = EpicboxTxId::parse(e).map_err(|err| {
+                 Error::ArgumentError(format!("Invalid epicbox_tx_id '{}': {}", e, err))
+            })?;
+
+            Some(epicbox_tx_id)
         }
     };
 
@@ -1259,14 +1250,6 @@ pub fn parse_cancel_args(args: &ArgMatches) -> Result<command::CancelArgs, Error
             format!("Exactly one of 'id' (-i), 'txid' (-t) or 'epicbox_tx_id' (-e) is required.");
         return Err(Error::ArgumentError(msg));
     }
-
-    // relay is msgid addressed. a UUID cannot be sent to it
-    /*if method_is_epicbox && tx_slate_id.is_some() {
-        let msg = format!(
-            "'-m epicbox' cannot be combined with 'txid' (-t). Use '-i <index>' (the wallet looks up the stored message id) or '-e <epicbox_tx_id>'."
-        );
-        return Err(Error::ArgumentError(msg));
-    }*/
 
     Ok(command::CancelArgs {
         tx_id,

@@ -22,6 +22,7 @@ use crate::libwallet::message::EncryptedMessage;
 use crate::util::secp::key::PublicKey;
 
 use crate::libwallet::wallet_lock;
+use crate::libwallet::epicbox_txid::EpicboxTxId;
 use crate::libwallet::{
 	address, Address, EpicboxAddress, TxProof, DEFAULT_EPICBOX_PORT_443, DEFAULT_EPICBOX_PORT_80,
 };
@@ -129,11 +130,11 @@ pub enum BrokerEvent {
 	Subscribed,
 	PostAck {
 		slate_id: Uuid,
-		epicboxtxid: String,
+		epicboxtxid: EpicboxTxId,
 	},
 	Made,
 	Cancelled {
-		epicboxtxid: String,
+		epicboxtxid: EpicboxTxId,
 	},
 }
 
@@ -144,7 +145,7 @@ pub enum BrokerEvent {
 #[derive(Debug, Clone)]
 struct PendingPost {
 	slate_id: Uuid,
-	epicboxtxid: String,
+	epicboxtxid: EpicboxTxId,
 }
 
 #[derive(Clone)]
@@ -333,14 +334,11 @@ impl EpicboxChannel {
 		// Generate and persist epicbox_txid before any network operation. Retrying the same
 		// Slate reuses the already-stored transaction-wide id
 		
-		let candidate_epicboxtxid = Uuid::new_v4()
-			.to_string()
-			.replace('-', "");
 		let epicboxtxid = owner::ensure_epicbox_tx_id(
 			wallet.clone(),
 			keychain_mask.as_ref(),
 			&slate.id,
-			&candidate_epicboxtxid,
+			&EpicboxTxId::new(),
 		)?;
 
 		// Keep the one-shot session alive until the relay acknowledges the
@@ -457,7 +455,7 @@ impl EpicboxChannel {
 		&self,
 		wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K> + 'static>>>,
 		keychain_mask: Option<SecretKey>,
-		epicboxtxid: &String,
+		epicboxtxid: &EpicboxTxId,
 		is_node_synced: Arc<AtomicBool>,
 		tor_config: TorConfig,
 	) -> Result<(), Error>
@@ -674,7 +672,7 @@ impl Listener for EpicboxListener {
 		&self,
 		slate: &VersionedSlate,
 		to: &String,
-		epicboxtxid: &String,
+		epicboxtxid: &EpicboxTxId,
 	) -> Result<(), Error> {
 		let address = EpicboxAddress::from_str(to)?;
 
@@ -684,7 +682,7 @@ impl Listener for EpicboxListener {
 			.post_slate(slate, &address, false, Some(epicboxtxid))
 	}
 
-	fn cancel(&self, epicboxtxid: &String) -> Result<(), Error> {
+	fn cancel(&self, epicboxtxid: &EpicboxTxId) -> Result<(), Error> {
 		self.publisher.cancel_tx(epicboxtxid)
 	}
 
@@ -724,7 +722,7 @@ impl Publisher for EpicboxPublisher {
 		slate: &VersionedSlate,
 		to: &EpicboxAddress,
 		close_connection: bool,
-		epicboxtxid: Option<&String>,
+		epicboxtxid: Option<&EpicboxTxId>,
 	) -> Result<(), Error> {
 		self.broker.post_slate(
 			slate,
@@ -741,7 +739,7 @@ impl Publisher for EpicboxPublisher {
 		Ok(())
 	}
 
-	fn cancel_tx(&self, epicboxtxid: &String) -> Result<(), Error> {
+	fn cancel_tx(&self, epicboxtxid: &EpicboxTxId) -> Result<(), Error> {
 		self.broker
 			.post_cancel_tx(epicboxtxid, &self.address, &self.secret_key)
 	}
@@ -808,10 +806,10 @@ pub trait Listener: Send + 'static {
 		&self,
 		slate: &VersionedSlate,
 		to: &String,
-		epicboxtxid: &String,
+		epicboxtxid: &EpicboxTxId,
 	) -> Result<(), Error>;
 
-	fn cancel(&self, epicboxtxid: &String) -> Result<(), Error>;
+	fn cancel(&self, epicboxtxid: &EpicboxTxId) -> Result<(), Error>;
 	fn stop(self: Box<Self>) -> Result<(), Error>;
 }
 
@@ -852,29 +850,29 @@ where
 		})
 	}
 
-	fn process_tx_cancelled(&self, epicboxtxid: &str) -> Result<(), Error> {
+	fn process_tx_cancelled(&self, epicboxtxid: &EpicboxTxId) -> Result<(), Error> {
 		info!(
 			"Processing relay-confirmed cancellation for epicboxtxid {}",
-			epicboxtxid
+			epicboxtxid.to_string()
 		);
 
 		match owner::cancel_epicbox_tx(
 			self.wallet.clone(),
 			self.keychain_mask.as_ref(),
-			Some(&epicboxtxid.to_string()),
+			Some(&epicboxtxid),
 			None, // Relay-confirmed path; never fall back to a slate uuid here
 		) {
 			Ok(_) => {
 				info!(
 					"Transaction for epicboxtxid [{}] marked cancelled",
-					epicboxtxid
+					epicboxtxid.to_string()
 				);
 			}
 			Err(e) => {
 				warn!(
 					"Local cancellation for epicboxtxid [{}] failed \
 					 (it may already be finalized or cancelled): {:?}",
-					epicboxtxid,
+					epicboxtxid.to_string(),
 					e
 				);
 			}
@@ -982,10 +980,10 @@ pub trait SubscriptionHandler: Send {
 		from: &EpicboxAddress,
 		slate: &VersionedSlate,
 		proof: Option<&mut TxProof>,
-		epicboxtxid: Option<&String>,
+		epicboxtxid: Option<&EpicboxTxId>,
 	) -> Result<(), Error>;
 
-	fn on_tx_cancelled(&self, epicboxtxid: &String);
+	fn on_tx_cancelled(&self, epicboxtxid: &EpicboxTxId);
 	fn on_close(&self, result: CloseReason);
 }
 
@@ -1001,7 +999,7 @@ where
 		from: &EpicboxAddress,
 		slate: &VersionedSlate,
 		tx_proof: Option<&mut TxProof>,
-		epicboxtxid: Option<&String>,
+		epicboxtxid: Option<&EpicboxTxId>,
 	) -> Result<(), Error> {
 		let version = slate.version();
 		let mut slate: Slate = slate.into();
@@ -1075,7 +1073,7 @@ where
 		Ok(())
 	}
 
-	fn on_tx_cancelled(&self, epicboxtxid: &String) {
+	fn on_tx_cancelled(&self, epicboxtxid: &EpicboxTxId) {
 		warn!(
 			"Relay cancelled transaction for epicboxtxid {}",
 			epicboxtxid
@@ -1084,7 +1082,7 @@ where
 		if let Err(e) = self.process_tx_cancelled(epicboxtxid) {
 			error!(
 				"Error handling transaction cancellation [{}]: {:?}",
-				epicboxtxid,
+				epicboxtxid.to_string(),
 				e
 			);
 		}
@@ -1130,10 +1128,10 @@ pub trait Publisher: Send {
 		slate: &VersionedSlate,
 		to: &EpicboxAddress,
 		close_connection: bool,
-		epicboxtxid: Option<&String>,
+		epicboxtxid: Option<&EpicboxTxId>,
 	) -> Result<(), Error>;
 
-	fn cancel_tx(&self, epicboxtxid: &String) -> Result<(), Error>;
+	fn cancel_tx(&self, epicboxtxid: &EpicboxTxId) -> Result<(), Error>;
 }
 
 /// TODO: reduce to broker.
@@ -1336,13 +1334,29 @@ impl EpicboxBroker {
 									}
 								};
 
-								if epicboxtxid.is_none() {
+								//TODO; move epicboxtxid parsing to a separate helper function
+ 								let epicboxtxid = if let Some(value) = epicboxtxid {
+									match EpicboxTxId::parse(&value) {
+										Ok(id) => Some(id),
+										Err(e) => {
+											error!(
+												"Received Slate message [{}] with invalid epicboxtxid [{}]: {}",
+												epicboxmsgid,
+												value,
+												e
+											);
+											continue;
+										}
+									}
+								} else {
 									debug!(
 										"Received legacy Slate message [{}] without epicboxtxid; \
-										 leaving epicbox_tx_id unset",
+		 								leaving epicbox_tx_id unset",
 										epicboxmsgid
 									);
-								}
+
+									None
+								};
 
 								let proof_address = tx_proof.address.clone();
 								if let Err(e) = client.handler.lock().on_slate(
@@ -1407,10 +1421,22 @@ impl EpicboxBroker {
 							ProtocolResponseV2::TransactionCancelled {
 								epicboxtxid,
 							} => {
-								warn!(
+								info!(
 									"Relay confirmed cancellation for epicboxtxid {}",
 									epicboxtxid
 								);
+
+ 								let epicboxtxid = match EpicboxTxId::parse(&epicboxtxid) {
+									Ok(id) => id,
+									Err(e) => {
+										error!(
+											"Received TransactionCancelled response with invalid epicboxtxid [{}]: {}",
+											epicboxtxid,
+											e
+										);
+										continue;
+									}
+								};
 
 								client
 									.handler
@@ -1418,7 +1444,7 @@ impl EpicboxBroker {
 									.on_tx_cancelled(&epicboxtxid);
 
 								let _ = client.tx.send(BrokerEvent::Cancelled {
-									epicboxtxid: epicboxtxid.clone(),
+									epicboxtxid: epicboxtxid,
 								});
 
 								if wallet_mode != "send" {
@@ -1513,18 +1539,21 @@ impl EpicboxBroker {
 								epicboxmsgid,
 								epicboxtxid,
 							} => {
-								
-								// ClientDetails, Subscribe, and Made return plain Ok, and
-								// postslate_ack is distinguished by the echo of epicbox_txid
-								let returned_epicboxtxid = match epicboxtxid {
-									Some(epicboxtxid) => epicboxtxid,
-									None => {
-										debug!(
-											"Received non-PostSlate Ok: epicboxmsgid={:?}",
-											epicboxmsgid
-										);
-										continue;
+								let returned_epicboxtxid = if let Some(value) = epicboxtxid {
+									match EpicboxTxId::parse(&value) {
+										Ok(id) => id,
+										Err(e) => {
+											error!(
+												"Received PostSlate Ok with invalid epicboxtxid [{}]: {}",
+												value,
+												e
+											);
+											continue;
+										}
 									}
+								} else {
+									debug!("Received non-PostSlate Ok: epicboxmsgid={:?}", epicboxmsgid);
+									continue;
 								};
 
 								let pending = {
@@ -1535,7 +1564,7 @@ impl EpicboxBroker {
 											warn!(
 												"Received PostSlate Ok for epicboxtxid [{}] \
 												 without a pending PostSlate",
-												returned_epicboxtxid
+												returned_epicboxtxid.to_string()
 											);
 											continue;
 										}
@@ -1608,7 +1637,7 @@ impl EpicboxBroker {
 		to: &EpicboxAddress,
 		from: &EpicboxAddress,
 		secret_key: &SecretKey,
-		epicboxtxid: Option<&String>,
+		epicboxtxid: Option<&EpicboxTxId>,
 	) -> Result<(), Error> {
 		let public_key = to.public_key()?;
 		let secret_key_copy = secret_key.clone();
@@ -1632,8 +1661,8 @@ impl EpicboxBroker {
 
 		let (request_epicboxtxid, request_epicboxtxidsig) = if use_stable_txid {
 			let epicboxtxid = epicboxtxid
-				.expect("stable transaction ID disappeared after presence check");
-			let epicboxtxidsig = sign_challenge(epicboxtxid, secret_key)?.to_hex();
+				.expect("stable transaction ID disappeared after presence check").to_string();
+			let epicboxtxidsig = sign_challenge(&epicboxtxid, secret_key)?.to_hex();
 			(Some(epicboxtxid.clone()), Some(epicboxtxidsig))
 		} else {
 			(None, None)
@@ -1699,7 +1728,7 @@ impl EpicboxBroker {
 
 	fn post_cancel_tx(
 		&self,
-		epicboxtxid: &String,
+		epicboxtxid: &EpicboxTxId,
 		from: &EpicboxAddress,
 		secret_key: &SecretKey,
 	) -> Result<(), Error> {
@@ -1729,16 +1758,16 @@ impl EpicboxBroker {
 			));
 		}
 
-		let signature = sign_challenge(epicboxtxid, secret_key)?.to_hex();
+		let signature = sign_challenge(&epicboxtxid.to_string(), secret_key)?.to_hex();
 		let request = ProtocolRequestV2::CancelTx {
 			address: from.public_key.to_string(),
-			epicboxtxid: epicboxtxid.clone(),
+			epicboxtxid: epicboxtxid.to_string(),
 			signature,
 		};
 
 		debug!(
 			"Sending CancelTx for epicboxtxid [{}]",
-			epicboxtxid
+			epicboxtxid.to_string()
 		);
 
 		self.inner

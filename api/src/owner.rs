@@ -31,7 +31,7 @@ use crate::libwallet::{
 	NodeHeightResult, PaymentProof, RetrieveOutputsResult, RetrieveTxsResult, Slate, TxLogEntry,
 	WalletInfo, WalletInst, WalletLCProvider,
 };
-
+use crate::libwallet::epicbox_txid::EpicboxTxId;
 use crate::util::logger::LoggingConfig;
 use crate::util::secp::key::SecretKey;
 use crate::util::{from_hex, static_secp_instance, Mutex, ZeroingString};
@@ -1259,46 +1259,92 @@ where
 		&self,
 		keychain_mask: Option<&SecretKey>,
 		tx_id: Option<u32>,
-		epicbox_tx_id: Option<String>,
+		epicbox_tx_id: Option<EpicboxTxId>,
 		slate_uuid: Option<Uuid>,
 	) -> Result<(), Error> {
-		let msgid = match (epicbox_tx_id, tx_id, slate_uuid) {
-			(Some(e), None, None) => {
-				// epic-wallet cancel -e <epicbox_tx_id> path. checks that epicboxmsgid exists
-                                // before any interaction with networked code
-				let res =
-					self.retrieve_txs(keychain_mask, false, None, None, None, None, None)?;
+		let epicbox_tx_id = match (epicbox_tx_id, tx_id, slate_uuid) {
+			(Some(epicbox_tx_id), None, None) => {
+				// epic-wallet cancel -e <epicbox_tx_id> path.
+				// Verify that the transaction exists locally before performing
+				// any network interaction.
+				let res = self.retrieve_txs(
+					keychain_mask,
+					false,
+					None,
+					None,
+					None,
+					None,
+					None,
+				)?;
+
 				let found = res
 					.txs
 					.iter()
-					.any(|t| t.epicbox_tx_id.as_deref() == Some(e.as_str()));
+					.any(|t| {
+						t.epicbox_tx_id.as_deref()
+							== Some(epicbox_tx_id.as_str())
+					});
+
 				if !found {
 					return Err(Error::GenericError(format!(
 						"No local transaction matches epicbox_tx_id [{}]; nothing to cancel.",
-						e
+						epicbox_tx_id
 					)));
 				}
-				e
+
+				epicbox_tx_id
 			}
+
 			(None, Some(id), None) => {
-				// epic-wallet cancel -i <x> -m epicbox path. checks that tx at index x exists && 
-                                // has associated epicboxmsgid before any interaction with networked code
-				let res =
-					self.retrieve_txs(keychain_mask, false, Some(id), None, None, None, None)?;
+				// epic-wallet cancel -i <x> -m epicbox path.
+				// Verify that transaction x exists and has an associated
+				// Epicbox transaction ID before interacting with the relay.
+				let res = self.retrieve_txs(
+					keychain_mask,
+					false,
+					Some(id),
+					None,
+					None,
+					None,
+					None,
+				)?;
+
 				let entry = res.txs.into_iter().next().ok_or_else(|| {
-					Error::GenericError(format!("Transaction with id {} not found", id))
-				})?;
-				entry.epicbox_tx_id.ok_or_else(|| {
 					Error::GenericError(format!(
-						"Transaction with numerical id {} has no stored epicbox message id; it cannot be \
-						 cancelled via the relay. Use the standard cancel for a local cancel.",
+						"Transaction with id {} not found",
 						id
+					))
+				})?;
+
+				let stored = entry.epicbox_tx_id.ok_or_else(|| {
+					Error::GenericError(format!(
+						"Transaction with numerical id {} has no stored epicbox transaction id; \
+						 it cannot be cancelled via the relay. Use the standard cancel for a local cancel.",
+						id
+					))
+				})?;
+
+				EpicboxTxId::parse(&stored).map_err(|e| {
+					Error::GenericError(format!(
+						"Transaction with numerical id {} has an invalid stored epicbox transaction id [{}]: {}",
+						id,
+						stored,
+						e
 					))
 				})?
 			}
+
 			(None, None, Some(slate_id)) => {
 				// epic-wallet cancel UUID path.
-				let res = self.retrieve_txs(keychain_mask, false, None, Some(slate_id), None, None, None)?;
+				let res = self.retrieve_txs(
+					keychain_mask,
+					false,
+					None,
+					Some(slate_id),
+					None,
+					None,
+					None,
+				)?;
 
 				let entry = res.txs.into_iter().next().ok_or_else(|| {
 					Error::GenericError(format!(
@@ -1307,46 +1353,57 @@ where
 					))
 				})?;
 
-				match entry.epicbox_tx_id {
-					Some(epicbox_tx_id) => epicbox_tx_id,
+					if let Some(stored) = entry.epicbox_tx_id {
+					EpicboxTxId::parse(&stored).map_err(|e| {
+						Error::GenericError(format!(
+							"Transaction with slate_id {} has an invalid stored epicbox transaction id [{}]: {}",
+							slate_id,
+							stored,
+							e
+						))
+					})?
+				} else {
+					// Legacy transaction with no shared Epicbox transaction ID.
+					// Fall back to a local-only cancellation by Slate UUID.
+					let tx = {
+						let t = self.status_tx.lock();
+						t.clone()
+					};
 
-					None => {
-						let tx = {
-							let t = self.status_tx.lock();
-							t.clone()
-						};
+					owner::cancel_tx(
+						self.wallet_inst.clone(),
+						keychain_mask,
+						&tx,
+						None,
+						Some(slate_id),
+					)
+					.map_err(|e| {
+						Error::GenericError(format!(
+							"Failed to locally cancel transaction with slate_id {}: {}",
+							slate_id,
+							e
+						))
+					})?;
 
-						owner::cancel_tx(
-							self.wallet_inst.clone(),
-							keychain_mask,
-							&tx,
-							None,
-							Some(slate_id),
-						)
-						.map_err(|e| {
-							Error::GenericError(format!(
-								"Failed to locally cancel transaction with slate_id {}: {}",
-								slate_id, e
-							))
-						})?;
-
-						return Ok(());
-					}
+					return Ok(());
 				}
 			}
+
 			_ => {
 				return Err(Error::GenericError(
-					"Exactly one of tx_id or epicbox_tx_id must be provided".to_owned(),
-				))
+					"Exactly one of tx_id, epicbox_tx_id, or slate_uuid must be provided"
+						.to_owned(),
+				));
 			}
 		};
 
 		let tor_config_lock = self.tor_config.lock();
 		let epicbox_config_lock = self.epicbox_config.lock();
 
-		// dest is unused for cancel. the relay is the epicbox domain from config
-		let epicbox_channel = EpicboxChannel::new(&String::new(), epicbox_config_lock.clone())
-			.map_err(|e| Error::GenericError(format!("{}", e)))?;
+		// dest is unused for cancel. The relay is the Epicbox domain from config.
+		let epicbox_channel =
+			EpicboxChannel::new(&String::new(), epicbox_config_lock.clone())
+				.map_err(|e| Error::GenericError(format!("{}", e)))?;
 
 		let km = match keychain_mask.as_ref() {
 			None => None,
@@ -1356,10 +1413,11 @@ where
 		epicbox_channel.cancel(
 			self.wallet_inst.clone(),
 			km,
-			&msgid,
+			&epicbox_tx_id,
 			self.is_node_synced.clone(),
 			tor_config_lock.clone().unwrap_or_default(),
 		)?;
+
 		Ok(())
 	}
 

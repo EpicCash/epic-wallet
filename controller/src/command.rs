@@ -1,4 +1,6 @@
 use epic_wallet_libwallet::wallet_lock;
+use epic_wallet_libwallet::epicbox_txid::EpicboxTxId;
+
 /// Arguments for import_tx command
 pub struct ImportTxArgs {
     pub input: String,
@@ -1264,7 +1266,7 @@ pub struct CancelArgs {
     pub tx_slate_id: Option<Uuid>,
     pub tx_id_string: String,
     pub method_is_epicbox: bool,
-    pub epicbox_tx_id: Option<String>,
+    pub epicbox_tx_id: Option<EpicboxTxId>,
 }
 
 pub fn cancel<L, C, K>(
@@ -1288,7 +1290,7 @@ where
                 // If error, nothing was cancelled anywhere the wallet can verify.
                 //TODO: (Biz) handle fallback to local cancel. presently this is invariant
                 // and requires addition retry or a traditional cancel
-                let result = api.cancel_tx_epicbox(m, args.tx_id, args.epicbox_tx_id.clone(), args.tx_slate_id);
+                let result = api.cancel_tx_epicbox(m, args.tx_id, args.epicbox_tx_id, args.tx_slate_id);
                 match result {
                     Ok(_) => {
                         info!(
