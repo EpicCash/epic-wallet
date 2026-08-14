@@ -293,16 +293,16 @@ impl Display for ProtocolResponseV2 {
 			}
 			ProtocolResponseV2::Slate {
 				from,
-				epicboxmsgid,
+//				_epicboxmsgid,
 				epicboxtxid,
 				..
 			} => match epicboxtxid {
 				Some(txid) => write!(
 					f,
-					"Slate from {} with epicboxmsgid {} for epicboxtxid {}",
-					from, epicboxmsgid, txid
+					"Slate from {} for epicboxtxid {}",
+					from, txid
 				),
-				None => write!(f, "Slate from {} with epicboxmsgid {}", from, epicboxmsgid),
+				None => write!(f, "Slate from {}", from),
 			},
 		}
 	}

@@ -474,8 +474,8 @@ impl EpicboxChannel {
 
 		let listener = start_epicbox(
 			container.clone(),
-			wallet,
-			keychain_mask,
+			wallet.clone(),
+			keychain_mask.clone(),
 			config,
 			tx,
 			is_node_synced,
@@ -504,55 +504,72 @@ impl EpicboxChannel {
 
 		if !supports_stable_epicbox_txid(&relay_version) {
 			stop_epicbox_listener(&container);
-			return Err(Error::EpicboxTungstenite(
-				format!(
-					"Epicbox relay protocol [{}] does not support CancelTx; protocol 3.1.0 or newer is required",
-					relay_version
+			match owner::cancel_epicbox_tx(
+				wallet,
+				keychain_mask.as_ref(),
+				Some(&epicboxtxid),
+				None, // Relay-confirmed path; never fall back to a slate uuid here
+			) {
+				Ok(_) => {
+					info!(
+						"Transaction for epicboxtxid [{}] marked cancelled",
+						epicboxtxid.to_string()
+					);
+				}
+				Err(e) => {
+					warn!(
+						"Local cancellation for epicboxtxid [{}] failed \
+						 (it may already be finalized or cancelled): {:?}",
+						epicboxtxid.to_string(),
+						e
+					);
+				}
+			}
+
+		} else {
+
+			let sub_deadline = std::time::Instant::now() + SUBSCRIBE_TIMEOUT;
+			if !wait_for(&rx, sub_deadline, |event| {
+				matches!(event, BrokerEvent::Subscribed)
+			}) {
+				stop_epicbox_listener(&container);
+				return Err(Error::EpicboxTungstenite(
+					format!(
+						"Could not send CancelTx: Epicbox session ended or the \
+						 subscription did not establish within {:?}",
+						SUBSCRIBE_TIMEOUT
+					)
+					.into(),
+				));
+			}
+
+			if let Err(e) = container
+				.lock()
+				.listener(ListenerInterface::Epicbox)?
+				.cancel(epicboxtxid)
+			{
+				stop_epicbox_listener(&container);
+				return Err(e);
+			}
+
+			let confirm_deadline = std::time::Instant::now() + RELAY_ACK_TIMEOUT;
+			let confirmed = wait_for(&rx, confirm_deadline, |event| {
+				matches!(
+					event,
+					BrokerEvent::Cancelled { epicboxtxid: id } if id == epicboxtxid
 				)
-				.into(),
-			));
-		}
+			});
 
-		let sub_deadline = std::time::Instant::now() + SUBSCRIBE_TIMEOUT;
-		if !wait_for(&rx, sub_deadline, |event| {
-			matches!(event, BrokerEvent::Subscribed)
-		}) {
 			stop_epicbox_listener(&container);
-			return Err(Error::EpicboxTungstenite(
-				format!(
-					"Could not send CancelTx: Epicbox session ended or the \
-					 subscription did not establish within {:?}",
-					SUBSCRIBE_TIMEOUT
-				)
-				.into(),
-			));
+
+			if !confirmed {
+        	                warn!("No TransactionCancelled response from relay for [{}], \
+					proceeding with local-only cancel!",
+					epicboxtxid
+				);
+			}
 		}
 
-		if let Err(e) = container
-			.lock()
-			.listener(ListenerInterface::Epicbox)?
-			.cancel(epicboxtxid)
-		{
-			stop_epicbox_listener(&container);
-			return Err(e);
-		}
-
-		let confirm_deadline = std::time::Instant::now() + RELAY_ACK_TIMEOUT;
-		let confirmed = wait_for(&rx, confirm_deadline, |event| {
-			matches!(
-				event,
-				BrokerEvent::Cancelled { epicboxtxid: id } if id == epicboxtxid
-			)
-		});
-
-		stop_epicbox_listener(&container);
-
-		if !confirmed {
-                        warn!("No TransactionCancelled response from relay for [{}], \
-                              proceeding with local-only cancel!",
-                               epicboxtxid
-                        );
-		}
                 Ok(())
 	}
 }
@@ -1328,6 +1345,26 @@ impl EpicboxBroker {
 										continue;
 									}
 								};
+								let versioned_ack = match (&slate_ver, &epicboxmsgid) {
+									(Some(ver), Some(msgid)) => {
+										Some((ver.clone(), msgid.clone()))
+									}
+
+									(None, None) => {
+										debug!(
+											"Received unversioned legacy Slate; \
+											relay provided no epicboxmsgid and no Made acknowledgement is required"
+										);
+
+										None
+									}
+
+									_ => {
+										error!("Received malformed Slate response: ver={:?}, epicboxmsgid={:?}", slate_ver, epicboxmsgid);
+
+										continue;
+									}
+								};
 
 								//TODO; move epicboxtxid parsing to a separate helper function
  								let epicboxtxid = if let Some(value) = epicboxtxid {
@@ -1335,8 +1372,7 @@ impl EpicboxBroker {
 										Ok(id) => Some(id),
 										Err(e) => {
 											error!(
-												"Received Slate message [{}] with invalid epicboxtxid [{}]: {}",
-												epicboxmsgid,
+												"Received Slate message with invalid epicboxtxid [{}]: {}",
 												value,
 												e
 											);
@@ -1344,12 +1380,12 @@ impl EpicboxBroker {
 										}
 									}
 								} else {
-									debug!(
-										"Received legacy Slate message [{}] without epicboxtxid; \
-		 								leaving epicbox_tx_id unset",
-										epicboxmsgid
-									);
-
+									if versioned_ack.is_some() {
+										debug!(
+											"Received legacy Slate message without epicboxtxid; \
+			 								leaving epicbox_tx_id unset",
+										);
+									}
 									None
 								};
 
@@ -1362,9 +1398,8 @@ impl EpicboxBroker {
 								) {
 									error!(
 										"Could not process/store Slate transaction epicboxtxid={:?}, \
-										 message [{}]: {:?}",
+										 : {:?}",
 										epicboxtxid,
-										epicboxmsgid,
 										e
 									);
 
@@ -1393,15 +1428,18 @@ impl EpicboxBroker {
 
 								match client.send(&request_sub) {
 									Ok(()) => {
-										// Made always acknowledges the exact queued-message
-										// identifier, never the stable transaction ID.
-										if let Err(e) =
-											client.made_send(epicboxmsgid.clone(), &slate_ver)
-										{
-											error!(
-												"Error sending Made: {}",
-												e
-											);
+										if let Some((slate_ver, epicboxmsgid)) = versioned_ack {
+											// Versioned 2.0.0/3.x relay: explicitly acknowledge
+											// the queued message with Made.
+											if let Err(e) =
+												client.made_send(epicboxmsgid.clone(), &slate_ver)
+											{
+												error!("Error sending Made for message [{}]: {}", epicboxmsgid, e);
+											}
+										} else {
+											// Unversioned legacy relays mark the Slate made themselves.
+            										// There is no epicboxmsgid with which to send Made.
+											debug!("Processed unversioned legacy Slate, skipping Made acknowledgement");
 										}
 									}
 									Err(e) => {
