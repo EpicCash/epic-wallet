@@ -77,11 +77,43 @@ use uuid::Uuid;
 const CONNECTION_ERR_MSG: &str = "\nCan't connect to the epicbox server!\n\
 	Check your epic-wallet.toml settings and make sure epicbox domain is correct.\n";
 
-const EPICBOX_PROTOCOL_VERSION: &str = "3.0.0";
+const EPICBOX_PROTOCOL_VERSION: &str = "3.1.0";
 
 const SUBSCRIBE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
 
 const RELAY_ACK_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
+
+fn supports_stable_epicbox_txid(version: &str) -> bool {
+	let mut parts = version.split('.');
+	let major = parts.next().and_then(|v| v.parse::<u32>().ok());
+	let minor = parts.next().and_then(|v| v.parse::<u32>().ok());
+	let patch = parts.next().and_then(|v| v.parse::<u32>().ok());
+
+	match (major, minor, patch) {
+		(Some(major), Some(minor), Some(patch)) => {
+			(major, minor, patch) >= (3, 1, 0)
+		}
+		_ => false,
+	}
+}
+
+fn wait_for_relay_version(
+	rx: &Receiver<BrokerEvent>,
+	deadline: std::time::Instant,
+) -> Option<String> {
+	loop {
+		let remaining = deadline.saturating_duration_since(std::time::Instant::now());
+		if remaining.is_zero() {
+			return None;
+		}
+
+		match rx.recv_timeout(remaining) {
+			Ok(BrokerEvent::RelayVersion { version }) => return Some(version),
+			Ok(_) => continue,
+			Err(_) => return None,
+		}
+	}
+}
 
 /// Epicbox 'plugin' implementation
 pub enum CloseReason {
@@ -91,6 +123,9 @@ pub enum CloseReason {
 
 #[derive(Debug, Clone)]
 pub enum BrokerEvent {
+	RelayVersion {
+		version: String,
+	},
 	Subscribed,
 	PostAck {
 		slate_id: Uuid,
@@ -104,9 +139,8 @@ pub enum BrokerEvent {
 
 /// Metadata for one PostSlate that is waiting for its relay acknowledgement.
 ///
-/// Every PostSlate carries the sender-generated, transaction-wide
-/// `epicboxtxid`. The relay only echoes it in the PostSlate acknowledgement;
-/// it never creates or replaces it.
+/// Metadata for a protocol 3.1.0+ PostSlate waiting for its correlated relay
+/// acknowledgement. Legacy relays use bare Ok and do not create PendingPost.
 #[derive(Debug, Clone)]
 struct PendingPost {
 	slate_id: Uuid,
@@ -295,10 +329,10 @@ impl EpicboxChannel {
 
 		let container = Container::new(config.clone());
 
-		/*
-		 Generate and persist A before any network operation. Retrying the same
-		 Slate reuses the already-stored transaction-wide ID.
-		*/
+		
+		// Generate and persist epicbox_txid before any network operation. Retrying the same
+		// Slate reuses the already-stored transaction-wide id
+		
 		let candidate_epicboxtxid = Uuid::new_v4()
 			.to_string()
 			.replace('-', "");
@@ -310,7 +344,7 @@ impl EpicboxChannel {
 		)?;
 
 		// Keep the one-shot session alive until the relay acknowledges the
-		// PostSlate. A is already durable locally at this point.
+		// PostSlate. epicbox_txid is already durable locally at this point
 		let (tx, rx): (Sender<BrokerEvent>, Receiver<BrokerEvent>) = channel();
 		let listener = start_epicbox(
 			container.clone(),
@@ -327,6 +361,28 @@ impl EpicboxChannel {
 			.listeners
 			.insert(ListenerInterface::Epicbox, listener);
 
+		let version_deadline = std::time::Instant::now() + SUBSCRIBE_TIMEOUT;
+		let relay_version = match wait_for_relay_version(&rx, version_deadline) {
+			Some(version) => version,
+			None => {
+				stop_epicbox_listener(&container);
+				return Err(Error::EpicboxTungstenite(
+					format!(
+						"Could not determine Epicbox relay protocol version within {:?}",
+						SUBSCRIBE_TIMEOUT
+					)
+					.into(),
+				));
+			}
+		};
+
+		let relay_supports_3_1_0 = supports_stable_epicbox_txid(&relay_version);
+		info!(
+			"Connected Epicbox relay protocol version [{}]; stable transaction IDs {}",
+			relay_version,
+			if relay_supports_3_1_0 { "enabled" } else { "disabled (legacy mode)" }
+		);
+
 		let vslate = VersionedSlate::into_version(slate.clone(), SlateVersion::V2);
 
 		if let Err(e) = container
@@ -336,6 +392,19 @@ impl EpicboxChannel {
 		{
 			stop_epicbox_listener(&container);
 			return Err(e);
+		}
+
+		if !relay_supports_3_1_0 {
+			// legacy relays acknowledge PostSlate with a bare Ok that cannot be
+			// safely correlated with ClientDetails/Subscribe/Made responses
+
+			// preserve the historical behavior: a successful websocket write is
+			// sufficient, and cancellation/stable-ID semantics are unavailable
+			stop_epicbox_listener(&container);
+
+			let slate: Slate =
+				VersionedSlate::into_version(slate.clone(), SlateVersion::V2).into();
+			return Ok(slate);
 		}
 
 		let ack_deadline = std::time::Instant::now() + RELAY_ACK_TIMEOUT;
@@ -380,9 +449,10 @@ impl EpicboxChannel {
 	}
 
 	/// One-shot relay cancellation. Connect, establish the Epicbox session,
-	/// send CancelTx for the stable transaction identifier, and wait until the
-	/// relay returns TransactionCancelled. Local cancellation is performed by
-	/// the subscriber before the confirmation event is emitted.
+	/// send CancelTx for the stable transaction identifier, and wait for the
+	/// relay to return TransactionCancelled. After receiving that relay
+	/// confirmation, the subscriber cancels the transaction locally and then
+	/// emits BrokerEvent::Cancelled to wake this caller.
 	pub fn cancel<L, C, K>(
 		&self,
 		wallet: Arc<Mutex<Box<dyn WalletInst<'static, L, C, K> + 'static>>>,
@@ -418,6 +488,32 @@ impl EpicboxChannel {
 			.lock()
 			.listeners
 			.insert(ListenerInterface::Epicbox, listener);
+
+		let version_deadline = std::time::Instant::now() + SUBSCRIBE_TIMEOUT;
+		let relay_version = match wait_for_relay_version(&rx, version_deadline) {
+			Some(version) => version,
+			None => {
+				stop_epicbox_listener(&container);
+				return Err(Error::EpicboxTungstenite(
+					format!(
+						"Could not determine Epicbox relay protocol version within {:?}",
+						SUBSCRIBE_TIMEOUT
+					)
+					.into(),
+				));
+			}
+		};
+
+		if !supports_stable_epicbox_txid(&relay_version) {
+			stop_epicbox_listener(&container);
+			return Err(Error::EpicboxTungstenite(
+				format!(
+					"Epicbox relay protocol [{}] does not support CancelTx; protocol 3.1.0 or newer is required",
+					relay_version
+				)
+				.into(),
+			));
+		}
 
 		let sub_deadline = std::time::Instant::now() + SUBSCRIBE_TIMEOUT;
 		if !wait_for(&rx, sub_deadline, |event| {
@@ -583,9 +679,9 @@ impl Listener for EpicboxListener {
 		let address = EpicboxAddress::from_str(to)?;
 
 		// The subscriber must remain open to receive and persist the relay
-		// acknowledgement. Teardown is performed by the caller.
+		// acknowledgement. Teardown is performed by caller
 		self.publisher
-			.post_slate(slate, &address, false, epicboxtxid)
+			.post_slate(slate, &address, false, Some(epicboxtxid))
 	}
 
 	fn cancel(&self, epicboxtxid: &String) -> Result<(), Error> {
@@ -628,7 +724,7 @@ impl Publisher for EpicboxPublisher {
 		slate: &VersionedSlate,
 		to: &EpicboxAddress,
 		close_connection: bool,
-		epicboxtxid: &String,
+		epicboxtxid: Option<&String>,
 	) -> Result<(), Error> {
 		self.broker.post_slate(
 			slate,
@@ -661,7 +757,7 @@ impl EpicboxSubscriber {
 			broker: publisher.broker.clone(),
 			secret_key: publisher.secret_key.clone(),
 			wallet_mode: publisher.wallet_mode.clone(),
-			is_node_synced, // Can be updated by the caller.
+			is_node_synced,
 		})
 	}
 }
@@ -766,7 +862,7 @@ where
 			self.wallet.clone(),
 			self.keychain_mask.as_ref(),
 			Some(&epicboxtxid.to_string()),
-			None, // Relay-confirmed path; never fall back to a Slate UUID.
+			None, // Relay-confirmed path; never fall back to a slate uuid here
 		) {
 			Ok(_) => {
 				info!(
@@ -886,7 +982,7 @@ pub trait SubscriptionHandler: Send {
 		from: &EpicboxAddress,
 		slate: &VersionedSlate,
 		proof: Option<&mut TxProof>,
-		candidate_epicboxtxid: &String,
+		epicboxtxid: Option<&String>,
 	) -> Result<(), Error>;
 
 	fn on_tx_cancelled(&self, epicboxtxid: &String);
@@ -905,7 +1001,7 @@ where
 		from: &EpicboxAddress,
 		slate: &VersionedSlate,
 		tx_proof: Option<&mut TxProof>,
-		candidate_epicboxtxid: &String,
+		epicboxtxid: Option<&String>,
 	) -> Result<(), Error> {
 		let version = slate.version();
 		let mut slate: Slate = slate.into();
@@ -933,31 +1029,44 @@ where
 			tx_proof,
 		)?;
 
-		// Atomically preserve the transaction-wide ID already associated with
-		// this Slate. Every protocol state is required to carry the same A.
-		let stable_epicboxtxid = owner::ensure_epicbox_tx_id(
-			self.wallet.clone(),
-			self.keychain_mask.as_ref(),
-			&tx_slate_id,
-			candidate_epicboxtxid,
-		)?;
+		// Only persist an epicbox_txid when the relay actually
+		// supplied one. Legacy slates remain local-only cancellation
+                // and will have null epicbox_txid.
+		let stable_epicboxtxid = match epicboxtxid {
+			Some(epicboxtxid) => {
+				let stable = owner::ensure_epicbox_tx_id(
+					self.wallet.clone(),
+					self.keychain_mask.as_ref(),
+					&tx_slate_id,
+					epicboxtxid,
+				)?;
 
-		info!(
-			"Stable epicboxtxid [{}] associated with Slate [{}]",
-			stable_epicboxtxid,
-			tx_slate_id
-		);
+				info!(
+					"Stable epicboxtxid [{}] associated with Slate [{}]",
+					stable,
+					tx_slate_id
+				);
+
+				Some(stable)
+			}
+			None => {
+				debug!(
+					"Legacy Slate [{}] has no epicboxtxid; using local-only cancellation",
+					tx_slate_id
+				);
+				None
+			}
+		};
 
 		if !is_finalized {
 			let response_slate = VersionedSlate::into_version(slate, version);
 
-			// Carry the same stable transaction ID through every subsequent
-			// Slate state. The broker also signs this ID independently.
+                        // we do not create a new epicbox_txid here, sender's job 
 			self.publisher.post_slate(
 				&response_slate,
 				from,
 				false,
-				&stable_epicboxtxid,
+				stable_epicboxtxid.as_ref(),
 			)?;
 		} else {
 			info!("Slate [{}] finalized successfully", tx_slate_id);
@@ -1021,7 +1130,7 @@ pub trait Publisher: Send {
 		slate: &VersionedSlate,
 		to: &EpicboxAddress,
 		close_connection: bool,
-		epicboxtxid: &String,
+		epicboxtxid: Option<&String>,
 	) -> Result<(), Error>;
 
 	fn cancel_tx(&self, epicboxtxid: &String) -> Result<(), Error>;
@@ -1033,6 +1142,7 @@ pub struct EpicboxBroker {
 	inner: Arc<Mutex<WebSocket<MaybeTlsStream<TcpStream>>>>,
 	tx: Sender<BrokerEvent>,
 	pending_post: Arc<Mutex<Option<PendingPost>>>,
+	relay_version: Arc<Mutex<Option<String>>>,
 	subscribed: Arc<AtomicBool>,
 	stopping: Arc<AtomicBool>,
 }
@@ -1047,6 +1157,7 @@ impl EpicboxBroker {
 			inner: Arc::new(Mutex::new(inner)),
 			tx,
 			pending_post: Arc::new(Mutex::new(None)),
+			relay_version: Arc::new(Mutex::new(None)),
 			subscribed: Arc::new(AtomicBool::new(false)),
 			stopping: Arc::new(AtomicBool::new(false)),
 		})
@@ -1173,9 +1284,11 @@ impl EpicboxBroker {
 								client.challenge = Some(str.clone());
 
 								if first_run {
-									client.client_details(wallet_mode.clone())?;
+									// GetVersion is supported on 3.0.0+, query it so we can gate 
+									// epicbox_txid compat on 3.1.0+
+									client.get_version()?;
 									first_run = false;
-									info!("Starting Epicbox subscription...");
+									continue;
 								}
 
 								let signature =
@@ -1205,7 +1318,7 @@ impl EpicboxBroker {
 								str,
 								challenge: _challenge,
 								signature,
-								ver: _,
+								ver: slate_ver,
 								epicboxmsgid,
 								epicboxtxid,
 							} => {
@@ -1223,29 +1336,25 @@ impl EpicboxBroker {
 									}
 								};
 
-								let candidate_epicboxtxid = match epicboxtxid {
-									Some(epicboxtxid) => epicboxtxid,
-									None => {
-										error!(
-											"Rejecting Slate message [{}] without required \
-											 epicboxtxid",
-											epicboxmsgid
-										);
-										continue;
-									}
-								};
+								if epicboxtxid.is_none() {
+									debug!(
+										"Received legacy Slate message [{}] without epicboxtxid; \
+										 leaving epicbox_tx_id unset",
+										epicboxmsgid
+									);
+								}
 
 								let proof_address = tx_proof.address.clone();
 								if let Err(e) = client.handler.lock().on_slate(
 									&proof_address,
 									&slate,
 									Some(&mut tx_proof),
-									&candidate_epicboxtxid,
+									epicboxtxid.as_ref(),
 								) {
 									error!(
-										"Could not process/store Slate transaction [{}], \
+										"Could not process/store Slate transaction epicboxtxid={:?}, \
 										 message [{}]: {:?}",
-										candidate_epicboxtxid,
+										epicboxtxid,
 										epicboxmsgid,
 										e
 									);
@@ -1278,7 +1387,7 @@ impl EpicboxBroker {
 										// Made always acknowledges the exact queued-message
 										// identifier, never the stable transaction ID.
 										if let Err(e) =
-											client.made_send(epicboxmsgid.clone())
+											client.made_send(epicboxmsgid.clone(), &slate_ver)
 										{
 											error!(
 												"Error sending Made: {}",
@@ -1341,6 +1450,44 @@ impl EpicboxBroker {
 
 							ProtocolResponseV2::GetVersion { str } => {
 								trace!("ProtocolResponseV2::GetVersion {}", str);
+								*self.relay_version.lock() = Some(str.clone());
+								let _ = client.tx.send(BrokerEvent::RelayVersion {
+									version: str,
+								});
+
+								// complete the initial session setup only after relay ver so we use
+								// compatible protocol msgs, and don't confuse bare Ok with postslate_ack
+								client.client_details(wallet_mode.clone())?;
+
+								let challenge = match client.challenge.as_ref() {
+									Some(challenge) => challenge,
+									None => {
+										error!("Received GetVersion before an Epicbox challenge");
+										continue;
+									}
+								};
+
+								let signature =
+									sign_challenge(challenge, secret_key)?.to_hex();
+								let request_sub = ProtocolRequestV2::Subscribe {
+									address: client.address.public_key.to_string(),
+									ver: ver.to_string(),
+									signature,
+								};
+
+								match client.send(&request_sub) {
+									Ok(()) => {
+										self.subscribed.store(
+											true,
+											std::sync::atomic::Ordering::SeqCst,
+										);
+										let _ = client.tx.send(BrokerEvent::Subscribed);
+										info!("Starting Epicbox subscription...");
+									}
+									Err(e) => {
+										error!("Error sending initial Subscribe: {:?}", e);
+									}
+								}
 							}
 
 							ProtocolResponseV2::Error {
@@ -1366,11 +1513,9 @@ impl EpicboxBroker {
 								epicboxmsgid,
 								epicboxtxid,
 							} => {
-								/*
-								 ClientDetails, Subscribe, and Made return plain Ok. A
-								 PostSlate acknowledgement is distinguished by the relay
-								 echoing the sender-generated epicboxtxid.
-								*/
+								
+								// ClientDetails, Subscribe, and Made return plain Ok, and
+								// postslate_ack is distinguished by the echo of epicbox_txid
 								let returned_epicboxtxid = match epicboxtxid {
 									Some(epicboxtxid) => epicboxtxid,
 									None => {
@@ -1463,7 +1608,7 @@ impl EpicboxBroker {
 		to: &EpicboxAddress,
 		from: &EpicboxAddress,
 		secret_key: &SecretKey,
-		epicboxtxid: &String,
+		epicboxtxid: Option<&String>,
 	) -> Result<(), Error> {
 		let public_key = to.public_key()?;
 		let secret_key_copy = secret_key.clone();
@@ -1478,21 +1623,37 @@ impl EpicboxBroker {
 		let message_ser = serde_json::to_string(&message)?;
 		let signature = sign_challenge(&message_ser, secret_key)?.to_hex();
 
-		let epicboxtxidsig = sign_challenge(epicboxtxid, secret_key)?.to_hex();
+		let relay_version = self.relay_version.lock().clone();
+		let use_stable_txid = epicboxtxid.is_some()
+			&& relay_version
+				.as_deref()
+				.map(supports_stable_epicbox_txid)
+				.unwrap_or(false);
+
+		let (request_epicboxtxid, request_epicboxtxidsig) = if use_stable_txid {
+			let epicboxtxid = epicboxtxid
+				.expect("stable transaction ID disappeared after presence check");
+			let epicboxtxidsig = sign_challenge(epicboxtxid, secret_key)?.to_hex();
+			(Some(epicboxtxid.clone()), Some(epicboxtxidsig))
+		} else {
+			(None, None)
+		};
 
 		let request = ProtocolRequest::PostSlate {
 			from: from.stripped(),
 			to: to.stripped(),
 			str: message_ser,
 			signature,
-			epicboxtxid: Some(epicboxtxid.clone()),
-			epicboxtxidsig: Some(epicboxtxidsig),
+			epicboxtxid: request_epicboxtxid,
+			epicboxtxidsig: request_epicboxtxidsig,
 		};
 
 		let slate: Slate = slate.into();
 		debug!("Starting to send Slate with id [{}]", slate.id);
 
-		{
+		if use_stable_txid {
+			let epicboxtxid = epicboxtxid
+				.expect("stable transaction ID disappeared after presence check");
 			let mut pending = self.pending_post.lock();
 			if pending.is_some() {
 				return Err(Error::EpicboxTungstenite(
@@ -1511,10 +1672,12 @@ impl EpicboxBroker {
 		let request_json = serde_json::to_string(&request)?;
 
 		info!(
-			"Sending Epicbox PostSlate: slate_id=[{}], epicboxtxid=[{}], \
-			 has_epicboxtxidsig=true, to=[{}]",
+			"Sending Epicbox PostSlate: slate_id=[{}], epicboxtxid={:?}, \
+			 stable_txid_fields={}, relay_version={:?}, to=[{}]",
 			slate.id,
 			epicboxtxid,
+			use_stable_txid,
+			relay_version,
 			to.stripped(),
 		);
 
@@ -1540,6 +1703,21 @@ impl EpicboxBroker {
 		from: &EpicboxAddress,
 		secret_key: &SecretKey,
 	) -> Result<(), Error> {
+		let relay_version = self.relay_version.lock().clone();
+		if !relay_version
+			.as_deref()
+			.map(supports_stable_epicbox_txid)
+			.unwrap_or(false)
+		{
+			return Err(Error::EpicboxTungstenite(
+				format!(
+					"CancelTx requires Epicbox protocol 3.1.0 or newer; relay reported {:?}",
+					relay_version
+				)
+				.into(),
+			));
+		}
+
 		if !self
 			.subscribed
 			.load(std::sync::atomic::Ordering::SeqCst)
@@ -1606,13 +1784,25 @@ where
 	C: NodeClient + 'static,
 	K: Keychain + 'static,
 {
-	fn made_send(&self, epicboxmsgid: String) -> Result<(), Error> {
-		let signature = sign_challenge(&epicboxmsgid, &self.secret_key)?.to_hex();
+	fn made_send(&self, epicboxmsgid: String, ver: &str) -> Result<(), Error> {
+		let signature = if ver == "2.0.0" {
+			let challenge = self.challenge.as_ref().ok_or_else(|| {
+				Error::EpicboxTungstenite(
+					"Cannot send legacy 2.0.0 Made without an active challenge"
+						.to_string()
+						.into(),
+				)
+			})?;
+			sign_challenge(challenge, &self.secret_key)?.to_hex()
+		} else {
+			sign_challenge(&epicboxmsgid, &self.secret_key)?.to_hex()
+		};
+
 		let request = ProtocolRequestV2::Made {
 			address: self.address.public_key.to_string(),
 			signature,
 			epicboxmsgid,
-			ver: EPICBOX_PROTOCOL_VERSION.to_string(),
+			ver: ver.to_string(),
 		};
 
 		match self.send(&request) {
@@ -1624,6 +1814,15 @@ where
 				format!("Could not send 'Made' request! {}", e).into(),
 			)),
 		}
+	}
+
+	fn get_version(&self) -> Result<(), Error> {
+		self.send(&ProtocolRequestV2::GetVersion)
+			.map_err(|e| {
+				Error::EpicboxTungstenite(
+					format!("Could not send 'GetVersion' request! {}", e).into(),
+				)
+			})
 	}
 
 	fn client_details(&self, wallet_mode: String) -> Result<(), Error> {

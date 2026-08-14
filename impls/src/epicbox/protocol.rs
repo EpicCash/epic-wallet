@@ -1,3 +1,4 @@
+// Copyright 2026 The Epic Developers
 // Copyright 2019 The vault713 Developers
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,21 +28,11 @@ pub enum ProtocolError {
 impl Display for ProtocolError {
 	fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
 		match self {
-			ProtocolError::UnknownError => {
-				write!(f, "unknown error!")
-			}
-			ProtocolError::InvalidRequest => {
-				write!(f, "invalid request!")
-			}
-			ProtocolError::InvalidSignature => {
-				write!(f, "invalid signature!")
-			}
-			ProtocolError::InvalidChallenge => {
-				write!(f, "invalid challenge!")
-			}
-			ProtocolError::TooManySubscriptions => {
-				write!(f, "too many subscriptions!")
-			}
+			ProtocolError::UnknownError => write!(f, "unknown error!"),
+			ProtocolError::InvalidRequest => write!(f, "invalid request!"),
+			ProtocolError::InvalidSignature => write!(f, "invalid signature!"),
+			ProtocolError::InvalidChallenge => write!(f, "invalid challenge!"),
+			ProtocolError::TooManySubscriptions => write!(f, "too many subscriptions!"),
 		}
 	}
 }
@@ -62,21 +53,14 @@ pub enum ProtocolRequest {
 		str: String,
 		signature: String,
 
-		/// Stable transaction-wide identifier.
-		///
-		/// This is absent from the initial PostSlate because the destination
-		/// relay creates it. Later negotiation states carry it forward.
-		#[serde(
-			default,
-			skip_serializing_if = "Option::is_none"
-		)]
+		/// stable tx-wide identifier used by epicbox protocol 3.1.0+
+		/// omitted for legacy relays
+		#[serde(default, skip_serializing_if = "Option::is_none")]
 		epicboxtxid: Option<String>,
 
-		/// Signature by the posting wallet over epicboxtxid.
-		#[serde(
-			default,
-			skip_serializing_if = "Option::is_none"
-		)]
+		/// signature by the posting wallet over epicboxtxid.
+		/// only present if epicboxtxid is
+		#[serde(default, skip_serializing_if = "Option::is_none")]
 		epicboxtxidsig: Option<String>,
 	},
 
@@ -90,6 +74,9 @@ pub enum ProtocolRequest {
 pub enum ProtocolRequestV2 {
 	Challenge,
 
+	/// Supported by 3.0.0+ relays, client uses to select legacy vs 3.1.0+ mechanics
+	GetVersion,
+
 	Subscribe {
 		address: String,
 		ver: String,
@@ -102,16 +89,10 @@ pub enum ProtocolRequestV2 {
 		str: String,
 		signature: String,
 
-		#[serde(
-			default,
-			skip_serializing_if = "Option::is_none"
-		)]
+		#[serde(default, skip_serializing_if = "Option::is_none")]
 		epicboxtxid: Option<String>,
 
-		#[serde(
-			default,
-			skip_serializing_if = "Option::is_none"
-		)]
+		#[serde(default, skip_serializing_if = "Option::is_none")]
 		epicboxtxidsig: Option<String>,
 	},
 
@@ -123,8 +104,6 @@ pub enum ProtocolRequestV2 {
 		address: String,
 		signature: String,
 		ver: String,
-
-		/// Per-message delivery identifier.
 		epicboxmsgid: String,
 	},
 
@@ -136,11 +115,7 @@ pub enum ProtocolRequestV2 {
 
 	CancelTx {
 		address: String,
-
-		/// Stable transaction-wide identifier.
 		epicboxtxid: String,
-
-		/// Signature over epicboxtxid.
 		signature: String,
 	},
 }
@@ -148,46 +123,22 @@ pub enum ProtocolRequestV2 {
 impl Display for ProtocolRequest {
 	fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
 		match self {
-			ProtocolRequest::Challenge => {
-				write!(f, "Challenge")
-			}
-
-			ProtocolRequest::Subscribe {
-				address,
-				..
-			} => {
-				write!(f, "Subscribe to {}", address)
-			}
-
+			ProtocolRequest::Challenge => write!(f, "Challenge"),
+			ProtocolRequest::Subscribe { address, .. } => write!(f, "Subscribe to {}", address),
 			ProtocolRequest::PostSlate {
 				from,
 				to,
 				epicboxtxid,
 				..
-			} => {
-				match epicboxtxid {
-					Some(txid) => write!(
-						f,
-						"PostSlate from {} to {} for epicboxtxid {}",
-						from,
-						to,
-						txid
-					),
-
-					None => write!(
-						f,
-						"PostSlate from {} to {}",
-						from,
-						to
-					),
-				}
-			}
-
-			ProtocolRequest::Unsubscribe {
-				address,
-			} => {
-				write!(f, "Unsubscribe from {}", address)
-			}
+			} => match epicboxtxid {
+				Some(txid) => write!(
+					f,
+					"PostSlate from {} to {} for epicboxtxid {}",
+					from, to, txid
+				),
+				None => write!(f, "PostSlate from {} to {}", from, to),
+			},
+			ProtocolRequest::Unsubscribe { address } => write!(f, "Unsubscribe from {}", address),
 		}
 	}
 }
@@ -195,84 +146,44 @@ impl Display for ProtocolRequest {
 impl Display for ProtocolRequestV2 {
 	fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
 		match self {
-			ProtocolRequestV2::Challenge => {
-				write!(f, "Challenge")
-			}
-
-			ProtocolRequestV2::Subscribe {
-				address,
-				..
-			} => {
-				write!(f, "Subscribe to {}", address)
-			}
-
+			ProtocolRequestV2::Challenge => write!(f, "Challenge"),
+			ProtocolRequestV2::GetVersion => write!(f, "GetVersion"),
+			ProtocolRequestV2::Subscribe { address, .. } => write!(f, "Subscribe to {}", address),
 			ProtocolRequestV2::PostSlate {
 				from,
 				to,
 				epicboxtxid,
 				..
-			} => {
-				match epicboxtxid {
-					Some(txid) => write!(
-						f,
-						"PostSlate from {} to {} for epicboxtxid {}",
-						from,
-						to,
-						txid
-					),
-
-					None => write!(
-						f,
-						"PostSlate from {} to {}",
-						from,
-						to
-					),
-				}
-			}
-
-			ProtocolRequestV2::Unsubscribe {
-				address,
-			} => {
-				write!(f, "Unsubscribe from {}", address)
-			}
-
-			ProtocolRequestV2::Made {
-				epicboxmsgid,
-				..
-			} => {
-				write!(
+			} => match epicboxtxid {
+				Some(txid) => write!(
 					f,
-					"Made for epicboxmsgid {}",
-					epicboxmsgid
-				)
+					"PostSlate from {} to {} for epicboxtxid {}",
+					from, to, txid
+				),
+				None => write!(f, "PostSlate from {} to {}", from, to),
+			},
+			ProtocolRequestV2::Unsubscribe { address } => write!(f, "Unsubscribe from {}", address),
+			ProtocolRequestV2::Made { epicboxmsgid, .. } => {
+				write!(f, "Made for epicboxmsgid {}", epicboxmsgid)
 			}
-
 			ProtocolRequestV2::ClientDetails {
 				wallet_version,
 				wallet_mode,
 				protocol_version,
-			} => {
-				write!(
-					f,
-					"Wallet Version {}, Wallet Mode {}, Protocol Version {}",
-					wallet_version,
-					wallet_mode,
-					protocol_version
-				)
-			}
-
+			} => write!(
+				f,
+				"Wallet Version {}, Wallet Mode {}, Protocol Version {}",
+				wallet_version, wallet_mode, protocol_version
+			),
 			ProtocolRequestV2::CancelTx {
 				address,
 				epicboxtxid,
 				..
-			} => {
-				write!(
-					f,
-					"CancelTx for epicboxtxid {} as {}",
-					epicboxtxid,
-					address
-				)
-			}
+			} => write!(
+				f,
+				"CancelTx for epicboxtxid {} as {}",
+				epicboxtxid, address
+			),
 		}
 	}
 }
@@ -281,16 +192,13 @@ impl Display for ProtocolRequestV2 {
 #[serde(tag = "type")]
 pub enum ProtocolResponse {
 	Ok,
-
 	Error {
 		kind: ProtocolError,
 		description: String,
 	},
-
 	Challenge {
 		str: String,
 	},
-
 	Slate {
 		from: String,
 		str: String,
@@ -303,18 +211,9 @@ pub enum ProtocolResponse {
 #[serde(tag = "type")]
 pub enum ProtocolResponseV2 {
 	Ok {
-		/// Per-message identifier returned for the newly queued Slate.
-		#[serde(
-			default,
-			skip_serializing_if = "Option::is_none"
-		)]
+		#[serde(default, skip_serializing_if = "Option::is_none")]
 		epicboxmsgid: Option<String>,
-
-		/// Stable transaction-wide identifier.
-		#[serde(
-			default,
-			skip_serializing_if = "Option::is_none"
-		)]
+		#[serde(default, skip_serializing_if = "Option::is_none")]
 		epicboxtxid: Option<String>,
 	},
 
@@ -333,17 +232,18 @@ pub enum ProtocolResponseV2 {
 		challenge: String,
 		signature: String,
 
-		/// Existing version 2/3 relays include this for subscribed clients.
+		/// Protocol version selected by the relay for this Slate delivery.
+		///
+		/// Legacy 3.0.0 relays treat an unknown Subscribe version (including 3.1.0)
+		/// as 3.0.0 and return `ver: "3.0.0"` in the Slate. Use this value when
+		/// constructing Made so the acknowledgement remains compatible with the
+		/// relay's selected protocol behavior.
 		ver: String,
 
-		/// Required per-message identifier used by Made.
 		epicboxmsgid: String,
 
-		/// Stable transaction identifier. Older relays may omit it.
-		#[serde(
-			default,
-			skip_serializing_if = "Option::is_none"
-		)]
+		/// Stable transaction identifier. Legacy records/relays may omit it.
+		#[serde(default, skip_serializing_if = "Option::is_none")]
 		epicboxtxid: Option<String>,
 	},
 
@@ -351,7 +251,6 @@ pub enum ProtocolResponseV2 {
 		str: String,
 	},
 
-	/// Positive transaction-wide cancellation confirmation.
 	TransactionCancelled {
 		epicboxtxid: String,
 	},
@@ -360,29 +259,10 @@ pub enum ProtocolResponseV2 {
 impl Display for ProtocolResponse {
 	fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
 		match self {
-			ProtocolResponse::Ok => {
-				write!(f, "Ok")
-			}
-
-			ProtocolResponse::Error {
-				kind,
-				..
-			} => {
-				write!(f, "error: {}", kind)
-			}
-
-			ProtocolResponse::Challenge {
-				str,
-			} => {
-				write!(f, "Challenge {}", str)
-			}
-
-			ProtocolResponse::Slate {
-				from,
-				..
-			} => {
-				write!(f, "Slate from {}", from)
-			}
+			ProtocolResponse::Ok => write!(f, "Ok"),
+			ProtocolResponse::Error { kind, .. } => write!(f, "error: {}", kind),
+			ProtocolResponse::Challenge { str } => write!(f, "Challenge {}", str),
+			ProtocolResponse::Slate { from, .. } => write!(f, "Slate from {}", from),
 		}
 	}
 }
@@ -393,85 +273,35 @@ impl Display for ProtocolResponseV2 {
 			ProtocolResponseV2::Ok {
 				epicboxmsgid,
 				epicboxtxid,
-			} => {
-				match (epicboxmsgid, epicboxtxid) {
-					(Some(msgid), Some(txid)) => write!(
-						f,
-						"Ok (epicboxmsgid {}, epicboxtxid {})",
-						msgid,
-						txid
-					),
-
-					(Some(msgid), None) => write!(
-						f,
-						"Ok (epicboxmsgid {})",
-						msgid
-					),
-
-					(None, Some(txid)) => write!(
-						f,
-						"Ok (epicboxtxid {})",
-						txid
-					),
-
-					(None, None) => {
-						write!(f, "Ok")
-					}
-				}
-			}
-
-			ProtocolResponseV2::Error {
-				kind,
-				..
-			} => {
-				write!(f, "error: {}", kind)
-			}
-
-			ProtocolResponseV2::Challenge {
-				str,
-			} => {
-				write!(f, "Challenge {}", str)
-			}
-
-			ProtocolResponseV2::GetVersion {
-				str,
-			} => {
-				write!(f, "Version {}", str)
-			}
-
-			ProtocolResponseV2::TransactionCancelled {
-				epicboxtxid,
-			} => {
-				write!(
+			} => match (epicboxmsgid, epicboxtxid) {
+				(Some(msgid), Some(txid)) => write!(
 					f,
-					"transaction {} cancelled on relay",
-					epicboxtxid
-				)
+					"Ok (epicboxmsgid {}, epicboxtxid {})",
+					msgid, txid
+				),
+				(Some(msgid), None) => write!(f, "Ok (epicboxmsgid {})", msgid),
+				(None, Some(txid)) => write!(f, "Ok (epicboxtxid {})", txid),
+				(None, None) => write!(f, "Ok"),
+			},
+			ProtocolResponseV2::Error { kind, .. } => write!(f, "error: {}", kind),
+			ProtocolResponseV2::Challenge { str } => write!(f, "Challenge {}", str),
+			ProtocolResponseV2::GetVersion { str } => write!(f, "Version {}", str),
+			ProtocolResponseV2::TransactionCancelled { epicboxtxid } => {
+				write!(f, "transaction {} cancelled on relay", epicboxtxid)
 			}
-
 			ProtocolResponseV2::Slate {
 				from,
 				epicboxmsgid,
 				epicboxtxid,
 				..
-			} => {
-				match epicboxtxid {
-					Some(txid) => write!(
-						f,
-						"Slate from {} with epicboxmsgid {} for epicboxtxid {}",
-						from,
-						epicboxmsgid,
-						txid
-					),
-
-					None => write!(
-						f,
-						"Slate from {} with epicboxmsgid {}",
-						from,
-						epicboxmsgid
-					),
-				}
-			}
+			} => match epicboxtxid {
+				Some(txid) => write!(
+					f,
+					"Slate from {} with epicboxmsgid {} for epicboxtxid {}",
+					from, epicboxmsgid, txid
+				),
+				None => write!(f, "Slate from {} with epicboxmsgid {}", from, epicboxmsgid),
+			},
 		}
 	}
 }
