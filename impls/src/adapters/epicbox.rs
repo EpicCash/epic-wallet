@@ -547,18 +547,13 @@ impl EpicboxChannel {
 
 		stop_epicbox_listener(&container);
 
-		if confirmed {
-			Ok(())
-		} else {
-			Err(Error::EpicboxTungstenite(
-				format!(
-					"No TransactionCancelled response from relay for [{}]; \
-					 local transaction was not confirmed cancelled",
-					epicboxtxid
-				)
-				.into(),
-			))
+		if !confirmed {
+                        warn!("No TransactionCancelled response from relay for [{}], \
+                              proceeding with local-only cancel!",
+                               epicboxtxid
+                        );
 		}
+                Ok(())
 	}
 }
 
