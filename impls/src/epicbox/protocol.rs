@@ -238,11 +238,13 @@ pub enum ProtocolResponseV2 {
 		/// as 3.0.0 and return `ver: "3.0.0"` in the Slate. Use this value when
 		/// constructing Made so the acknowledgement remains compatible with the
 		/// relay's selected protocol behavior.
-		ver: String,
-
-		epicboxmsgid: String,
+		#[serde(default, skip_serializing_if = "Option::is_none")]
+		ver: Option<String>,
 
 		/// Stable transaction identifier. Legacy records/relays may omit it.
+		#[serde(default, skip_serializing_if = "Option::is_none")]
+		epicboxmsgid: Option<String>,
+
 		#[serde(default, skip_serializing_if = "Option::is_none")]
 		epicboxtxid: Option<String>,
 	},
