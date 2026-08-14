@@ -949,7 +949,7 @@ dependencies = [
 [[package]]
 name = "epic_api"
 version = "4.0.3"
-source = "git+https://github.com/who-biz/epic.git?branch=randomx-api-fix#b00f9a9493357b68eaa21a95816900c0cf275437"
+source = "git+https://github.com/who-biz/epic.git?branch=randomx-api-fix#e8c726a0f9d9c291be98c8b840973ada2e6b2f06"
 dependencies = [
  "bytes",
  "chrono",
@@ -990,7 +990,7 @@ dependencies = [
 [[package]]
 name = "epic_chain"
 version = "4.0.3"
-source = "git+https://github.com/who-biz/epic.git?branch=randomx-api-fix#b00f9a9493357b68eaa21a95816900c0cf275437"
+source = "git+https://github.com/who-biz/epic.git?branch=randomx-api-fix#e8c726a0f9d9c291be98c8b840973ada2e6b2f06"
 dependencies = [
  "bit-vec",
  "bitflags 2.9.4",
@@ -1013,7 +1013,7 @@ dependencies = [
 [[package]]
 name = "epic_core"
 version = "4.0.3"
-source = "git+https://github.com/who-biz/epic.git?branch=randomx-api-fix#b00f9a9493357b68eaa21a95816900c0cf275437"
+source = "git+https://github.com/who-biz/epic.git?branch=randomx-api-fix#e8c726a0f9d9c291be98c8b840973ada2e6b2f06"
 dependencies = [
  "blake2-rfc",
  "byteorder",
@@ -1045,7 +1045,7 @@ dependencies = [
 [[package]]
 name = "epic_keychain"
 version = "4.0.3"
-source = "git+https://github.com/who-biz/epic.git?branch=randomx-api-fix#b00f9a9493357b68eaa21a95816900c0cf275437"
+source = "git+https://github.com/who-biz/epic.git?branch=randomx-api-fix#e8c726a0f9d9c291be98c8b840973ada2e6b2f06"
 dependencies = [
  "blake2-rfc",
  "byteorder",
@@ -1069,7 +1069,7 @@ dependencies = [
 [[package]]
 name = "epic_p2p"
 version = "4.0.3"
-source = "git+https://github.com/who-biz/epic.git?branch=randomx-api-fix#b00f9a9493357b68eaa21a95816900c0cf275437"
+source = "git+https://github.com/who-biz/epic.git?branch=randomx-api-fix#e8c726a0f9d9c291be98c8b840973ada2e6b2f06"
 dependencies = [
  "bitflags 2.9.4",
  "blake2-rfc",
@@ -1101,7 +1101,7 @@ dependencies = [
 [[package]]
 name = "epic_pool"
 version = "4.0.3"
-source = "git+https://github.com/who-biz/epic.git?branch=randomx-api-fix#b00f9a9493357b68eaa21a95816900c0cf275437"
+source = "git+https://github.com/who-biz/epic.git?branch=randomx-api-fix#e8c726a0f9d9c291be98c8b840973ada2e6b2f06"
 dependencies = [
  "blake2-rfc",
  "chrono",
@@ -1119,7 +1119,7 @@ dependencies = [
 [[package]]
 name = "epic_store"
 version = "4.0.3"
-source = "git+https://github.com/who-biz/epic.git?branch=randomx-api-fix#b00f9a9493357b68eaa21a95816900c0cf275437"
+source = "git+https://github.com/who-biz/epic.git?branch=randomx-api-fix#e8c726a0f9d9c291be98c8b840973ada2e6b2f06"
 dependencies = [
  "byteorder",
  "croaring",
@@ -1139,7 +1139,7 @@ dependencies = [
 [[package]]
 name = "epic_util"
 version = "4.0.3"
-source = "git+https://github.com/who-biz/epic.git?branch=randomx-api-fix#b00f9a9493357b68eaa21a95816900c0cf275437"
+source = "git+https://github.com/who-biz/epic.git?branch=randomx-api-fix#e8c726a0f9d9c291be98c8b840973ada2e6b2f06"
 dependencies = [
  "anyhow",
  "backtrace",
@@ -3523,7 +3523,7 @@ dependencies = [
 [[package]]
 name = "randomx"
 version = "0.2.0"
-source = "git+https://github.com/who-biz/randomx-rust.git?branch=cs-fixes#79a795945329b9005974a0c5ce7a66af12886915"
+source = "git+https://github.com/who-biz/randomx-rust.git?branch=cs-fixes#7b1daec386af3877736e27cfd0becf067d08be30"
 dependencies = [
  "bindgen",
  "byteorder",
