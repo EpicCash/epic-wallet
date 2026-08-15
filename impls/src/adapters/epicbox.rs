@@ -504,17 +504,64 @@ impl EpicboxChannel {
 
 		if !supports_stable_epicbox_txid(&relay_version) {
 			stop_epicbox_listener(&container);
+
+			let _ = owner::cancel_epicbox_tx(
+				wallet,
+				keychain_mask.as_ref(),
+				Some(epicboxtxid),
+				None,
+			);
+
+			return Ok(());
+		}
+
+		let sub_deadline = std::time::Instant::now() + SUBSCRIBE_TIMEOUT;
+		if !wait_for(&rx, sub_deadline, |event| {
+			matches!(event, BrokerEvent::Subscribed)
+		}) {
+			stop_epicbox_listener(&container);
+			return Err(Error::EpicboxTungstenite(
+				format!(
+					"Could not send CancelTx: Epicbox session ended or the \
+					 subscription did not establish within {:?}",
+					SUBSCRIBE_TIMEOUT
+				)
+				.into(),
+			));
+		}
+
+		if let Err(e) = container
+			.lock()
+			.listener(ListenerInterface::Epicbox)?
+			.cancel(epicboxtxid)
+		{
+			stop_epicbox_listener(&container);
+			return Err(e);
+		}
+
+		let confirm_deadline = std::time::Instant::now() + RELAY_ACK_TIMEOUT;
+		let confirmed = wait_for(&rx, confirm_deadline, |event| {
+			matches!(
+				event,
+				BrokerEvent::Cancelled { epicboxtxid: id } if id == epicboxtxid
+			)
+		});
+
+		stop_epicbox_listener(&container);
+
+		if !confirmed {
+                        warn!("No TransactionCancelled response from relay for [{}], \
+				proceeding with local-only cancel!",
+				epicboxtxid
+			);
 			match owner::cancel_epicbox_tx(
 				wallet,
 				keychain_mask.as_ref(),
 				Some(&epicboxtxid),
-				None, // Relay-confirmed path; never fall back to a slate uuid here
+				None, // stable epicboxtxid is enough here, we know we have it
 			) {
 				Ok(_) => {
-					info!(
-						"Transaction for epicboxtxid [{}] marked cancelled",
-						epicboxtxid.to_string()
-					);
+					info!("Transaction for epicboxtxid [{}] marked cancelled", epicboxtxid.to_string());
 				}
 				Err(e) => {
 					warn!(
@@ -524,49 +571,6 @@ impl EpicboxChannel {
 						e
 					);
 				}
-			}
-
-		} else {
-
-			let sub_deadline = std::time::Instant::now() + SUBSCRIBE_TIMEOUT;
-			if !wait_for(&rx, sub_deadline, |event| {
-				matches!(event, BrokerEvent::Subscribed)
-			}) {
-				stop_epicbox_listener(&container);
-				return Err(Error::EpicboxTungstenite(
-					format!(
-						"Could not send CancelTx: Epicbox session ended or the \
-						 subscription did not establish within {:?}",
-						SUBSCRIBE_TIMEOUT
-					)
-					.into(),
-				));
-			}
-
-			if let Err(e) = container
-				.lock()
-				.listener(ListenerInterface::Epicbox)?
-				.cancel(epicboxtxid)
-			{
-				stop_epicbox_listener(&container);
-				return Err(e);
-			}
-
-			let confirm_deadline = std::time::Instant::now() + RELAY_ACK_TIMEOUT;
-			let confirmed = wait_for(&rx, confirm_deadline, |event| {
-				matches!(
-					event,
-					BrokerEvent::Cancelled { epicboxtxid: id } if id == epicboxtxid
-				)
-			});
-
-			stop_epicbox_listener(&container);
-
-			if !confirmed {
-        	                warn!("No TransactionCancelled response from relay for [{}], \
-					proceeding with local-only cancel!",
-					epicboxtxid
-				);
 			}
 		}
 
@@ -1765,20 +1769,6 @@ impl EpicboxBroker {
 		from: &EpicboxAddress,
 		secret_key: &SecretKey,
 	) -> Result<(), Error> {
-		let relay_version = self.relay_version.lock().clone();
-		if !relay_version
-			.as_deref()
-			.map(supports_stable_epicbox_txid)
-			.unwrap_or(false)
-		{
-			return Err(Error::EpicboxTungstenite(
-				format!(
-					"CancelTx requires Epicbox protocol 3.1.0 or newer; relay reported {:?}",
-					relay_version
-				)
-				.into(),
-			));
-		}
 
 		if !self
 			.subscribed
