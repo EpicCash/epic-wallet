@@ -1262,6 +1262,7 @@ where
 		epicbox_tx_id: Option<EpicboxTxId>,
 		slate_uuid: Option<Uuid>,
 	) -> Result<(), Error> {
+		//TODO: clean up these conditions big time, way too verbose
 		let epicbox_tx_id = match (epicbox_tx_id, tx_id, slate_uuid) {
 			(Some(epicbox_tx_id), None, None) => {
 				// epic-wallet cancel -e <epicbox_tx_id> path.
@@ -1388,7 +1389,31 @@ where
 					return Ok(());
 				}
 			}
+			(Some(epicbox_tx_id), None, Some(slate_id)) => {
+				let res = self.retrieve_txs(
+					keychain_mask,
+					false,
+					None,
+					Some(slate_id),
+					None,
+					None,
+					None,
+				)?;
 
+				let entry = res.txs.into_iter().next().ok_or_else(|| {
+					Error::GenericError(format!("Transaction with slate_id {} not found", slate_id))
+				})?;
+
+				if entry.epicbox_tx_id.as_deref() != Some(epicbox_tx_id.as_str()) {
+					return Err(Error::GenericError(format!(
+						"Transaction with slate_id {} does not match epicbox_tx_id [{}]",
+						slate_id,
+						epicbox_tx_id
+					)));
+				}
+
+				epicbox_tx_id
+			}
 			_ => {
 				return Err(Error::GenericError(
 					"Exactly one of tx_id, epicbox_tx_id, or slate_uuid must be provided"
