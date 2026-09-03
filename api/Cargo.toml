@@ -1,6 +1,6 @@
 [package]
 name = "epic_wallet_api"
-version = "4.0.0"
+version = "4.0.1"
 authors = ["Epic Developers <info@epiccash.com>"]
 description = "Epic Wallet API"
 license = "Apache-2.0"
@@ -25,10 +25,10 @@ base64 = "0.22"
 ed25519-dalek = "2.1"
 
 
-epic_wallet_libwallet = { path = "../libwallet", version = "4.0.0" }
-epic_wallet_config = { path = "../config", version = "4.0.0" }
-epic_wallet_impls = { path = "../impls", version = "4.0.0" }
-epic_wallet_util = { path = "../util", version = "4.0.0" }
+epic_wallet_libwallet = { path = "../libwallet", version = "4.0.1" }
+epic_wallet_config = { path = "../config", version = "4.0.1" }
+epic_wallet_impls = { path = "../impls", version = "4.0.1" }
+epic_wallet_util = { path = "../util", version = "4.0.1" }
 
 [dev-dependencies]
 serde_json = "1"

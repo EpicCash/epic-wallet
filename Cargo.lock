@@ -948,8 +948,8 @@ dependencies = [
 
 [[package]]
 name = "epic_api"
-version = "4.0.0"
-source = "git+https://github.com/EpicCash/epic.git?branch=master#c7e3fe09d823849a03dbe175f72736a2fab486c1"
+version = "4.0.3"
+source = "git+https://github.com/EpicCash/epic?tag=v4.0.3#650b783f8ec8745594f702ad88db6ae5e620f7e9"
 dependencies = [
  "bytes",
  "chrono",
@@ -989,8 +989,8 @@ dependencies = [
 
 [[package]]
 name = "epic_chain"
-version = "4.0.0"
-source = "git+https://github.com/EpicCash/epic.git?branch=master#c7e3fe09d823849a03dbe175f72736a2fab486c1"
+version = "4.0.3"
+source = "git+https://github.com/EpicCash/epic?tag=v4.0.3#650b783f8ec8745594f702ad88db6ae5e620f7e9"
 dependencies = [
  "bit-vec",
  "bitflags 2.9.4",
@@ -1012,8 +1012,8 @@ dependencies = [
 
 [[package]]
 name = "epic_core"
-version = "4.0.0"
-source = "git+https://github.com/EpicCash/epic.git?branch=master#c7e3fe09d823849a03dbe175f72736a2fab486c1"
+version = "4.0.3"
+source = "git+https://github.com/EpicCash/epic?tag=v4.0.3#650b783f8ec8745594f702ad88db6ae5e620f7e9"
 dependencies = [
  "blake2-rfc",
  "byteorder",
@@ -1044,8 +1044,8 @@ dependencies = [
 
 [[package]]
 name = "epic_keychain"
-version = "4.0.0"
-source = "git+https://github.com/EpicCash/epic.git?branch=master#c7e3fe09d823849a03dbe175f72736a2fab486c1"
+version = "4.0.3"
+source = "git+https://github.com/EpicCash/epic?tag=v4.0.3#650b783f8ec8745594f702ad88db6ae5e620f7e9"
 dependencies = [
  "blake2-rfc",
  "byteorder",
@@ -1068,8 +1068,8 @@ dependencies = [
 
 [[package]]
 name = "epic_p2p"
-version = "4.0.0"
-source = "git+https://github.com/EpicCash/epic.git?branch=master#c7e3fe09d823849a03dbe175f72736a2fab486c1"
+version = "4.0.3"
+source = "git+https://github.com/EpicCash/epic?tag=v4.0.3#650b783f8ec8745594f702ad88db6ae5e620f7e9"
 dependencies = [
  "bitflags 2.9.4",
  "blake2-rfc",
@@ -1100,8 +1100,8 @@ dependencies = [
 
 [[package]]
 name = "epic_pool"
-version = "4.0.0"
-source = "git+https://github.com/EpicCash/epic.git?branch=master#c7e3fe09d823849a03dbe175f72736a2fab486c1"
+version = "4.0.3"
+source = "git+https://github.com/EpicCash/epic?tag=v4.0.3#650b783f8ec8745594f702ad88db6ae5e620f7e9"
 dependencies = [
  "blake2-rfc",
  "chrono",
@@ -1118,8 +1118,8 @@ dependencies = [
 
 [[package]]
 name = "epic_store"
-version = "4.0.0"
-source = "git+https://github.com/EpicCash/epic.git?branch=master#c7e3fe09d823849a03dbe175f72736a2fab486c1"
+version = "4.0.3"
+source = "git+https://github.com/EpicCash/epic?tag=v4.0.3#650b783f8ec8745594f702ad88db6ae5e620f7e9"
 dependencies = [
  "byteorder",
  "croaring",
@@ -1138,8 +1138,8 @@ dependencies = [
 
 [[package]]
 name = "epic_util"
-version = "4.0.0"
-source = "git+https://github.com/EpicCash/epic.git?branch=master#c7e3fe09d823849a03dbe175f72736a2fab486c1"
+version = "4.0.3"
+source = "git+https://github.com/EpicCash/epic?tag=v4.0.3#650b783f8ec8745594f702ad88db6ae5e620f7e9"
 dependencies = [
  "anyhow",
  "backtrace",
@@ -1161,7 +1161,7 @@ dependencies = [
 
 [[package]]
 name = "epic_wallet"
-version = "4.0.0"
+version = "4.0.1"
 dependencies = [
  "built",
  "clap",
@@ -1190,7 +1190,7 @@ dependencies = [
 
 [[package]]
 name = "epic_wallet_api"
-version = "4.0.0"
+version = "4.0.1"
 dependencies = [
  "base64 0.22.1",
  "chrono",
@@ -1213,7 +1213,7 @@ dependencies = [
 
 [[package]]
 name = "epic_wallet_config"
-version = "4.0.0"
+version = "4.0.1"
 dependencies = [
  "dirs 6.0.0",
  "epic_wallet_util",
@@ -1227,7 +1227,7 @@ dependencies = [
 
 [[package]]
 name = "epic_wallet_controller"
-version = "4.0.0"
+version = "4.0.1"
 dependencies = [
  "bytes",
  "chrono",
@@ -1259,7 +1259,7 @@ dependencies = [
 
 [[package]]
 name = "epic_wallet_impls"
-version = "4.0.0"
+version = "4.0.1"
 dependencies = [
  "base64 0.22.1",
  "bitvec",
@@ -1301,7 +1301,7 @@ dependencies = [
 
 [[package]]
 name = "epic_wallet_libwallet"
-version = "4.0.0"
+version = "4.0.1"
 dependencies = [
  "aead",
  "blake2-rfc",
@@ -1333,7 +1333,7 @@ dependencies = [
 
 [[package]]
 name = "epic_wallet_util"
-version = "4.0.0"
+version = "4.0.1"
 dependencies = [
  "dirs 6.0.0",
  "epic_api",
@@ -1363,7 +1363,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "778e2ac28f6c47af28e4907f13ffd1e1ddbd400980a9abd7c8df189bf578a5ad"
 dependencies = [
  "libc",
- "windows-sys 0.52.0",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -1386,7 +1386,7 @@ checksum = "0ce92ff622d6dadf7349484f42c93271a0d49b7cc4d466a936405bacbe10aa78"
 dependencies = [
  "cfg-if 1.0.1",
  "rustix",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -1677,8 +1677,8 @@ checksum = "a8d1add55171497b4705a648c6b583acafb01d58050a51727785f0b2c8e0a2b2"
 
 [[package]]
 name = "grin_secp256k1zkp"
-version = "0.8.0"
-source = "git+https://github.com/EpicCash/rust-secp256k1-zkp?branch=master#e5ee7524f144b9d5fbc6c8a11c0f4967d474ec40"
+version = "0.8.1"
+source = "git+https://github.com/EpicCash/rust-secp256k1-zkp?branch=master#42fcb29d4b635ea771d1984be0d11b0e64b15a93"
 dependencies = [
  "arrayvec 0.7.6",
  "cc",
@@ -2114,7 +2114,7 @@ checksum = "e04d7f318608d35d4b61ddd75cbdaee86b023ebe2bd5a66ee0915f0bf93095a9"
 dependencies = [
  "hermit-abi",
  "libc",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -3248,7 +3248,7 @@ dependencies = [
  "once_cell",
  "socket2 0.5.10",
  "tracing",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -3523,7 +3523,7 @@ dependencies = [
 [[package]]
 name = "randomx"
 version = "0.2.0"
-source = "git+https://github.com/EpicCash/randomx-rust.git?tag=v0.2.0#d8cdeff53c333707da401a3e06d29b467681cfeb"
+source = "git+https://github.com/EpicCash/randomx-rust.git?tag=v0.2.1#9a412a1588ae999484ab26d94f9b40449a856514"
 dependencies = [
  "bindgen",
  "byteorder",
@@ -3768,7 +3768,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -4360,7 +4360,7 @@ dependencies = [
  "getrandom 0.3.3",
  "once_cell",
  "rustix",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -5063,7 +5063,7 @@ version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf221c93e13a30d793f7645a0e7762c55d169dbb0a49671918a2319d289b10bb"
 dependencies = [
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
