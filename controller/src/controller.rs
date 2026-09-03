@@ -140,12 +140,17 @@ where
 	if api_secret.is_some() {
 		let api_basic_auth =
 			"Basic ".to_string() + &to_base64(&("epic:".to_string() + &api_secret.unwrap()));
-		let basic_auth_middleware = Arc::new(BasicAuthURIMiddleware::new(
+		// cant avoid extra clone here without fixing api, should do that next
+		router.add_middleware(Arc::new(BasicAuthURIMiddleware::new(
+			api_basic_auth.clone(),
+			&EPIC_OWNER_BASIC_REALM,
+			"/v2/owner".to_string(),
+		)));
+		router.add_middleware(Arc::new(BasicAuthURIMiddleware::new(
 			api_basic_auth,
 			&EPIC_OWNER_BASIC_REALM,
-			"/v2/foreign".to_string(),
-		));
-		router.add_middleware(basic_auth_middleware);
+			"/v3/owner".to_string(),
+		)));
 	}
 	let mut running_foreign = false;
 	if owner_api_include_foreign.unwrap_or(false) {
