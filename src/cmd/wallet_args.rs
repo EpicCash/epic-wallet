@@ -459,18 +459,23 @@ fn prompt_password_stdout(prompt: &str) -> ZeroingString {
     ZeroingString::from(rpassword::prompt_password(prompt).unwrap_or("".to_string()))
 }
 
+fn password_from_file(path: &str) -> std::io::Result<String> {
+    let password = std::fs::read_to_string(path)?;
+    Ok(password
+        .trim_end_matches(&['\r', '\n'][..])
+        .to_owned())
+}
+
 pub fn prompt_password(password: &Option<ZeroingString>) -> ZeroingString {
     match password {
         Some(p) => p.clone(),
         None => {
             if let Ok(path) = std::env::var("EPIC_WALLET_PASSWORD_FILE") {
-                let password = std::fs::read_to_string(&path).unwrap_or_else(|e| {
+                let password = password_from_file(&path).unwrap_or_else(|e| {
                     panic!("Failed to read EPIC_WALLET_PASSWORD_FILE '{}': {}", path, e)
                 });
 
-                return ZeroingString::from(
-                    password.trim_end_matches(&['\r', '\n'][..]).to_owned(),
-                );
+                return ZeroingString::from(password);
             }
 
             prompt_password_stdout("Password: ")
@@ -1731,5 +1736,42 @@ where
             .subcommand()
             .map(|(name, _)| name.to_owned())
             .unwrap_or_default())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn password_from_file_strips_trailing_newline() {
+        let path = std::env::temp_dir().join(format!(
+            "epic-wallet-password-test-{}",
+            std::process::id()
+        ));
+
+        std::fs::write(&path, "test-password\r\n").unwrap();
+
+        let password = password_from_file(path.to_str().unwrap()).unwrap();
+
+        assert_eq!(password, "test-password");
+
+        std::fs::remove_file(path).unwrap();
+    }
+
+    #[test]
+    fn password_from_file_preserves_password_without_newline() {
+        let path = std::env::temp_dir().join(format!(
+            "epic-wallet-password-test-no-newline-{}",
+            std::process::id()
+        ));
+
+        std::fs::write(&path, "test-password").unwrap();
+
+        let password = password_from_file(path.to_str().unwrap()).unwrap();
+
+        assert_eq!(password, "test-password");
+
+        std::fs::remove_file(path).unwrap();
     }
 }
