@@ -461,8 +461,20 @@ fn prompt_password_stdout(prompt: &str) -> ZeroingString {
 
 pub fn prompt_password(password: &Option<ZeroingString>) -> ZeroingString {
     match password {
-        None => prompt_password_stdout("Password: "),
         Some(p) => p.clone(),
+        None => {
+            if let Ok(path) = std::env::var("EPIC_WALLET_PASSWORD_FILE") {
+                let password = std::fs::read_to_string(&path).unwrap_or_else(|e| {
+                    panic!("Failed to read EPIC_WALLET_PASSWORD_FILE '{}': {}", path, e)
+                });
+
+                return ZeroingString::from(
+                    password.trim_end_matches(&['\r', '\n'][..]).to_owned(),
+                );
+            }
+
+            prompt_password_stdout("Password: ")
+        }
     }
 }
 
