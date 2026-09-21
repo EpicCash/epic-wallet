@@ -1,3 +1,12 @@
+epic-wallet (4.0.2) jammy; urgency=high
+
+  [ Epic Team ]
+  * regression fix
+  * update epic dep to 4.0.4
+  * upgrade debian to 4.0.2
+
+ -- Epic Team <info@epiccash.com>  Mon, 21 Sep 2026 12:00:00 +0000
+
 epic-wallet (3.6.0) focal; urgency=high
 
   [ Epic Team ]
