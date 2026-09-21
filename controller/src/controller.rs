@@ -15,7 +15,7 @@
 //! Controller for wallet.. instantiates and handles listeners (or single-run
 //! invocations) as needed.
 use crate::api::{
-	self, boxed_body, BasicAuthURIMiddleware, ApiServer, BoxBodyType, ResponseFuture, Router,
+	self, boxed_body, BasicAuthMiddleware, ApiServer, BoxBodyType, ResponseFuture, Router,
 	TLSConfig,
 };
 use crate::config::{EpicboxConfig, TorConfig};
@@ -140,17 +140,12 @@ where
 	if api_secret.is_some() {
 		let api_basic_auth =
 			"Basic ".to_string() + &to_base64(&("epic:".to_string() + &api_secret.unwrap()));
-		// cant avoid extra clone here without fixing api, should do that next
-		router.add_middleware(Arc::new(BasicAuthURIMiddleware::new(
-			api_basic_auth.clone(),
-			&EPIC_OWNER_BASIC_REALM,
-			"/v2/owner".to_string(),
-		)));
-		router.add_middleware(Arc::new(BasicAuthURIMiddleware::new(
+		let basic_auth_middleware = Arc::new(BasicAuthMiddleware::new(
 			api_basic_auth,
 			&EPIC_OWNER_BASIC_REALM,
-			"/v3/owner".to_string(),
-		)));
+			Some("/v2/foreign".into()),
+		));
+		router.add_middleware(basic_auth_middleware);
 	}
 	let mut running_foreign = false;
 	if owner_api_include_foreign.unwrap_or(false) {
