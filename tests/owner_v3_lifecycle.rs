@@ -1,4 +1,5 @@
 // Copyright 2019 The Epic Developers
+//
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -423,7 +424,13 @@ fn owner_v3_lifecycle() -> Result<(), epic_wallet_controller::Error> {
 		send_request::<VersionedSlate>(1, "http://127.0.0.1:43420/v2/foreign", &req.to_string())
 			.unwrap();
 	println!("RES 16: {:?}", res);
-	assert!(res.is_ok());
+	match res.unwrap() {
+		VersionedSlate::V3(slate) => {
+			assert_eq!(slate.version_info.version, 3);
+			assert_eq!(slate.version_info.orig_version, 3);
+		}
+		VersionedSlate::V2(_) => panic!("finalize_invoice_tx returned a V2 slate for a V3 request"),
+	}
 
 	//17) Change the password
 	let req = include_str!("data/v3_reqs/close_wallet.req.json");

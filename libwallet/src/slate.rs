@@ -244,7 +244,106 @@ impl Slate {
 			}
 			_ => return Err(Error::SlateVersion(version).into()),
 		};
-		Ok(v3.into())
+		let slate: Slate = v3.into();
+		slate.validate_participant_data()?;
+		Ok(slate)
+	}
+
+	fn invalid_slate(reason: impl Into<String>) -> Error {
+		Error::InvalidSlate(reason.into())
+	}
+
+	/// Validate participant cardinality and identifiers without requiring every
+	/// participant to have joined yet.
+	fn validate_participant_data(&self) -> Result<(), Error> {
+		if self.num_participants == 0 {
+			return Err(Self::invalid_slate("participant count must be nonzero"));
+		}
+		if self.participant_data.len() > self.num_participants {
+			return Err(Self::invalid_slate(format!(
+				"participant data contains {} entries for {} participants",
+				self.participant_data.len(),
+				self.num_participants
+			)));
+		}
+
+		for (index, participant) in self.participant_data.iter().enumerate() {
+			let participant_id = usize::try_from(participant.id)
+				.map_err(|_| Self::invalid_slate("participant ID is out of range"))?;
+			if participant_id >= self.num_participants {
+				return Err(Self::invalid_slate(format!(
+					"participant ID {} is out of range",
+					participant.id
+				)));
+			}
+			if self.participant_data[..index]
+				.iter()
+				.any(|existing| existing.id == participant.id)
+			{
+				return Err(Self::invalid_slate(format!(
+					"duplicate participant ID {}",
+					participant.id
+				)));
+			}
+		}
+		Ok(())
+	}
+
+	/// Validate a counterparty slate before adding our participant data. This
+	/// must run before any wallet state is persisted.
+	pub(crate) fn validate_for_participant(&self, participant_id: usize) -> Result<(), Error> {
+		self.validate_participant_data()?;
+		self.validate_single_kernel()?;
+		let participant_id = u64::try_from(participant_id)
+			.map_err(|_| Self::invalid_slate("participant ID is out of range"))?;
+		let num_participants = u64::try_from(self.num_participants)
+			.map_err(|_| Self::invalid_slate("participant count is out of range"))?;
+		if participant_id >= num_participants {
+			return Err(Self::invalid_slate(format!(
+				"participant ID {} is out of range",
+				participant_id
+			)));
+		}
+		if self
+			.participant_data
+			.iter()
+			.any(|participant| participant.id == participant_id)
+		{
+			return Err(Self::invalid_slate(format!(
+				"participant ID {} is already present",
+				participant_id
+			)));
+		}
+		if self.participant_data.len().checked_add(1) != Some(self.num_participants) {
+			return Err(Self::invalid_slate(format!(
+				"expected {} participant entries before round 2, found {}",
+				self.num_participants - 1,
+				self.participant_data.len()
+			)));
+		}
+		Ok(())
+	}
+
+	pub(crate) fn validate_complete_participant_data(&self) -> Result<(), Error> {
+		self.validate_participant_data()?;
+		if self.participant_data.len() != self.num_participants {
+			return Err(Self::invalid_slate(format!(
+				"expected {} participant entries, found {}",
+				self.num_participants,
+				self.participant_data.len()
+			)));
+		}
+		Ok(())
+	}
+
+	pub(crate) fn validate_single_kernel(&self) -> Result<(), Error> {
+		if self.tx.kernels().len() != 1 {
+			return Err(Self::invalid_slate(format!(
+				"expected one transaction kernel, found {}",
+				self.tx.kernels().len()
+			)));
+		}
+		Ok(())
 	}
 
 	/// Create a new slate
@@ -358,6 +457,7 @@ impl Slate {
 	where
 		K: Keychain,
 	{
+		self.validate_complete_participant_data()?;
 		self.check_fees()?;
 
 		self.verify_part_sigs(keychain.secp())?;
@@ -369,12 +469,14 @@ impl Slate {
 			Some(&self.pub_blind_sum(keychain.secp())?),
 			&self.msg_to_sign()?,
 		)?;
-		for i in 0..self.num_participants {
-			if self.participant_data[i].id == participant_id as u64 {
-				self.participant_data[i].part_sig = Some(sig_part);
-				break;
-			}
-		}
+		let participant_id = u64::try_from(participant_id)
+			.map_err(|_| Self::invalid_slate("participant ID is out of range"))?;
+		let participant = self
+			.participant_data
+			.iter_mut()
+			.find(|participant| participant.id == participant_id)
+			.ok_or_else(|| Self::invalid_slate("participant ID is not present"))?;
+		participant.part_sig = Some(sig_part);
 		Ok(())
 	}
 
@@ -426,10 +528,17 @@ impl Slate {
 	}
 
 	/// Return vector of all partial sigs
-	fn part_sigs(&self) -> Vec<&Signature> {
+	fn part_sigs(&self) -> Result<Vec<&Signature>, Error> {
 		self.participant_data
 			.iter()
-			.map(|p| p.part_sig.as_ref().unwrap())
+			.map(|participant| {
+				participant.part_sig.as_ref().ok_or_else(|| {
+					Self::invalid_slate(format!(
+						"participant {} is missing a partial signature",
+						participant.id
+					))
+				})
+			})
 			.collect()
 	}
 
@@ -450,6 +559,20 @@ impl Slate {
 	where
 		K: Keychain,
 	{
+		let participant_id = u64::try_from(id)
+			.map_err(|_| Self::invalid_slate("participant ID is out of range"))?;
+		if id >= self.num_participants
+			|| self.participant_data.len() >= self.num_participants
+			|| self
+				.participant_data
+				.iter()
+				.any(|participant| participant.id == participant_id)
+		{
+			return Err(Self::invalid_slate(format!(
+				"cannot add participant ID {}",
+				id
+			)));
+		}
 		// Add our public key and nonce to the slate
 		let pub_key = PublicKey::from_secret_key(keychain.secp(), &sec_key)?;
 		let pub_nonce = PublicKey::from_secret_key(keychain.secp(), &sec_nonce)?;
@@ -478,7 +601,7 @@ impl Slate {
 			}
 		};
 		self.participant_data.push(ParticipantData {
-			id: id as u64,
+			id: participant_id,
 			public_blind_excess: pub_key,
 			public_nonce: pub_nonce,
 			part_sig,
@@ -550,11 +673,15 @@ impl Slate {
 			))?;
 		}
 
-		if fee > self.amount + self.fee {
+		let received_amount = self
+			.amount
+			.checked_add(self.fee)
+			.ok_or_else(|| Self::invalid_slate("amount and fee overflow"))?;
+		if fee > received_amount {
 			let reason = format!(
 				"Rejected the transfer because transaction fee ({}) exceeds received amount ({}).",
 				amount_to_hr_string(fee, false),
-				amount_to_hr_string(self.amount + self.fee, false)
+				amount_to_hr_string(received_amount, false)
 			);
 			info!("{}", reason);
 			return Err(Error::Fee(reason.to_string()))?;
@@ -565,16 +692,17 @@ impl Slate {
 
 	/// Verifies all of the partial signatures in the Slate are valid
 	fn verify_part_sigs(&self, secp: &secp::Secp256k1) -> Result<(), Error> {
+		self.validate_participant_data()?;
 		// collect public nonces
 		for p in self.participant_data.iter() {
-			if p.is_complete() {
+			if let Some(part_sig) = p.part_sig.as_ref() {
 				aggsig::verify_partial_sig(
 					secp,
-					p.part_sig.as_ref().unwrap(),
+					part_sig,
 					&self.pub_nonce_sum(secp)?,
 					&p.public_blind_excess,
 					Some(&self.pub_blind_sum(secp)?),
-					&self.msg_to_sign().unwrap(),
+					&self.msg_to_sign()?,
 				)?;
 			}
 		}
@@ -644,9 +772,10 @@ impl Slate {
 	where
 		K: Keychain,
 	{
+		self.validate_complete_participant_data()?;
 		self.verify_part_sigs(keychain.secp())?;
 
-		let part_sigs = self.part_sigs();
+		let part_sigs = self.part_sigs()?;
 		let pub_nonce_sum = self.pub_nonce_sum(keychain.secp())?;
 		let final_pubkey = self.pub_blind_sum(keychain.secp())?;
 		// get the final signature
@@ -694,6 +823,7 @@ impl Slate {
 	where
 		K: Keychain,
 	{
+		self.validate_single_kernel()?;
 		self.check_fees()?;
 		// build the final excess based on final tx and offset
 		let final_excess = self.calc_excess(keychain)?;
@@ -703,13 +833,20 @@ impl Slate {
 		let mut final_tx = self.tx.clone();
 
 		// update the tx kernel to reflect the offset excess and sig
-		assert_eq!(final_tx.kernels().len(), 1);
-		final_tx.kernels_mut()[0].excess = final_excess.clone();
-		final_tx.kernels_mut()[0].excess_sig = final_sig.clone();
+		let kernel = final_tx
+			.kernels_mut()
+			.first_mut()
+			.ok_or_else(|| Self::invalid_slate("transaction kernel is missing"))?;
+		kernel.excess = final_excess.clone();
+		kernel.excess_sig = final_sig.clone();
 
 		// confirm the kernel verifies successfully before proceeding
 		debug!("Validating final transaction");
-		let _ = final_tx.kernels()[0].verify()?;
+		let kernel = final_tx
+			.kernels()
+			.first()
+			.ok_or_else(|| Self::invalid_slate("transaction kernel is missing"))?;
+		let _ = kernel.verify()?;
 
 		// confirm the overall transaction is valid (including the updated kernel)
 		// accounting for tx weight limits
@@ -737,6 +874,171 @@ impl Serialize for Slate {
 			}
 			v => Err(S::Error::custom(format!("Unknown slate version {}", v))),
 		}
+	}
+}
+
+#[cfg(test)]
+mod malformed_slate_tests {
+	use super::*;
+	use crate::epic_keychain::{ExtKeychain, Keychain};
+	use std::panic::{catch_unwind, AssertUnwindSafe};
+
+	fn participant(keychain: &ExtKeychain, id: u64) -> ParticipantData {
+		let secret = SecretKey::new(keychain.secp(), &mut rng());
+		let nonce = SecretKey::new(keychain.secp(), &mut rng());
+		ParticipantData {
+			id,
+			public_blind_excess: PublicKey::from_secret_key(keychain.secp(), &secret).unwrap(),
+			public_nonce: PublicKey::from_secret_key(keychain.secp(), &nonce).unwrap(),
+			part_sig: None,
+			message: None,
+			message_sig: None,
+		}
+	}
+
+	#[test]
+	fn malformed_participant_count_returns_error_without_panicking() {
+		let keychain = ExtKeychain::from_random_seed(true).unwrap();
+		let secret = SecretKey::new(keychain.secp(), &mut rng());
+		let nonce = SecretKey::new(keychain.secp(), &mut rng());
+		let mut slate = Slate::blank(2);
+		slate.participant_data.push(participant(&keychain, 0));
+
+		let result = catch_unwind(AssertUnwindSafe(|| {
+			slate.fill_round_2(&keychain, &secret, &nonce, 1)
+		}));
+		assert!(result.is_ok(), "malformed participant data must not panic");
+		assert!(result.unwrap().is_err());
+	}
+
+	#[test]
+	fn missing_partial_signatures_return_error_without_panicking() {
+		let keychain = ExtKeychain::from_random_seed(true).unwrap();
+		let mut slate = Slate::blank(2);
+		slate.participant_data.push(participant(&keychain, 0));
+		slate.participant_data.push(participant(&keychain, 1));
+
+		let result = catch_unwind(AssertUnwindSafe(|| slate.finalize(&keychain)));
+		assert!(result.is_ok(), "missing partial signatures must not panic");
+		assert!(result.unwrap().is_err());
+	}
+
+	#[test]
+	fn invalid_participant_ids_are_rejected() {
+		let keychain = ExtKeychain::from_random_seed(true).unwrap();
+		let mut duplicate = Slate::blank(2);
+		duplicate.participant_data.push(participant(&keychain, 0));
+		duplicate.participant_data.push(participant(&keychain, 0));
+		assert!(matches!(
+			duplicate.validate_participant_data(),
+			Err(Error::InvalidSlate(_))
+		));
+
+		let mut out_of_range = Slate::blank(2);
+		out_of_range
+			.participant_data
+			.push(participant(&keychain, 2));
+		assert!(matches!(
+			out_of_range.validate_participant_data(),
+			Err(Error::InvalidSlate(_))
+		));
+	}
+
+	#[test]
+	fn participant_and_kernel_shapes_are_validated() {
+		let keychain = ExtKeychain::from_random_seed(true).unwrap();
+		let mut slate = Slate::blank(2);
+		assert!(matches!(
+			slate.validate_single_kernel(),
+			Err(Error::InvalidSlate(_))
+		));
+
+		slate.update_kernel();
+		slate.participant_data.push(participant(&keychain, 0));
+		assert!(slate.validate_single_kernel().is_ok());
+		assert!(slate.validate_participant_data().is_ok());
+		slate.participant_data.push(participant(&keychain, 1));
+		assert!(slate.validate_complete_participant_data().is_ok());
+
+		let extra_kernel = slate.tx.kernels()[0].clone();
+		slate.tx.kernels_mut().push(extra_kernel);
+		assert!(matches!(
+			slate.validate_single_kernel(),
+			Err(Error::InvalidSlate(_))
+		));
+	}
+
+	#[test]
+	fn malformed_v2_and_v3_json_return_errors_without_panicking() {
+		let mut v2: serde_json::Value =
+			serde_json::from_str(include_str!("../tests/slates/v2.slate")).unwrap();
+		v2["num_participants"] = serde_json::json!(0);
+		let v2 = serde_json::to_string(&v2).unwrap();
+		let result = catch_unwind(|| Slate::deserialize_upgrade(&v2));
+		assert!(result.is_ok(), "malformed v2 slate must not panic");
+		assert!(result.unwrap().is_err());
+
+		let mut v3 = serde_json::to_value(Slate::blank(2)).unwrap();
+		v3["payment_proof"] = serde_json::json!({
+			"sender_address": "00",
+			"receiver_address": "00",
+			"receiver_signature": "00"
+		});
+		let v3 = serde_json::to_string(&v3).unwrap();
+		let result = catch_unwind(|| Slate::deserialize_upgrade(&v3));
+		assert!(result.is_ok(), "malformed v3 slate must not panic");
+		assert!(result.unwrap().is_err());
+
+		let v2: serde_json::Value =
+			serde_json::from_str(include_str!("../tests/slates/v2.slate")).unwrap();
+		let mut v3 = v2.clone();
+		v3["version_info"]["version"] = serde_json::json!(3);
+		v3["version_info"]["orig_version"] = serde_json::json!(3);
+		v3["ttl_cutoff_height"] = serde_json::Value::Null;
+		v3["payment_proof"] = serde_json::Value::Null;
+
+		for (version, slate) in [("v2", v2), ("v3", v3)] {
+			for field in [
+				"/participant_data/0/public_blind_excess",
+				"/participant_data/0/public_nonce",
+				"/participant_data/0/part_sig",
+				"/participant_data/0/message_sig",
+				"/tx/offset",
+				"/tx/body/inputs/0/commit",
+				"/tx/body/outputs/0/commit",
+				"/tx/body/outputs/0/proof",
+				"/tx/body/kernels/0/excess",
+				"/tx/body/kernels/0/excess_sig",
+			] {
+				let mut malformed = slate.clone();
+				*malformed.pointer_mut(field).unwrap() = serde_json::json!("é");
+				let malformed = serde_json::to_string(&malformed).unwrap();
+				let result = catch_unwind(|| Slate::deserialize_upgrade(&malformed));
+				assert!(result.is_ok(), "malformed {} {} must not panic", version, field);
+				assert!(result.unwrap().is_err());
+			}
+
+			let mut oversized_proof = slate;
+			*oversized_proof.pointer_mut("/tx/body/outputs/0/proof").unwrap() =
+				serde_json::json!("00".repeat(
+					crate::epic_util::secp::constants::MAX_PROOF_SIZE + 1
+				));
+			let oversized_proof = serde_json::to_string(&oversized_proof).unwrap();
+			let result = catch_unwind(|| Slate::deserialize_upgrade(&oversized_proof));
+			assert!(result.is_ok(), "oversized {} range proof must not panic", version);
+			assert!(result.unwrap().is_err());
+		}
+
+		let mut converted: serde_json::Value =
+			serde_json::from_str(include_str!("../tests/slates/v2.slate")).unwrap();
+		converted["version_info"]["version"] = serde_json::json!(3);
+		converted["version_info"]["orig_version"] = serde_json::json!(2);
+		converted["ttl_cutoff_height"] = serde_json::Value::Null;
+		converted["payment_proof"] = serde_json::Value::Null;
+		let converted = serde_json::to_string(&converted).unwrap();
+		let slate = Slate::deserialize_upgrade(&converted).unwrap();
+		let serialized = serde_json::to_string(&slate).unwrap();
+		assert!(Slate::deserialize_upgrade(&serialized).is_ok());
 	}
 }
 
@@ -889,11 +1191,11 @@ impl From<&ParticipantData> for ParticipantDataV3 {
 impl From<&VersionCompatInfo> for VersionCompatInfoV3 {
 	fn from(data: &VersionCompatInfo) -> VersionCompatInfoV3 {
 		let VersionCompatInfo {
-			version,
+			version: _,
 			orig_version,
 			block_header_version,
 		} = data;
-		let version = *version;
+		let version = 3;
 		let orig_version = *orig_version;
 		let block_header_version = *block_header_version;
 		VersionCompatInfoV3 {

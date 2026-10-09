@@ -208,12 +208,8 @@ where
     K: Keychain + 'a,
 {
     // Check the node is synced
-    let node_status = wallet.w2n_client().get_node_status()?;
-    if node_status.sync_status != "no_sync" {
-        warn!(
-            "Node is not synced (current status: {}). Skipping chain tip retrieval.",
-            node_status.sync_status
-        );
+    if !wallet.w2n_client().is_node_ready()? {
+        warn!("Node is not ready for transactions. Skipping chain tip retrieval.");
         return Err(Error::NodeStatus("Node is not synced".to_string()));
     }
 

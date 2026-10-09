@@ -26,7 +26,7 @@ use crate::epic_util::secp::key::PublicKey;
 use crate::epic_util::secp::pedersen::{Commitment, RangeProof};
 use crate::epic_util::secp::Signature;
 use crate::slate::CompatKernelFeatures;
-use crate::slate_versions::ser as dalek_ser;
+use crate::slate_versions::ser as slate_ser;
 
 use ed25519_dalek::Signature as DalekSignature;
 use ed25519_dalek::VerifyingKey as DalekPublicKey;
@@ -94,28 +94,28 @@ pub struct ParticipantDataV3 {
 	#[serde(with = "secp_ser::string_or_u64")]
 	pub id: u64,
 	/// Public key corresponding to private blinding factor
-	#[serde(with = "secp_ser::pubkey_serde")]
+	#[serde(with = "slate_ser::secp_pubkey_serde")]
 	pub public_blind_excess: PublicKey,
 	/// Public key corresponding to private nonce
-	#[serde(with = "secp_ser::pubkey_serde")]
+	#[serde(with = "slate_ser::secp_pubkey_serde")]
 	pub public_nonce: PublicKey,
 	/// Public partial signature
-	#[serde(with = "secp_ser::option_sig_serde")]
+	#[serde(with = "slate_ser::option_secp_sig_serde")]
 	pub part_sig: Option<Signature>,
 	/// A message for other participants
 	pub message: Option<String>,
 	/// Signature, created with private key corresponding to 'public_blind_excess'
-	#[serde(with = "secp_ser::option_sig_serde")]
+	#[serde(with = "slate_ser::option_secp_sig_serde")]
 	pub message_sig: Option<Signature>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PaymentInfoV3 {
-	#[serde(with = "dalek_ser::dalek_pubkey_serde")]
+	#[serde(with = "slate_ser::dalek_pubkey_serde")]
 	pub sender_address: DalekPublicKey,
-	#[serde(with = "dalek_ser::dalek_pubkey_serde")]
+	#[serde(with = "slate_ser::dalek_pubkey_serde")]
 	pub receiver_address: DalekPublicKey,
-	#[serde(with = "dalek_ser::option_dalek_sig_serde")]
+	#[serde(with = "slate_ser::option_dalek_sig_serde")]
 	pub receiver_signature: Option<DalekSignature>,
 }
 
@@ -126,7 +126,7 @@ pub struct TransactionV3 {
 	/// excess is k1G after splitting the key k = k1 + k2
 	#[serde(
 		serialize_with = "secp_ser::as_hex",
-		deserialize_with = "secp_ser::blind_from_hex"
+		deserialize_with = "slate_ser::blinding_factor_from_hex"
 	)]
 	pub offset: BlindingFactor,
 	/// The transaction body - inputs/outputs/kernels
@@ -151,7 +151,7 @@ pub struct InputV3 {
 	/// The commit referencing the output being spent.
 	#[serde(
 		serialize_with = "secp_ser::as_hex",
-		deserialize_with = "secp_ser::commitment_from_hex"
+		deserialize_with = "slate_ser::commitment_from_hex"
 	)]
 	pub commit: Commitment,
 }
@@ -163,13 +163,13 @@ pub struct OutputV3 {
 	/// The homomorphic commitment representing the output amount
 	#[serde(
 		serialize_with = "secp_ser::as_hex",
-		deserialize_with = "secp_ser::commitment_from_hex"
+		deserialize_with = "slate_ser::commitment_from_hex"
 	)]
 	pub commit: Commitment,
 	/// A proof that the commitment is in the right range
 	#[serde(
 		serialize_with = "secp_ser::as_hex",
-		deserialize_with = "secp_ser::rangeproof_from_hex"
+		deserialize_with = "slate_ser::rangeproof_from_hex"
 	)]
 	pub proof: RangeProof,
 }
@@ -190,12 +190,12 @@ pub struct TxKernelV3 {
 	/// is hence a valid public key.
 	#[serde(
 		serialize_with = "secp_ser::as_hex",
-		deserialize_with = "secp_ser::commitment_from_hex"
+		deserialize_with = "slate_ser::commitment_from_hex"
 	)]
 	pub excess: Commitment,
 	/// The signature proving the excess is a valid public key, which signs
 	/// the transaction fee.
-	#[serde(with = "secp_ser::sig_serde")]
+	#[serde(with = "slate_ser::secp_sig_serde")]
 	pub excess_sig: secp::Signature,
 }
 
@@ -420,11 +420,11 @@ impl From<&ParticipantDataV3> for ParticipantDataV2 {
 impl From<&VersionCompatInfoV3> for VersionCompatInfoV2 {
 	fn from(data: &VersionCompatInfoV3) -> VersionCompatInfoV2 {
 		let VersionCompatInfoV3 {
-			version,
+			version: _,
 			orig_version,
 			block_header_version,
 		} = data;
-		let version = *version;
+		let version = 2;
 		let orig_version = *orig_version;
 		let block_header_version = *block_header_version;
 		VersionCompatInfoV2 {

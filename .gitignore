@@ -45,3 +45,5 @@ release/
 .vscode/*
 *.code-workspace
 
+# Keep the independently resolved fuzz dependency graph auditable.
+!/fuzz/Cargo.lock

@@ -1,6 +1,6 @@
 [package]
 name = "epic_wallet_impls"
-version = "4.0.2"
+version = "4.1.0"
 authors = ["Epic Developers <info@epiccash.com>"]
 description = "Concrete types derived from libwallet traits"
 license = "Apache-2.0"
@@ -30,7 +30,7 @@ lazy_static = "1"
 http = "1.3"
 hyper-timeout = "0.5"
 hyper-rustls = "0.27"
-rustls = "0.23"
+rustls = "0.23.45"
 
 #Socks/Tor
 byteorder = "1"
@@ -48,7 +48,6 @@ sqlite = { version="0.37"}
 once_cell = "1.21.3"
 base64 = "0.22"
 
-epic_wallet_util = { path = "../util", version = "4.0.2" }
-epic_wallet_config = { path = "../config", version = "4.0.2" }
-epic_wallet_libwallet = { path = "../libwallet", version = "4.0.2" }
-
+epic_wallet_util = { path = "../util", version = "4.1.0" }
+epic_wallet_config = { path = "../config", version = "4.1.0" }
+epic_wallet_libwallet = { path = "../libwallet", version = "4.1.0" }

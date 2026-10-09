@@ -152,6 +152,9 @@ where
     C: NodeClient + 'a,
     K: Keychain + 'a,
 {
+    if !is_initator {
+        slate.validate_for_participant(participant_id)?;
+    }
     // sender should always refresh outputs
     updater::refresh_outputs(wallet, keychain_mask, parent_key_id, false)?;
 
@@ -216,34 +219,38 @@ where
     C: NodeClient + 'a,
     K: Keychain + 'a,
 {
-    // create an output using the amount in the slate
-    let (_, mut context) = selection::build_recipient_output(
+    if !is_initiator {
+        slate.validate_for_participant(participant_id)?;
+    }
+    // Build and sign the recipient output before persisting it. The selection
+    // helper commits the output and log entry only after this closure succeeds.
+    let (_, context) = selection::build_recipient_output(
         wallet,
         keychain_mask,
         slate,
         parent_key_id.clone(),
         use_test_rng,
-    )?;
+        |keychain, slate, context| {
+            slate.fill_round_1(
+                keychain,
+                &mut context.sec_key,
+                &context.sec_nonce,
+                1,
+                message,
+                use_test_rng,
+            )?;
 
-    // fill public keys
-    let _ = slate.fill_round_1(
-        &wallet.keychain(keychain_mask)?,
-        &mut context.sec_key,
-        &context.sec_nonce,
-        1,
-        message,
-        use_test_rng,
+            if !is_initiator {
+                slate.fill_round_2(
+                    keychain,
+                    &context.sec_key,
+                    &context.sec_nonce,
+                    participant_id,
+                )?;
+            }
+            Ok(())
+        },
     )?;
-
-    if !is_initiator {
-        // perform partial sig
-        let _ = slate.fill_round_2(
-            &wallet.keychain(keychain_mask)?,
-            &context.sec_key,
-            &context.sec_nonce,
-            participant_id,
-        )?;
-    }
 
     Ok(context)
 }
@@ -342,6 +349,14 @@ where
     C: NodeClient + 'a,
     K: Keychain + 'a,
 {
+    slate.validate_complete_participant_data()?;
+    slate.validate_single_kernel()?;
+    let kernel_excess = slate
+        .tx
+        .kernels()
+        .first()
+        .ok_or_else(|| Error::InvalidSlate("transaction kernel is missing".to_owned()))?
+        .excess;
     // finalize command
     let tx_vec =
         updater::retrieve_txs(wallet, None, Some(slate.id), None, false, None, None, None)?;
@@ -363,9 +378,11 @@ where
         Some(t) => t,
         None => return Err(Error::TransactionDoesntExist(slate.id.to_string()))?,
     };
-    wallet.store_tx(&format!("{}", tx.tx_slate_id.unwrap()), &slate.tx)?;
     let parent_key = tx.parent_key_id.clone();
-    tx.kernel_excess = Some(slate.tx.body.kernels[0].excess);
+    let tx_slate_id = tx
+        .tx_slate_id
+        .ok_or_else(|| Error::InvalidSlate("transaction log is missing its slate ID".to_owned()))?;
+    tx.kernel_excess = Some(kernel_excess);
 
     if let Some(ref p) = slate.payment_proof {
         let derivation_index = match context.payment_proof_derivation_index {
@@ -388,6 +405,7 @@ where
             sender_signature: Some(sig),
         })
     }
+    wallet.store_tx(&tx_slate_id.to_string(), &slate.tx)?;
 
     let mut batch = wallet.batch(keychain_mask)?;
     batch.save_tx_log_entry(tx, &parent_key)?;

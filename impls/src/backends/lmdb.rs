@@ -298,7 +298,7 @@ where
 
 		Ok(self
 			.db
-			.get_ser(&key)
+			.get_ser(&key)?
 			.ok_or(Error::NotFoundErr(format!("Key Id: {}", id)))?
 			.as_output_data()
 			.unwrap())
@@ -309,6 +309,7 @@ where
 		let serializables: Vec<_> = self
 			.db
 			.iter(&[OUTPUT_PREFIX])
+			.expect("wallet database output iteration failed")
 			.into_iter()
 			.filter_map(Serializable::as_output_data)
 			.collect();
@@ -320,6 +321,7 @@ where
 		let serializables: Vec<_> = self
 			.db
 			.iter(&[OUTPUT_HISTORY_PREFIX])
+			.expect("wallet database history iteration failed")
 			.into_iter()
 			.filter_map(Serializable::as_output_data)
 			.collect();
@@ -329,7 +331,7 @@ where
 	fn get_tx_log_entry(&self, u: &uuid::Uuid) -> Result<Option<TxLogEntry>, Error> {
 		let key = to_key(TX_LOG_ENTRY_PREFIX, &mut u.as_bytes().to_vec());
 
-		Ok(match self.db.get(&key) {
+		Ok(match self.db.get(&key)? {
 			Some(s) => Serializable::as_txlogentry(s),
 			None => None,
 		})
@@ -339,6 +341,7 @@ where
 		let serializables: Vec<_> = self
 			.db
 			.iter(&[TX_LOG_ENTRY_PREFIX])
+			.expect("wallet database transaction iteration failed")
 			.into_iter()
 			.filter_map(Serializable::as_txlogentry)
 			.collect();
@@ -361,7 +364,7 @@ where
 
 		let mut ctx = self
 			.db
-			.get(&ctx_key)
+			.get(&ctx_key)?
 			.ok_or(Error::NotFoundErr(format!(
 				"Slate id: {:x?}",
 				slate_id.to_vec()
@@ -385,6 +388,7 @@ where
 		let serializables: Vec<_> = self
 			.db
 			.iter(&[ACCOUNT_PATH_MAPPING_PREFIX])
+			.expect("wallet database account iteration failed")
 			.into_iter()
 			.filter_map(Serializable::as_acct_path_mapping)
 			.collect();
@@ -394,7 +398,7 @@ where
 	fn get_acct_path(&self, label: String) -> Result<Option<AcctPathMapping>, Error> {
 		let acct_key = to_key(ACCOUNT_PATH_MAPPING_PREFIX, &mut label.as_bytes().to_vec());
 
-		Ok(match self.db.get_ser(&acct_key) {
+		Ok(match self.db.get_ser(&acct_key)? {
 			Some(s) => Serializable::as_acct_path_mapping(s),
 			None => None,
 		})
@@ -454,7 +458,7 @@ where
 		let index = {
 			let batch = self.db.batch();
 			let deriv_key = to_key(DERIV_PREFIX, &mut parent_key_id.to_bytes().to_vec());
-			match batch.get_ser(&deriv_key) {
+			match batch.get_ser(&deriv_key)? {
 				Some(s) => match s {
 					Serializable::Numeric(n) => n as u32,
 					_ => 0,
@@ -470,7 +474,7 @@ where
 		let mut deriv_idx = {
 			let batch = self.db.batch();
 			let deriv_key = to_key(DERIV_PREFIX, &mut self.parent_key_id.to_bytes().to_vec());
-			match batch.get_ser(&deriv_key) {
+			match batch.get_ser(&deriv_key)? {
 				Some(s) => match s {
 					Serializable::Numeric(n) => n as u32,
 					_ => 0,
@@ -494,7 +498,7 @@ where
 			CONFIRMED_HEIGHT_PREFIX,
 			&mut self.parent_key_id.to_bytes().to_vec(),
 		);
-		let last_confirmed_height = match batch.get_ser(&height_key) {
+		let last_confirmed_height = match batch.get_ser(&height_key)? {
 			Some(s) => match s {
 				Serializable::Numeric(n) => n,
 				_ => 0,
@@ -510,7 +514,7 @@ where
 			LAST_SCANNED_BLOCK,
 			&mut LAST_SCANNED_KEY.as_bytes().to_vec(),
 		);
-		let last_scanned_block = match batch.get_ser(&scanned_block_key) {
+		let last_scanned_block = match batch.get_ser(&scanned_block_key)? {
 			Some(s) => match s {
 				Serializable::ScannedBlockInfo(s) => s,
 				_ => ScannedBlockInfo {
@@ -536,7 +540,7 @@ where
 			WALLET_INIT_STATUS,
 			&mut WALLET_INIT_STATUS_KEY.as_bytes().to_vec(),
 		);
-		let status = match batch.get_ser(&init_status_key) {
+		let status = match batch.get_ser(&init_status_key)? {
 			Some(s) => match s {
 				Serializable::WalletInitStatus(w) => w,
 				_ => WalletInitStatus::InitComplete,
@@ -634,7 +638,7 @@ where
 			.borrow()
 			.as_ref()
 			.unwrap()
-			.get_ser(&key)
+			.get_ser(&key)?
 			.ok_or(Error::NotFoundErr(format!("Key Id: {}", id)))?
 			.as_output_data()
 			.unwrap())
@@ -647,6 +651,7 @@ where
 			.as_ref()
 			.unwrap()
 			.iter(&[OUTPUT_PREFIX])
+			.expect("wallet database output iteration failed")
 			.into_iter()
 			.filter_map(Serializable::as_output_data)
 			.collect();
@@ -661,6 +666,7 @@ where
 			.as_ref()
 			.unwrap()
 			.iter(&[OUTPUT_HISTORY_PREFIX])
+			.expect("wallet database history iteration failed")
 			.into_iter()
 			.filter_map(Serializable::as_output_data)
 			.collect();
@@ -703,7 +709,7 @@ where
 			.borrow()
 			.as_ref()
 			.unwrap()
-			.get_ser(&output_history_key_id)
+			.get_ser(&output_history_key_id)?
 		{
 			Some(s) => match s {
 				Serializable::Numeric(n) => n as u32,
@@ -720,7 +726,7 @@ where
 
 	fn next_tx_log_id(&mut self, parent_key_id: &Identifier) -> Result<u32, Error> {
 		let tx_id_key = to_key(TX_LOG_ID_PREFIX, &mut parent_key_id.to_bytes().to_vec());
-		let last_tx_log_id = match self.db.borrow().as_ref().unwrap().get_ser(&tx_id_key) {
+		let last_tx_log_id = match self.db.borrow().as_ref().unwrap().get_ser(&tx_id_key)? {
 			Some(s) => match s {
 				Serializable::Numeric(n) => n as u32,
 				_ => 0,
@@ -741,6 +747,7 @@ where
 			.as_ref()
 			.unwrap()
 			.iter(&[TX_LOG_ENTRY_PREFIX])
+			.expect("wallet database transaction iteration failed")
 			.into_iter()
 			.filter_map(Serializable::as_txlogentry)
 			.collect();
@@ -839,6 +846,7 @@ where
 			.as_ref()
 			.unwrap()
 			.iter(&[ACCOUNT_PATH_MAPPING_PREFIX])
+			.expect("wallet database account iteration failed")
 			.into_iter()
 			.filter_map(Serializable::as_acct_path_mapping)
 			.collect();

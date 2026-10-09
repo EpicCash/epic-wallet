@@ -1395,8 +1395,8 @@ where
         // Spawn a thread to check node sync status every 10 seconds
         thread::spawn(move || {
             loop {
-                let synced = match node_client_clone.get_node_status() {
-                    Ok(status) => status.sync_status == "no_sync",
+                let synced = match node_client_clone.is_node_ready() {
+                    Ok(ready) => ready,
                     Err(_) => false,
                 };
                 is_node_synced_clone.store(synced, Ordering::SeqCst);

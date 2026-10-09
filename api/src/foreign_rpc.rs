@@ -1,4 +1,5 @@
-// Copyright 2019 The Epic Developers
+// Copyright 2026 The Epic Cash Developers
+// Copyright 2019 The Grin Developers
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -206,8 +207,7 @@ pub trait ForeignRpc {
     # Json rpc example
 
     ```
-    # epic_wallet_api::doctest_helper_json_rpc_foreign_assert_response!(
-    # r#"
+    # let request = r#"
     {
         "jsonrpc": "2.0",
         "method": "receive_tx",
@@ -256,8 +256,6 @@ pub trait ForeignRpc {
             "fee": "7000000",
             "height": "5",
             "lock_height": "0",
-            "ttl_cutoff_height": null,
-            "payment_proof": null,
             "participant_data": [
                 {
                     "id": "0",
@@ -274,9 +272,8 @@ pub trait ForeignRpc {
         null
         ]
     }
-    # "#
-    # ,
-    # r#"
+    # "#;
+    # let expected_response = r#"
     {
     "id": 1,
     "jsonrpc": "2.0",
@@ -287,8 +284,6 @@ pub trait ForeignRpc {
                 "height": "5",
                 "id": "0436430c-2b02-624c-2032-570501212b00",
                 "lock_height": "0",
-                "ttl_cutoff_height": null,
-                "payment_proof": null,
                 "num_participants": 2,
                 "participant_data": [
                 {
@@ -352,8 +347,11 @@ pub trait ForeignRpc {
             }
         }
     }
-    # "#
-    # ,false, 5, true, false);
+    # "#;
+    # epic_wallet_api::doctest_helper_json_rpc_foreign_assert_response!(
+    #     request, expected_response, false, 5, true, false);
+    # epic_wallet_api::doctest_helper_json_rpc_foreign_assert_response!(
+    #     @v3 request, expected_response, false, 5, true, false);
     ```
     */
     fn receive_tx(
@@ -371,8 +369,7 @@ pub trait ForeignRpc {
     # Json rpc example
 
     ```
-    # epic_wallet_api::doctest_helper_json_rpc_foreign_assert_response!(
-    # r#"
+    # let request = r#"
     {
         "jsonrpc": "2.0",
         "method": "finalize_invoice_tx",
@@ -425,8 +422,6 @@ pub trait ForeignRpc {
             "fee": "700000",
             "height": "5",
             "lock_height": "0",
-            "ttl_cutoff_height": null,
-            "payment_proof": null,
             "participant_data": [
                 {
                     "id": "1",
@@ -447,9 +442,8 @@ pub trait ForeignRpc {
             ]
         }]
     }
-    # "#
-    # ,
-    # r#"
+    # "#;
+    # let expected_response = r#"
     {
         "id": 1,
         "jsonrpc": "2.0",
@@ -460,8 +454,6 @@ pub trait ForeignRpc {
                 "height": "5",
                 "id": "0436430c-2b02-624c-2032-570501212b00",
                 "lock_height": "0",
-                "ttl_cutoff_height": null,
-                "payment_proof": null,
                 "num_participants": 2,
                 "participant_data": [
                     {
@@ -525,8 +517,9 @@ pub trait ForeignRpc {
             }
         }
     }
-    # "#
-    # ,false, 5, false, true);
+    # "#;
+    # epic_wallet_api::doctest_helper_json_rpc_foreign_assert_response!(
+    #     request, expected_response, false, 5, false, true);
     ```
     */
     fn finalize_invoice_tx(&self, slate: VersionedSlate) -> Result<VersionedSlate, Error>;
@@ -793,6 +786,27 @@ pub fn run_doctest_foreign(
 #[doc(hidden)]
 #[macro_export]
 macro_rules! doctest_helper_json_rpc_foreign_assert_response {
+	(@v3 $request:expr, $expected_response:expr, $use_token:expr, $blocks_to_mine:expr, $init_tx:expr, $init_invoice_tx:expr) => {{
+		let mut request: serde_json::Value = serde_json::from_str($request).unwrap();
+		let mut expected_response: serde_json::Value =
+			serde_json::from_str($expected_response).unwrap();
+		let canonicalize = |slate: &mut serde_json::Value| {
+			slate["version_info"]["version"] = serde_json::json!(3);
+			slate["version_info"]["orig_version"] = serde_json::json!(3);
+			slate["ttl_cutoff_height"] = serde_json::Value::Null;
+			slate["payment_proof"] = serde_json::Value::Null;
+		};
+		canonicalize(&mut request["params"][0]);
+		canonicalize(&mut expected_response["result"]["Ok"]);
+		$crate::doctest_helper_json_rpc_foreign_assert_response!(
+			&request.to_string(),
+			&expected_response.to_string(),
+			$use_token,
+			$blocks_to_mine,
+			$init_tx,
+			$init_invoice_tx
+		);
+	}};
 	($request:expr, $expected_response:expr, $use_token:expr, $blocks_to_mine:expr, $init_tx:expr, $init_invoice_tx:expr) => {
 		// create temporary wallet, run jsonrpc request on owner api of wallet, delete wallet, return
 		// json response.

@@ -1,0 +1,32 @@
+[package]
+name = "epic-wallet-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "=0.4.9"
+serde_json = "1"
+# Keep the independent fuzz workspace on the same Rust-1.89-compatible
+# transitive version as the release workspace.
+croaring = "=2.3.1"
+epic_wallet_libwallet = { path = "../libwallet" }
+epic_wallet_util = { path = "../util" }
+
+[workspace]
+members = ["."]
+
+[[bin]]
+name = "slate_json"
+path = "fuzz_targets/slate_json.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "slate_mutations"
+path = "fuzz_targets/slate_mutations.rs"
+test = false
+doc = false

@@ -1,6 +1,6 @@
 [package]
 name = "epic_wallet_controller"
-version = "4.0.2"
+version = "4.1.0"
 authors = ["Epic Developers <info@epiccash.com>"]
 description = "Controllers for epic wallet instantiation"
 license = "Apache-2.0"
@@ -25,7 +25,7 @@ log = "0.4"
 prettytable-rs = "0.10"
 ring = "0.17"
 term = "1.0"
-bytes = "1.10"
+bytes = "1.11.1"
 tokio = { version = "1", features = ["full"] }
 
 uuid = { version = "1.16", features = ["serde", "v4"] }
@@ -34,8 +34,8 @@ easy-jsonrpc-mw = "0.5"
 lazy_static = "1"
 tungstenite = {version="*", features = ["native-tls"] }
 
-epic_wallet_util = { path = "../util", version = "4.0.2" }
-epic_wallet_api = { path = "../api", version = "4.0.2" }
-epic_wallet_impls = { path = "../impls", version = "4.0.2" }
-epic_wallet_libwallet = { path = "../libwallet", version = "4.0.2" }
-epic_wallet_config = { path = "../config", version = "4.0.2" }
+epic_wallet_util = { path = "../util", version = "4.1.0" }
+epic_wallet_api = { path = "../api", version = "4.1.0" }
+epic_wallet_impls = { path = "../impls", version = "4.1.0" }
+epic_wallet_libwallet = { path = "../libwallet", version = "4.1.0" }
+epic_wallet_config = { path = "../config", version = "4.1.0" }
