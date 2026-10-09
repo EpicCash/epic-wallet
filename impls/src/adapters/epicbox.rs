@@ -1,4 +1,5 @@
-// Copyright 2019 The Epic Developers
+// Copyright 2026 The Epic Cash Developers
+// Copyright 2019 The Grin Developers
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -74,6 +75,12 @@ const CONNECTION_ERR_MSG: &str = "\nCan't connect to the epicbox server!\n\
 	Check your epic-wallet.toml settings and make sure epicbox domain is correct.\n";
 
 const EPICBOX_PROTOCOL_VERSION: &str = "3.0.0";
+
+fn require_epicbox_challenge(challenge: Option<&str>) -> Result<&str, Error> {
+	challenge.ok_or_else(|| {
+		Error::EpicboxTungstenite("Received slate before epicbox challenge".into())
+	})
+}
 
 /// Epicbox 'plugin' implementation
 pub enum CloseReason {
@@ -843,10 +850,8 @@ impl EpicboxBroker {
 									Some(&mut tx_proof),
 								);
 
-								let signature = sign_challenge(
-									&client.challenge.clone().unwrap(),
-									&secret_key,
-								)?
+								let challenge = require_epicbox_challenge(client.challenge.as_deref())?;
+								let signature = sign_challenge(challenge, &secret_key)?
 								.to_hex();
 								let request_sub = ProtocolRequestV2::Subscribe {
 									address: client.address.public_key.to_string(),
@@ -955,6 +960,16 @@ impl EpicboxBroker {
 	}
 	fn stop(&self) -> Result<(), tungsteniteError> {
 		self.inner.lock().close(None)
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::require_epicbox_challenge;
+
+	#[test]
+	fn slate_before_challenge_returns_error() {
+		assert!(require_epicbox_challenge(None).is_err());
 	}
 }
 

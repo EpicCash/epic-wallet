@@ -23,6 +23,7 @@ use std::fs;
 use std::thread;
 use std::time::Duration;
 
+//TODO (Biz) update this - it was not for breaking 4.0.0 changes
 const MIN_COMPAT_NODE_VERSION: &str = "3.5.0";
 
 pub fn wallet_command(wallet_args: &ArgMatches, config: GlobalWalletConfig) -> i32 {
@@ -78,21 +79,15 @@ pub fn wallet_command(wallet_args: &ArgMatches, config: GlobalWalletConfig) -> i
 	info!("Connecting to the node: {} ...", node_client.node_url);
 
 	// Check the node sync status
-	match node_client.get_node_status() {
-		Ok(status) if status.sync_status == "no_sync" => {
+	match node_client.is_node_ready() {
+		Ok(true) => {
 			info!("Node is synced, proceeding...");
 		}
-		Ok(status) => {
+		Ok(false) => {
 			if offline_mode {
-				warn!(
-					"Node is not synced: {}. Proceeding without synced node.",
-					status.sync_status
-				);
+				warn!("Node is not ready for transactions. Proceeding in offline mode.");
 			} else {
-				error!(
-					"Node is currently syncing. Sync status: {}. Please wait until the node is fully synced.",
-					status.sync_status
-				);
+				error!("Node is currently syncing. Please wait until the node is fully synced.");
 				return 1; // Exit with an error code to indicate the node is not ready
 			}
 		}

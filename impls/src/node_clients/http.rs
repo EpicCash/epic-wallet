@@ -1,3 +1,4 @@
+// Copyright 2026 The Epic Cash Developers
 // Copyright 2021 The Grin Developers
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -49,6 +50,41 @@ pub struct GetVersionResp {
 	pub block_header_version: u16,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct ReadyForTxsResp {
+	pub ready_for_txs: bool,
+}
+
+fn parse_ready_response(response: Response) -> Result<Option<bool>, Error> {
+	if let Some(rpc_error) = response.error.as_ref() {
+		if rpc_error.code == -32601 {
+			return Ok(None);
+		}
+		if rpc_error.message.contains("Unauthorized") {
+			return Err(Error::Unauthorized);
+		}
+		return Err(Error::BadRequest(format!(
+			"ready_for_txs RPC failed: {}",
+			rpc_error.message
+		)));
+	}
+	let ready = response
+		.into_result::<ReadyForTxsResp>()
+		.map_err(|e| Error::BadRequest(format!("Unable to parse ready_for_txs response: {}", e)))?;
+	Ok(Some(ready.ready_for_txs))
+}
+
+fn readiness_with_legacy_fallback<F, L>(foreign: F, legacy: L) -> Result<bool, Error>
+where
+	F: FnOnce() -> Result<Option<bool>, Error>,
+	L: FnOnce() -> Result<bool, Error>,
+{
+	match foreign()? {
+		Some(ready) => Ok(ready),
+		None => legacy(),
+	}
+}
+
 #[derive(Clone)]
 pub struct HTTPNodeClient {
 	client: Client,
@@ -76,6 +112,15 @@ impl HTTPNodeClient {
 		self.get_chain_tip()
 	}
 
+	fn api_secret_for_request(&self, endpoint: &str, method: &str) -> Option<String> {
+		// Public endpoints must never receive the locally configured Owner credential.
+		if endpoint == OWNER_ENDPOINT && method != "get_status" {
+			self.node_api_secret()
+		} else {
+			None
+		}
+	}
+
 	fn send_json_request<D: serde::de::DeserializeOwned>(
 		&self,
 		endpoint: &str,
@@ -84,9 +129,10 @@ impl HTTPNodeClient {
 	) -> Result<D, Error> {
 		let url = format!("{}{}", self.node_url(), endpoint);
 		let req = build_request(method, params);
+		let api_secret = self.api_secret_for_request(endpoint, method);
 		let res = self
 			.client
-			.post::<Request, Response>(url.as_str(), self.node_api_secret(), &req);
+			.post::<Request, Response>(url.as_str(), api_secret, &req);
 		match res {
 			Ok(inner) => match inner.clone().into_result() {
 				Ok(r) => Ok(r),
@@ -178,7 +224,8 @@ impl NodeClient for HTTPNodeClient {
 		let url = format!("{}{}", tor_node_url, TOR_ENDPOINT);
 		let params = json!([tx, false]);
 		let req = build_request("push_transaction", &params);
-		let _res = client.post::<Request, Response>(url.as_str(), self.node_api_secret(), &req);
+		let api_secret = self.api_secret_for_request(TOR_ENDPOINT, "push_transaction");
+		let _res = client.post::<Request, Response>(url.as_str(), api_secret, &req);
 
 		Ok(())
 	}
@@ -214,6 +261,25 @@ impl NodeClient for HTTPNodeClient {
 		Ok(result)
 	}
 
+	fn is_node_ready(&self) -> Result<bool, Error> {
+		readiness_with_legacy_fallback(
+			|| {
+				let url = format!("{}{}", self.node_url(), FOREIGN_ENDPOINT);
+				let params = serde_json::Value::Array(vec![]);
+				let req = build_request("ready_for_txs", &params);
+				let api_secret = self.api_secret_for_request(FOREIGN_ENDPOINT, "ready_for_txs");
+				let response = self
+					.client
+					.post::<Request, Response>(url.as_str(), api_secret, &req)
+					.map_err(|e| {
+						Error::ClientCallback(format!("Error calling ready_for_txs: {}", e))
+					})?;
+				parse_ready_response(response)
+			},
+			|| Ok(self.get_node_status()?.sync_status == "no_sync"),
+		)
+	}
+
 	/// Get kernel implementation
 	fn get_kernel(
 		&mut self,
@@ -230,9 +296,10 @@ impl NodeClient for HTTPNodeClient {
 		// have to handle this manually since the error needs to be parsed
 		let url = format!("{}{}", self.node_url(), FOREIGN_ENDPOINT);
 		let req = build_request(method, &params);
+		let api_secret = self.api_secret_for_request(FOREIGN_ENDPOINT, method);
 		let res = self
 			.client
-			.post::<Request, Response>(url.as_str(), self.node_api_secret(), &req);
+			.post::<Request, Response>(url.as_str(), api_secret, &req);
 
 		match res {
 			Err(e) => {
@@ -297,7 +364,7 @@ impl NodeClient for HTTPNodeClient {
 		trace!("Output query chunk size is: {}", chunk_size);
 
 		let url = format!("{}{}", self.node_url(), FOREIGN_ENDPOINT);
-		let api_secret = self.node_api_secret();
+		let api_secret = self.api_secret_for_request(FOREIGN_ENDPOINT, "get_outputs");
 		let cl = self.client.clone();
 		let task = async move {
 			let params: Vec<_> = query_params
@@ -467,6 +534,29 @@ mod tests {
 	use serde_json::json;
 
 	#[test]
+	fn credentials_are_limited_to_authenticated_owner_methods() {
+		let client = HTTPNodeClient::new("http://127.0.0.1:3413", Some("local-secret".into()))
+			.unwrap();
+
+		assert_eq!(
+			client.api_secret_for_request(FOREIGN_ENDPOINT, "get_tip"),
+			None
+		);
+		assert_eq!(
+			client.api_secret_for_request(OWNER_ENDPOINT, "get_status"),
+			None
+		);
+		assert_eq!(
+			client.api_secret_for_request(OWNER_ENDPOINT, "get_onion_addresses"),
+			Some("local-secret".into())
+		);
+		assert_eq!(
+			client.api_secret_for_request(TOR_ENDPOINT, "push_transaction"),
+			None
+		);
+	}
+
+	#[test]
 	fn get_node_status() {
 		let mock_response = json!({
 			"protocol_version": 2,
@@ -489,5 +579,43 @@ mod tests {
 		assert_eq!(status.protocol_version, 2);
 		assert_eq!(status.sync_status, "header_sync");
 		assert_eq!(status.tip.height, 371553);
+	}
+
+	#[test]
+	fn ready_response_only_requests_fallback_for_method_not_found() {
+		let success: Response = serde_json::from_value(json!({
+			"jsonrpc": "2.0", "id": 1,
+			"result": { "Ok": { "ready_for_txs": true } }
+		})).unwrap();
+		assert_eq!(parse_ready_response(success).unwrap(), Some(true));
+
+		let unavailable: Response = serde_json::from_value(json!({
+			"jsonrpc": "2.0", "id": 1,
+			"error": { "code": -32601, "message": "Method not found" }
+		})).unwrap();
+		assert_eq!(parse_ready_response(unavailable).unwrap(), None);
+
+		let unauthorized: Response = serde_json::from_value(json!({
+			"jsonrpc": "2.0", "id": null,
+			"error": { "code": -32600, "message": "Unauthorized" }
+		})).unwrap();
+		assert!(matches!(parse_ready_response(unauthorized), Err(Error::Unauthorized)));
+	}
+
+	#[test]
+	fn owner_status_is_only_called_for_method_not_found() {
+		assert!(readiness_with_legacy_fallback(
+			|| Ok(Some(true)),
+			|| panic!("Owner API must not be called for a supported Foreign method")
+		)
+		.unwrap());
+
+		assert!(readiness_with_legacy_fallback(|| Ok(None), || Ok(true)).unwrap());
+
+		let result = readiness_with_legacy_fallback(
+			|| Err(Error::Unauthorized),
+			|| panic!("Owner API must not be called after authentication failure"),
+		);
+		assert!(matches!(result, Err(Error::Unauthorized)));
 	}
 }

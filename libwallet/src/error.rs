@@ -201,6 +201,10 @@ pub enum Error {
 	#[error("Can't Deserialize slate")]
 	SlateDeser,
 
+	/// Slate data failed structural validation
+	#[error("Invalid slate: {0}")]
+	InvalidSlate(String),
+
 	/// Unknown slate version
 	#[error("Unknown Slate Version: {0}")]
 	SlateVersion(u16),
@@ -297,6 +301,9 @@ pub enum Error {
 
 	#[error("Invalid Arguments: {0}")]
 	ArgumentError(String),
+
+	#[error("Arithmetic error: {0}")]
+	Arithmetic(String),
 
 	#[error("Parsing IO error: {0}")]
 	IOError(String),

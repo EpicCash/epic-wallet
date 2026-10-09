@@ -43,6 +43,7 @@ use crate::epic_util::secp::key::PublicKey;
 use crate::epic_util::secp::pedersen::{Commitment, RangeProof};
 use crate::epic_util::secp::Signature;
 use crate::slate::CompatKernelFeatures;
+use crate::slate_versions::ser as slate_ser;
 use crate::slate_versions::v3::{OutputV3, TxKernelV3};
 use crate::types::CbData;
 use uuid::Uuid;
@@ -92,18 +93,18 @@ pub struct ParticipantDataV2 {
 	#[serde(with = "secp_ser::string_or_u64")]
 	pub id: u64,
 	/// Public key corresponding to private blinding factor
-	#[serde(with = "secp_ser::pubkey_serde")]
+	#[serde(with = "slate_ser::secp_pubkey_serde")]
 	pub public_blind_excess: PublicKey,
 	/// Public key corresponding to private nonce
-	#[serde(with = "secp_ser::pubkey_serde")]
+	#[serde(with = "slate_ser::secp_pubkey_serde")]
 	pub public_nonce: PublicKey,
 	/// Public partial signature
-	#[serde(with = "secp_ser::option_sig_serde")]
+	#[serde(with = "slate_ser::option_secp_sig_serde")]
 	pub part_sig: Option<Signature>,
 	/// A message for other participants
 	pub message: Option<String>,
 	/// Signature, created with private key corresponding to 'public_blind_excess'
-	#[serde(with = "secp_ser::option_sig_serde")]
+	#[serde(with = "slate_ser::option_secp_sig_serde")]
 	pub message_sig: Option<Signature>,
 }
 
@@ -114,7 +115,7 @@ pub struct TransactionV2 {
 	/// excess is k1G after splitting the key k = k1 + k2
 	#[serde(
 		serialize_with = "secp_ser::as_hex",
-		deserialize_with = "secp_ser::blind_from_hex"
+		deserialize_with = "slate_ser::blinding_factor_from_hex"
 	)]
 	pub offset: BlindingFactor,
 	/// The transaction body - inputs/outputs/kernels
@@ -139,7 +140,7 @@ pub struct InputV2 {
 	/// The commit referencing the output being spent.
 	#[serde(
 		serialize_with = "secp_ser::as_hex",
-		deserialize_with = "secp_ser::commitment_from_hex"
+		deserialize_with = "slate_ser::commitment_from_hex"
 	)]
 	pub commit: Commitment,
 }
@@ -151,13 +152,13 @@ pub struct OutputV2 {
 	/// The homomorphic commitment representing the output amount
 	#[serde(
 		serialize_with = "secp_ser::as_hex",
-		deserialize_with = "secp_ser::commitment_from_hex"
+		deserialize_with = "slate_ser::commitment_from_hex"
 	)]
 	pub commit: Commitment,
 	/// A proof that the commitment is in the right range
 	#[serde(
 		serialize_with = "secp_ser::as_hex",
-		deserialize_with = "secp_ser::rangeproof_from_hex"
+		deserialize_with = "slate_ser::rangeproof_from_hex"
 	)]
 	pub proof: RangeProof,
 }
@@ -178,12 +179,12 @@ pub struct TxKernelV2 {
 	/// is hence a valid public key.
 	#[serde(
 		serialize_with = "secp_ser::as_hex",
-		deserialize_with = "secp_ser::commitment_from_hex"
+		deserialize_with = "slate_ser::commitment_from_hex"
 	)]
 	pub excess: Commitment,
 	/// The signature proving the excess is a valid public key, which signs
 	/// the transaction fee.
-	#[serde(with = "secp_ser::sig_serde")]
+	#[serde(with = "slate_ser::secp_sig_serde")]
 	pub excess_sig: secp::Signature,
 }
 

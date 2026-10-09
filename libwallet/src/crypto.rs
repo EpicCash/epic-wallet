@@ -1,3 +1,4 @@
+// Copyright 2026 The Epic Cash Developers
 // Copyright 2019 The vault713 Developers
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -150,23 +151,34 @@ pub fn to_hex(bytes: Vec<u8>) -> String {
 
 /// Decode a hex string into bytes.
 pub fn from_hex(hex_str: String) -> Result<Vec<u8>, Error> {
-	if hex_str.len() % 2 == 1 {
-		Err(Error::NumberParsingError)?
+	let value = hex_str.trim();
+	let value = value.strip_prefix("0x").unwrap_or(value);
+	if value.is_empty()
+		|| value.len() % 2 != 0
+		|| !value.bytes().all(|byte| byte.is_ascii_hexdigit())
+	{
+		return Err(Error::NumberParsingError);
 	}
-	let hex_trim = if &hex_str[..2] == "0x" {
-		hex_str[2..].to_owned()
-	} else {
-		hex_str.clone()
-	};
-	let vec = split_n(&hex_trim.trim()[..], 2)
-		.iter()
-		.map(|b| u8::from_str_radix(b, 16).map_err(|_| Error::NumberParsingError.into()))
-		.collect::<Result<Vec<u8>, Error>>()?;
-	Ok(vec)
+
+	(0..value.len())
+		.step_by(2)
+		.map(|index| {
+			u8::from_str_radix(&value[index..index + 2], 16)
+				.map_err(|_| Error::NumberParsingError)
+		})
+		.collect()
 }
 
-fn split_n(s: &str, n: usize) -> Vec<&str> {
-	(0..(s.len() - n + 1) / 2 + 1)
-		.map(|i| &s[2 * i..2 * i + n])
-		.collect()
+#[cfg(test)]
+mod hex_decoding_tests {
+	use super::from_hex;
+
+	#[test]
+	fn malformed_hex_returns_error_without_panicking() {
+		for value in ["", "0", "éé", "0xéé"] {
+			let result = std::panic::catch_unwind(|| from_hex(value.to_owned()));
+			assert!(result.is_ok(), "malformed hex must not panic");
+			assert!(result.unwrap().is_err());
+		}
+	}
 }

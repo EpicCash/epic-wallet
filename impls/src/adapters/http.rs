@@ -1,4 +1,5 @@
-// Copyright 2019 The Epic Developers
+// Copyright 2026 The Epic Cash Developers
+// Copyright 2019 The Grin Developers
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,6 +22,72 @@ use serde::Serialize;
 use serde_json::{json, Value};
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
+
+fn parse_version_response(response: &str) -> Result<SlateVersion, Error> {
+    let response: Value = serde_json::from_str(response)
+        .map_err(|err| Error::ClientCallback(format!("Invalid version response: {}", err)))?;
+    if response["error"] != json!(null) {
+        return Err(Error::ClientCallback(format!(
+            "Posting transaction: Error: {}, Message: {}",
+            response["error"]["code"], response["error"]["message"]
+        )));
+    }
+
+    let result = response
+        .get("result")
+        .and_then(|result| result.get("Ok"))
+        .ok_or_else(|| Error::ClientCallback("Version response is missing result.Ok".into()))?;
+    let foreign_api_version: u16 = serde_json::from_value(
+        result
+            .get("foreign_api_version")
+            .cloned()
+            .ok_or_else(|| {
+                Error::ClientCallback("Version response is missing foreign_api_version".into())
+            })?,
+    )
+    .map_err(|err| Error::ClientCallback(format!("Invalid foreign API version: {}", err)))?;
+    let supported_slate_versions: Vec<String> = serde_json::from_value(
+        result
+            .get("supported_slate_versions")
+            .cloned()
+            .ok_or_else(|| {
+                Error::ClientCallback("Version response is missing supported_slate_versions".into())
+            })?,
+    )
+    .map_err(|err| Error::ClientCallback(format!("Invalid slate version list: {}", err)))?;
+
+    if foreign_api_version < 2 {
+        return Err(Error::ClientCallback(
+            "Other wallet reports unrecognized API format.".into(),
+        ));
+    }
+    if supported_slate_versions.contains(&"V3".to_owned()) {
+        return Ok(SlateVersion::V3);
+    }
+    if supported_slate_versions.contains(&"V2".to_owned()) {
+        return Ok(SlateVersion::V2);
+    }
+    Err(Error::ClientCallback(
+        "Unable to negotiate slate format with other wallet.".into(),
+    ))
+}
+
+fn parse_slate_response(response: &str) -> Result<Slate, Error> {
+    let response: Value = serde_json::from_str(response)
+        .map_err(|err| Error::ClientCallback(format!("Invalid slate response: {}", err)))?;
+    if response["error"] != json!(null) {
+        return Err(Error::ClientCallback(format!(
+            "Posting transaction slate: Error: {}, Message: {}",
+            response["error"]["code"], response["error"]["message"]
+        )));
+    }
+    let slate = response
+        .get("result")
+        .and_then(|result| result.get("Ok"))
+        .ok_or_else(|| Error::ClientCallback("Slate response is missing result.Ok".into()))?;
+    let slate = serde_json::to_string(slate)?;
+    Slate::deserialize_upgrade(&slate)
+}
 
 #[derive(Clone)]
 pub struct HttpSlateSender {
@@ -67,41 +134,8 @@ impl HttpSlateSender {
             Error::ClientCallback(report)
         })?;
 
-        let res: Value = serde_json::from_str(&res).unwrap();
         trace!("Response: {}", res);
-        if res["error"] != json!(null) {
-            let report = format!(
-                "Posting transaction: Error: {}, Message: {}",
-                res["error"]["code"], res["error"]["message"]
-            );
-            error!("{}", report);
-            return Err(Error::ClientCallback(report).into());
-        }
-
-        let resp_value = res["result"]["Ok"].clone();
-        trace!("resp_value: {}", resp_value.clone());
-        let foreign_api_version: u16 =
-            serde_json::from_value(resp_value["foreign_api_version"].clone()).unwrap();
-        let supported_slate_versions: Vec<String> =
-            serde_json::from_value(resp_value["supported_slate_versions"].clone()).unwrap();
-
-        // trivial tests for now, but will be expanded later
-        if foreign_api_version < 2 {
-            let report = format!("Other wallet reports unrecognized API format.");
-            error!("{}", report);
-            return Err(Error::ClientCallback(report).into());
-        }
-
-        if supported_slate_versions.contains(&"V3".to_owned()) {
-            return Ok(SlateVersion::V3);
-        }
-        if supported_slate_versions.contains(&"V2".to_owned()) {
-            return Ok(SlateVersion::V2);
-        }
-
-        let report = format!("Unable to negotiate slate format with other wallet.");
-        error!("{}", report);
-        Err(Error::ClientCallback(report).into())
+        parse_version_response(&res)
     }
 
     fn post<IN>(
@@ -171,23 +205,8 @@ impl SlateSender for HttpSlateSender {
             Error::ClientCallback(report)
         })?;
 
-        let res: Value = serde_json::from_str(&res).unwrap();
         trace!("Response: {}", res);
-        if res["error"] != json!(null) {
-            let report = format!(
-                "Posting transaction slate: Error: {}, Message: {}",
-                res["error"]["code"], res["error"]["message"]
-            );
-            error!("{}", report);
-            return Err(Error::ClientCallback(report).into());
-        }
-
-        let slate_value = res["result"]["Ok"].clone();
-        trace!("slate_value: {}", slate_value);
-        let slate = Slate::deserialize_upgrade(&serde_json::to_string(&slate_value).unwrap())
-            .map_err(|_| Error::SlateDeser)?;
-
-        Ok(slate)
+        parse_slate_response(&res)
     }
 }
 
@@ -219,5 +238,24 @@ mod tests {
         assert!(result.is_err());
         let err_str = format!("{:?}", result.err().unwrap());
         assert!(err_str.contains("Node not synchronized"));
+    }
+
+    #[test]
+    fn malformed_remote_responses_return_errors() {
+        for response in [
+            "not json",
+            r#"{"jsonrpc":"2.0","id":1,"result":{}}"#,
+            r#"{"jsonrpc":"2.0","id":1,"result":{"Ok":{"foreign_api_version":"bad","supported_slate_versions":[]}}}"#,
+        ] {
+            assert!(parse_version_response(response).is_err());
+        }
+
+        for response in [
+            "not json",
+            r#"{"jsonrpc":"2.0","id":1,"result":{}}"#,
+            r#"{"jsonrpc":"2.0","id":1,"result":{"Ok":{}}}"#,
+        ] {
+            assert!(parse_slate_response(response).is_err());
+        }
     }
 }

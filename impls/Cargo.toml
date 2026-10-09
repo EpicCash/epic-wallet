@@ -30,7 +30,7 @@ lazy_static = "1"
 http = "1.3"
 hyper-timeout = "0.5"
 hyper-rustls = "0.27"
-rustls = "0.23"
+rustls = "0.23.45"
 
 #Socks/Tor
 byteorder = "1"
@@ -51,4 +51,3 @@ base64 = "0.22"
 epic_wallet_util = { path = "../util", version = "4.0.2" }
 epic_wallet_config = { path = "../config", version = "4.0.2" }
 epic_wallet_libwallet = { path = "../libwallet", version = "4.0.2" }
-

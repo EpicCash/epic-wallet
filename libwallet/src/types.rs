@@ -435,6 +435,11 @@ pub trait NodeClient: Send + Sync + Clone {
     /// Retrieves the status of the node
     fn get_node_status(&self) -> Result<NodeStatus, Error>;
 
+    /// Returns whether the node is ready to accept wallet transactions.
+    fn is_node_ready(&self) -> Result<bool, Error> {
+        Ok(self.get_node_status()?.sync_status == "no_sync")
+    }
+
     /// Get a list of outputs from the node by traversing the UTXO
     /// set in PMMR index order.
     /// Returns

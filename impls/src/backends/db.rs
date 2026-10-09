@@ -19,13 +19,34 @@
 use crate::serialization as ser;
 use crate::serialization::Serializable;
 use crate::Error;
-use sqlite::{self, Connection};
+use sqlite::{self, Connection, State};
 use std::path::PathBuf;
 use std::thread;
 use std::time::Duration;
 
 const SQLITE_MAX_RETRIES: u8 = 3;
 static SQLITE_FILENAME: &str = "epic.db";
+
+fn retry_sqlite<T, F>(mut operation: F) -> Result<T, sqlite::Error>
+where
+    F: FnMut() -> Result<T, sqlite::Error>,
+{
+    let mut retries = 0;
+    loop {
+        match operation() {
+            Ok(value) => return Ok(value),
+            Err(error) if error.code == Some(5) && retries < SQLITE_MAX_RETRIES => {
+                retries += 1;
+                thread::sleep(Duration::from_millis(100));
+            }
+            Err(error) => return Err(error),
+        }
+    }
+}
+
+fn encoded_key(key: &[u8]) -> String {
+    format!("{:?}", key)
+}
 
 /// Basic struct holding the SQLite database connection
 pub struct Store {
@@ -71,73 +92,54 @@ impl Store {
 
     /// Returns a single value of the database
     /// This returns a Serializable enum
-    pub fn get(&self, key: &[u8]) -> Option<Serializable> {
-        let query = format!(
-            r#"
-			SELECT
-				data
-			FROM
-				data
-			WHERE
-				key = "{:?}"
+    pub fn get(&self, key: &[u8]) -> Result<Option<Serializable>, Error> {
+        let key = encoded_key(key);
+        let data = retry_sqlite(|| {
+            let mut statement = self.db.prepare(
+                r#"
+			SELECT data
+			FROM data
+			WHERE key = ?1
 			LIMIT 1;
 			"#,
-            key
-        );
-        match self.db.prepare(query).unwrap().into_iter().next() {
-            Some(s) => {
-                let data = s.unwrap().read::<&str, _>("data").to_string();
-                Some(ser::deserialize(&data).unwrap())
+            )?;
+            statement.bind((1, key.as_str()))?;
+            match statement.next()? {
+                State::Row => Ok(Some(statement.read::<String, _>("data")?)),
+                State::Done => Ok(None),
             }
-            None => None,
-        }
+        })?;
+        data.map(|data| ser::deserialize(&data).map_err(Error::from))
+            .transpose()
     }
 
     /// Encapsulation for get function
     /// Gets a `Readable` value from the db, provided its key
-    pub fn get_ser(&self, key: &[u8]) -> Option<Serializable> {
+    pub fn get_ser(&self, key: &[u8]) -> Result<Option<Serializable>, Error> {
         self.get(key)
     }
 
-    /// Check if a key exists on the database
-    pub fn exists(&self, key: &[u8]) -> Result<bool, Error> {
-        let query = format!(
-            r#"
-			SELECT
-				*
-			FROM
-				data
-			WHERE
-				key = "{:?}"
-			LIMIT 1;
-			"#,
-            key
-        );
-        let mut statement = self.db.prepare(query).unwrap().into_iter();
-        Ok(statement.next().is_some())
-    }
-
     /// Provided a 'from' as prefix, returns a vector of Serializable enums
-    pub fn iter(&self, from: &[u8]) -> Vec<Serializable> {
-        let query = format!(
-            r#"
-			SELECT
-				data
-			FROM
-				data
-			WHERE
-				prefix = "{}";
+    pub fn iter(&self, from: &[u8]) -> Result<Vec<Serializable>, Error> {
+        let prefix = String::from_utf8(from.to_vec())
+            .map_err(|error| Error::GenericError(error.to_string()))?;
+        let rows = retry_sqlite(|| {
+            let mut statement = self.db.prepare(
+                r#"
+			SELECT data
+			FROM data
+			WHERE prefix = ?1;
 			"#,
-            String::from_utf8(from.to_vec()).unwrap()
-        );
-        self.db
-            .prepare(query)
-            .unwrap()
-            .into_iter()
-            .map(|row| {
-                let row = row.unwrap();
-                ser::deserialize(row.read::<&str, _>("data")).unwrap()
-            })
+            )?;
+            statement.bind((1, prefix.as_str()))?;
+            let mut rows = Vec::new();
+            while let State::Row = statement.next()? {
+                rows.push(statement.read::<String, _>("data")?);
+            }
+            Ok(rows)
+        })?;
+        rows.into_iter()
+            .map(|data| ser::deserialize(&data).map_err(Error::from))
             .collect()
     }
 
@@ -146,32 +148,18 @@ impl Store {
         Batch { store: self }
     }
 
-    /// Executes an SQLite statement
+    /// Executes a prepared SQLite statement.
     /// If the database is locked due to another writing process,
     /// The code will retry the same statement after 100 milliseconds
-    pub fn execute(&self, statement: String) -> Result<(), sqlite::Error> {
-        let mut retries = 0;
-        loop {
-            match self.db.execute(statement.to_string()) {
-                Ok(()) => break,
-                Err(e) => {
-                    // e.code follows SQLite error types
-                    // Full documentation for error types can be found on https://www.sqlite.org/rescode.html
-                    // Error 5 is SQLITE_BUSY
-                    if e.code.unwrap() != 5 {
-                        return Err(e);
-                    }
-                    retries = retries + 1;
-
-                    if retries > SQLITE_MAX_RETRIES {
-                        return Err(e);
-                    }
-                    thread::sleep(Duration::from_millis(100));
-                }
-            }
-        }
-
-        Ok(())
+    fn execute_prepared<F>(&self, sql: &str, mut bind: F) -> Result<(), sqlite::Error>
+    where
+        F: FnMut(&mut sqlite::Statement<'_>) -> Result<(), sqlite::Error>,
+    {
+        retry_sqlite(|| {
+            let mut statement = self.db.prepare(sql)?;
+            bind(&mut statement)?;
+            statement.next().map(|_| ())
+        })
     }
 }
 
@@ -184,91 +172,73 @@ impl<'a> Batch<'_> {
     /// Writes a single value to the db, given a key and a Serializable enum
     /// Specialized queries are used for TxLogEntry and OutputData to make best use of queriable columns
     pub fn put(&self, key: &[u8], value: Serializable) -> Result<(), Error> {
-        // serialize value to json
-        let value_s = ser::serialize(&value).unwrap();
-        let prefix = key[0] as char;
+        let value_s = ser::serialize(&value)?;
+        let key_s = encoded_key(key);
+        let prefix = (*key
+            .first()
+            .ok_or_else(|| Error::GenericError("database key cannot be empty".to_owned()))?
+            as char)
+            .to_string();
 
-        // Insert on the database
-        // TxLogEntry and OutputData make use of queriable columns
-        let mut query = match &value {
-            Serializable::TxLogEntry(t) => format!(
-                r#"INSERT INTO data
+        match &value {
+            Serializable::TxLogEntry(tx) => {
+                let tx_type = tx.tx_type.to_string();
+                self.store.execute_prepared(
+                    r#"INSERT INTO data
 						(key, data, prefix, q_tx_id, q_confirmed, q_tx_status)
-					VALUES
-						("{:?}", '{}', "{}", {}, {}, "{}");
-				"#,
-                key, value_s, prefix, t.id, t.confirmed, t.tx_type
-            ),
-            Serializable::OutputData(o) => format!(
-                r#"INSERT INTO data
-						(key, data, prefix, q_tx_id, q_tx_status)
-					VALUES
-						("{:?}", '{}', "{}", "{}", "{}")
-				"#,
-                key,
-                value_s,
-                prefix,
-                match o.tx_log_entry {
-                    Some(entry) => entry.to_string(),
-                    None => "".to_string(),
-                },
-                o.status
-            ),
-            _ => format!(
-                r#"INSERT INTO data
-						(key, data, prefix)
-					VALUES
-						("{:?}", '{}', "{}");
-				"#,
-                key, value_s, prefix
-            ),
-        };
-
-        // Update if the current key exists on the database
-        // TxLogEntry and OutputData make use of queriable columns
-        if self.exists(&key).unwrap() {
-            query = match &value {
-                Serializable::TxLogEntry(t) => format!(
-                    r#"UPDATE data
-						SET
-							data = '{}',
-							q_tx_id = {},
-							q_confirmed = {},
-							q_tx_status = "{}"
-						WHERE
-							key = "{:?}";
-					"#,
-                    value_s, t.id, t.confirmed, t.tx_type, key
-                ),
-                Serializable::OutputData(o) => format!(
-                    r#"UPDATE data
-						SET
-							data = '{}',
-							q_tx_id = "{}",
-							q_tx_status = "{}"
-						WHERE
-							key = "{:?}";
-					"#,
-                    value_s,
-                    match o.tx_log_entry {
-                        Some(entry) => entry.to_string(),
-                        None => "".to_string(),
+					VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+					ON CONFLICT(key) DO UPDATE SET
+						data = excluded.data,
+						q_tx_id = excluded.q_tx_id,
+						q_confirmed = excluded.q_confirmed,
+						q_tx_status = excluded.q_tx_status;"#,
+                    |statement| {
+                        statement.bind((1, key_s.as_str()))?;
+                        statement.bind((2, value_s.as_str()))?;
+                        statement.bind((3, prefix.as_str()))?;
+                        statement.bind((4, tx.id as i64))?;
+                        statement.bind((5, i64::from(tx.confirmed)))?;
+                        statement.bind((6, tx_type.as_str()))
                     },
-                    o.status,
-                    key
-                ),
-                _ => format!(
-                    r#"UPDATE data
-						SET
-							data = '{}'
-						WHERE
-							key = "{:?}";
-					"#,
-                    value_s, key
-                ),
-            };
+                )?;
+            }
+            Serializable::OutputData(output) => {
+                let status = output.status.to_string();
+                self.store.execute_prepared(
+                    r#"INSERT INTO data
+						(key, data, prefix, q_tx_id, q_tx_status)
+					VALUES (?1, ?2, ?3, ?4, ?5)
+					ON CONFLICT(key) DO UPDATE SET
+						data = excluded.data,
+						q_tx_id = excluded.q_tx_id,
+						q_tx_status = excluded.q_tx_status;"#,
+                    |statement| {
+                        statement.bind((1, key_s.as_str()))?;
+                        statement.bind((2, value_s.as_str()))?;
+                        statement.bind((3, prefix.as_str()))?;
+                        match output.tx_log_entry {
+                            Some(entry) => statement.bind((4, entry as i64))?,
+                            None => statement.bind((4, ""))?,
+                        }
+                        statement.bind((5, status.as_str()))
+                    },
+                )?;
+            }
+            _ => {
+                self.store.execute_prepared(
+                    r#"INSERT INTO data (key, data, prefix)
+					VALUES (?1, ?2, ?3)
+					ON CONFLICT(key) DO UPDATE SET data = excluded.data;"#,
+                    |statement| {
+                        statement.bind((1, key_s.as_str()))?;
+                        statement.bind((2, value_s.as_str()))?;
+                        statement.bind((3, prefix.as_str()))
+                    },
+                )?;
+            }
         }
-        Ok(self.store.execute(query).unwrap())
+
+        Ok(())
     }
 
     /// Writes a single value to the db, given a key and a Serializable enum
@@ -277,40 +247,219 @@ impl<'a> Batch<'_> {
         self.put(key, value)
     }
 
-    /// Check if a key exists on the database
-    /// Encapsulation for the store exists function
-    pub fn exists(&self, key: &[u8]) -> Result<bool, Error> {
-        self.store.exists(key)
-    }
-
     /// Provided a 'from' as prefix, returns a vector of Serializable enums
     /// Encapsulation for the store iter function
-    pub fn iter(&self, from: &[u8]) -> Vec<Serializable> {
+    pub fn iter(&self, from: &[u8]) -> Result<Vec<Serializable>, Error> {
         self.store.iter(from)
     }
 
     /// Deletes a key from the db
     pub fn delete(&self, key: &[u8]) -> Result<(), Error> {
-        let statement = format!(
-            r#"
-		DELETE
-		FROM
-			data
-		WHERE
-			key = "{:?}"
-		"#,
-            key
-        );
-        self.store.execute(statement)?;
+        let key = encoded_key(key);
+        self.store
+            .execute_prepared("DELETE FROM data WHERE key = ?1;", |statement| {
+                statement.bind((1, key.as_str()))
+            })?;
         Ok(())
     }
 
     /// Returns a single value of the database
     /// Encapsulation for the store get_ser function
-    pub fn get_ser(&self, key: &[u8]) -> Option<Serializable> {
+    pub fn get_ser(&self, key: &[u8]) -> Result<Option<Serializable>, Error> {
         self.store.get_ser(key)
     }
 }
 
 unsafe impl Sync for Store {}
 unsafe impl Send for Store {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::keychain::{ExtKeychain, Keychain, SwitchCommitmentType};
+    use crate::util::secp::key::PublicKey;
+    use epic_wallet_libwallet::slate::ParticipantMessages;
+    use epic_wallet_libwallet::{
+        AcctPathMapping, ParticipantMessageData, TxLogEntry, TxLogEntryType,
+    };
+    use std::fs;
+    use std::panic::{catch_unwind, AssertUnwindSafe};
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::{Arc, Barrier};
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    static COUNTER: AtomicUsize = AtomicUsize::new(0);
+
+    fn temp_dir() -> PathBuf {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let n = COUNTER.fetch_add(1, Ordering::SeqCst);
+        let dir = std::env::temp_dir().join(format!("epic_db_test_{}_{}", nanos, n));
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    fn acct(label: &str) -> Serializable {
+        Serializable::AcctPathMapping(AcctPathMapping {
+            label: label.to_owned(),
+            path: ExtKeychain::derive_key_id(2, 0, 0, 0, 0),
+        })
+    }
+
+    #[test]
+    fn bound_values_treat_sql_metacharacters_as_data() {
+        let dir = temp_dir();
+        let store = Store::new(dir.clone()).unwrap();
+        store.batch().put(b"survivor", acct("safe")).unwrap();
+
+        let payload = "x', 'a'); DELETE FROM data; --";
+        let keychain = ExtKeychain::from_random_seed(true).unwrap();
+        let secret = keychain
+            .derive_key(
+                0,
+                &ExtKeychain::root_key_id(),
+                &SwitchCommitmentType::Regular,
+            )
+            .unwrap();
+        let mut tx = TxLogEntry::new(ExtKeychain::root_key_id(), TxLogEntryType::TxReceived, 1);
+        tx.messages = Some(ParticipantMessages {
+            messages: vec![ParticipantMessageData {
+                id: 1,
+                public_key: PublicKey::from_secret_key(keychain.secp(), &secret).unwrap(),
+                message: Some(payload.to_owned()),
+                message_sig: None,
+            }],
+        });
+        store
+            .batch()
+            .put(b"attack", Serializable::TxLogEntry(tx))
+            .unwrap();
+
+        let survivor = format!("{:?}", store.get(b"survivor"));
+        let attacker = format!("{:?}", store.get(b"attack"));
+        assert!(survivor.contains("safe"));
+        assert!(attacker.contains(payload));
+        drop(store);
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn concurrent_first_puts_are_atomic() {
+        const WRITERS: usize = 2;
+
+        let dir = temp_dir();
+        let stores: Vec<_> = (0..WRITERS)
+            .map(|_| Store::new(dir.clone()).unwrap())
+            .collect();
+        let barrier = Arc::new(Barrier::new(WRITERS));
+        let mut writers = Vec::new();
+
+        for (writer, store) in stores.into_iter().enumerate() {
+            let barrier = barrier.clone();
+            writers.push(std::thread::spawn(move || {
+                barrier.wait();
+                store
+                    .batch()
+                    .put(b"race", acct(&format!("writer_{writer}")))
+                    .unwrap();
+            }));
+        }
+
+        for writer in writers {
+            writer.join().unwrap();
+        }
+
+        let db = sqlite::open(dir.join(SQLITE_FILENAME)).unwrap();
+        let count = db
+            .prepare("SELECT COUNT(*) AS count FROM data WHERE prefix = 'r';")
+            .unwrap()
+            .into_iter()
+            .next()
+            .unwrap()
+            .unwrap()
+            .read::<i64, _>("count");
+        assert_eq!(count, 1);
+        drop(db);
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn legacy_text_key_encoding_is_preserved() {
+        let dir = temp_dir();
+        let store = Store::new(dir.clone()).unwrap();
+        let key = b"acct1";
+        store.batch().put(key, acct("legacy compatible")).unwrap();
+
+        let mut statement = store
+            .db
+            .prepare("SELECT typeof(key), key FROM data LIMIT 1;")
+            .unwrap();
+        assert_eq!(statement.next().unwrap(), sqlite::State::Row);
+        assert_eq!(statement.read::<String, _>(0).unwrap(), "text");
+        assert_eq!(
+            statement.read::<String, _>(1).unwrap(),
+            format!("{:?}", key)
+        );
+        drop(statement);
+        drop(store);
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn corrupt_rows_report_errors_instead_of_missing_values() {
+        let dir = temp_dir();
+        let store = Store::new(dir.clone()).unwrap();
+        let key = b"broken";
+        let query = format!(
+            "INSERT INTO data (key, data, prefix) VALUES (\"{:?}\", 'not-json', 'b');",
+            key
+        );
+        store.db.execute(query).unwrap();
+
+        let get_result = catch_unwind(AssertUnwindSafe(|| format!("{:?}", store.get(key))));
+        assert!(get_result.is_ok(), "database get panicked");
+        assert!(get_result.unwrap().starts_with("Err("));
+
+        let iter_result = catch_unwind(AssertUnwindSafe(|| format!("{:?}", store.iter(b"b"))));
+        assert!(iter_result.is_ok(), "database iteration panicked");
+        assert!(iter_result.unwrap().starts_with("Err("));
+        drop(store);
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn generic_upsert_preserves_query_metadata() {
+        let dir = temp_dir();
+        let store = Store::new(dir.clone()).unwrap();
+        let key = b"acct1";
+        let mut statement = store
+            .db
+            .prepare(
+                "INSERT INTO data \
+				 (key, data, prefix, q_tx_id, q_confirmed, q_tx_status) \
+				 VALUES (?1, ?2, 'a', 42, 1, 'sent');",
+            )
+            .unwrap();
+        statement.bind((1, encoded_key(key).as_str())).unwrap();
+        statement
+            .bind((2, ser::serialize(&acct("old")).unwrap().as_str()))
+            .unwrap();
+        statement.next().unwrap();
+        drop(statement);
+
+        store.batch().put(key, acct("new")).unwrap();
+        let mut statement = store
+            .db
+            .prepare("SELECT q_tx_id, q_confirmed, q_tx_status FROM data WHERE key = ?1;")
+            .unwrap();
+        statement.bind((1, encoded_key(key).as_str())).unwrap();
+        let row = statement.into_iter().next().unwrap().unwrap();
+        assert_eq!(row.read::<i64, _>("q_tx_id"), 42);
+        assert_eq!(row.read::<i64, _>("q_confirmed"), 1);
+        assert_eq!(row.read::<&str, _>("q_tx_status"), "sent");
+        drop(store);
+        fs::remove_dir_all(dir).unwrap();
+    }
+}

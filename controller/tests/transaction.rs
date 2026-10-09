@@ -1,4 +1,5 @@
-// Copyright 2019 The Epic Developers
+// Copyright 2026 The Epic Cash Developers
+// Copyright 2019 The Grin Developers
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -20,6 +21,7 @@ extern crate epic_wallet_libwallet as libwallet;
 
 use epic_wallet_util::epic_core as core;
 use epic_wallet_util::epic_core::consensus;
+use epic_wallet_util::epic_util::secp::Signature;
 
 use self::core::core::transaction;
 use self::core::global;
@@ -646,4 +648,126 @@ fn db_wallet_tx_rollback() {
 		panic!("Libwallet Error: {}", e);
 	}
 	clean_output_dir(test_dir);
+}
+
+#[test]
+fn malformed_slate_does_not_mutate_recipient_wallet() {
+	let test_dir = "test_output/malformed_slate_recipient_state";
+	setup(test_dir);
+
+	let result = (|| -> Result<(), libwallet::Error> {
+		let mut wallet_proxy = create_wallet_proxy(test_dir);
+		let chain = wallet_proxy.chain.clone();
+		create_wallet_and_add!(
+			_client1,
+			wallet1,
+			mask1_i,
+			test_dir,
+			"wallet1",
+			None,
+			&mut wallet_proxy,
+			true
+		);
+		create_wallet_and_add!(
+			_client2,
+			wallet2,
+			mask2_i,
+			test_dir,
+			"wallet2",
+			None,
+			&mut wallet_proxy,
+			false
+		);
+		let mask1 = (&mask1_i).as_ref();
+		let mask2 = (&mask2_i).as_ref();
+		thread::spawn(move || {
+			if let Err(e) = wallet_proxy.run() {
+				error!("Wallet Proxy error: {}", e);
+			}
+		});
+
+		let is_node_synced = Arc::new(AtomicBool::new(true));
+		let _ = test_framework::award_blocks_to_wallet(
+			&chain,
+			wallet1.clone(),
+			mask1,
+			10,
+			false,
+		);
+
+		let mut slate = Slate::blank(2);
+		wallet::controller::owner_single_use(
+			wallet1,
+			mask1,
+			|api, m| {
+				slate = api.init_send_tx(
+					m,
+					InitTxArgs {
+						amount: 1_000_000_000,
+						minimum_confirmations: 2,
+						max_outputs: 500,
+						num_change_outputs: 1,
+						selection_strategy_is_use_all: true,
+						..Default::default()
+					},
+					is_node_synced.clone(),
+				)?;
+				Ok(())
+			},
+			is_node_synced.clone(),
+		)?;
+
+		let mut before = (0, 0);
+		wallet::controller::owner_single_use(
+			wallet2.clone(),
+			mask2,
+			|api, m| {
+				before.0 = api
+					.retrieve_txs(m, false, None, None, None, None, None)?
+					.txs
+					.len();
+				before.1 = api
+					.retrieve_outputs(m, false, false, false, None, None, None, None)?
+					.outputs
+					.len();
+				Ok(())
+			},
+			is_node_synced.clone(),
+		)?;
+
+		// A structurally valid slate with an invalid counterparty signature used
+		// to fail only after the recipient output had already been persisted.
+		slate.participant_data[0].part_sig = Some(Signature::from_raw_data(&[1; 64]).unwrap());
+		let receive_result = wallet::controller::foreign_single_use(
+			wallet2.clone(),
+			mask2_i.clone(),
+			|api| api.receive_tx(&slate, None, None, None).map(|_| ()),
+		);
+		assert!(receive_result.is_err());
+
+		let mut after = (0, 0);
+		wallet::controller::owner_single_use(
+			wallet2,
+			mask2,
+			|api, m| {
+				after.0 = api
+					.retrieve_txs(m, false, None, None, None, None, None)?
+					.txs
+					.len();
+				after.1 = api
+					.retrieve_outputs(m, false, false, false, None, None, None, None)?
+					.outputs
+					.len();
+				Ok(())
+			},
+			is_node_synced,
+		)?;
+		assert_eq!(after, before);
+		Ok(())
+	})();
+
+	clean_output_dir(test_dir);
+	if let Err(e) = result {
+		panic!("Libwallet Error: {}", e);
+	}
 }
