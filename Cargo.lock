@@ -949,7 +949,7 @@ dependencies = [
 [[package]]
 name = "epic_api"
 version = "4.1.0"
-source = "git+https://github.com/EpicCash/epic?tag=v4.1.0#53d7524c1cf6d946c952a140fb1da216464ae2d7"
+source = "git+https://github.com/EpicCash/epic?tag=v4.1.0#82fa7e813dc3b9bf137b9dd523d847f4210f5ba4"
 dependencies = [
  "bytes",
  "chrono",
@@ -990,7 +990,7 @@ dependencies = [
 [[package]]
 name = "epic_chain"
 version = "4.1.0"
-source = "git+https://github.com/EpicCash/epic?tag=v4.1.0#53d7524c1cf6d946c952a140fb1da216464ae2d7"
+source = "git+https://github.com/EpicCash/epic?tag=v4.1.0#82fa7e813dc3b9bf137b9dd523d847f4210f5ba4"
 dependencies = [
  "bit-vec",
  "bitflags 2.9.4",
@@ -1013,7 +1013,7 @@ dependencies = [
 [[package]]
 name = "epic_core"
 version = "4.1.0"
-source = "git+https://github.com/EpicCash/epic?tag=v4.1.0#53d7524c1cf6d946c952a140fb1da216464ae2d7"
+source = "git+https://github.com/EpicCash/epic?tag=v4.1.0#82fa7e813dc3b9bf137b9dd523d847f4210f5ba4"
 dependencies = [
  "blake2-rfc",
  "byteorder",
@@ -1045,7 +1045,7 @@ dependencies = [
 [[package]]
 name = "epic_keychain"
 version = "4.1.0"
-source = "git+https://github.com/EpicCash/epic?tag=v4.1.0#53d7524c1cf6d946c952a140fb1da216464ae2d7"
+source = "git+https://github.com/EpicCash/epic?tag=v4.1.0#82fa7e813dc3b9bf137b9dd523d847f4210f5ba4"
 dependencies = [
  "blake2-rfc",
  "byteorder",
@@ -1069,7 +1069,7 @@ dependencies = [
 [[package]]
 name = "epic_p2p"
 version = "4.1.0"
-source = "git+https://github.com/EpicCash/epic?tag=v4.1.0#53d7524c1cf6d946c952a140fb1da216464ae2d7"
+source = "git+https://github.com/EpicCash/epic?tag=v4.1.0#82fa7e813dc3b9bf137b9dd523d847f4210f5ba4"
 dependencies = [
  "bitflags 2.9.4",
  "blake2-rfc",
@@ -1102,7 +1102,7 @@ dependencies = [
 [[package]]
 name = "epic_pool"
 version = "4.1.0"
-source = "git+https://github.com/EpicCash/epic?tag=v4.1.0#53d7524c1cf6d946c952a140fb1da216464ae2d7"
+source = "git+https://github.com/EpicCash/epic?tag=v4.1.0#82fa7e813dc3b9bf137b9dd523d847f4210f5ba4"
 dependencies = [
  "blake2-rfc",
  "chrono",
@@ -1120,7 +1120,7 @@ dependencies = [
 [[package]]
 name = "epic_store"
 version = "4.1.0"
-source = "git+https://github.com/EpicCash/epic?tag=v4.1.0#53d7524c1cf6d946c952a140fb1da216464ae2d7"
+source = "git+https://github.com/EpicCash/epic?tag=v4.1.0#82fa7e813dc3b9bf137b9dd523d847f4210f5ba4"
 dependencies = [
  "byteorder",
  "croaring",
@@ -1140,7 +1140,7 @@ dependencies = [
 [[package]]
 name = "epic_util"
 version = "4.1.0"
-source = "git+https://github.com/EpicCash/epic?tag=v4.1.0#53d7524c1cf6d946c952a140fb1da216464ae2d7"
+source = "git+https://github.com/EpicCash/epic?tag=v4.1.0#82fa7e813dc3b9bf137b9dd523d847f4210f5ba4"
 dependencies = [
  "anyhow",
  "backtrace",
@@ -1162,7 +1162,7 @@ dependencies = [
 
 [[package]]
 name = "epic_wallet"
-version = "4.0.2"
+version = "4.1.0"
 dependencies = [
  "built",
  "clap",
@@ -1191,7 +1191,7 @@ dependencies = [
 
 [[package]]
 name = "epic_wallet_api"
-version = "4.0.2"
+version = "4.1.0"
 dependencies = [
  "base64 0.22.1",
  "chrono",
@@ -1214,7 +1214,7 @@ dependencies = [
 
 [[package]]
 name = "epic_wallet_config"
-version = "4.0.2"
+version = "4.1.0"
 dependencies = [
  "dirs 6.0.0",
  "epic_wallet_util",
@@ -1228,7 +1228,7 @@ dependencies = [
 
 [[package]]
 name = "epic_wallet_controller"
-version = "4.0.2"
+version = "4.1.0"
 dependencies = [
  "bytes",
  "chrono",
@@ -1260,7 +1260,7 @@ dependencies = [
 
 [[package]]
 name = "epic_wallet_impls"
-version = "4.0.2"
+version = "4.1.0"
 dependencies = [
  "base64 0.22.1",
  "bitvec",
@@ -1302,7 +1302,7 @@ dependencies = [
 
 [[package]]
 name = "epic_wallet_libwallet"
-version = "4.0.2"
+version = "4.1.0"
 dependencies = [
  "aead",
  "blake2-rfc",
@@ -1334,7 +1334,7 @@ dependencies = [
 
 [[package]]
 name = "epic_wallet_util"
-version = "4.0.2"
+version = "4.1.0"
 dependencies = [
  "dirs 6.0.0",
  "epic_api",

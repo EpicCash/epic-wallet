@@ -1,6 +1,6 @@
 [package]
 name = "epic_wallet_util"
-version = "4.0.2"
+version = "4.1.0"
 authors = ["Epic Developers <info@epiccash.com>"]
 description = "Util, for generic utilities and to re-export epic crates"
 license = "Apache-2.0"

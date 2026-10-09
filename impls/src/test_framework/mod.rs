@@ -176,8 +176,10 @@ pub fn add_block_with_reward(
 	let height = prev.height + 1;
 	let emitted_policy = get_emitted_policy(height);
 	let policy = get_policies(emitted_policy).unwrap();
-	let algo = Deterministic::choose_algo(&policy, &prev.bottles);
-	b.header.bottles = next_block_bottles(algo, &prev.bottles);
+	let algo = Deterministic::choose_algo(&policy, &prev.bottles)
+		.expect("valid test policy must select a proof algorithm");
+	b.header.bottles = next_block_bottles(algo, &prev.bottles)
+		.expect("test block bottle transition must remain valid");
 	b.header.pow.proof = get_pow_type(&algo, prev.height);
 	b.header.policy = emitted_policy;
 

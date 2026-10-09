@@ -1,3 +1,11 @@
+epic-wallet (4.1.0) jammy; urgency=high
+
+  [ Epic Team ]
+  * v4.1.0 hardening and fixes
+  * update epic dep to 4.1.0
+
+ -- Epic Team <info@epiccash.com>  Mon, 9 Oct 2026 12:00:00 +0000
+
 epic-wallet (4.0.2) jammy; urgency=high
 
   [ Epic Team ]
