@@ -676,6 +676,8 @@ where
 }
 
 /// Polls the node mempool for the given transaction and marks it as TxSentMempool if found.
+/// Returns Ok(false) without waiting further once the transaction's kernel is on chain,
+/// since a transaction mined between two polls never shows up in the pool.
 pub fn wait_for_tx_in_mempool<'a, L, C, K>(
     wallet_inst: Arc<Mutex<Box<dyn WalletInst<'a, L, C, K>>>>,
     keychain_mask: Option<&SecretKey>,
@@ -688,6 +690,14 @@ where
     C: NodeClient + 'a,
     K: Keychain + 'a,
 {
+    // Only look for the kernel in the last few blocks; the tx was just posted.
+    let kernel_min_height = {
+        wallet_lock!(wallet_inst, w);
+        w.w2n_client()
+            .get_chain_tip()
+            .map(|(height, _)| height.saturating_sub(5).max(1))
+            .ok()
+    };
     for _ in 0..max_attempts {
         let mempool = {
             wallet_lock!(wallet_inst, w);
@@ -736,6 +746,23 @@ where
         }
         if updated {
             return Ok(true);
+        }
+        if let Some(min_height) = kernel_min_height {
+            let excesses: Vec<_> = txs
+                .iter()
+                .filter(|e| e.tx_slate_id == Some(*tx_slate_id))
+                .filter_map(|e| e.kernel_excess)
+                .collect();
+            for excess in excesses {
+                wallet_lock!(wallet_inst, w);
+                if let Ok(Some(_)) = w.w2n_client().get_kernel(&excess, Some(min_height), None) {
+                    info!(
+                        "Transaction with slate_id {} is already on chain.",
+                        tx_slate_id
+                    );
+                    return Ok(false);
+                }
+            }
         }
         thread::sleep(Duration::from_secs(poll_interval_secs));
     }
