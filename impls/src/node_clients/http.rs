@@ -113,11 +113,13 @@ impl HTTPNodeClient {
 	}
 
 	fn api_secret_for_request(&self, endpoint: &str, method: &str) -> Option<String> {
-		// Public endpoints must never receive the locally configured Owner credential.
-		if endpoint == OWNER_ENDPOINT && method != "get_status" {
-			self.node_api_secret()
-		} else {
+		// Node versions may require authentication on Foreign and Tor APIs. Owner
+		// `get_status` is the only endpoint this wallet intentionally queries
+		// without the locally configured credential.
+		if endpoint == OWNER_ENDPOINT && method == "get_status" {
 			None
+		} else {
+			self.node_api_secret()
 		}
 	}
 
@@ -534,13 +536,13 @@ mod tests {
 	use serde_json::json;
 
 	#[test]
-	fn credentials_are_limited_to_authenticated_owner_methods() {
+	fn credentials_are_used_for_authenticated_node_methods() {
 		let client = HTTPNodeClient::new("http://127.0.0.1:3413", Some("local-secret".into()))
 			.unwrap();
 
 		assert_eq!(
 			client.api_secret_for_request(FOREIGN_ENDPOINT, "get_tip"),
-			None
+			Some("local-secret".into())
 		);
 		assert_eq!(
 			client.api_secret_for_request(OWNER_ENDPOINT, "get_status"),
@@ -552,7 +554,7 @@ mod tests {
 		);
 		assert_eq!(
 			client.api_secret_for_request(TOR_ENDPOINT, "push_transaction"),
-			None
+			Some("local-secret".into())
 		);
 	}
 
